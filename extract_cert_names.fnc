@@ -21,82 +21,143 @@ CREATE OR REPLACE FUNCTION extract_cert_names(
 	issuerca_id				ca.ID%TYPE
 ) RETURNS void
 AS $$
+DECLARE
+	l_attribute				RECORD;
 BEGIN
-	INSERT INTO certificate_identity (
-			CERTIFICATE_ID, NAME_TYPE,
-			NAME_VALUE,
-			ISSUER_CA_ID
-		)
-		SELECT cert_id, 'commonName',
-				x509_nameAttributes(c.CERTIFICATE, 'commonName', TRUE),
-				issuerca_id
-			FROM certificate c
-			WHERE c.ID = cert_id;
-	INSERT INTO certificate_identity (
-			CERTIFICATE_ID, NAME_TYPE,
-			NAME_VALUE,
-			ISSUER_CA_ID
-		)
-		SELECT cert_id, 'organizationName',
-				x509_nameAttributes(c.CERTIFICATE, 'organizationName', TRUE),
-				issuerca_id
-			FROM certificate c
-			WHERE c.ID = cert_id;
-	INSERT INTO certificate_identity (
-			CERTIFICATE_ID, NAME_TYPE,
-			NAME_VALUE,
-			ISSUER_CA_ID
-		)
-		SELECT cert_id, 'emailAddress',
-				x509_nameAttributes(c.CERTIFICATE, 'emailAddress', TRUE),
-				issuerca_id
-			FROM certificate c
-			WHERE c.ID = cert_id;
-	INSERT INTO certificate_identity (
-			CERTIFICATE_ID, NAME_TYPE,
-			NAME_VALUE,
-			ISSUER_CA_ID
-		)
-		SELECT cert_id, 'rfc822Name',
-				x509_altNames(c.CERTIFICATE, 1, TRUE),
-				issuerca_id
-			FROM certificate c
-			WHERE c.ID = cert_id;
-	INSERT INTO certificate_identity (
-			CERTIFICATE_ID, NAME_TYPE,
-			NAME_VALUE,
-			ISSUER_CA_ID
-		)
-		SELECT cert_id, 'dNSName',
-				x509_altNames(c.CERTIFICATE, 2, TRUE),
-				issuerca_id
-			FROM certificate c
-			WHERE c.ID = cert_id;
-	INSERT INTO certificate_identity (
-			CERTIFICATE_ID, NAME_TYPE,
-			NAME_VALUE,
-			ISSUER_CA_ID
-		)
-		SELECT cert_id, 'iPAddress',
-				x509_altNames(c.CERTIFICATE, 7, TRUE),
-				issuerca_id
-			FROM certificate c
-			WHERE c.ID = cert_id;
-	INSERT INTO certificate_identity (
-			CERTIFICATE_ID, NAME_TYPE,
-			NAME_VALUE,
-			ISSUER_CA_ID
-		)
-		SELECT cert_id, 'organizationalUnitName',
-				x509_nameAttributes(c.CERTIFICATE, 'organizationalUnitName', TRUE),
-				issuerca_id
-			FROM certificate c
-			WHERE c.ID = cert_id;
+	DELETE FROM certificate_identity
+		WHERE CERTIFICATE_ID = cert_id;
 
-EXCEPTION
-	WHEN unique_violation THEN
-		UPDATE certificate_identity
-			SET ISSUER_CA_ID = issuerca_id
-			WHERE CERTIFICATE_ID = cert_id;
+	FOR l_attribute IN (
+				SELECT x509_nameAttributes(c.CERTIFICATE, 'commonName', TRUE) NAME_VALUE
+					FROM certificate c
+					WHERE c.ID = cert_id
+					ORDER BY NAME_VALUE DESC
+			) LOOP
+		BEGIN
+			INSERT INTO certificate_identity (
+					CERTIFICATE_ID, ISSUER_CA_ID, NAME_TYPE, NAME_VALUE
+				)
+				VALUES (
+					cert_id, issuerca_id, 'commonName', l_attribute.NAME_VALUE
+				);
+		EXCEPTION
+			WHEN unique_violation THEN
+				NULL;
+		END;
+	END LOOP;
+
+	FOR l_attribute IN (
+				SELECT x509_nameAttributes(c.CERTIFICATE, 'organizationName', TRUE) NAME_VALUE
+					FROM certificate c
+					WHERE c.ID = cert_id
+					ORDER BY NAME_VALUE DESC
+			) LOOP
+		BEGIN
+			INSERT INTO certificate_identity (
+					CERTIFICATE_ID, ISSUER_CA_ID, NAME_TYPE, NAME_VALUE
+				)
+				VALUES (
+					cert_id, issuerca_id, 'organizationName', l_attribute.NAME_VALUE
+				);
+		EXCEPTION
+			WHEN unique_violation THEN
+				NULL;
+		END;
+	END LOOP;
+
+	FOR l_attribute IN (
+				SELECT x509_nameAttributes(c.CERTIFICATE, 'emailAddress', TRUE) NAME_VALUE
+					FROM certificate c
+					WHERE c.ID = cert_id
+					ORDER BY NAME_VALUE DESC
+			) LOOP
+		BEGIN
+			INSERT INTO certificate_identity (
+					CERTIFICATE_ID, ISSUER_CA_ID, NAME_TYPE, NAME_VALUE
+				)
+				VALUES (
+					cert_id, issuerca_id, 'emailAddress', l_attribute.NAME_VALUE
+				);
+		EXCEPTION
+			WHEN unique_violation THEN
+				NULL;
+		END;
+	END LOOP;
+
+	FOR l_attribute IN (
+				SELECT x509_altNames(c.CERTIFICATE, 1, TRUE) NAME_VALUE
+					FROM certificate c
+					WHERE c.ID = cert_id
+					ORDER BY NAME_VALUE DESC
+			) LOOP
+		BEGIN
+			INSERT INTO certificate_identity (
+					CERTIFICATE_ID, ISSUER_CA_ID, NAME_TYPE, NAME_VALUE
+				)
+				VALUES (
+					cert_id, issuerca_id, 'rfc822Name', l_attribute.NAME_VALUE
+				);
+		EXCEPTION
+			WHEN unique_violation THEN
+				NULL;
+		END;
+	END LOOP;
+
+	FOR l_attribute IN (
+				SELECT x509_altNames(c.CERTIFICATE, 2, TRUE) NAME_VALUE
+					FROM certificate c
+					WHERE c.ID = cert_id
+					ORDER BY NAME_VALUE DESC
+			) LOOP
+		BEGIN
+			INSERT INTO certificate_identity (
+					CERTIFICATE_ID, ISSUER_CA_ID, NAME_TYPE, NAME_VALUE
+				)
+				VALUES (
+					cert_id, issuerca_id, 'dNSName', l_attribute.NAME_VALUE
+				);
+		EXCEPTION
+			WHEN unique_violation THEN
+				NULL;
+		END;
+	END LOOP;
+
+	FOR l_attribute IN (
+				SELECT x509_altNames(c.CERTIFICATE, 7, TRUE) NAME_VALUE
+					FROM certificate c
+					WHERE c.ID = cert_id
+					ORDER BY NAME_VALUE DESC
+			) LOOP
+		BEGIN
+			INSERT INTO certificate_identity (
+					CERTIFICATE_ID, ISSUER_CA_ID, NAME_TYPE, NAME_VALUE
+				)
+				VALUES (
+					cert_id, issuerca_id, 'iPAddress', l_attribute.NAME_VALUE
+				);
+		EXCEPTION
+			WHEN unique_violation THEN
+				NULL;
+		END;
+	END LOOP;
+
+	FOR l_attribute IN (
+				SELECT x509_nameAttributes(c.CERTIFICATE, 'organizationalUnitName', TRUE) NAME_VALUE
+					FROM certificate c
+					WHERE c.ID = cert_id
+					ORDER BY NAME_VALUE DESC
+			) LOOP
+		BEGIN
+			INSERT INTO certificate_identity (
+					CERTIFICATE_ID, ISSUER_CA_ID, NAME_TYPE, NAME_VALUE
+				)
+				VALUES (
+					cert_id, issuerca_id, 'organizationalUnitName', l_attribute.NAME_VALUE
+				);
+		EXCEPTION
+			WHEN unique_violation THEN
+				NULL;
+		END;
+	END LOOP;
 END;
 $$ LANGUAGE plpgsql;
