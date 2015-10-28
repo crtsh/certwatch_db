@@ -81,6 +81,7 @@ DECLARE
 	t_issuerCAID		certificate.ISSUER_CA_ID%TYPE;
 	t_issuerCAID_table	text;
 	t_caPublicKey		ca.PUBLIC_KEY%TYPE;
+	t_count				integer;
 	l_record			RECORD;
 BEGIN
 	FOR t_paramNo IN 1..array_length(c_params, 1) LOOP
@@ -1048,8 +1049,10 @@ BEGIN
 
 			t_text := '';
 
+			t_count := 0;
 			FOR l_record IN EXECUTE t_query
 							USING t_caID, t_value LOOP
+				t_count := t_count + 1;
 				t_text := t_text ||
 '  <TR>
     <TD style="white-space:nowrap">' || to_char(l_record.NOT_BEFORE, 'YYYY-MM-DD') || '</TD>
@@ -1072,7 +1075,7 @@ BEGIN
 									|| coalesce(html_escape(t_temp), '&nbsp;') || '</A></TD>
   </TR>
   <TR>
-    <TH class="outer">Certificates</TH>
+    <TH class="outer">Certificates<BR>(' || trim(to_char(t_count, '999G999G999G999G999')) || ')</TH>
     <TD class="outer">';
 			IF t_text != '' THEN
 				t_output := t_output || '
