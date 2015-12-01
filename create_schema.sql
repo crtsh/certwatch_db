@@ -44,6 +44,9 @@ CREATE TABLE certificate (
 		REFERENCES ca(ID)
 );
 
+CREATE INDEX c_ica_notbefore
+	ON certificate (ISSUER_CA_ID, x509_notBefore(CERTIFICATE));
+
 CREATE INDEX c_ica_typecanissue
 	ON certificate (ISSUER_CA_ID, x509_canIssueCerts(CERTIFICATE));
 
