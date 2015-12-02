@@ -383,8 +383,12 @@ BEGIN
     </TR>';
 		FOR l_record IN (
 					SELECT ctl.NAME, ctl.OPERATOR, ctl.URL,
-							ctl.LATEST_ENTRY_ID, ctl.LATEST_STH_TIMESTAMP,
-							ctl.MMD_IN_SECONDS, ctl.LATEST_UPDATE,
+							ctl.LATEST_ENTRY_ID, ctl.LATEST_UPDATE,
+							ctl.LATEST_STH_TIMESTAMP, ctl.MMD_IN_SECONDS,
+							CASE WHEN ctl.LATEST_STH_TIMESTAMP + (ctl.MMD_IN_SECONDS || ' seconds')::interval < statement_timestamp()
+								THEN ' style="color:#FF0000"'
+								ELSE ''
+							END FONT_STYLE,
 							ctl.INCLUDED_IN_CHROME, ctl.CHROME_ISSUE_NUMBER
 						FROM ct_log ctl
 						WHERE ctl.IS_ACTIVE = 't'
@@ -392,12 +396,12 @@ BEGIN
 				) LOOP
 			t_output := t_output || '
     <TR>
-      <TD>' || l_record.NAME || '</TD>
-      <TD>' || l_record.OPERATOR || '</TD>
-      <TD>' || l_record.URL || '</TD>
-      <TD>' || l_record.LATEST_ENTRY_ID::text || '</TD>
-      <TD>' || to_char(l_record.LATEST_STH_TIMESTAMP, 'YYYY-MM-DD HH24:MI:SS') || '</TD>
-      <TD>' || coalesce((l_record.MMD_IN_SECONDS / 60 / 60)::text, '?') || '</TD>
+      <TD' || l_record.FONT_STYLE || '>' || l_record.NAME || '</TD>
+      <TD' || l_record.FONT_STYLE || '>' || l_record.OPERATOR || '</TD>
+      <TD' || l_record.FONT_STYLE || '>' || l_record.URL || '</TD>
+      <TD' || l_record.FONT_STYLE || '>' || l_record.LATEST_ENTRY_ID::text || '</TD>
+      <TD' || l_record.FONT_STYLE || '>' || to_char(l_record.LATEST_STH_TIMESTAMP, 'YYYY-MM-DD HH24:MI:SS') || '</TD>
+      <TD' || l_record.FONT_STYLE || '>' || coalesce((l_record.MMD_IN_SECONDS / 60 / 60)::text, '?') || '</TD>
       <TD>' || to_char(l_record.LATEST_UPDATE, 'YYYY-MM-DD HH24:MI:SS') || '</TD>
       <TD>
 ';
