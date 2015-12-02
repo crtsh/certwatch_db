@@ -82,6 +82,8 @@ DECLARE
 	t_issuerCAID_table	text;
 	t_caPublicKey		ca.PUBLIC_KEY%TYPE;
 	t_count				integer;
+	t_pageNo			integer;
+	t_resultsPerPage	integer			:= 100;
 	l_record			RECORD;
 BEGIN
 	FOR t_paramNo IN 1..array_length(c_params, 1) LOOP
@@ -988,7 +990,21 @@ BEGIN
 			);
 		END IF;
 
-		t_caID := get_parameter('icaid', paramNames, paramValues);
+		t_caID := get_parameter('icaid', paramNames, paramValues)::integer;
+		t_temp := coalesce(get_parameter('p', paramNames, paramValues), '');
+		IF t_temp = '' THEN
+			IF (t_value = '%') AND (t_caID IS NOT NULL) THEN
+				t_pageNo := 1;
+			END IF;
+		ELSIF lower(t_temp) = 'off' THEN
+			NULL;
+		ELSIF t_temp IS NOT NULL THEN
+			t_pageNo := t_temp::integer;
+			IF t_pageNo < 1 THEN
+				t_pageNo := 1;
+			END IF;
+		END IF;
+		t_resultsPerPage := coalesce(get_parameter('n', paramNames, paramValues)::integer, 100);
 
 		t_output := t_output ||
 '<TABLE>
@@ -1023,6 +1039,9 @@ BEGIN
 				END IF;
 				t_query := t_query ||
 						'		AND c.ISSUER_CA_ID = $1' || chr(10);
+			ELSIF (t_type = 'Identity') AND (t_value = '%') THEN
+				t_query := t_query ||
+						'	WHERE c.ISSUER_CA_ID = $1' || chr(10);
 			ELSE
 				t_query := t_query ||
 						'	WHERE c.ID IN (' || chr(10) ||
@@ -1046,6 +1065,11 @@ BEGIN
 			END IF;
 			t_query := t_query ||
 						'	ORDER BY NOT_BEFORE DESC';
+			IF t_pageNo IS NOT NULL THEN
+				t_query := t_query || chr(10) ||
+						'	OFFSET ' || ((t_pageNo - 1) * t_resultsPerPage)::text || chr(10) ||
+						'	LIMIT ' || t_resultsPerPage::text;
+			END IF;
 
 			t_text := '';
 
@@ -1062,6 +1086,12 @@ BEGIN
   </TR>
 ';
 			END LOOP;
+
+			IF t_pageNo IS NOT NULL THEN
+				t_temp := 'SELECT count(*)' || chr(10) || substring(t_query from '	FROM.*	ORDER BY');
+				t_temp := substr(t_temp, 1, length(t_temp) - length('	ORDER BY'));
+				EXECUTE t_temp INTO t_count USING t_caID, t_value;
+			END IF;
 
 			SELECT ca.NAME
 				INTO t_temp
@@ -1080,7 +1110,32 @@ BEGIN
 			IF t_text != '' THEN
 				t_output := t_output || '
 <TABLE>
-  <TR>
+';
+				IF (t_pageNo IS NOT NULL) AND (t_count > t_resultsPerPage) THEN
+					t_output := t_output ||
+'  <TR><TD colspan="3" style="text-align:center;padding:4px">';
+					IF t_pageNo > 1 THEN
+						t_output := t_output || '<A style="font-size:8pt" href="?' ||
+									urlEncode(t_type) || '=' || urlEncode(t_value) ||
+									'&iCAID=' || t_caID::text ||
+									'&p=' || (t_pageNo - 1)::text ||
+									'&n=' || t_resultsPerPage::text || '">Previous</A> &nbsp; ';
+					END IF;
+					t_output := t_output || '<B>' ||
+								(((t_pageNo - 1) * t_resultsPerPage) + 1)::integer || '</B> to <B>' ||
+								least(t_pageNo * t_resultsPerPage, t_count)::integer || '</B>';
+					IF (t_pageNo * t_resultsPerPage) < t_count THEN
+						t_output := t_output || ' &nbsp; <A style="font-size:8pt" href="?' ||
+									urlEncode(t_type) || '=' || urlEncode(t_value) ||
+									'&iCAID=' || t_caID::text ||
+									'&p=' || (t_pageNo + 1)::text ||
+									'&n=' || t_resultsPerPage::text || '">Next</A>';
+					END IF;
+					t_output := t_output || '</TD></TR>
+';
+				END IF;
+				t_output := t_output ||
+'  <TR>
     <TH style="white-space:nowrap">Not Before</TH>
     <TH style="white-space:nowrap">Not After</TH>
     <TH>Subject Name</TH>
