@@ -434,7 +434,7 @@ BEGIN
 
 		-- Search for a specific Certificate.
 		IF t_type IN ('ID', 'Certificate ASN.1') THEN
-			SELECT c.ID, x509_print(c.CERTIFICATE), ca.ID, cac.CA_ID,
+			SELECT c.ID, x509_print(c.CERTIFICATE, NULL, 196608), ca.ID, cac.CA_ID,
 					digest(c.CERTIFICATE, 'sha1'::text),
 					digest(c.CERTIFICATE, 'sha256'::text),
 					x509_serialNumber(c.CERTIFICATE),
@@ -451,7 +451,7 @@ BEGIN
 					LEFT OUTER JOIN ca_certificate cac ON (c.ID = cac.CERTIFICATE_ID)
 				WHERE c.ID = t_value::integer;
 		ELSIF t_type = 'SHA-1(Certificate)' THEN
-			SELECT c.ID, x509_print(c.CERTIFICATE), ca.ID, cac.CA_ID,
+			SELECT c.ID, x509_print(c.CERTIFICATE, NULL, 196608), ca.ID, cac.CA_ID,
 					digest(c.CERTIFICATE, 'sha1'::text),
 					digest(c.CERTIFICATE, 'sha256'::text),
 					x509_serialNumber(c.CERTIFICATE),
@@ -469,7 +469,7 @@ BEGIN
 									ON (c.ID = cac.CERTIFICATE_ID)
 				WHERE digest(c.CERTIFICATE, 'sha1') = t_bytea;
 		ELSIF t_type = 'SHA-256(Certificate)' THEN
-			SELECT c.ID, x509_print(c.CERTIFICATE), ca.ID, cac.CA_ID,
+			SELECT c.ID, x509_print(c.CERTIFICATE, NULL, 196608), ca.ID, cac.CA_ID,
 					digest(c.CERTIFICATE, 'sha1'::text),
 					digest(c.CERTIFICATE, 'sha256'::text),
 					x509_serialNumber(c.CERTIFICATE),
