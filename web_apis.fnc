@@ -36,6 +36,7 @@ DECLARE
 		'caname', 'CA Name', NULL,
 		'serial', 'Serial Number', NULL,
 		'spkisha1', 'SHA-1(SubjectPublicKeyInfo)', NULL,
+		'subjectsha1', 'SHA-1(Subject)', NULL,
 		'identity', 'Identity', NULL,
 		'commonname', 'Common Name', NULL,
 		'cn', 'Common Name', NULL,
@@ -127,7 +128,8 @@ BEGIN
 					) THEN
 				EXIT;
 			ELSIF t_type IN (
-						'SHA-1(Certificate)', 'SHA-1(SubjectPublicKeyInfo)'
+						'SHA-1(Certificate)', 'SHA-1(SubjectPublicKeyInfo)',
+						'SHA-1(Subject)'
 					) THEN
 				EXIT WHEN length(t_bytea) = 20;
 			ELSIF t_type = 'SHA-256(Certificate)' THEN
@@ -149,6 +151,7 @@ BEGIN
 		t_title := 'COMODO';
 	ELSIF t_type IN (
 				'SHA-1(SubjectPublicKeyInfo)',
+				'SHA-1(Subject)',
 				'SHA-1(Certificate)',
 				'SHA-256(Certificate)'
 			) THEN
@@ -343,6 +346,7 @@ BEGIN
       <OPTION value="ctid">&nbsp; CT Entry ID</OPTION>
       <OPTION value="serial">&nbsp; Serial Number</OPTION>
       <OPTION value="spkisha1">&nbsp; SHA-1(SubjectPublicKeyInfo)</OPTION>
+      <OPTION value="subjectsha1">&nbsp; SHA-1(Subject)</OPTION>
       <OPTION value="sha1">&nbsp; SHA-1(Certificate)</OPTION>
       <OPTION value="sha256">&nbsp; SHA-256(Certificate)</OPTION>
       <OPTION value="ca">CA</OPTION>
@@ -972,6 +976,7 @@ BEGIN
 				'CT Entry ID',
 				'Serial Number',
 				'SHA-1(SubjectPublicKeyInfo)',
+				'SHA-1(Subject)',
 				'Identity',
 				'Common Name',
 				'Email Address',
@@ -1033,13 +1038,16 @@ BEGIN
 						'		x509_notBefore(c.CERTIFICATE) NOT_BEFORE,' || chr(10) ||
 						'		x509_notAfter(c.CERTIFICATE) NOT_AFTER' || chr(10) ||
 						'	FROM certificate c' || chr(10);
-			IF t_type IN ('Serial Number', 'SHA-1(SubjectPublicKeyInfo)') THEN
+			IF t_type IN ('Serial Number', 'SHA-1(SubjectPublicKeyInfo)', 'SHA-1(Subject)') THEN
 				IF t_type = 'Serial Number' THEN
 					t_query := t_query ||
 						'	WHERE x509_serialNumber(c.CERTIFICATE) = decode($2, ''hex'')' || chr(10);
-				ELSE
+				ELSIF t_type = 'SHA-1(SubjectPublicKeyInfo)' THEN
 					t_query := t_query ||
 						'	WHERE digest(x509_publickey(c.CERTIFICATE), ''sha1'') = decode($2, ''hex'')' || chr(10);
+				ELSIF t_type = 'SHA-1(Subject)' THEN
+					t_query := t_query ||
+						'	WHERE digest(x509_name(c.CERTIFICATE), ''sha1'') = decode($2, ''hex'')' || chr(10);
 				END IF;
 				t_query := t_query ||
 						'		AND c.ISSUER_CA_ID = $1' || chr(10);
@@ -1184,6 +1192,13 @@ BEGIN
 							'		min(c.ID) MIN_CERT_ID,' || chr(10) ||
 							'		count(DISTINCT c.ID) NUM_CERTS' || chr(10) ||
 							'	FROM certificate c';
+			ELSIF t_type = 'SHA-1(Subject)' THEN
+				t_issuerCAID_table := 'c';
+				t_query := 'SELECT c.ISSUER_CA_ID, ca.NAME,' || chr(10) ||
+							'		encode(digest(x509_name(c.CERTIFICATE), ''sha1''), ''hex'') NAME_VALUE,' || chr(10) ||
+							'		min(c.ID) MIN_CERT_ID,' || chr(10) ||
+							'		count(DISTINCT c.ID) NUM_CERTS' || chr(10) ||
+							'	FROM certificate c';
 			ELSE
 				t_issuerCAID_table := 'ci';
 				t_query := 'SELECT ci.ISSUER_CA_ID, ca.NAME,' || chr(10) ||
@@ -1207,6 +1222,9 @@ BEGIN
 			ELSIF t_type = 'SHA-1(SubjectPublicKeyInfo)' THEN
 				t_query := t_query ||
 							'	WHERE digest(x509_publickey(c.CERTIFICATE), ''sha1'') = decode($1, ''hex'')' || chr(10);
+			ELSIF t_type = 'SHA-1(Subject)' THEN
+				t_query := t_query ||
+							'	WHERE digest(x509_name(c.CERTIFICATE), ''sha1'') = decode($1, ''hex'')' || chr(10);
 			ELSIF t_useReverseIndex THEN
 				t_query := t_query ||
 							'	WHERE reverse(lower(ci.NAME_VALUE)) LIKE reverse(lower($1))' || chr(10);
@@ -1214,7 +1232,7 @@ BEGIN
 				t_query := t_query ||
 							'	WHERE lower(ci.NAME_VALUE) LIKE lower($1)' || chr(10);
 			END IF;
-			IF t_type NOT IN ('CT Entry ID', 'Identity', 'Serial Number', 'SHA-1(SubjectPublicKeyInfo)') THEN
+			IF t_type NOT IN ('CT Entry ID', 'Identity', 'Serial Number', 'SHA-1(SubjectPublicKeyInfo)', 'SHA-1(Subject)') THEN
 				t_query := t_query ||
 							'		AND ci.NAME_TYPE = ' || quote_literal(t_nameType) || chr(10);
 			END IF;
@@ -1318,7 +1336,7 @@ BEGIN
 		END IF;
 	END IF;
 	t_output := t_output || '
-  <P class="copyright">&copy; COMODO CA Limited 2015. All rights reserved.</P>
+  <P class="copyright">&copy; COMODO CA Limited 2015-2016. All rights reserved.</P>
   <DIV>
     <A href="https://github.com/crtsh"><IMG src="/GitHub-Mark-32px.png"></A>
   </DIV>
