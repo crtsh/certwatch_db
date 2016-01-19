@@ -34,6 +34,10 @@ DROP FUNCTION download_cert(
 	cert_id					certificate.ID%TYPE
 );
 
+DROP FUNCTION cablint(
+	cert_data				bytea
+);
+
 
 DROP TABLE ct_log_entry;
 

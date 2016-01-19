@@ -77,6 +77,7 @@ DECLARE
 	t_temp				text;
 	t_query				text;
 	t_matchType			text			:= '=';
+	t_showCABLint		boolean;
 	t_useReverseIndex	boolean			:= FALSE;
 	t_showIdentity		boolean;
 	t_issuerCAID		certificate.ISSUER_CA_ID%TYPE;
@@ -231,6 +232,20 @@ BEGIN
       color: #FFFFFF;
       font: bold 18pt Arial, sans-serif;
       padding: 0px 5px;
+    }
+    span.error {
+      background-color: #FFDFDF;
+      color: #CC0000;
+      font-weight: bold;
+    }
+    span.fatal {
+      background-color: #0000AA;
+      color: #FFFFFF;
+      font-weight: bold;
+    }
+    span.warning {
+      background-color: #FFEFDF;
+      color: #DF6000;
     }
     table {
       border-collapse: collapse;
@@ -645,13 +660,61 @@ BEGIN
     <TH class="outer">SHA-1(Certificate)</TH>
     <TD class="outer">' || coalesce(upper(encode(t_certificateSHA1, 'hex')), '<I>Not found</I>') || '</TD>
   </TR>
-  <TR>
+';
+
+		t_showCABLint := (',' || coalesce(get_parameter('opt', paramNames, paramValues), '') || ',') LIKE '%,cablint,%';
+		IF t_showCABLint THEN
+			t_output := t_output ||
+'  <TR>
+    <TH class="outer">CA/B Forum lint
+      <BR><BR><SPAN class="small">Powered by <A href="//github.com/awslabs/certlint" target="_blank">certlint</A></SPAN>
+    </TH>
+    <TD class="text">
+';
+			FOR l_record IN (
+						SELECT replace(substr(CABLINT, 4), CHR(9) || 'stdin', '') ISSUE_TEXT,
+								CASE substr(CABLINT, 1, 2)
+									WHEN 'I:' THEN 1
+									WHEN 'F:' THEN 2
+									WHEN 'E:' THEN 3
+									WHEN 'W:' THEN 4
+									ELSE 5
+								END ISSUE_TYPE,
+								CASE substr(CABLINT, 1, 2)
+									WHEN 'I:' THEN '<SPAN>&nbsp; &nbsp; INFO:'
+									WHEN 'F:' THEN '<SPAN class="fatal">&nbsp; &nbsp;FATAL:'
+									WHEN 'E:' THEN '<SPAN class="error">&nbsp; &nbsp;ERROR:'
+									WHEN 'W:' THEN '<SPAN class="warning">&nbsp;WARNING:'
+									ELSE '<SPAN>&nbsp; &nbsp; &nbsp; &nbsp;' || substr(CABLINT, 1, 2)
+								END ISSUE_HEADING
+							FROM unnest(string_to_array(cablint(t_certificate), CHR(10))) CABLINT
+							ORDER BY ISSUE_TYPE, ISSUE_TEXT
+					) LOOP
+				t_output := t_output ||
+'      ' || l_record.ISSUE_HEADING || ' ' || l_record.ISSUE_TEXT || '&nbsp;</SPAN><BR>';
+			END LOOP;
+			t_output := t_output ||
+'    </TD>
+  </TR>
+';
+		END IF;
+
+		t_output := t_output ||
+'  <TR>
 ';
 
 		IF t_type = 'Certificate ASN.1' THEN
 			t_output := t_output ||
 '    <TH class="outer"><A href="?id=' || t_certificateID::text || '">Certificate</A> | ASN.1
-      <BR><BR><SPAN class="small">Powered by <A href="//lapo.it/asn1js/" target="_blank">asn1js</A></SPAN>
+      <BR><BR><SPAN class="small">Powered by <A href="//lapo.it/asn1js/" target="_blank">asn1js</A>
+';
+			IF NOT t_showCABLint THEN
+				t_output := t_output ||
+'      <BR><BR><A href="?asn1=' || t_certificateID::text || '&opt=cablint">Run cablint</A>
+';
+			END IF;
+			t_output := t_output ||
+'      </SPAN>
     </TH>
     <TD class="text">
       <DIV id="dump" style="position:absolute;right:20px;"></DIV>
@@ -682,7 +745,16 @@ BEGIN
 ';
 		ELSE
 			t_output := t_output ||
-'    <TH class="outer">Certificate | <A href="?asn1=' || t_certificateID::text || '">ASN.1</A></TH>
+'    <TH class="outer">Certificate | <A href="?asn1=' || t_certificateID::text || '">ASN.1</A>
+';
+			IF NOT t_showCABLint THEN
+				t_output := t_output ||
+'      <BR><BR><A href="?id=' || t_certificateID::text || '&opt=cablint">Run cablint</A>
+';
+			END IF;
+			t_output := t_output ||
+'      </SPAN>
+    </TH>
     <TD class="text">' || coalesce(t_text, '<I>Not found</I>');
 		END IF;
 		t_output := t_output ||

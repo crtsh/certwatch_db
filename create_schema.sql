@@ -5,6 +5,8 @@
 
 CREATE EXTENSION pgcrypto;
 
+CREATE EXTENSION plsh;		-- https://github.com/petere/plsh
+
 
 -- As the "certwatch" user.
 
@@ -185,6 +187,7 @@ GRANT SELECT ON ct_log TO crtsh;
 GRANT SELECT ON ct_log_entry TO crtsh;
 
 
+\i cablint.fnc
 \i download_cert.fnc
 \i extract_cert_names.fnc
 \i get_parameter.fnc
