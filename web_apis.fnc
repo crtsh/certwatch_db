@@ -63,6 +63,7 @@ DECLARE
 	t_type				text			:= 'Simple';
 	t_bytea				bytea;
 	t_output			text;
+	t_outputType		text;
 	t_title				text;
 	t_certificateID		certificate.ID%TYPE;
 	t_certificateSHA1	bytea;
@@ -218,6 +219,14 @@ BEGIN
 		t_minNotBeforeString := '&minNotBefore=' || t_temp;
 	END IF;
 
+	t_outputType := coalesce(get_parameter('output', paramNames, paramValues), '');
+	IF t_outputType = '' THEN
+		t_outputType := 'html';
+	END IF;
+	IF t_outputType NOT IN ('html', 'json') THEN
+		RAISE no_data_found USING MESSAGE = 'Unsupported output type: ' || html_escape(t_outputType);
+	END IF;
+
 	IF t_type LIKE 'CA/B Forum lint%' THEN
 		t_temp := get_parameter('sort', paramNames, paramValues);
 		IF coalesce(t_temp, '') = '' THEN
@@ -248,7 +257,9 @@ BEGIN
 	END IF;
 
 	-- Generate page header.
-	t_output :=
+	t_output := '';
+	IF t_outputType = 'html' THEN
+		t_output :=
 '<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.0 Transitional//EN">
 <HTML>
 <HEAD>
@@ -258,12 +269,12 @@ BEGIN
   <META name="description" content="Free CT Log Certificate Search Tool from COMODO">
   <META name="keywords" content="crt.sh, CT, Certificate Transparency, Certificate Search, SSL Certificate, Comodo CA">
 ';
-	IF t_type = 'Certificate ASN.1' THEN
-		t_output := t_output ||
+		IF t_type = 'Certificate ASN.1' THEN
+			t_output := t_output ||
 '<LINK rel="stylesheet" href="/asn1js/index.css" type="text/css">
 ';
-	END IF;
-	t_output := t_output ||
+		END IF;
+		t_output := t_output ||
 '  <STYLE type="text/css">
     a {
       white-space: nowrap;
@@ -374,6 +385,7 @@ BEGIN
 </HEAD>
 <BODY>
   <A href="?"><SPAN class="title">crt.sh</SPAN></A>';
+	END IF;
 
 	IF t_type = 'Invalid value' THEN
 		RAISE no_data_found USING MESSAGE = t_type || ': ''' || html_escape(t_value) || '''';
@@ -1597,61 +1609,65 @@ BEGIN
 			t_issuerOParameter := '&issuerO=' || t_issuerOParameter;
 		END IF;
 
-		t_output := t_output ||
+		IF t_outputType = 'html' THEN
+			t_output := t_output ||
 '  <SPAN class="whiteongrey">CA/B Forum lint: Summary</SPAN>
-  <SPAN style="position:absolute">
-    &nbsp; &nbsp; &nbsp; <A style="font-size:8pt;vertical-align:sub" href="?cablint=' || urlEncode(t_value) || '&dir=' || t_direction || '&sort=' || t_sort::text || t_issuerOParameter;
-		IF t_groupBy != 'IssuerO' THEN
-			t_output := t_output || '&group=IssuerO">Group';
-		ELSE
-			t_output := t_output || '">Ungroup';
-		END IF;
-		t_output := t_output || ' by "Issuer O"</A>
-';
-		IF t_issuerO IS NOT NULL THEN
-			t_output := t_output || ' &nbsp; &nbsp; <A style="font-size:8pt;vertical-align:sub" href="?cablint=' || urlEncode(t_value)
-									|| '&dir=' || t_direction || '&sort=' || t_sort::text || t_groupByParameter || '">Show all "Issuer O"s</A>
 ';
 		END IF;
-		t_output := t_output ||
-'  </SPAN>
-  <BR><BR>
-  For certificates with <B>notBefore >= ' || to_char(date_trunc('day', statement_timestamp() - interval '1 week'), 'YYYY-MM-DD') || '</B>';
-		IF t_issuerO IS NOT NULL THEN
-			t_output := t_output || ' and <B>"Issuer O" LIKE ''' || t_issuerO || '''</B>';
-		END IF;
-		t_output := t_output || ':
-  <BR><BR>
-';
+
 		IF t_value != '1 week' THEN
 			t_output := t_output ||
-'  Sorry, only "1 week" statistics are currently supported.
+'  <BR><BR>Sorry, only "1 week" statistics are currently supported.
 ';
 		ELSIF t_groupBy NOT IN ('', 'IssuerO') THEN
 			t_output := t_output ||
-'  Sorry, "IssuerO" is the only currently supported value for "group".
+'  <BR><BR>Sorry, "IssuerO" is the only currently supported value for "group".
 ';
 		ELSE
-			t_output := t_output ||
-'  <TABLE class="cablint">
+			IF t_outputType = 'html' THEN
+				t_output := t_output ||
+'  <SPAN style="position:absolute">
+    &nbsp; &nbsp; &nbsp; <A style="font-size:8pt;vertical-align:sub" href="?cablint=' || urlEncode(t_value) || '&dir=' || t_direction || '&sort=' || t_sort::text || t_issuerOParameter;
+				IF t_groupBy != 'IssuerO' THEN
+					t_output := t_output || '&group=IssuerO">Group';
+				ELSE
+					t_output := t_output || '">Ungroup';
+				END IF;
+				t_output := t_output || ' by "Issuer O"</A>
+';
+				IF t_issuerO IS NOT NULL THEN
+					t_output := t_output || ' &nbsp; &nbsp; <A style="font-size:8pt;vertical-align:sub" href="?cablint=' || urlEncode(t_value)
+										|| '&dir=' || t_direction || '&sort=' || t_sort::text || t_groupByParameter || '">Show all "Issuer O"s</A>
+';
+				END IF;
+				t_output := t_output ||
+'  </SPAN>
+  <BR><BR>
+  For certificates with <B>notBefore >= ' || to_char(date_trunc('day', statement_timestamp() - interval '1 week'), 'YYYY-MM-DD') || '</B>';
+				IF t_issuerO IS NOT NULL THEN
+					t_output := t_output || ' and <B>"Issuer O" LIKE ''' || t_issuerO || '''</B>';
+				END IF;
+				t_output := t_output || ':
+  <BR><BR>
+  <TABLE class="cablint">
     <TR>
       <TH rowspan="2"><A href="?cablint=' || urlEncode(t_value) || '&dir=' || t_oppositeDirection || '&sort=1' || t_groupByParameter || t_issuerOParameter || '">Issuer O</A>';
-			IF t_sort = 1 THEN
-				t_output := t_output || ' ' || t_dirSymbol;
-			END IF;
-			IF t_groupBy != 'IssuerO' THEN
-				t_output := t_output || '</TH>
-      <TH rowspan="2"><A href="?cablint=' || urlEncode(t_value) || '&dir=' || t_oppositeDirection || '&sort=2' || t_groupByParameter || t_issuerOParameter || '">Issuer CN, OU or O</A>';
-				IF t_sort = 2 THEN
+				IF t_sort = 1 THEN
 					t_output := t_output || ' ' || t_dirSymbol;
 				END IF;
-			END IF;
-			t_output := t_output || '</TH>
+				IF t_groupBy != 'IssuerO' THEN
+					t_output := t_output || '</TH>
+      <TH rowspan="2"><A href="?cablint=' || urlEncode(t_value) || '&dir=' || t_oppositeDirection || '&sort=2' || t_groupByParameter || t_issuerOParameter || '">Issuer CN, OU or O</A>';
+					IF t_sort = 2 THEN
+						t_output := t_output || ' ' || t_dirSymbol;
+					END IF;
+				END IF;
+				t_output := t_output || '</TH>
       <TH rowspan="2"><A href="?cablint=' || urlEncode(t_value) || '&dir=' || t_oppositeDirection || '&sort=3' || t_groupByParameter || t_issuerOParameter || '"># Certs<BR>Issued</A>';
-			IF t_sort = 3 THEN
-				t_output := t_output || ' ' || t_dirSymbol;
-			END IF;
-			t_output := t_output || '</TH>
+				IF t_sort = 3 THEN
+					t_output := t_output || ' ' || t_dirSymbol;
+				END IF;
+				t_output := t_output || '</TH>
       <TH colspan="3"><A title="These errors are fatal to the checks and prevent most further checks from being executed.  These are extremely bad errors."><SPAN class="fatal">&nbsp;FATAL&nbsp;</SPAN></A></TH>
       <TH colspan="3"><A title="These are issues where the certificate is not compliant with the standard."><SPAN class="error">&nbsp;ERROR&nbsp;</SPAN></A></TH>
       <TH colspan="3"><A title="These are issues where a standard recommends differently but the standard uses terms such as ''SHOULD'' or ''MAY''."><SPAN class="warning">&nbsp;WARNING&nbsp;</SPAN></A></TH>
@@ -1660,82 +1676,83 @@ BEGIN
     </TR>
     <TR>
       <TH><A href="?cablint=' || urlEncode(t_value) || '&dir=' || t_oppositeDirection || '&sort=4' || t_groupByParameter || t_issuerOParameter || '"># Certs</A>';
-			IF t_sort = 4 THEN
-				t_output := t_output || ' ' || t_dirSymbol;
-			END IF;
-			t_output := t_output || '</TH>
+				IF t_sort = 4 THEN
+					t_output := t_output || ' ' || t_dirSymbol;
+				END IF;
+				t_output := t_output || '</TH>
       <TH><A href="?cablint=' || urlEncode(t_value) || '&dir=' || t_oppositeDirection || '&sort=5' || t_groupByParameter || t_issuerOParameter || '">%</A>';
-			IF t_sort = 5 THEN
-				t_output := t_output || ' ' || t_dirSymbol;
-			END IF;
-			t_output := t_output || '</TH>
+				IF t_sort = 5 THEN
+					t_output := t_output || ' ' || t_dirSymbol;
+				END IF;
+				t_output := t_output || '</TH>
       <TH><A href="?cablint=' || urlEncode(t_value) || '&dir=' || t_oppositeDirection || '&sort=6' || t_groupByParameter || t_issuerOParameter || '"># Issues</A>';
-			IF t_sort = 6 THEN
-				t_output := t_output || ' ' || t_dirSymbol;
-			END IF;
-			t_output := t_output || '</TH>
+				IF t_sort = 6 THEN
+					t_output := t_output || ' ' || t_dirSymbol;
+				END IF;
+				t_output := t_output || '</TH>
       <TH><A href="?cablint=' || urlEncode(t_value) || '&dir=' || t_oppositeDirection || '&sort=7' || t_groupByParameter || t_issuerOParameter || '"># Certs</A>';
-			IF t_sort = 7 THEN
-				t_output := t_output || ' ' || t_dirSymbol;
-			END IF;
-			t_output := t_output || '</TH>
+				IF t_sort = 7 THEN
+					t_output := t_output || ' ' || t_dirSymbol;
+				END IF;
+				t_output := t_output || '</TH>
       <TH><A href="?cablint=' || urlEncode(t_value) || '&dir=' || t_oppositeDirection || '&sort=8' || t_groupByParameter || t_issuerOParameter || '">%</A>';
-			IF t_sort = 8 THEN
-				t_output := t_output || ' ' || t_dirSymbol;
-			END IF;
-			t_output := t_output || '</TH>
+				IF t_sort = 8 THEN
+					t_output := t_output || ' ' || t_dirSymbol;
+				END IF;
+				t_output := t_output || '</TH>
       <TH><A href="?cablint=' || urlEncode(t_value) || '&dir=' || t_oppositeDirection || '&sort=9' || t_groupByParameter || t_issuerOParameter || '"># Issues</A>';
-			IF t_sort = 9 THEN
-				t_output := t_output || ' ' || t_dirSymbol;
-			END IF;
-			t_output := t_output || '</TH>
+				IF t_sort = 9 THEN
+					t_output := t_output || ' ' || t_dirSymbol;
+				END IF;
+				t_output := t_output || '</TH>
       <TH><A href="?cablint=' || urlEncode(t_value) || '&dir=' || t_oppositeDirection || '&sort=10' || t_groupByParameter || t_issuerOParameter || '"># Certs</A>';
-			IF t_sort = 10 THEN
-				t_output := t_output || ' ' || t_dirSymbol;
-			END IF;
-			t_output := t_output || '</TH>
+				IF t_sort = 10 THEN
+					t_output := t_output || ' ' || t_dirSymbol;
+				END IF;
+				t_output := t_output || '</TH>
       <TH><A href="?cablint=' || urlEncode(t_value) || '&dir=' || t_oppositeDirection || '&sort=11' || t_groupByParameter || t_issuerOParameter || '">%</A>';
-			IF t_sort = 11 THEN
-				t_output := t_output || ' ' || t_dirSymbol;
-			END IF;
-			t_output := t_output || '</TH>
+				IF t_sort = 11 THEN
+					t_output := t_output || ' ' || t_dirSymbol;
+				END IF;
+				t_output := t_output || '</TH>
       <TH><A href="?cablint=' || urlEncode(t_value) || '&dir=' || t_oppositeDirection || '&sort=12' || t_groupByParameter || t_issuerOParameter || '"># Issues</A>';
-			IF t_sort = 12 THEN
-				t_output := t_output || ' ' || t_dirSymbol;
-			END IF;
-			t_output := t_output || '</TH>
+				IF t_sort = 12 THEN
+					t_output := t_output || ' ' || t_dirSymbol;
+				END IF;
+				t_output := t_output || '</TH>
       <TH><A href="?cablint=' || urlEncode(t_value) || '&dir=' || t_oppositeDirection || '&sort=13' || t_groupByParameter || t_issuerOParameter || '"># Certs</A>';
-			IF t_sort = 13 THEN
-				t_output := t_output || ' ' || t_dirSymbol;
-			END IF;
-			t_output := t_output || '</TH>
+				IF t_sort = 13 THEN
+					t_output := t_output || ' ' || t_dirSymbol;
+				END IF;
+				t_output := t_output || '</TH>
       <TH><A href="?cablint=' || urlEncode(t_value) || '&dir=' || t_oppositeDirection || '&sort=14' || t_groupByParameter || t_issuerOParameter || '">%</A>';
-			IF t_sort = 14 THEN
-				t_output := t_output || ' ' || t_dirSymbol;
-			END IF;
-			t_output := t_output || '</TH>
+				IF t_sort = 14 THEN
+					t_output := t_output || ' ' || t_dirSymbol;
+				END IF;
+				t_output := t_output || '</TH>
       <TH><A href="?cablint=' || urlEncode(t_value) || '&dir=' || t_oppositeDirection || '&sort=15' || t_groupByParameter || t_issuerOParameter || '"># Issues</A>';
-			IF t_sort = 15 THEN
-				t_output := t_output || ' ' || t_dirSymbol;
-			END IF;
-			t_output := t_output || '</TH>
+				IF t_sort = 15 THEN
+					t_output := t_output || ' ' || t_dirSymbol;
+				END IF;
+				t_output := t_output || '</TH>
       <TH><A href="?cablint=' || urlEncode(t_value) || '&dir=' || t_oppositeDirection || '&sort=16' || t_groupByParameter || t_issuerOParameter || '"># Certs</A>';
-			IF t_sort = 16 THEN
-				t_output := t_output || ' ' || t_dirSymbol;
-			END IF;
-			t_output := t_output || '</TH>
+				IF t_sort = 16 THEN
+					t_output := t_output || ' ' || t_dirSymbol;
+				END IF;
+				t_output := t_output || '</TH>
       <TH><A href="?cablint=' || urlEncode(t_value) || '&dir=' || t_oppositeDirection || '&sort=17' || t_groupByParameter || t_issuerOParameter || '">%</A>';
-			IF t_sort = 17 THEN
-				t_output := t_output || ' ' || t_dirSymbol;
-			END IF;
-			t_output := t_output || '</TH>
+				IF t_sort = 17 THEN
+					t_output := t_output || ' ' || t_dirSymbol;
+				END IF;
+				t_output := t_output || '</TH>
       <TH><A href="?cablint=' || urlEncode(t_value) || '&dir=' || t_oppositeDirection || '&sort=18' || t_groupByParameter || t_issuerOParameter || '"># Issues</A>';
-			IF t_sort = 18 THEN
-				t_output := t_output || ' ' || t_dirSymbol;
-			END IF;
-			t_output := t_output || '</TH>
+				IF t_sort = 18 THEN
+					t_output := t_output || ' ' || t_dirSymbol;
+				END IF;
+				t_output := t_output || '</TH>
     </TR>
 ';
+			END IF;
 
 			IF t_groupBy = 'IssuerO' THEN
 				t_query := 'SELECT NULL::integer ISSUER_CA_ID,' || chr(10) ||
@@ -1832,17 +1849,20 @@ BEGIN
 			END IF;
 
 			FOR l_record IN EXECUTE t_query USING t_issuerO LOOP
-				t_output := t_output || '
+				IF t_outputType = 'json' THEN
+					t_output := t_output || row_to_json(l_record, FALSE);
+				ELSIF t_outputType = 'html' THEN
+					t_output := t_output || '
     <TR>
       <TD><A href="?cablint=' || urlEncode(t_value) || '&dir=' || t_direction || '&sort=' || t_sort::text || t_groupByParameter
-					|| '&issuerO=' || urlEncode(l_record.ISSUER_ORGANIZATION_NAME) || '">' || coalesce(l_record.ISSUER_ORGANIZATION_NAME, '&nbsp;') || '</TD>
+						|| '&issuerO=' || urlEncode(l_record.ISSUER_ORGANIZATION_NAME) || '">' || coalesce(l_record.ISSUER_ORGANIZATION_NAME, '&nbsp;') || '</TD>
 ';
-				IF t_groupBy != 'IssuerO' THEN
-					t_output := t_output ||
+					IF t_groupBy != 'IssuerO' THEN
+						t_output := t_output ||
 '      <TD><A href="?caid=' || l_record.ISSUER_CA_ID::text || '&opt=cablint">' || coalesce(l_record.ISSUER_FRIENDLY_NAME, '&nbsp;') || '</A></TD>
 ';
-				END IF;
-				t_output := t_output ||
+					END IF;
+					t_output := t_output ||
 '      <TD>' || l_record.CERTS_ISSUED::text || '</TD>
       <TD>' || l_record.FATAL_CERTS::text || '</TD>
       <TD>' || replace(round(l_record.FATAL_PERC, 2)::text, '.00', '') || '</TD>
@@ -1861,10 +1881,14 @@ BEGIN
       <TD>' || l_record.ALL_ISSUES::text || '</TD>
     </TR>
 ';
+				END IF;
 			END LOOP;
-			t_output := t_output ||
+
+			IF t_outputType = 'html' THEN
+				t_output := t_output ||
 '  </TABLE>
 ';
+			END IF;
 		END IF;
 
 	ELSIF t_type = 'CA/B Forum lint: Issues' THEN
@@ -1872,7 +1896,8 @@ BEGIN
 			t_sort := 1;
 		END IF;
 
-		t_output := t_output ||
+		IF t_outputType = 'html' THEN
+			t_output := t_output ||
 '  <SPAN class="whiteongrey">CA/B Forum lint: Issues</SPAN>
   <BR><BR>
   For certificates with <B>notBefore >= ' || to_char(t_minNotBefore, 'YYYY-MM-DD') || '</B>:
@@ -1880,22 +1905,23 @@ BEGIN
   <TABLE class="cablint">
     <TR>
       <TH><A href="?cablint=' || urlEncode(t_value) || '&dir=' || t_oppositeDirection || '&sort=1' || t_groupByParameter || '">Severity</A>';
-		IF t_sort = 1 THEN
-			t_output := t_output || ' ' || t_dirSymbol;
-		END IF;
-		t_output := t_output || '</TH>
+			IF t_sort = 1 THEN
+				t_output := t_output || ' ' || t_dirSymbol;
+			END IF;
+			t_output := t_output || '</TH>
       <TH><A href="?cablint=' || urlEncode(t_value) || '&dir=' || t_oppositeDirection || '&sort=2' || t_groupByParameter || '">Issue</A>';
-		IF t_sort = 2 THEN
-			t_output := t_output || ' ' || t_dirSymbol;
-		END IF;
-		t_output := t_output || '</TH>
+			IF t_sort = 2 THEN
+				t_output := t_output || ' ' || t_dirSymbol;
+			END IF;
+			t_output := t_output || '</TH>
       <TH><A href="?cablint=' || urlEncode(t_value) || '&dir=' || t_oppositeDirection || '&sort=3' || t_groupByParameter || '"># Affected Certs</A>';
-		IF t_sort = 3 THEN
-			t_output := t_output || ' ' || t_dirSymbol;
-		END IF;
-		t_output := t_output || '</TH>
+			IF t_sort = 3 THEN
+				t_output := t_output || ' ' || t_dirSymbol;
+			END IF;
+			t_output := t_output || '</TH>
     </TR>
 ';
+		END IF;
 
 		t_query := 'SELECT ci.ID, ci.ISSUE_TEXT, count(DISTINCT cci.CERTIFICATE_ID) NUM_CERTS,' || chr(10) ||
 					'		CASE ci.SEVERITY' || chr(10) ||
@@ -1939,18 +1965,24 @@ BEGIN
 		END IF;
 
 		FOR l_record IN EXECUTE t_query USING t_minNotBefore LOOP
-			t_output := t_output ||
+			IF t_outputType = 'json' THEN
+				t_output := t_output || row_to_json(l_record, FALSE);
+			ELSIF t_outputType = 'html' THEN
+				t_output := t_output ||
 '    <TR>
       <TD ' || l_record.ISSUE_CLASS || '>' || l_record.ISSUE_HEADING || '</TD>
       <TD ' || l_record.ISSUE_CLASS || '>' || l_record.ISSUE_TEXT || '</TD>
       <TD><A href="?cablint=' || l_record.ID::text || t_minNotBeforeString || '">' || l_record.NUM_CERTS || '</A></TD>
     </TR>
 ';
+			END IF;
 		END LOOP;
 
-		t_output := t_output ||
+		IF t_outputType = 'html' THEN
+			t_output := t_output ||
 '  </TABLE>
 ';
+		END IF;
 
 	ELSE
 		t_output := t_output || ' <SPAN class="whiteongrey">Error</SPAN>
@@ -1959,21 +1991,23 @@ BEGIN
 
 	END IF;
 
-	t_output := t_output || '
+	IF t_outputType = 'html' THEN
+		t_output := t_output || '
   <BR><BR><BR>
 ';
-	IF coalesce(get_parameter('showSQL', paramNames, paramValues), 'N') = 'Y' THEN
-		IF t_query IS NOT NULL THEN
-			t_output := t_output || '<BR><BR><TEXTAREA cols="80" rows="25">' || t_query || ';</TEXTAREA>';
+		IF coalesce(get_parameter('showSQL', paramNames, paramValues), 'N') = 'Y' THEN
+			IF t_query IS NOT NULL THEN
+				t_output := t_output || '<BR><BR><TEXTAREA cols="80" rows="25">' || t_query || ';</TEXTAREA>';
+			END IF;
 		END IF;
-	END IF;
-	t_output := t_output || '
+		t_output := t_output || '
   <P class="copyright">&copy; COMODO CA Limited 2015-2016. All rights reserved.</P>
   <DIV>
     <A href="https://github.com/crtsh"><IMG src="/GitHub-Mark-32px.png"></A>
   </DIV>
 </BODY>
 </HTML>';
+	END IF;
 
 	RETURN t_output;
 
