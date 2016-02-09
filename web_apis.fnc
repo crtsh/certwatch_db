@@ -1220,7 +1220,7 @@ BEGIN
 		t_caID := get_parameter('icaid', paramNames, paramValues)::integer;
 		t_temp := coalesce(get_parameter('p', paramNames, paramValues), '');
 		IF t_temp = '' THEN
-			IF (t_value = '%') AND (t_caID IS NOT NULL) THEN
+			IF t_caID IS NOT NULL THEN
 				t_pageNo := 1;
 			END IF;
 		ELSIF lower(t_temp) = 'off' THEN
