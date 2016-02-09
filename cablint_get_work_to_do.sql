@@ -1,0 +1,1 @@
+\COPY (SELECT c.ID FROM certificate c, ca WHERE c.ISSUER_CA_ID = ca.ID AND ca.CABLINT_APPLIES AND x509_notBefore(c.CERTIFICATE) >= date_trunc('day', statement_timestamp() - interval '1 week') AND coalesce(c.CABLINT_CACHED_AT, '2000-01-01'::timestamp) < (SELECT max(cv.deployed_at) FROM cablint_version cv)) TO '/root/cablint/work_to_do.sql';

@@ -29,6 +29,7 @@ DECLARE
 	t_brand				ca.BRAND%TYPE;
 	t_publicKey			ca.PUBLIC_KEY%TYPE;
 	t_caID				ca.ID%TYPE;
+	t_cablintApplies	ca.CABLINT_APPLIES%TYPE;
 	l_ca				RECORD;
 BEGIN
 	IF cert_data IS NULL THEN
@@ -78,6 +79,7 @@ BEGIN
 					ORDER BY octet_length(PUBLIC_KEY) DESC
 			) LOOP
 		t_issuerCAID := l_ca.ID;
+		t_cablintApplies := l_ca.CABLINT_APPLIES;
 		IF x509_verify(cert_data, l_ca.PUBLIC_KEY) THEN
 			t_verified := TRUE;
 			EXIT;
@@ -93,6 +95,10 @@ BEGIN
 		RETURNING ID
 			INTO t_certificateID;
 
+	UPDATE ca
+		SET NO_OF_CERTS_ISSUED = NO_OF_CERTS_ISSUED + 1
+		WHERE ID = t_issuerCAID;
+
 	PERFORM extract_cert_names(t_certificateID, t_issuerCAID);
 
 	IF t_canIssueCerts THEN
@@ -102,6 +108,12 @@ BEGIN
 			VALUES (
 				t_certificateID, t_caID
 			);
+
+		IF NOT t_cablintApplies THEN
+			UPDATE ca
+				SET CABLINT_APPLIES = FALSE
+				WHERE ID = t_caID;
+		END IF;
 	END IF;
 
 	IF NOT t_verified THEN

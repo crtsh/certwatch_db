@@ -25,6 +25,11 @@ DROP FUNCTION get_parameter(
 	paramValues				text[]
 );
 
+DROP FUNCTION get_ca_primary_name_attribute(
+	ca_id					ca.ID%TYPE,
+	cert_data				certificate.CERTIFICATE%TYPE
+);
+
 DROP FUNCTION extract_cert_names(
 	cert_id					certificate.ID%TYPE,
 	issuerca_id				ca.ID%TYPE
@@ -34,10 +39,22 @@ DROP FUNCTION download_cert(
 	cert_id					certificate.ID%TYPE
 );
 
-DROP FUNCTION cablint(
-	cert_data				bytea
+DROP FUNCTION cablint_cached(
+	cert_id					certificate.ID%TYPE,
+	socket_number			integer
 );
 
+DROP FUNCTION cablint(
+	cert_data				bytea,
+	socket_number			integer
+);
+
+
+DROP TABLE cablint_cert_issue;
+
+DROP TABLE cablint_issue;
+
+DROP TABLE cablint_version;
 
 DROP TABLE ct_log_entry;
 

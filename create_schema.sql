@@ -15,6 +15,7 @@ CREATE TABLE ca (
 	NAME					text		NOT NULL,
 	PUBLIC_KEY				bytea		NOT NULL,
 	BRAND					text,
+	NO_OF_CERTS_ISSUED		bigint		DEFAULT 0	NOT NULL,
 	CONSTRAINT ca_pk
 		PRIMARY KEY (ID)
 );
@@ -39,6 +40,7 @@ CREATE TABLE certificate (
 	ID						serial,
 	CERTIFICATE				bytea		NOT NULL,
 	ISSUER_CA_ID			integer		NOT NULL,
+	CABLINT_CACHED_AT		timestamp,
 	CONSTRAINT c_pk
 		PRIMARY KEY (ID),
 	CONSTRAINT c_ica_fk
@@ -46,11 +48,11 @@ CREATE TABLE certificate (
 		REFERENCES ca(ID)
 );
 
-CREATE INDEX c_ica_notbefore
-	ON certificate (ISSUER_CA_ID, x509_notBefore(CERTIFICATE));
-
 CREATE INDEX c_ica_typecanissue
 	ON certificate (ISSUER_CA_ID, x509_canIssueCerts(CERTIFICATE));
+
+CREATE INDEX c_ica_notbefore
+	ON certificate (ISSUER_CA_ID, x509_notBefore(CERTIFICATE));
 
 CREATE INDEX c_notafter_ica
 	ON certificate (x509_notAfter(CERTIFICATE), ISSUER_CA_ID);
@@ -66,6 +68,9 @@ CREATE UNIQUE INDEX c_sha256
 
 CREATE INDEX c_spki_sha1
 	ON certificate (digest(x509_publicKey(CERTIFICATE), 'sha1'));
+
+CREATE INDEX c_subject_sha1
+	ON certificate (digest(x509_name(CERTIFICATE), 'sha1'));
 
 CREATE TABLE invalid_certificate (
 	CERTIFICATE_ID			integer,
@@ -169,6 +174,55 @@ CREATE INDEX ctle_le
 CREATE INDEX ctle_el
 	ON ct_log_entry (ENTRY_ID, CT_LOG_ID);
 
+CREATE TABLE cablint_version (
+	VERSION_STRING	text,
+	GIT_COMMIT		bytea,
+	DEPLOYED_AT		timestamp
+);
+
+CREATE INDEX cv_da
+	ON cablint_version(DEPLOYED_AT);
+
+CREATE TABLE cablint_issue (
+	ID				serial,
+	SEVERITY		text,
+	ISSUE_TEXT		text,
+	CONSTRAINT ci_pk
+		PRIMARY KEY (ID),
+	CONSTRAINT ci_it_unq
+		UNIQUE (SEVERITY, ISSUE_TEXT)
+);
+
+CREATE TABLE cablint_cert_issue (
+	ID					bigserial,
+	CERTIFICATE_ID		integer,
+	CABLINT_ISSUE_ID	integer,
+	ISSUER_CA_ID		integer,
+	NOT_BEFORE			timestamp,
+	CONSTRAINT cci_pk
+		PRIMARY KEY (ID),
+	CONSTRAINT cci_c_fk
+		FOREIGN KEY (CERTIFICATE_ID)
+		REFERENCES certificate(ID),
+	CONSTRAINT cci_ci_fk
+		FOREIGN KEY (CABLINT_ISSUE_ID)
+		REFERENCES cablint_issue(ID),
+	CONSTRAINT cci_ca_fk
+		FOREIGN KEY (ISSUER_CA_ID)
+		REFERENCES ca(ID)
+);
+
+CREATE INDEX cci_c_ci
+	ON cablint_cert_issue (CERTIFICATE_ID, CABLINT_ISSUE_ID);
+
+CREATE INDEX cci_ca_ci_nb_c
+	ON cablint_cert_issue (ISSUER_CA_ID, CABLINT_ISSUE_ID, NOT_BEFORE, CERTIFICATE_ID);
+
+CREATE INDEX cci_ci_nb
+	ON cablint_cert_issue (CABLINT_ISSUE_ID, NOT_BEFORE);
+
+CREATE INDEX cci_nb_ca_ci
+	ON cablint_cert_issue (NOT_BEFORE, ISSUER_CA_ID, CABLINT_ISSUE_ID);
 
 GRANT SELECT ON ca TO crtsh;
 
@@ -188,8 +242,10 @@ GRANT SELECT ON ct_log_entry TO crtsh;
 
 
 \i cablint.fnc
+\i cablint_cached.fnc
 \i download_cert.fnc
 \i extract_cert_names.fnc
+\i get_ca_primary_name_attribute.fnc
 \i get_parameter.fnc
 \i html_escape.fnc
 \i import_cert.fnc
