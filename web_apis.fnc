@@ -90,9 +90,11 @@ DECLARE
 	t_matchType			text			:= '=';
 	t_showCABLint		boolean;
 	t_useReverseIndex	boolean			:= FALSE;
+	t_joinToCertificate_table	text;
 	t_showIdentity		boolean;
 	t_minNotBefore		timestamp;
 	t_minNotBeforeString	text;
+	t_excludeExpired	text;
 	t_issuerCAID		certificate.ISSUER_CA_ID%TYPE;
 	t_issuerCAID_table	text;
 	t_caPublicKey		ca.PUBLIC_KEY%TYPE;
@@ -219,6 +221,13 @@ BEGIN
 		t_minNotBeforeString := '&minNotBefore=' || t_temp;
 	END IF;
 
+	t_temp := get_parameter('exclude', paramNames, paramValues);
+	IF lower(coalesce(t_temp, 'nothing')) = 'expired' THEN
+		t_excludeExpired := '&exclude=expired';
+	ELSE
+		t_excludeExpired := NULL;
+	END IF;
+
 	t_outputType := coalesce(get_parameter('output', paramNames, paramValues), '');
 	IF t_outputType = '' THEN
 		t_outputType := 'html';
@@ -283,27 +292,31 @@ BEGIN
       color: #888888;
       font: 12pt Arial, sans-serif;
       padding-top: 10px;
-      text-align: center;
+      text-align: center
     }
     form {
-      margin: 0px;
+      margin: 0px
+    }
+    span.heading {
+      color: #888888;
+      font: 12pt Arial, sans-serif
     }
     span.title {
       border: 1px solid;
       color: #BF2E1A;
       font: bold 18pt Arial, sans-serif;
-      padding: 0px 5px;
+      padding: 0px 5px
     }
     span.text {
       color: #888888;
-      font: 10pt Arial, sans-serif;
+      font: 10pt Arial, sans-serif
     }
     span.whiteongrey {
       background-color: #CCCCCC;
       border: 1px solid;
       color: #FFFFFF;
       font: bold 18pt Arial, sans-serif;
-      padding: 0px 5px;
+      padding: 0px 5px
     }
     table {
       border-collapse: collapse;
@@ -311,36 +324,36 @@ BEGIN
       color: #222222;
       font: 10pt Arial, sans-serif;
       margin-left: auto;
-      margin-right: auto;
+      margin-right: auto
     }
     table.options {
       border: none;
-      margin-left: 10px;
+      margin-left: 10px
     }
     td, th {
       border: 1px solid #DDDDDD;
       padding: 0px 2px;
       text-align: left;
-      vertical-align: top;
+      vertical-align: top
     }
     td.outer, th.outer {
       border: 1px solid #DDDDDD;
       padding: 2px 20px;
-      text-align: left;
+      text-align: left
     }
     th.heading {
       color: #888888;
       font: bold italic 12pt Arial;
       padding: 20px 0px 0px;
-      text-align: center;
+      text-align: center
     }
     th.options, td.options {
       border: none;
-      vertical-align: middle;
+      vertical-align: middle
     }
     td.text {
       font: 10pt Courier New, sans-serif;
-      padding: 2px 20px;
+      padding: 2px 20px
     }
     table.cablint td, th {
       text-align: center
@@ -348,38 +361,38 @@ BEGIN
     .button {
       background-color: #BF2E1A;
       color: #FFFFFF;
-      font: 13pt Arial;
+      font: 13pt Arial
     }
     .copyright {
       font: 8pt Arial;
-      color: #DF4F3C;
+      color: #DF4F3C
     }
     .input {
       border: 1px solid #888888;
       font-weight: bold;
-      text-align: center;
+      text-align: center
     }
     .small {
       font: 8pt Arial;
-      color: #888888;
+      color: #888888
     }
     .error {
       background-color: #FFDFDF;
       color: #CC0000;
-      font-weight: bold;
+      font-weight: bold
     }
     .fatal {
       background-color: #0000AA;
       color: #FFFFFF;
-      font-weight: bold;
+      font-weight: bold
     }
     .notice {
       background-color: #FFFFDF;
-      color: #606000;
+      color: #606000
     }
     .warning {
       background-color: #FFEFDF;
-      color: #DF6000;
+      color: #DF6000
     }
   </STYLE>
 </HEAD>
@@ -414,7 +427,7 @@ BEGIN
 	ELSIF t_type = 'Advanced' THEN
 		t_output := t_output ||
 ' <SPAN class="whiteongrey">Certificate Search</SPAN>
-  <BR><BR><BR><BR>
+  <BR><BR><BR>
   <SCRIPT type="text/javascript">
     function doSearch(
       type,
@@ -424,6 +437,8 @@ BEGIN
       if ((!type) || (!value))
         return;
       var t_url = "?" + encodeURIComponent(type) + "=" + encodeURIComponent(value);
+      if (document.search_form.excludeExpired.checked)
+        t_url += "&exclude=expired";
       window.location = t_url;
     }
   </SCRIPT>
@@ -433,40 +448,52 @@ BEGIN
     <BR><BR>
     <INPUT type="text" class="input" name="q" size="64" maxlength="255">
     <BR><BR><BR>
-    Select search type:
-    <BR><BR>
-    <SELECT name="searchtype" size="19">
-      <OPTION value="c" selected>CERTIFICATE</OPTION>
-      <OPTION value="ID">&nbsp; crt.sh ID</OPTION>
-      <OPTION value="ctid">&nbsp; CT Entry ID</OPTION>
-      <OPTION value="serial">&nbsp; Serial Number</OPTION>
-      <OPTION value="spkisha1">&nbsp; SHA-1(SubjectPublicKeyInfo)</OPTION>
-      <OPTION value="subjectsha1">&nbsp; SHA-1(Subject)</OPTION>
-      <OPTION value="sha1">&nbsp; SHA-1(Certificate)</OPTION>
-      <OPTION value="sha256">&nbsp; SHA-256(Certificate)</OPTION>
-      <OPTION value="ca">CA</OPTION>
-      <OPTION value="CAID">&nbsp; ID</OPTION>
-      <OPTION value="CAName">&nbsp; Name</OPTION>
-      <OPTION value="Identity">IDENTITY</OPTION>
-      <OPTION value="CN">&nbsp; commonName (Subject)</OPTION>
-      <OPTION value="E">&nbsp; emailAddress (Subject)</OPTION>
-      <OPTION value="OU">&nbsp; organizationalUnitName (Subject)</OPTION>
-      <OPTION value="O">&nbsp; organizationName (Subject)</OPTION>
-      <OPTION value="dNSName">&nbsp; dNSName (SAN)</OPTION>
-      <OPTION value="rfc822Name">&nbsp; rfc822Name (SAN)</OPTION>
-      <OPTION value="iPAddress">&nbsp; iPAddress (SAN)</OPTION>
-    </SELECT>
-    <BR><BR><BR>
-    <INPUT type="submit" class="button" value="Search"
-           onClick="doSearch(document.search_form.searchtype.value,document.search_form.q.value)">
-    <SPAN style="position:absolute">
-      &nbsp; &nbsp; &nbsp;
-      <A style="font-size:8pt;vertical-align:sub" href="?">Simple...</A>
-    </SPAN>
-    <BR><BR><BR>
-    CA/B Forum lint:
-    &nbsp; <A style="font-size:8pt" href="?cablint=1+week">Summary...</A>
-    &nbsp; <A style="font-size:8pt" href="?cablint=issues">Issues...</A>
+    <TABLE class="options" style="margin:auto">
+      <TR>
+        <TD style="border:none;text-align:center">
+          <SPAN class="heading">Select search type:</SPAN>
+          <BR><BR>
+          <SELECT name="searchtype" size="11">
+            <OPTION value="c">CERTIFICATE</OPTION>
+            <OPTION value="ID">&nbsp; crt.sh ID</OPTION>
+            <OPTION value="ctid">&nbsp; CT Entry ID</OPTION>
+            <OPTION value="serial">&nbsp; Serial Number</OPTION>
+            <OPTION value="spkisha1">&nbsp; SHA-1(SubjectPublicKeyInfo)</OPTION>
+            <OPTION value="subjectsha1">&nbsp; SHA-1(Subject)</OPTION>
+            <OPTION value="sha1">&nbsp; SHA-1(Certificate)</OPTION>
+            <OPTION value="sha256">&nbsp; SHA-256(Certificate)</OPTION>
+            <OPTION value="ca">CA</OPTION>
+            <OPTION value="CAID">&nbsp; ID</OPTION>
+            <OPTION value="CAName">&nbsp; Name</OPTION>
+            <OPTION value="Identity" selected>IDENTITY</OPTION>
+            <OPTION value="CN">&nbsp; commonName (Subject)</OPTION>
+            <OPTION value="E">&nbsp; emailAddress (Subject)</OPTION>
+            <OPTION value="OU">&nbsp; organizationalUnitName (Subject)</OPTION>
+            <OPTION value="O">&nbsp; organizationName (Subject)</OPTION>
+            <OPTION value="dNSName">&nbsp; dNSName (SAN)</OPTION>
+            <OPTION value="rfc822Name">&nbsp; rfc822Name (SAN)</OPTION>
+            <OPTION value="iPAddress">&nbsp; iPAddress (SAN)</OPTION>
+          </SELECT>
+        </TD>
+        <TD style="border:none;width:40px">&nbsp;</TD>
+        <TD style="border:none;text-align:center">
+          <SPAN class="heading">Select search options:</SPAN>
+          <BR><BR>
+          <INPUT type="checkbox" name="excludeExpired"> Exclude expired certificates?
+          <BR><BR><BR>
+          <INPUT type="submit" class="button" value="Search"
+                 onClick="doSearch(document.search_form.searchtype.value,document.search_form.q.value)">
+          <SPAN style="position:absolute">
+            &nbsp; &nbsp; &nbsp;
+            <A style="font-size:8pt;vertical-align:sub" href="?">Simple...</A>
+          </SPAN>
+          <BR><BR><BR><HR><BR>
+          <SPAN class="heading">CA/B Forum lint:</SPAN>
+          <BR><A style="font-size:8pt" href="?cablint=1+week">Summary...</A>
+          &nbsp; <A style="font-size:8pt" href="?cablint=issues">Issues...</A>
+        </TD>
+      </TR>
+    </TABLE>
   </FORM>
   <SCRIPT type="text/javascript">
     document.search_form.q.focus();
@@ -1016,7 +1043,9 @@ BEGIN
             return;
           var t_url = "?" + encodeURIComponent(type) + "=" + encodeURIComponent(value);
           if (document.search_form.caID.value != "")
-            t_url = t_url + "&iCAID=" + document.search_form.caID.value;
+            t_url += "&iCAID=" + document.search_form.caID.value;
+          if (document.search_form.excludeExpired.checked)
+            t_url += "&exclude=expired";
           window.location = t_url;
         }
       </SCRIPT>
@@ -1044,6 +1073,14 @@ BEGIN
               <BR><BR><BR>
               <INPUT type="submit" class="button" value="Search"
                      onClick="identitySearch(document.search_form.idtype.value,document.search_form.idvalue.value)">
+            </TD>
+            <TD class="options" style="padding-left:20px;vertical-align:top">
+              <SPAN class="text">Search options:</SPAN>
+              <BR><BR><INPUT type="checkbox" name="excludeExpired"';
+			IF t_excludeExpired IS NOT NULL THEN
+				t_output := t_output || ' checked';
+			END IF;
+			t_output := t_output || '> Exclude expired certificates?
             </TD>
           </TR>
         </TABLE>
@@ -1168,7 +1205,7 @@ BEGIN
 				END IF;
 				t_text := t_text ||
 '  <TR>
-    <TD>' || '<A href="?caid=' || l_record.ID::text || '">'
+    <TD>' || '<A href="?caid=' || l_record.ID::text || coalesce(t_excludeExpired, '') || '">'
 							|| html_escape(l_record.NAME) || '</A></TD>
   </TR>
 ';
@@ -1261,6 +1298,9 @@ BEGIN
 		IF t_caID IS NOT NULL THEN
 			t_output := t_output || '; Issuer CA ID = ' || t_caID::text;
 		END IF;
+		IF t_excludeExpired IS NOT NULL THEN
+			t_output := t_output || '; Exclude expired certificates';
+		END IF;
 		t_output := t_output || '</TD>
   </TR>
 </TABLE>
@@ -1326,6 +1366,10 @@ BEGIN
 				t_query := t_query ||
 						'	)' || chr(10);
 			END IF;
+			IF t_excludeExpired IS NOT NULL THEN
+				t_query := t_query ||
+						'		AND x509_notAfter(c.CERTIFICATE) > statement_timestamp()' || chr(10);
+			END IF;
 			IF t_type = 'CA/B Forum lint' THEN
 				t_query := t_query ||
 						'	GROUP BY c.ID, SUBJECT_NAME, NOT_BEFORE, NOT_AFTER' || chr(10);
@@ -1359,7 +1403,7 @@ BEGIN
 			END LOOP;
 
 			IF t_pageNo IS NOT NULL THEN
-				IF t_value = '%' THEN
+				IF (t_value = '%') AND (t_excludeExpired IS NULL) THEN
 					SELECT ca.NO_OF_CERTS_ISSUED
 						INTO t_count
 						FROM ca
@@ -1379,7 +1423,7 @@ BEGIN
 '<TABLE>
   <TR>
     <TH class="outer">Issuer Name</TH>
-    <TD class="outer"><A href="?caid=' || t_caID::text || '">'
+    <TD class="outer"><A href="?caid=' || t_caID::text || coalesce(t_excludeExpired, '') || '">'
 									|| coalesce(html_escape(t_temp), '&nbsp;') || '</A></TD>
   </TR>
   <TR>
@@ -1395,7 +1439,7 @@ BEGIN
 					IF t_pageNo > 1 THEN
 						t_output := t_output || '<A style="font-size:8pt" href="?' ||
 									urlEncode(t_type) || '=' || urlEncode(t_value) ||
-									'&iCAID=' || t_caID::text ||
+									'&iCAID=' || t_caID::text || coalesce(t_excludeExpired, '') ||
 									'&p=' || (t_pageNo - 1)::text ||
 									'&n=' || t_resultsPerPage::text || '">Previous</A> &nbsp; ';
 					END IF;
@@ -1405,7 +1449,7 @@ BEGIN
 					IF (t_pageNo * t_resultsPerPage) < t_count THEN
 						t_output := t_output || ' &nbsp; <A style="font-size:8pt" href="?' ||
 									urlEncode(t_type) || '=' || urlEncode(t_value) ||
-									'&iCAID=' || t_caID::text ||
+									'&iCAID=' || t_caID::text || coalesce(t_excludeExpired, '') ||
 									'&p=' || (t_pageNo + 1)::text ||
 									'&n=' || t_resultsPerPage::text || '">Next</A>';
 					END IF;
@@ -1472,6 +1516,9 @@ BEGIN
 							'		min(cci.CERTIFICATE_ID) MIN_CERT_ID,' || chr(10) ||
 							'		count(DISTINCT cci.CERTIFICATE_ID) NUM_CERTS' || chr(10) ||
 							'	FROM cablint_cert_issue cci';
+				IF t_excludeExpired IS NOT NULL THEN
+					t_joinToCertificate_table := 'cci';
+				END IF;
 			ELSE
 				t_issuerCAID_table := 'ci';
 				t_query := 'SELECT ci.ISSUER_CA_ID, ca.NAME,' || chr(10) ||
@@ -1479,10 +1526,16 @@ BEGIN
 							'		min(ci.CERTIFICATE_ID) MIN_CERT_ID,' || chr(10) ||
 							'		count(DISTINCT ci.CERTIFICATE_ID) NUM_CERTS' || chr(10) ||
 							'	FROM certificate_identity ci';
+				IF t_excludeExpired IS NOT NULL THEN
+					t_joinToCertificate_table := 'ci';
+				END IF;
 			END IF;
 			t_query := t_query || chr(10) ||
-							'		LEFT OUTER JOIN ca ON (' || t_issuerCAID_table || '.ISSUER_CA_ID = ca.ID)';
-			t_query := t_query || chr(10);
+							'		LEFT OUTER JOIN ca ON (' || t_issuerCAID_table || '.ISSUER_CA_ID = ca.ID)' || chr(10);
+			IF t_joinToCertificate_table IS NOT NULL THEN
+				t_query := t_query ||
+							'		, certificate c' || chr(10);
+			END IF;
 
 			IF t_type = 'CT Entry ID' THEN
 				t_query := t_query ||
@@ -1514,6 +1567,14 @@ BEGIN
 				t_query := t_query ||
 							'		AND ci.NAME_TYPE = ' || quote_literal(t_nameType) || chr(10);
 			END IF;
+			IF t_joinToCertificate_table IS NOT NULL THEN
+				t_query := t_query ||
+							'		AND ' || t_joinToCertificate_table || '.CERTIFICATE_ID = c.ID' || chr(10);
+			END IF;
+			IF t_excludeExpired IS NOT NULL THEN
+				t_query := t_query ||
+							'		AND x509_notAfter(c.CERTIFICATE) > statement_timestamp()' || chr(10);
+			END IF;
 			t_query := t_query ||
 							'	GROUP BY ' || t_issuerCAID_table || '.ISSUER_CA_ID, ca.NAME, NAME_VALUE' || chr(10);
 
@@ -1535,7 +1596,7 @@ BEGIN
 				ELSIF (l_record.ISSUER_CA_ID IS NOT NULL)
 						AND (l_record.MIN_CERT_ID IS NOT NULL) THEN
 					t_text := t_text || '<A href="?' || t_paramName || '=' || urlEncode(l_record.NAME_VALUE);
-					t_text := t_text || '&iCAID=' || l_record.ISSUER_CA_ID::text || t_minNotBeforeString || '">'
+					t_text := t_text || '&iCAID=' || l_record.ISSUER_CA_ID::text || t_minNotBeforeString || coalesce(t_excludeExpired, '') || '">'
 								|| l_record.NUM_CERTS::text || '</A>';
 				ELSE
 					t_text := t_text || l_record.NUM_CERTS::text;
