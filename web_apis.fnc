@@ -70,6 +70,7 @@ DECLARE
 	t_certificateSHA256	bytea;
 	t_certificate		certificate.CERTIFICATE%TYPE;
 	t_caID				ca.ID%TYPE;
+	t_caName			ca.NAME%TYPE;
 	t_serialNumber		bytea;
 	t_spkiSHA1			bytea;
 	t_nameType			name_type;
@@ -95,6 +96,7 @@ DECLARE
 	t_minNotBefore		timestamp;
 	t_minNotBeforeString	text;
 	t_excludeExpired	text;
+	t_searchProvider	text;
 	t_issuerCAID		certificate.ISSUER_CA_ID%TYPE;
 	t_issuerCAID_table	text;
 	t_caPublicKey		ca.PUBLIC_KEY%TYPE;
@@ -224,8 +226,11 @@ BEGIN
 	t_temp := get_parameter('exclude', paramNames, paramValues);
 	IF lower(coalesce(t_temp, 'nothing')) = 'expired' THEN
 		t_excludeExpired := '&exclude=expired';
-	ELSE
-		t_excludeExpired := NULL;
+	END IF;
+
+	t_temp := get_parameter('search', paramNames, paramValues);
+	IF lower(coalesce(t_temp, 'crt.sh')) = 'censys' THEN
+		t_searchProvider := '&search=censys';
 	END IF;
 
 	t_outputType := coalesce(get_parameter('output', paramNames, paramValues), '');
@@ -436,9 +441,55 @@ BEGIN
     {
       if ((!type) || (!value))
         return;
-      var t_url = "?" + encodeURIComponent(type) + "=" + encodeURIComponent(value);
-      if (document.search_form.excludeExpired.checked)
-        t_url += "&exclude=expired";
+      var t_url;
+      if (document.search_form.searchCensys.checked && (type != "CAID")) {
+        if ((type == "id") || (type == "ctid") || (type == "spkisha1")
+             || (type == "subjectsha1") || (type == "E")) {
+          alert("Sorry, Censys doesn''t support this search type");
+          return;
+        }
+        t_url = "//www.censys.io/certificates?q=";
+        var t_field = "";
+        if (value != "%") {
+          if (type == "c")
+            t_url += "parsed.fingerprint_sha1:" + encodeURIComponent("\"" + value.toLowerCase() + "\"")
+                     + " OR parsed.fingerprint_sha256:" + encodeURIComponent("\"" + value.toLowerCase() + "\"");
+          else if (type == "serial")
+            t_field = "parsed.serial_number";
+          else if (type == "sha1")
+            t_url += "parsed.fingerprint_sha1:" + encodeURIComponent("\"" + value.toLowerCase() + "\"");
+          else if (type == "sha256")
+            t_url += "parsed.fingerprint_sha256:" + encodeURIComponent("\"" + value.toLowerCase() + "\"");
+          else if ((type == "CA") || (type == "CAName"))
+            t_field = "parsed.issuer_dn";
+          else if (type == "Identity")
+            t_url += "parsed.subject_dn:" + encodeURIComponent("\"" + value + "\"")
+                     + " OR parsed.extensions.subject_alt_name.dns_names:" + encodeURIComponent("\"" + value + "\"")
+                     + " OR parsed.extensions.subject_alt_name.email_addresses:" + encodeURIComponent("\"" + value + "\"")
+                     + " OR parsed.extensions.subject_alt_name.ip_addresses:" + encodeURIComponent("\"" + value + "\"");
+          else if (type == "CN")
+            t_field = "parsed.subject.common_name";
+          else if (type == "OU")
+            t_field = "parsed.subject.organizational_unit";
+          else if (type == "O")
+            t_field = "parsed.subject.organization";
+          else if (type == "dNSName")
+            t_field = "parsed.extensions.subject_alt_name.dns_names";
+          else if (type == "rfc822Name")
+            t_field = "parsed.extensions.subject_alt_name.email_addresses";
+          else if (type == "iPAddress")
+            t_field = "parsed.extensions.subject_alt_name.ip_addresses";
+        }
+        if (t_field != "")
+          t_url += t_field + ":" + encodeURIComponent("\"" + value + "\"");
+      }
+      else {
+        t_url = "?" + encodeURIComponent(type) + "=" + encodeURIComponent(value);
+        if (document.search_form.excludeExpired.checked)
+          t_url += "&exclude=expired";
+        if (document.search_form.searchCensys.checked)
+          t_url += "&search=censys";
+      }
       window.location = t_url;
     }
   </SCRIPT>
@@ -455,7 +506,7 @@ BEGIN
           <BR><BR>
           <SELECT name="searchtype" size="11">
             <OPTION value="c">CERTIFICATE</OPTION>
-            <OPTION value="ID">&nbsp; crt.sh ID</OPTION>
+            <OPTION value="id">&nbsp; crt.sh ID</OPTION>
             <OPTION value="ctid">&nbsp; CT Entry ID</OPTION>
             <OPTION value="serial">&nbsp; Serial Number</OPTION>
             <OPTION value="spkisha1">&nbsp; SHA-1(SubjectPublicKeyInfo)</OPTION>
@@ -478,16 +529,26 @@ BEGIN
         <TD style="border:none;width:40px">&nbsp;</TD>
         <TD style="border:none;text-align:center">
           <SPAN class="heading">Select search options:</SPAN>
-          <BR><BR>
-          <INPUT type="checkbox" name="excludeExpired"> Exclude expired certificates?
-          <BR><BR><BR>
+          <BR><BR><DIV style="border:1px solid #AAAAAA;margin-bottom:8px;padding:5px 0px;text-align:left">
+            <INPUT type="checkbox" name="excludeExpired"';
+		IF t_excludeExpired IS NOT NULL THEN
+			t_output := t_output || ' checked';
+		END IF;
+		t_output := t_output || '> Exclude expired certificates?
+            <BR><INPUT type="checkbox" name="searchCensys"';
+		IF coalesce(t_searchProvider, '') = '&search=censys' THEN
+			t_output := t_output || ' checked';
+		END IF;
+		t_output := t_output || '> Search on <SPAN style="vertical-align:-30%"><IMG src="/censys.png"></SPAN>?
+          </DIV>
+          <BR>
           <INPUT type="submit" class="button" value="Search"
                  onClick="doSearch(document.search_form.searchtype.value,document.search_form.q.value)">
           <SPAN style="position:absolute">
             &nbsp; &nbsp; &nbsp;
             <A style="font-size:8pt;vertical-align:sub" href="?">Simple...</A>
           </SPAN>
-          <BR><BR><BR><HR><BR>
+          <BR><BR><HR><BR>
           <SPAN class="heading">CA/B Forum lint:</SPAN>
           <BR><A style="font-size:8pt" href="?cablint=1+week">Summary...</A>
           &nbsp; <A style="font-size:8pt" href="?cablint=issues">Issues...</A>
@@ -905,12 +966,15 @@ BEGIN
 
 		-- Search for a specific CA.
 		IF t_type = 'CA ID' THEN
-			SELECT ca.ID, html_escape(ca.NAME), ca.PUBLIC_KEY
-				INTO t_caID, t_text, t_caPublicKey
+			SELECT ca.ID, ca.NAME, ca.PUBLIC_KEY
+				INTO t_caID, t_caName, t_caPublicKey
 				FROM ca
 				WHERE ca.ID = t_value::integer;
-			IF t_text IS NULL THEN
+			
+			IF t_caName IS NULL THEN
 				RAISE no_data_found USING MESSAGE = 'CA not found';
+			ELSE
+				t_text := html_escape(t_caName);
 			END IF;
 
 			SELECT min(cac.CERTIFICATE_ID)
@@ -1041,11 +1105,46 @@ BEGIN
         {
           if ((!type) || (!value))
             return;
-          var t_url = "?" + encodeURIComponent(type) + "=" + encodeURIComponent(value);
-          if (document.search_form.caID.value != "")
-            t_url += "&iCAID=" + document.search_form.caID.value;
-          if (document.search_form.excludeExpired.checked)
-            t_url += "&exclude=expired";
+          var t_url;
+          if (document.search_form.searchCensys.checked) {
+            t_url = "//www.censys.io/certificates?q="
+                   + encodeURIComponent("parsed.issuer_dn=\"' || t_caName || '\"");
+            var t_field = "";
+            if (value != "%") {
+              if (type == "Identity") {
+                t_url += " AND (parsed.subject_dn:" + encodeURIComponent("\"" + value + "\"")
+                         + " OR parsed.extensions.subject_alt_name.dns_names:" + encodeURIComponent("\"" + value + "\"")
+                         + " OR parsed.extensions.subject_alt_name.email_addresses:" + encodeURIComponent("\"" + value + "\"")
+                         + " OR parsed.extensions.subject_alt_name.ip_addresses:" + encodeURIComponent("\"" + value + "\"")
+                         + ")";
+              }
+              else if (type == "CN")
+                t_field = "parsed.subject.common_name";
+              else if (type == "E") {
+                alert("Sorry, Censys doesn''t support ''emailAddress (Subject)'' searches");
+                return false;
+              }
+              else if (type == "OU")
+                t_field = "parsed.subject.organizational_unit";
+              else if (type == "O")
+                t_field = "parsed.subject.organization";
+              else if (type == "dNSName")
+                t_field = "parsed.extensions.subject_alt_name.dns_names";
+              else if (type == "rfc822Name")
+                t_field = "parsed.extensions.subject_alt_name.email_addresses";
+              else if (type == "iPAddress")
+                t_field = "parsed.extensions.subject_alt_name.ip_addresses";
+            }
+            if (t_field != "")
+              t_url += " AND " + t_field + ":" + encodeURIComponent("\"" + value + "\"");
+          }
+          else {
+            t_url = "?" + encodeURIComponent(type) + "=" + encodeURIComponent(value);
+            if (document.search_form.caID.value != "")
+              t_url += "&iCAID=" + document.search_form.caID.value;
+            if (document.search_form.excludeExpired.checked)
+              t_url += "&exclude=expired";
+          }
           window.location = t_url;
         }
       </SCRIPT>
@@ -1076,11 +1175,18 @@ BEGIN
             </TD>
             <TD class="options" style="padding-left:20px;vertical-align:top">
               <SPAN class="text">Search options:</SPAN>
-              <BR><BR><INPUT type="checkbox" name="excludeExpired"';
+              <BR><BR><DIV style="border:1px solid #AAAAAA;margin-bottom:8px;padding:5px 0px;text-align:left">
+                <INPUT type="checkbox" name="excludeExpired"';
 			IF t_excludeExpired IS NOT NULL THEN
 				t_output := t_output || ' checked';
 			END IF;
 			t_output := t_output || '> Exclude expired certificates?
+                <BR><INPUT type="checkbox" name="searchCensys"';
+			IF coalesce(t_searchProvider, '') = '&search=censys' THEN
+				t_output := t_output || ' checked';
+			END IF;
+			t_output := t_output || '> Search on <SPAN style="vertical-align:-30%"><IMG src="/censys.png"></SPAN>?
+              </DIV>
             </TD>
           </TR>
         </TABLE>
