@@ -2021,8 +2021,16 @@ BEGIN
 				ELSIF t_outputType = 'html' THEN
 					t_output := t_output || '
     <TR>
-      <TD><A href="?cablint=' || urlEncode(t_value) || '&dir=' || t_direction || '&sort=' || t_sort::text || t_groupByParameter
-						|| '&issuerO=' || urlEncode(l_record.ISSUER_ORGANIZATION_NAME) || '">' || coalesce(l_record.ISSUER_ORGANIZATION_NAME, '&nbsp;') || '</TD>
+      <TD>';
+					IF l_record.ISSUER_ORGANIZATION_NAME IS NOT NULL THEN
+						t_output := t_output || '<A href="?cablint=' || urlEncode(t_value) || '&dir=' || t_direction
+											|| '&sort=' || t_sort::text || t_groupByParameter
+											|| '&issuerO=' || urlEncode(l_record.ISSUER_ORGANIZATION_NAME) || '">'
+											|| l_record.ISSUER_ORGANIZATION_NAME || '</A>';
+					ELSE
+						t_output := t_output || '&nbsp;';
+					END IF;
+					t_output := t_output || '</TD>
 ';
 					IF t_groupBy != 'IssuerO' THEN
 						t_output := t_output ||
