@@ -113,6 +113,9 @@ CREATE INDEX ci_reverse
 CREATE INDEX ci_ca
 	ON certificate_identity (ISSUER_CA_ID, lower(NAME_VALUE) text_pattern_ops, NAME_TYPE);
 
+CREATE INDEX ci_ca_reverse
+	ON certificate_identity (ISSUER_CA_ID, reverse(lower(NAME_VALUE)) text_pattern_ops, NAME_TYPE);
+
 
 CREATE TABLE ca_certificate (
 	CERTIFICATE_ID			integer,
