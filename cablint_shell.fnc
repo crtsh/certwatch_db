@@ -16,21 +16,11 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-CREATE OR REPLACE FUNCTION cablint(
-	cert_data				certificate.CERTIFICATE%TYPE
-) RETURNS SETOF cablint_issue.ISSUE_TEXT%TYPE
+CREATE OR REPLACE FUNCTION cablint_shell(
+	cert_data				bytea
+) RETURNS text
+LANGUAGE plsh
 AS $$
-DECLARE
-	t_count			integer		:= 0;
-	l_issue			RECORD;
-BEGIN
-	FOR l_issue IN (SELECT cablint_embedded(cert_data) CABLINT) LOOP
-		t_count := t_count + 1;
-		RETURN NEXT l_issue.CABLINT;
-	END LOOP;
-
-	IF t_count = 0 THEN
-		RETURN QUERY SELECT unnest(string_to_array(cablint_shell(cert_data), chr(10)));
-	END IF;
-END;
-$$ LANGUAGE plpgsql STRICT;
+#!/bin/sh
+/bin/echo "$1" | /usr/bin/xxd -r -ps | /usr/bin/ruby -I /usr/local/certlint/lib /usr/local/bin/cablint /dev/stdin | PATH=/bin:/usr/bin sed "s/\tstdin$//g"
+$$;

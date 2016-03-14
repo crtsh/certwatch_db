@@ -241,6 +241,7 @@ GRANT SELECT ON ct_log TO crtsh;
 GRANT SELECT ON ct_log_entry TO crtsh;
 
 
+\i cablint_shell.fnc
 \i cablint.fnc
 \i cablint_cached.fnc
 \i download_cert.fnc

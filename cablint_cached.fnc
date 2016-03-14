@@ -17,8 +17,7 @@
  */
 
 CREATE OR REPLACE FUNCTION cablint_cached(
-	cert_id					certificate.ID%TYPE,
-	socket_number			integer		DEFAULT 1
+	cert_id					certificate.ID%TYPE
 ) RETURNS SETOF cablint_issue.ID%TYPE
 AS $$
 DECLARE
@@ -53,7 +52,7 @@ BEGIN
 
 		t_count := 0;
 		FOR l_record IN (
-					SELECT unnest(string_to_array(cablint(t_certificate, socket_number), CHR(10))) CABLINT
+					SELECT cablint(t_certificate) CABLINT
 				) LOOP
 			t_count := t_count + 1;
 			SELECT ci.ID

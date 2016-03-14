@@ -45,8 +45,11 @@ DROP FUNCTION cablint_cached(
 );
 
 DROP FUNCTION cablint(
-	cert_data				bytea,
-	socket_number			integer
+	cert_data				certificate.CERTIFICATE%TYPE
+);
+
+DROP FUNCTION cablint_shell(
+	cert_data				bytea
 );
 
 

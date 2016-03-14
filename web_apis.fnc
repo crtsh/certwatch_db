@@ -863,7 +863,7 @@ BEGIN
 									WHEN 'W:' THEN '<SPAN class="warning">&nbsp;WARNING:'
 									ELSE '<SPAN>&nbsp; &nbsp; &nbsp; &nbsp;' || substr(CABLINT, 1, 2)
 								END ISSUE_HEADING
-							FROM unnest(string_to_array(cablint(t_certificate), chr(10))) CABLINT
+							FROM cablint(t_certificate) CABLINT
 							ORDER BY ISSUE_TYPE, ISSUE_TEXT
 					) LOOP
 				t_output := t_output ||
