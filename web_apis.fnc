@@ -97,6 +97,8 @@ DECLARE
 	t_minNotBeforeString	text;
 	t_excludeExpired	text;
 	t_excludeAffectedCerts	text;
+	t_excludeCAs		integer[];
+	t_excludeCAsString	text;
 	t_searchProvider	text;
 	t_issuerCAID		certificate.ISSUER_CA_ID%TYPE;
 	t_issuerCAID_table	text;
@@ -268,6 +270,11 @@ BEGIN
 			t_dirSymbol := '&#8679;';
 			t_orderBy := 'DESC';
 			t_oppositeDirection := 'v';
+		END IF;
+
+		t_excludeCAs := string_to_array(coalesce(get_parameter('excludecas', paramNames, paramValues), ''), ',');
+		IF array_length(t_excludeCAs, 1) > 0 THEN
+			t_excludeCAsString := '&excludeCAs=' || array_to_string(t_excludeCAs, ',');
 		END IF;
 	ELSE
 		t_sort := 1;
@@ -1387,7 +1394,8 @@ BEGIN
 		IF (t_caID IS NULL) AND (t_type = 'CA/B Forum lint') THEN
 			t_output := t_output ||
 '  <SPAN style="position:absolute">
-    &nbsp; &nbsp; &nbsp; <A style="font-size:8pt;vertical-align:sub" href="?cablint=' || urlEncode(t_value) || '&dir=' || t_direction || '&sort=' || t_sort::text || coalesce(t_excludeExpired, '');
+    &nbsp; &nbsp; &nbsp; <A style="font-size:8pt;vertical-align:sub" href="?cablint=' || urlEncode(t_value) || '&dir=' || t_direction || '&sort=' || t_sort::text
+																	|| coalesce(t_excludeExpired, '') || t_minNotBeforeString || coalesce(t_excludeCAsString, '');
 			IF t_groupBy = 'none' THEN
 				t_output := t_output || '">Group';
 			ELSE
@@ -1719,6 +1727,12 @@ BEGIN
 							'		AND x509_notAfter(c.CERTIFICATE) > statement_timestamp()' || chr(10);
 			END IF;
 
+			IF t_excludeCAsString IS NOT NULL THEN
+				t_query := t_query ||
+							'		AND ' || t_issuerCAID_table || '.ISSUER_CA_ID NOT IN (' || array_to_string(t_excludeCAs, ',') || ')
+';
+			END IF;
+
 			IF coalesce(t_groupBy, '') = 'none' THEN
 				t_query := t_query ||
 							'	GROUP BY c.ID, ' || t_issuerCAID_table || '.ISSUER_CA_ID, ca.NAME, NAME_VALUE' || chr(10) ||
@@ -1800,14 +1814,14 @@ BEGIN
 				IF coalesce(t_groupBy, '') = 'none' THEN
 					t_output := t_output ||
 '    <TH>
-      <A href="?cablint=' || urlEncode(t_value) || '&dir=' || t_oppositeDirection || '&sort=1' || t_groupByParameter || t_minNotBeforeString || coalesce(t_excludeExpired, '') || '">Logged At</A>
+      <A href="?cablint=' || urlEncode(t_value) || '&dir=' || t_oppositeDirection || '&sort=1' || t_minNotBeforeString || coalesce(t_excludeExpired, '') || coalesce(t_excludeCAsString, '') || t_groupByParameter || '">Logged At</A>
 ';
 					IF t_sort = 1 THEN
 						t_output := t_output || ' ' || t_dirSymbol;
 					END IF;
 					t_output := t_output ||
 '    </TH>
-    <TH><A href="?cablint=' || urlEncode(t_value) || '&dir=' || t_oppositeDirection || '&sort=2' || t_groupByParameter || t_minNotBeforeString || coalesce(t_excludeExpired, '') || '">Not Before</A>
+    <TH><A href="?cablint=' || urlEncode(t_value) || '&dir=' || t_oppositeDirection || '&sort=2' || t_minNotBeforeString || coalesce(t_excludeExpired, '') || coalesce(t_excludeCAsString, '') || t_groupByParameter || '">Not Before</A>
 ';
 					IF t_sort = 2 THEN
 						t_output := t_output || ' ' || t_dirSymbol;
@@ -1818,7 +1832,7 @@ BEGIN
 				ELSE
 					t_output := t_output ||
 '    <TH>
-      <A href="?cablint=' || urlEncode(t_value) || '&dir=' || t_oppositeDirection || '&sort=1' || t_groupByParameter || t_minNotBeforeString || coalesce(t_excludeExpired, '') || '">#</A>
+      <A href="?cablint=' || urlEncode(t_value) || '&dir=' || t_oppositeDirection || '&sort=1' || t_minNotBeforeString || coalesce(t_excludeExpired, '') || coalesce(t_excludeCAsString, '') || t_groupByParameter || '">#</A>
 ';
 					IF t_sort = 1 THEN
 						t_output := t_output || ' ' || t_dirSymbol;
@@ -1840,7 +1854,7 @@ BEGIN
 				END IF;
 				t_output := t_output ||
 '    <TH>
-      <A href="?cablint=' || urlEncode(t_value) || '&dir=' || t_oppositeDirection || '&sort=3' || t_groupByParameter || t_minNotBeforeString || coalesce(t_excludeExpired, '') || '">Issuer Name</A>
+      <A href="?cablint=' || urlEncode(t_value) || '&dir=' || t_oppositeDirection || '&sort=3' || t_minNotBeforeString || coalesce(t_excludeExpired, '') || coalesce(t_excludeCAsString, '') || t_groupByParameter || '">Issuer Name</A>
 ';
 					IF t_sort = 3 THEN
 						t_output := t_output || ' ' || t_dirSymbol;
