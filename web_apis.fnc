@@ -2108,7 +2108,7 @@ BEGIN
 		IF t_excludeAffectedCerts IS NULL THEN
 			t_query := t_query || ' count(DISTINCT cci.CERTIFICATE_ID) NUM_CERTS,';
 		ELSE
-			t_query := t_query || ' ''?''::text NUM_CERTS,';
+			t_query := t_query || ' -1::bigint NUM_CERTS,';
 		END IF;
 		t_query := t_query || chr(10) ||
 					'		CASE ci.SEVERITY' || chr(10) ||
@@ -2165,7 +2165,13 @@ BEGIN
 '    <TR>
       <TD ' || l_record.ISSUE_CLASS || '>' || l_record.ISSUE_HEADING || '</TD>
       <TD ' || l_record.ISSUE_CLASS || '>' || l_record.ISSUE_TEXT || '</TD>
-      <TD><A href="?cablint=' || l_record.ID::text || t_minNotBeforeString || '">' || l_record.NUM_CERTS || '</A></TD>
+      <TD><A href="?cablint=' || l_record.ID::text || t_minNotBeforeString || '">';
+				IF l_record.NUM_CERTS = -1 THEN
+					t_output := t_output || '?';
+				ELSE
+					t_output := t_output || l_record.NUM_CERTS;
+				END IF;
+				t_output := t_output || '</A></TD>
     </TR>
 ';
 			END IF;
