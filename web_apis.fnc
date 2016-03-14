@@ -96,6 +96,7 @@ DECLARE
 	t_minNotBefore		timestamp;
 	t_minNotBeforeString	text;
 	t_excludeExpired	text;
+	t_excludeAffectedCerts	text;
 	t_searchProvider	text;
 	t_issuerCAID		certificate.ISSUER_CA_ID%TYPE;
 	t_issuerCAID_table	text;
@@ -224,7 +225,7 @@ BEGIN
 	END IF;
 
 	t_temp := get_parameter('exclude', paramNames, paramValues);
-	IF lower(coalesce(t_temp, 'nothing')) = 'expired' THEN
+	IF lower(coalesce(',' || t_temp || ',', 'nothing')) LIKE ',expired,' THEN
 		t_excludeExpired := '&exclude=expired';
 	END IF;
 
@@ -2071,6 +2072,11 @@ BEGIN
 			t_sort := 1;
 		END IF;
 
+		t_temp := get_parameter('exclude', paramNames, paramValues);
+		IF lower(coalesce(',' || t_temp || ',', 'nothing')) LIKE ',affected_certs,' THEN
+			t_excludeAffectedCerts := '&exclude=affected_certs';
+		END IF;
+
 		IF t_outputType = 'html' THEN
 			t_output := t_output ||
 '  <SPAN class="whiteongrey">CA/B Forum lint: Issues</SPAN>
@@ -2079,17 +2085,17 @@ BEGIN
   <BR><BR>
   <TABLE class="cablint">
     <TR>
-      <TH><A href="?cablint=' || urlEncode(t_value) || '&dir=' || t_oppositeDirection || '&sort=1' || t_groupByParameter || '">Severity</A>';
+      <TH><A href="?cablint=' || urlEncode(t_value) || '&dir=' || t_oppositeDirection || '&sort=1' || t_groupByParameter || coalesce(t_excludeAffectedCerts, '') || '">Severity</A>';
 			IF t_sort = 1 THEN
 				t_output := t_output || ' ' || t_dirSymbol;
 			END IF;
 			t_output := t_output || '</TH>
-      <TH><A href="?cablint=' || urlEncode(t_value) || '&dir=' || t_oppositeDirection || '&sort=2' || t_groupByParameter || '">Issue</A>';
+      <TH><A href="?cablint=' || urlEncode(t_value) || '&dir=' || t_oppositeDirection || '&sort=2' || t_groupByParameter || coalesce(t_excludeAffectedCerts, '') || '">Issue</A>';
 			IF t_sort = 2 THEN
 				t_output := t_output || ' ' || t_dirSymbol;
 			END IF;
 			t_output := t_output || '</TH>
-      <TH><A href="?cablint=' || urlEncode(t_value) || '&dir=' || t_oppositeDirection || '&sort=3' || t_groupByParameter || '"># Affected Certs</A>';
+      <TH><A href="?cablint=' || urlEncode(t_value) || '&dir=' || t_oppositeDirection || '&sort=3' || t_groupByParameter || coalesce(t_excludeAffectedCerts, '') || '"># Affected Certs</A>';
 			IF t_sort = 3 THEN
 				t_output := t_output || ' ' || t_dirSymbol;
 			END IF;
@@ -2098,7 +2104,13 @@ BEGIN
 ';
 		END IF;
 
-		t_query := 'SELECT ci.ID, ci.ISSUE_TEXT, count(DISTINCT cci.CERTIFICATE_ID) NUM_CERTS,' || chr(10) ||
+		t_query := 'SELECT ci.ID, ci.ISSUE_TEXT,';
+		IF t_excludeAffectedCerts IS NULL THEN
+			t_query := t_query || ' count(DISTINCT cci.CERTIFICATE_ID) NUM_CERTS,';
+		ELSE
+			t_query := t_query || ' ''?''::text NUM_CERTS,';
+		END IF;
+		t_query := t_query || chr(10) ||
 					'		CASE ci.SEVERITY' || chr(10) ||
 					'			WHEN ''F'' THEN 1' || chr(10) ||
 					'			WHEN ''E'' THEN 2' || chr(10) ||
@@ -2123,11 +2135,17 @@ BEGIN
 					'			WHEN ''W'' THEN ''class="warning"''' || chr(10) ||
 					'			WHEN ''N'' THEN ''class="notice"''' || chr(10) ||
 					'			ELSE ''''' || chr(10) ||
-					'		END ISSUE_CLASS' || chr(10) ||
+					'		END ISSUE_CLASS' || chr(10);
+		IF t_excludeAffectedCerts IS NULL THEN
+			t_query := t_query ||
 					'	FROM cablint_cert_issue cci, cablint_issue ci' || chr(10) ||
 					'	WHERE cci.CABLINT_ISSUE_ID = ci.ID' || chr(10) ||
 					'		AND cci.NOT_BEFORE >= $1' || chr(10) ||
 					'	GROUP BY ci.ID, ci.SEVERITY, ci.ISSUE_TEXT' || chr(10);
+		ELSE
+			t_query := t_query ||
+					'	FROM cablint_issue ci' || chr(10);
+		END IF;
 		IF t_sort = 1 THEN
 			t_query := t_query ||
 					'	ORDER BY ISSUE_TYPE, ci.ISSUE_TEXT ' || t_orderBy;
