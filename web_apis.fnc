@@ -89,7 +89,10 @@ DECLARE
 	t_issuerOParameter	text;
 	t_orderBy			text;
 	t_matchType			text			:= '=';
+	t_opt				text;
 	t_showCABLint		boolean;
+	t_showX509Lint		boolean;
+	t_certType			integer;
 	t_useReverseIndex	boolean			:= FALSE;
 	t_joinToCertificate_table	text;
 	t_showIdentity		boolean;
@@ -851,7 +854,12 @@ BEGIN
   </TR>
 ';
 
-		t_showCABLint := (',' || coalesce(get_parameter('opt', paramNames, paramValues), '') || ',') LIKE '%,cablint,%';
+		t_opt := coalesce(get_parameter('opt', paramNames, paramValues), '');
+		IF t_opt != '' THEN
+			t_opt := t_opt || ',';
+		END IF;
+
+		t_showCABLint := (',' || t_opt) LIKE '%,cablint,%';
 		IF t_showCABLint THEN
 			t_output := t_output ||
 '  <TR>
@@ -892,6 +900,55 @@ BEGIN
 ';
 		END IF;
 
+		t_showX509Lint := (',' || t_opt) LIKE '%,x509lint,%';
+		IF t_showX509Lint THEN
+			IF NOT x509_canIssueCerts(t_certificate) THEN
+				t_certType := 0;
+			ELSIF t_caID != t_issuerCAID THEN
+				t_certType := 1;
+			ELSE
+				t_certType := 2;
+			END IF;
+
+			t_output := t_output ||
+'  <TR>
+    <TH class="outer">X.509 lint
+      <BR><BR><SPAN class="small">Powered by <A href="//github.com/kroeckx/x509lint" target="_blank">x509lint</A></SPAN>
+    </TH>
+    <TD class="text">
+';
+			FOR l_record IN (
+						SELECT substr(X509LINT, 4) ISSUE_TEXT,
+								CASE substr(X509LINT, 1, 2)
+									WHEN 'B:' THEN 1
+									WHEN 'I:' THEN 2
+									WHEN 'N:' THEN 3
+									WHEN 'F:' THEN 4
+									WHEN 'E:' THEN 5
+									WHEN 'W:' THEN 6
+									ELSE 5
+								END ISSUE_TYPE,
+								CASE substr(X509LINT, 1, 2)
+									WHEN 'B:' THEN '<SPAN>&nbsp; &nbsp; &nbsp;BUG:'
+									WHEN 'I:' THEN '<SPAN>&nbsp; &nbsp; INFO:'
+									WHEN 'N:' THEN '<SPAN class="notice">&nbsp; NOTICE:'
+									WHEN 'F:' THEN '<SPAN class="fatal">&nbsp; &nbsp;FATAL:'
+									WHEN 'E:' THEN '<SPAN class="error">&nbsp; &nbsp;ERROR:'
+									WHEN 'W:' THEN '<SPAN class="warning">&nbsp;WARNING:'
+									ELSE '<SPAN>&nbsp; &nbsp; &nbsp; &nbsp;' || substr(X509LINT, 1, 2)
+								END ISSUE_HEADING
+							FROM x509lint_embedded(t_certificate, t_certType) X509LINT
+							ORDER BY ISSUE_TYPE, ISSUE_TEXT
+					) LOOP
+				t_output := t_output ||
+'      ' || l_record.ISSUE_HEADING || ' ' || l_record.ISSUE_TEXT || '&nbsp;</SPAN><BR>';
+			END LOOP;
+			t_output := t_output ||
+'    </TD>
+  </TR>
+';
+		END IF;
+
 		t_output := t_output ||
 '  <TR>
 ';
@@ -903,7 +960,12 @@ BEGIN
 ';
 			IF NOT t_showCABLint THEN
 				t_output := t_output ||
-'      <BR><BR><A href="?asn1=' || t_certificateID::text || '&opt=cablint">Run cablint</A>
+'      <BR><BR><A href="?asn1=' || t_certificateID::text || '&opt=' || t_opt || 'cablint">Run cablint</A>
+';
+			END IF;
+			IF NOT t_showX509Lint THEN
+				t_output := t_output ||
+'      <BR><BR><A href="?asn1=' || t_certificateID::text || '&opt=' || t_opt || 'x509lint">Run x509lint</A>
 ';
 			END IF;
 			t_output := t_output ||
@@ -942,7 +1004,12 @@ BEGIN
 ';
 			IF NOT t_showCABLint THEN
 				t_output := t_output ||
-'      <BR><BR><A href="?id=' || t_certificateID::text || '&opt=cablint">Run cablint</A>
+'      <BR><BR><A href="?id=' || t_certificateID::text || '&opt=' || t_opt || 'cablint">Run cablint</A>
+';
+			END IF;
+			IF NOT t_showX509Lint THEN
+				t_output := t_output ||
+'      <BR><BR><A href="?id=' || t_certificateID::text || '&opt=' || t_opt || 'x509lint">Run x509lint</A>
 ';
 			END IF;
 			t_output := t_output ||
