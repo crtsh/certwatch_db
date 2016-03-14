@@ -1750,9 +1750,9 @@ BEGIN
 							'	GROUP BY ' || t_issuerCAID_table || '.ISSUER_CA_ID, ca.NAME, NAME_VALUE' || chr(10) ||
 							'	ORDER BY ';
 				IF t_sort = 3 THEN
-					t_query := t_query || 'NUM_CERTS ' || t_orderBy || ', NAME_VALUE, ca.NAME';
-				ELSE
 					t_query := t_query || 'ca.NAME ' || t_orderBy || ', NAME_VALUE, NUM_CERTS';
+				ELSE
+					t_query := t_query || 'NUM_CERTS ' || t_orderBy || ', NAME_VALUE, ca.NAME';
 				END IF;
 			END IF;
 
@@ -1812,34 +1812,40 @@ BEGIN
 <TABLE>
   <TR>
 ';
-				IF coalesce(t_groupBy, '') = 'none' THEN
-					t_output := t_output ||
+				IF t_type = 'CA/B Forum lint' THEN
+					IF coalesce(t_groupBy, '') = 'none' THEN
+						t_output := t_output ||
 '    <TH>
       <A href="?cablint=' || urlEncode(t_value) || '&dir=' || t_oppositeDirection || '&sort=1' || t_minNotBeforeString || coalesce(t_excludeExpired, '') || coalesce(t_excludeCAsString, '') || t_groupByParameter || '">Logged At</A>
 ';
-					IF t_sort = 1 THEN
-						t_output := t_output || ' ' || t_dirSymbol;
-					END IF;
-					t_output := t_output ||
+						IF t_sort = 1 THEN
+							t_output := t_output || ' ' || t_dirSymbol;
+						END IF;
+						t_output := t_output ||
 '    </TH>
     <TH><A href="?cablint=' || urlEncode(t_value) || '&dir=' || t_oppositeDirection || '&sort=2' || t_minNotBeforeString || coalesce(t_excludeExpired, '') || coalesce(t_excludeCAsString, '') || t_groupByParameter || '">Not Before</A>
 ';
-					IF t_sort = 2 THEN
-						t_output := t_output || ' ' || t_dirSymbol;
-					END IF;
-					t_output := t_output ||
+						IF t_sort = 2 THEN
+							t_output := t_output || ' ' || t_dirSymbol;
+						END IF;
+						t_output := t_output ||
 '    </TH>
 ';
-				ELSE
-					t_output := t_output ||
+					ELSE
+						t_output := t_output ||
 '    <TH>
       <A href="?cablint=' || urlEncode(t_value) || '&dir=' || t_oppositeDirection || '&sort=1' || t_minNotBeforeString || coalesce(t_excludeExpired, '') || coalesce(t_excludeCAsString, '') || t_groupByParameter || '">#</A>
 ';
-					IF t_sort = 1 THEN
-						t_output := t_output || ' ' || t_dirSymbol;
-					END IF;
-					t_output := t_output ||
+						IF t_sort = 1 THEN
+							t_output := t_output || ' ' || t_dirSymbol;
+						END IF;
+						t_output := t_output ||
 '    </TH>
+';
+					END IF;
+				ELSE
+					t_output := t_output ||
+'    <TH>#</TH>
 ';
 				END IF;
 				IF t_showIdentity THEN
@@ -1853,14 +1859,20 @@ BEGIN
 ';
 					END IF;
 				END IF;
-				t_output := t_output ||
+				IF t_type = 'CA/B Forum lint' THEN
+					t_output := t_output ||
 '    <TH>
       <A href="?cablint=' || urlEncode(t_value) || '&dir=' || t_oppositeDirection || '&sort=3' || t_minNotBeforeString || coalesce(t_excludeExpired, '') || coalesce(t_excludeCAsString, '') || t_groupByParameter || '">Issuer Name</A>
 ';
 					IF t_sort = 3 THEN
 						t_output := t_output || ' ' || t_dirSymbol;
 					END IF;
+				ELSE
 					t_output := t_output ||
+'    <TH>Issuer Name
+';
+				END IF;
+				t_output := t_output ||
 '    </TH>
   </TR>
 ' || t_text ||
