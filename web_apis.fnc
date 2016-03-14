@@ -269,6 +269,14 @@ BEGIN
 			t_orderBy := 'DESC';
 			t_oppositeDirection := 'v';
 		END IF;
+	ELSE
+		t_sort := 1;
+		t_groupBy := '';
+		t_groupByParameter := '';
+		t_direction := '';
+		t_dirSymbol := '';
+		t_orderBy := '';
+		t_oppositeDirection := '';
 	END IF;
 
 	-- Generate page header.
@@ -1350,7 +1358,6 @@ BEGIN
 			) THEN
 		t_output := t_output ||
 ' <SPAN class="whiteongrey">Identity Search</SPAN>
-<BR><BR>
 ';
 
 		-- Determine whether to use a reverse index (if available).
@@ -1377,8 +1384,23 @@ BEGIN
 		END IF;
 		t_resultsPerPage := coalesce(get_parameter('n', paramNames, paramValues)::integer, 100);
 
+		IF (t_caID IS NULL) AND (t_type = 'CA/B Forum lint') THEN
+			t_output := t_output ||
+'  <SPAN style="position:absolute">
+    &nbsp; &nbsp; &nbsp; <A style="font-size:8pt;vertical-align:sub" href="?cablint=' || urlEncode(t_value) || '&dir=' || t_direction || '&sort=' || t_sort::text || coalesce(t_excludeExpired, '');
+			IF t_groupBy = 'none' THEN
+				t_output := t_output || '">Group';
+			ELSE
+				t_output := t_output || '&group=none">Ungroup';
+			END IF;
+			t_output := t_output || ' by Issuer</A>
+  </SPAN>
+';
+		END IF;
+
 		t_output := t_output ||
-'<TABLE>
+'<BR><BR>
+<TABLE>
   <TR>
     <TH class="outer">Criteria</TH>
     <TD class="outer">' || html_escape(t_type)
@@ -1618,11 +1640,21 @@ BEGIN
 							'	FROM certificate c';
 			ELSIF t_type = 'CA/B Forum lint' THEN
 				t_issuerCAID_table := 'cci';
-				t_query := 'SELECT cci.ISSUER_CA_ID, ca.NAME,' || chr(10) ||
+				IF coalesce(t_groupBy, '') = 'none' THEN
+					t_query := 'SELECT cci.ISSUER_CA_ID, ca.NAME,' || chr(10) ||
+							'		cci.CABLINT_ISSUE_ID::text NAME_VALUE,' || chr(10) ||
+							'		c.ID MIN_CERT_ID,' || chr(10) ||
+							'		min(ctle.ENTRY_TIMESTAMP) MIN_ENTRY_TIMESTAMP,' || chr(10) ||
+							'		x509_notBefore(c.CERTIFICATE) NOT_BEFORE' || chr(10) ||
+							'	FROM ct_log_entry ctle, cablint_cert_issue cci';
+					t_joinToCertificate_table := 'cci';
+				ELSE
+					t_query := 'SELECT cci.ISSUER_CA_ID, ca.NAME,' || chr(10) ||
 							'		cci.CABLINT_ISSUE_ID::text NAME_VALUE,' || chr(10) ||
 							'		min(cci.CERTIFICATE_ID) MIN_CERT_ID,' || chr(10) ||
 							'		count(DISTINCT cci.CERTIFICATE_ID) NUM_CERTS' || chr(10) ||
 							'	FROM cablint_cert_issue cci';
+				END IF;
 				IF t_excludeExpired IS NOT NULL THEN
 					t_joinToCertificate_table := 'cci';
 				END IF;
@@ -1663,6 +1695,10 @@ BEGIN
 							'	WHERE cci.CABLINT_ISSUE_ID = $1::integer' || chr(10) ||
 							'		AND cci.NOT_BEFORE >= $2' || chr(10) ||
 							'		AND ca.CABLINT_APPLIES' || chr(10);
+				IF coalesce(t_groupBy, '') = 'none' THEN
+					t_query := t_query ||
+							'		AND cci.CERTIFICATE_ID = ctle.CERTIFICATE_ID' || chr(10);
+				END IF;
 			ELSIF t_useReverseIndex THEN
 				t_query := t_query ||
 							'	WHERE reverse(lower(ci.NAME_VALUE)) LIKE reverse(lower($1))' || chr(10);
@@ -1682,11 +1718,28 @@ BEGIN
 				t_query := t_query ||
 							'		AND x509_notAfter(c.CERTIFICATE) > statement_timestamp()' || chr(10);
 			END IF;
-			t_query := t_query ||
-							'	GROUP BY ' || t_issuerCAID_table || '.ISSUER_CA_ID, ca.NAME, NAME_VALUE' || chr(10);
 
-			t_query := t_query ||
-							'	ORDER BY NUM_CERTS DESC, NAME_VALUE, NAME';
+			IF coalesce(t_groupBy, '') = 'none' THEN
+				t_query := t_query ||
+							'	GROUP BY c.ID, ' || t_issuerCAID_table || '.ISSUER_CA_ID, ca.NAME, NAME_VALUE' || chr(10) ||
+							'	ORDER BY ';
+				IF t_sort = 1 THEN
+					t_query := t_query || 'MIN_ENTRY_TIMESTAMP ' || t_orderBy || ', NAME_VALUE, ca.NAME';
+				ELSIF t_sort = 2 THEN
+					t_query := t_query || 'NOT_BEFORE ' || t_orderBy || ', NAME_VALUE, ca.NAME';
+				ELSE
+					t_query := t_query || 'ca.NAME ' || t_orderBy || ', NAME_VALUE';
+				END IF;
+			ELSE
+				t_query := t_query ||
+							'	GROUP BY ' || t_issuerCAID_table || '.ISSUER_CA_ID, ca.NAME, NAME_VALUE' || chr(10) ||
+							'	ORDER BY ';
+				IF t_sort = 3 THEN
+					t_query := t_query || 'NUM_CERTS ' || t_orderBy || ', NAME_VALUE, ca.NAME';
+				ELSE
+					t_query := t_query || 'ca.NAME ' || t_orderBy || ', NAME_VALUE, NUM_CERTS';
+				END IF;
+			END IF;
 
 			t_showIdentity := (position('%' IN t_value) > 0) OR (t_type = 'CT Entry ID');
 
@@ -1695,8 +1748,15 @@ BEGIN
 							USING t_value, t_minNotBefore LOOP
 				t_text := t_text ||
 '  <TR>
-    <TD>';
-				IF (l_record.NUM_CERTS = 1)
+    <TD style="text-align:center">';
+				IF coalesce(t_groupBy, '') = 'none' THEN
+					t_text := t_text || to_char(l_record.MIN_ENTRY_TIMESTAMP, 'YYYY-MM-DD') || '</A></TD>
+    <TD style="text-align:center"><A href="?id=' || l_record.MIN_CERT_ID::text;
+					IF t_type = 'CA/B Forum lint' THEN
+						t_text := t_text || '&opt=cablint';
+					END IF;
+					t_text := t_text || '">' || to_char(l_record.NOT_BEFORE, 'YYYY-MM-DD') || '</A>';
+				ELSIF (l_record.NUM_CERTS = 1)
 						AND (l_record.MIN_CERT_ID IS NOT NULL) THEN
 					t_text := t_text || '<A href="?id=' || l_record.MIN_CERT_ID::text || '">'
 								|| l_record.NUM_CERTS::text || '</A>';
@@ -1736,8 +1796,37 @@ BEGIN
 				t_output := t_output || '
 <TABLE>
   <TR>
-    <TH>#</TH>
 ';
+				IF coalesce(t_groupBy, '') = 'none' THEN
+					t_output := t_output ||
+'    <TH>
+      <A href="?cablint=' || urlEncode(t_value) || '&dir=' || t_oppositeDirection || '&sort=1' || t_groupByParameter || t_minNotBeforeString || coalesce(t_excludeExpired, '') || '">Logged At</A>
+';
+					IF t_sort = 1 THEN
+						t_output := t_output || ' ' || t_dirSymbol;
+					END IF;
+					t_output := t_output ||
+'    </TH>
+    <TH><A href="?cablint=' || urlEncode(t_value) || '&dir=' || t_oppositeDirection || '&sort=2' || t_groupByParameter || t_minNotBeforeString || coalesce(t_excludeExpired, '') || '">Not Before</A>
+';
+					IF t_sort = 2 THEN
+						t_output := t_output || ' ' || t_dirSymbol;
+					END IF;
+					t_output := t_output ||
+'    </TH>
+';
+				ELSE
+					t_output := t_output ||
+'    <TH>
+      <A href="?cablint=' || urlEncode(t_value) || '&dir=' || t_oppositeDirection || '&sort=1' || t_groupByParameter || t_minNotBeforeString || coalesce(t_excludeExpired, '') || '">#</A>
+';
+					IF t_sort = 1 THEN
+						t_output := t_output || ' ' || t_dirSymbol;
+					END IF;
+					t_output := t_output ||
+'    </TH>
+';
+				END IF;
 				IF t_showIdentity THEN
 					IF t_type = 'CT Entry ID' THEN
 						t_output := t_output ||
@@ -1750,7 +1839,14 @@ BEGIN
 					END IF;
 				END IF;
 				t_output := t_output ||
-'    <TH>Issuer Name</TH>
+'    <TH>
+      <A href="?cablint=' || urlEncode(t_value) || '&dir=' || t_oppositeDirection || '&sort=3' || t_groupByParameter || t_minNotBeforeString || coalesce(t_excludeExpired, '') || '">Issuer Name</A>
+';
+					IF t_sort = 3 THEN
+						t_output := t_output || ' ' || t_dirSymbol;
+					END IF;
+					t_output := t_output ||
+'    </TH>
   </TR>
 ' || t_text ||
 '</TABLE>
