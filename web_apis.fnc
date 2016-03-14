@@ -166,7 +166,7 @@ BEGIN
 	END IF;
 
 	IF t_type IN ('Simple', 'Advanced') THEN
-		t_title := 'COMODO';
+		t_title := 'Certificate Search';
 	ELSIF t_type IN (
 				'SHA-1(SubjectPublicKeyInfo)',
 				'SHA-1(Subject)',
