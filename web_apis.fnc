@@ -842,7 +842,8 @@ BEGIN
   </TR>
   <TR>
     <TH class="outer">SHA-256(Certificate)</TH>
-    <TD class="outer">' || coalesce(upper(encode(t_certificateSHA256, 'hex')), '<I>Not found</I>') || '</TD>
+    <TD class="outer"><A href="//censys.io/certificates/' || coalesce(lower(encode(t_certificateSHA256, 'hex')), '') || '">'
+						|| coalesce(upper(encode(t_certificateSHA256, 'hex')), '<I>Not found</I>') || '</A></TD>
   </TR>
   <TR>
     <TH class="outer">SHA-1(Certificate)</TH>
