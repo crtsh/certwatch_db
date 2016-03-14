@@ -239,6 +239,11 @@ BEGIN
 		t_searchProvider := '&search=censys';
 	END IF;
 
+	t_opt := coalesce(get_parameter('opt', paramNames, paramValues), '');
+	IF t_opt != '' THEN
+		t_opt := t_opt || ',';
+	END IF;
+
 	t_outputType := coalesce(get_parameter('output', paramNames, paramValues), '');
 	IF t_outputType = '' THEN
 		t_outputType := 'html';
@@ -636,6 +641,10 @@ BEGIN
 				'SHA-1(Certificate)',
 				'SHA-256(Certificate)',
 				'Certificate ASN.1'
+			)
+			OR (
+				(lower(',' || t_opt) LIKE '%,firstresult,%')
+				AND (t_type = 'Serial Number')
 			) THEN
 		t_output := t_output ||
 ' <SPAN class="whiteongrey">Certificate Search</SPAN>
@@ -696,6 +705,25 @@ BEGIN
 					LEFT OUTER JOIN ca_certificate cac
 									ON (c.ID = cac.CERTIFICATE_ID)
 				WHERE digest(c.CERTIFICATE, 'sha256') = t_bytea;
+		ELSIF t_type = 'Serial Number' THEN
+			SELECT c.ID, x509_print(c.CERTIFICATE, NULL, 196608), ca.ID, cac.CA_ID,
+					digest(c.CERTIFICATE, 'sha1'::text),
+					digest(c.CERTIFICATE, 'sha256'::text),
+					x509_serialNumber(c.CERTIFICATE),
+					digest(x509_publicKey(c.CERTIFICATE), 'sha1'::text),
+					c.CERTIFICATE
+				INTO t_certificateID, t_text, t_issuerCAID, t_caID,
+					t_certificateSHA1,
+					t_certificateSHA256,
+					t_serialNumber,
+					t_spkiSHA1,
+					t_certificate
+				FROM certificate c
+					LEFT OUTER JOIN ca ON (c.ISSUER_CA_ID = ca.ID)
+					LEFT OUTER JOIN ca_certificate cac
+									ON (c.ID = cac.CERTIFICATE_ID)
+				WHERE x509_serialNumber(c.CERTIFICATE) = t_bytea
+				LIMIT 1;
 		END IF;
 		IF t_text IS NULL THEN
 			RAISE no_data_found USING MESSAGE = 'Certificate not found ';
@@ -853,11 +881,6 @@ BEGIN
     <TD class="outer">' || coalesce(upper(encode(t_certificateSHA1, 'hex')), '<I>Not found</I>') || '</TD>
   </TR>
 ';
-
-		t_opt := coalesce(get_parameter('opt', paramNames, paramValues), '');
-		IF t_opt != '' THEN
-			t_opt := t_opt || ',';
-		END IF;
 
 		t_showCABLint := (',' || t_opt) LIKE '%,cablint,%';
 		IF t_showCABLint THEN
