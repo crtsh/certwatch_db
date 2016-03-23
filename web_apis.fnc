@@ -1215,7 +1215,7 @@ BEGIN
           var t_url;
           if (document.search_form.searchCensys.checked) {
             t_url = "//www.censys.io/certificates?q="
-                   + encodeURIComponent("parsed.issuer_dn=\"' || t_caName || '\"");
+                   + encodeURIComponent("parsed.issuer_dn=\"' || replace(t_caName, '"', '') || '\"");
             var t_field = "";
             if (value != "%") {
               if (type == "Identity") {
