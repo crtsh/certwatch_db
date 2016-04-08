@@ -40,16 +40,7 @@ DROP FUNCTION download_cert(
 );
 
 DROP FUNCTION cablint_cached(
-	cert_id					certificate.ID%TYPE,
-	socket_number			integer
-);
-
-DROP FUNCTION cablint(
-	cert_data				certificate.CERTIFICATE%TYPE
-);
-
-DROP FUNCTION cablint_shell(
-	cert_data				bytea
+	cert_id					certificate.ID%TYPE
 );
 
 

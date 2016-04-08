@@ -52,7 +52,7 @@ BEGIN
 
 		t_count := 0;
 		FOR l_record IN (
-					SELECT cablint(t_certificate) CABLINT
+					SELECT cablint_embedded(t_certificate) CABLINT
 				) LOOP
 			t_count := t_count + 1;
 			SELECT ci.ID
