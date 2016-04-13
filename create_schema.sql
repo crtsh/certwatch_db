@@ -13,6 +13,7 @@ CREATE TABLE ca (
 	NAME					text		NOT NULL,
 	PUBLIC_KEY				bytea		NOT NULL,
 	BRAND					text,
+	LINTING_APPLIES			boolean		DEFAULT TRUE,
 	NO_OF_CERTS_ISSUED		bigint		DEFAULT 0	NOT NULL,
 	CONSTRAINT ca_pk
 		PRIMARY KEY (ID)
@@ -33,12 +34,15 @@ CREATE INDEX ca_name_reverse
 CREATE INDEX ca_brand_reverse
 	ON ca (reverse(lower(BRAND)) text_pattern_ops);
 
+CREATE INDEX ca_linting_applies
+	ON ca (LINTING_APPLIES, ID);
 
 CREATE TABLE certificate (
 	ID						serial,
 	CERTIFICATE				bytea		NOT NULL,
 	ISSUER_CA_ID			integer		NOT NULL,
 	CABLINT_CACHED_AT		timestamp,
+	X509LINT_CACHED_AT		timestamp,
 	CONSTRAINT c_pk
 		PRIMARY KEY (ID),
 	CONSTRAINT c_ica_fk
@@ -175,55 +179,64 @@ CREATE INDEX ctle_le
 CREATE INDEX ctle_el
 	ON ct_log_entry (ENTRY_ID, CT_LOG_ID);
 
-CREATE TABLE cablint_version (
-	VERSION_STRING	text,
-	GIT_COMMIT		bytea,
-	DEPLOYED_AT		timestamp
+CREATE TYPE linter_type AS ENUM (
+	'cablint', 'x509lint'
 );
 
-CREATE INDEX cv_da
-	ON cablint_version(DEPLOYED_AT);
+CREATE TABLE linter_version (
+	VERSION_STRING	text,
+	GIT_COMMIT		bytea,
+	DEPLOYED_AT		timestamp,
+	LINTER			linter_type
+);
 
-CREATE TABLE cablint_issue (
+CREATE UNIQUE INDEX lv_li_da
+	ON linter_version(LINTER, DEPLOYED_AT);
+
+
+CREATE TABLE lint_issue (
 	ID				serial,
 	SEVERITY		text,
 	ISSUE_TEXT		text,
-	CONSTRAINT ci_pk
+	LINTER			linter_type,
+	CONSTRAINT li_pk
 		PRIMARY KEY (ID),
-	CONSTRAINT ci_it_unq
-		UNIQUE (SEVERITY, ISSUE_TEXT)
+	CONSTRAINT li_it_unq
+		UNIQUE (SEVERITY, ISSUE_TEXT),
+	CONSTRAINT li_li_se_it_unq
+		UNIQUE (LINTER, SEVERITY, ISSUE_TEXT)
 );
 
-CREATE TABLE cablint_cert_issue (
+CREATE TABLE lint_cert_issue (
 	ID					bigserial,
 	CERTIFICATE_ID		integer,
-	CABLINT_ISSUE_ID	integer,
+	LINT_ISSUE_ID		integer,
 	ISSUER_CA_ID		integer,
 	NOT_BEFORE			timestamp,
-	CONSTRAINT cci_pk
+	CONSTRAINT lci_pk
 		PRIMARY KEY (ID),
-	CONSTRAINT cci_c_fk
+	CONSTRAINT lci_c_fk
 		FOREIGN KEY (CERTIFICATE_ID)
 		REFERENCES certificate(ID),
-	CONSTRAINT cci_ci_fk
-		FOREIGN KEY (CABLINT_ISSUE_ID)
-		REFERENCES cablint_issue(ID),
-	CONSTRAINT cci_ca_fk
+	CONSTRAINT lci_ci_fk
+		FOREIGN KEY (LINT_ISSUE_ID)
+		REFERENCES lint_issue(ID),
+	CONSTRAINT lci_ca_fk
 		FOREIGN KEY (ISSUER_CA_ID)
 		REFERENCES ca(ID)
 );
 
-CREATE INDEX cci_c_ci
-	ON cablint_cert_issue (CERTIFICATE_ID, CABLINT_ISSUE_ID);
+CREATE INDEX lci_c_ci
+	ON lint_cert_issue (CERTIFICATE_ID, LINT_ISSUE_ID);
 
-CREATE INDEX cci_ca_ci_nb_c
-	ON cablint_cert_issue (ISSUER_CA_ID, CABLINT_ISSUE_ID, NOT_BEFORE, CERTIFICATE_ID);
+CREATE INDEX lci_ca_ci_nb_c
+	ON lint_cert_issue (ISSUER_CA_ID, LINT_ISSUE_ID, NOT_BEFORE, CERTIFICATE_ID);
 
-CREATE INDEX cci_ci_nb
-	ON cablint_cert_issue (CABLINT_ISSUE_ID, NOT_BEFORE);
+CREATE INDEX lci_ci_nb
+	ON lint_cert_issue (LINT_ISSUE_ID, NOT_BEFORE);
 
-CREATE INDEX cci_nb_ca_ci
-	ON cablint_cert_issue (NOT_BEFORE, ISSUER_CA_ID, CABLINT_ISSUE_ID);
+CREATE INDEX lci_nb_ca_ci
+	ON lint_cert_issue (NOT_BEFORE, ISSUER_CA_ID, LINT_ISSUE_ID);
 
 GRANT SELECT ON ca TO crtsh;
 
@@ -241,8 +254,12 @@ GRANT SELECT ON ct_log TO crtsh;
 
 GRANT SELECT ON ct_log_entry TO crtsh;
 
+GRANT SELECT ON lint_issue TO crtsh;
 
-\i cablint_cached.fnc
+GRANT SELECT ON lint_cert_issue TO crtsh;
+
+
+\i lint_cached.fnc
 \i download_cert.fnc
 \i extract_cert_names.fnc
 \i get_ca_primary_name_attribute.fnc

@@ -29,7 +29,7 @@ DECLARE
 	t_brand				ca.BRAND%TYPE;
 	t_publicKey			ca.PUBLIC_KEY%TYPE;
 	t_caID				ca.ID%TYPE;
-	t_cablintApplies	ca.CABLINT_APPLIES%TYPE;
+	t_lintingApplies	ca.LINTING_APPLIES%TYPE;
 	l_ca				RECORD;
 BEGIN
 	IF cert_data IS NULL THEN
@@ -79,7 +79,7 @@ BEGIN
 					ORDER BY octet_length(PUBLIC_KEY) DESC
 			) LOOP
 		t_issuerCAID := l_ca.ID;
-		t_cablintApplies := l_ca.CABLINT_APPLIES;
+		t_lintingApplies := l_ca.LINTING_APPLIES;
 		IF x509_verify(cert_data, l_ca.PUBLIC_KEY) THEN
 			t_verified := TRUE;
 			EXIT;
@@ -109,9 +109,9 @@ BEGIN
 				t_certificateID, t_caID
 			);
 
-		IF NOT t_cablintApplies THEN
+		IF NOT t_lintingApplies THEN
 			UPDATE ca
-				SET CABLINT_APPLIES = FALSE
+				SET LINTING_APPLIES = FALSE
 				WHERE ID = t_caID;
 		END IF;
 	END IF;
@@ -124,6 +124,8 @@ BEGIN
 				t_certificateID
 			);
 	END IF;
+
+	PERFORM lint_cached(t_certificateID, 'x509lint');
 
 	RETURN t_certificateID;
 

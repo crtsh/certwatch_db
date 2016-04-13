@@ -39,16 +39,19 @@ DROP FUNCTION download_cert(
 	cert_id					certificate.ID%TYPE
 );
 
-DROP FUNCTION cablint_cached(
-	cert_id					certificate.ID%TYPE
+DROP FUNCTION lint_cached(
+	cert_id					certificate.ID%TYPE,
+	v_linter				linter_type
 );
 
 
-DROP TABLE cablint_cert_issue;
+DROP TABLE lint_cert_issue;
 
-DROP TABLE cablint_issue;
+DROP TABLE lint_issue;
 
-DROP TABLE cablint_version;
+DROP TYPE linter_type;
+
+DROP TABLE linter_version;
 
 DROP TABLE ct_log_entry;
 

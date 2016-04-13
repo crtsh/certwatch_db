@@ -55,12 +55,15 @@ DECLARE
 		'q', 'ID', 'SHA-1(Certificate)', 'SHA-256(Certificate)', 'Identity', NULL,
 		'a', 'Advanced', NULL,
 		's', 'Simple', NULL,
-		'cablint', 'CA/B Forum lint', NULL
+		'cablint', 'CA/B Forum lint', NULL,
+		'x509lint', 'X.509 lint', NULL,
+		'lint', 'Lint', NULL
 	];
 	t_paramNo			integer;
 	t_paramName			text;
 	t_value				text;
 	t_type				text			:= 'Simple';
+	t_cmd				text;
 	t_bytea				bytea;
 	t_output			text;
 	t_outputType		text;
@@ -90,6 +93,8 @@ DECLARE
 	t_orderBy			text;
 	t_matchType			text			:= '=';
 	t_opt				text;
+	t_linter			linter_type;
+	t_linters			text;
 	t_showCABLint		boolean;
 	t_showX509Lint		boolean;
 	t_certType			integer;
@@ -112,6 +117,9 @@ DECLARE
 	l_record			RECORD;
 BEGIN
 	FOR t_paramNo IN 1..array_length(c_params, 1) LOOP
+		IF t_cmd IS NULL THEN
+			t_cmd := c_params[t_paramNo];
+		END IF;
 		IF t_value IS NULL THEN
 			t_paramName := c_params[t_paramNo];
 			t_value := coalesce(
@@ -120,6 +128,7 @@ BEGIN
 		ELSIF t_value = '' THEN
 			IF c_params[t_paramNo] IS NULL THEN
 				t_value := NULL;
+				t_cmd := NULL;
 			END IF;
 		ELSE
 			t_type := c_params[t_paramNo];
@@ -145,7 +154,7 @@ BEGIN
 			ELSIF t_type IN ('ID', 'Certificate ASN.1', 'CA ID', 'CT Entry ID') THEN
 				EXIT WHEN btrim(t_value, '0123456789') = '';
 			ELSIF t_type IN (
-						'Simple', 'Advanced', 'CA/B Forum lint', 'CA Name',
+						'Simple', 'Advanced', 'CA/B Forum lint', 'X.509 lint', 'Lint', 'CA Name',
 						'Identity', 'Common Name', 'Email Address',
 						'Organizational Unit Name', 'Organization Name',
 						'Domain Name', 'Email Address (SAN)', 'IP Address'
@@ -203,16 +212,22 @@ BEGIN
 		t_nameType := 'rfc822Name';
 	ELSIF t_type = 'IP Address' THEN
 		t_nameType := 'iPAddress';
-	ELSIF t_type = 'CA/B Forum lint' THEN
+	ELSIF lower(t_type) LIKE '%lint' THEN
+		IF t_type = 'Lint' THEN
+			t_linters := 'cablint,x509lint';
+		ELSE
+			t_linters := t_cmd;
+			t_linter := t_linters::linter_type;
+		END IF;
 		BEGIN
 			IF lower(t_value) = 'issues' THEN
-				t_type := 'CA/B Forum lint: Issues';
+				t_type := t_type || ': Issues';
 			ELSE
 				t_value := (t_value::integer)::text;
 			END IF;
 		EXCEPTION
 			WHEN OTHERS THEN
-				t_type := 'CA/B Forum lint: Summary';
+				t_type := t_type || ': Summary';
 		END;
 	END IF;
 
@@ -252,7 +267,7 @@ BEGIN
 		RAISE no_data_found USING MESSAGE = 'Unsupported output type: ' || html_escape(t_outputType);
 	END IF;
 
-	IF t_type LIKE 'CA/B Forum lint%' THEN
+	IF lower(t_type) LIKE '%lint%' THEN
 		t_temp := get_parameter('sort', paramNames, paramValues);
 		IF coalesce(t_temp, '') = '' THEN
 			t_sort := 1;
@@ -384,7 +399,7 @@ BEGIN
       font: 10pt Courier New, sans-serif;
       padding: 2px 20px
     }
-    table.cablint td, th {
+    table.lint td, th {
       text-align: center
     }
     .button {
@@ -438,7 +453,7 @@ BEGIN
   <BR><BR><BR><BR>
   Enter an <B>Identity</B> (Domain Name, Organization Name, etc),
   <BR>a <B>Certificate Fingerprint</B> (SHA-1 or SHA-256) or a <B>crt.sh ID</B>:
-  <BR><SPAN class="small">(% = wildcard)</SPAN>
+  <BR><SPAN class="small" style="color:#BBBBBB">(% = wildcard)</SPAN>
   <BR><BR>
   <FORM name="search_form" method="GET" onsubmit="return (this.q.value != '')">
     <INPUT type="text" class="input" name="q" size="64" maxlength="255">
@@ -508,7 +523,7 @@ BEGIN
           t_url += t_field + ":" + encodeURIComponent("\"" + value + "\"");
       }
       else {
-        t_url = "?" + encodeURIComponent(type) + "=" + encodeURIComponent(value);
+        t_url = "?" + encodeURIComponent(type) + "=" + encodeURIComponent(value).replace("%20","+");
         if (document.search_form.excludeExpired.checked)
           t_url += "&exclude=expired";
         if (document.search_form.searchCensys.checked)
@@ -519,7 +534,7 @@ BEGIN
   </SCRIPT>
   <FORM name="search_form" method="GET" onsubmit="return false">
     Enter search term:
-    <BR><SPAN class="small">(% = wildcard)</SPAN>
+    <SPAN class="small" style="position:absolute;padding-top:3px;color:#BBBBBB">&nbsp;(% = wildcard)</SPAN>
     <BR><BR>
     <INPUT type="text" class="input" name="q" size="64" maxlength="255">
     <BR><BR><BR>
@@ -527,8 +542,7 @@ BEGIN
       <TR>
         <TD style="border:none;text-align:center">
           <SPAN class="heading">Select search type:</SPAN>
-          <BR><BR>
-          <SELECT name="searchtype" size="11">
+          <BR><SELECT name="searchtype" size="20">
             <OPTION value="c">CERTIFICATE</OPTION>
             <OPTION value="id">&nbsp; crt.sh ID</OPTION>
             <OPTION value="ctid">&nbsp; CT Entry ID</OPTION>
@@ -553,7 +567,7 @@ BEGIN
         <TD style="border:none;width:40px">&nbsp;</TD>
         <TD style="border:none;text-align:center">
           <SPAN class="heading">Select search options:</SPAN>
-          <BR><BR><DIV style="border:1px solid #AAAAAA;margin-bottom:8px;padding:5px 0px;text-align:left">
+          <BR><DIV style="border:1px solid #AAAAAA;margin-bottom:5px;padding:5px 0px;text-align:left">
             <INPUT type="checkbox" name="excludeExpired"';
 		IF t_excludeExpired IS NOT NULL THEN
 			t_output := t_output || ' checked';
@@ -572,10 +586,20 @@ BEGIN
             &nbsp; &nbsp; &nbsp;
             <A style="font-size:8pt;vertical-align:sub" href="?">Simple...</A>
           </SPAN>
-          <BR><BR><HR><BR>
-          <SPAN class="heading">CA/B Forum lint:</SPAN>
-          <BR><A style="font-size:8pt" href="?cablint=1+week">Summary...</A>
-          &nbsp; <A style="font-size:8pt" href="?cablint=issues">Issues...</A>
+          <BR><BR><BR><BR><HR><BR>
+          <SPAN class="heading">Select linting options:</SPAN>
+          <BR><SELECT name="linter" size="3">
+            <OPTION value="cablint" selected>cablint</OPTION>
+            <OPTION value="x509lint">x509lint</OPTION>
+            <OPTION value="lint">Both</OPTION>
+          </SELECT>
+          <SELECT name="linttype" size="3">
+            <OPTION value="1 week" selected>1-week Summary</OPTION>
+            <OPTION value="issues">Issues</OPTION>
+          </SELECT>
+          <BR><BR>
+          <INPUT type="submit" class="button" value="Lint"
+                 onClick="doSearch(document.search_form.linter.value,document.search_form.linttype.value)">
         </TD>
       </TR>
     </TABLE>
@@ -1160,8 +1184,8 @@ BEGIN
         </TR>
 ';
 				FOR l_record IN (
-							SELECT count(DISTINCT cci.CERTIFICATE_ID) NUM_CERTS, ci.ID, ci.SEVERITY, ci.ISSUE_TEXT,
-									CASE ci.SEVERITY
+							SELECT count(DISTINCT lci.CERTIFICATE_ID) NUM_CERTS, li.ID, li.SEVERITY, li.ISSUE_TEXT,
+									CASE li.SEVERITY
 										WHEN 'F' THEN 1
 										WHEN 'E' THEN 2
 										WHEN 'W' THEN 3
@@ -1170,26 +1194,82 @@ BEGIN
 										WHEN 'B' THEN 6
 										ELSE 7
 									END ISSUE_TYPE,
-									CASE ci.SEVERITY
+									CASE li.SEVERITY
 										WHEN 'F' THEN '<SPAN class="fatal">&nbsp; &nbsp;FATAL:'
 										WHEN 'E' THEN '<SPAN class="error">&nbsp; &nbsp;ERROR:'
 										WHEN 'W' THEN '<SPAN class="warning">&nbsp;WARNING:'
 										WHEN 'N' THEN '<SPAN class="notice">&nbsp; NOTICE:'
 										WHEN 'I' THEN '<SPAN>&nbsp; &nbsp; INFO:'
 										WHEN 'B' THEN '<SPAN>&nbsp; &nbsp; &nbsp;BUG:'
-										ELSE '<SPAN>&nbsp; &nbsp; &nbsp; &nbsp;' || ci.SEVERITY || ':'
+										ELSE '<SPAN>&nbsp; &nbsp; &nbsp; &nbsp;' || li.SEVERITY || ':'
 									END ISSUE_HEADING
-								FROM cablint_cert_issue cci, cablint_issue ci
-								WHERE cci.NOT_BEFORE >= t_minNotBefore
-									AND cci.ISSUER_CA_ID = t_value::integer
-									AND cci.CABLINT_ISSUE_ID = ci.ID
-								GROUP BY ci.ID, ci.SEVERITY, ci.ISSUE_TEXT
+								FROM lint_cert_issue lci, lint_issue li
+								WHERE lci.NOT_BEFORE >= t_minNotBefore
+									AND lci.ISSUER_CA_ID = t_value::integer
+									AND lci.LINT_ISSUE_ID = li.ID
+									AND li.LINTER = 'cablint'
+								GROUP BY li.ID, li.SEVERITY, li.ISSUE_TEXT
 								ORDER BY ISSUE_TYPE, NUM_CERTS DESC
 						) LOOP
 					t_output := t_output ||
 '        <TR>
           <TD class="text">' || l_record.ISSUE_HEADING || ' ' || l_record.ISSUE_TEXT || '&nbsp;</SPAN></TD>
           <TD><A href="?cablint=' || l_record.ID::text || '&iCAID=' || t_caID::text || t_minNotBeforeString || '">' || l_record.NUM_CERTS::text || '</A></TD>
+        </TR>
+';
+				END LOOP;
+				t_output := t_output ||
+'      </TABLE>
+    </TD>
+  </TR>
+';
+			END IF;
+
+			t_showX509Lint := (',' || coalesce(get_parameter('opt', paramNames, paramValues), '') || ',') LIKE '%,x509lint,%';
+			IF t_showX509Lint THEN
+				t_output := t_output ||
+'  <TR>
+    <TH class="outer">X.509 lint</TH>
+    <TD class="outer">
+      <TABLE class="options">
+        <TR><TH colspan=3>For Issued Certificates with notBefore >= ' || to_char(t_minNotBefore, 'YYYY-MM-DD') || ':</TH><TR>
+        <TR>
+          <TH>Issue</TH>
+          <TH># Affected Certs</TH>
+        </TR>
+';
+				FOR l_record IN (
+							SELECT count(DISTINCT lci.CERTIFICATE_ID) NUM_CERTS, li.ID, li.SEVERITY, li.ISSUE_TEXT,
+									CASE li.SEVERITY
+										WHEN 'F' THEN 1
+										WHEN 'E' THEN 2
+										WHEN 'W' THEN 3
+										WHEN 'N' THEN 4
+										WHEN 'I' THEN 5
+										WHEN 'B' THEN 6
+										ELSE 7
+									END ISSUE_TYPE,
+									CASE li.SEVERITY
+										WHEN 'F' THEN '<SPAN class="fatal">&nbsp; &nbsp;FATAL:'
+										WHEN 'E' THEN '<SPAN class="error">&nbsp; &nbsp;ERROR:'
+										WHEN 'W' THEN '<SPAN class="warning">&nbsp;WARNING:'
+										WHEN 'N' THEN '<SPAN class="notice">&nbsp; NOTICE:'
+										WHEN 'I' THEN '<SPAN>&nbsp; &nbsp; INFO:'
+										WHEN 'B' THEN '<SPAN>&nbsp; &nbsp; &nbsp;BUG:'
+										ELSE '<SPAN>&nbsp; &nbsp; &nbsp; &nbsp;' || li.SEVERITY || ':'
+									END ISSUE_HEADING
+								FROM lint_cert_issue lci, lint_issue li
+								WHERE lci.NOT_BEFORE >= t_minNotBefore
+									AND lci.ISSUER_CA_ID = t_value::integer
+									AND lci.LINT_ISSUE_ID = li.ID
+									AND li.LINTER = 'x509lint'
+								GROUP BY li.ID, li.SEVERITY, li.ISSUE_TEXT
+								ORDER BY ISSUE_TYPE, NUM_CERTS DESC
+						) LOOP
+					t_output := t_output ||
+'        <TR>
+          <TD class="text">' || l_record.ISSUE_HEADING || ' ' || l_record.ISSUE_TEXT || '&nbsp;</SPAN></TD>
+          <TD><A href="?x509lint=' || l_record.ID::text || '&iCAID=' || t_caID::text || t_minNotBeforeString || '">' || l_record.NUM_CERTS::text || '</A></TD>
         </TR>
 ';
 				END LOOP;
@@ -1452,7 +1532,9 @@ BEGIN
 				'Domain Name',
 				'Email Address (SAN)',
 				'IP Address',
-				'CA/B Forum lint'
+				'CA/B Forum lint',
+				'X.509 lint',
+				'Lint'
 			) THEN
 		t_output := t_output ||
 ' <SPAN class="whiteongrey">Identity Search</SPAN>
@@ -1482,10 +1564,10 @@ BEGIN
 		END IF;
 		t_resultsPerPage := coalesce(get_parameter('n', paramNames, paramValues)::integer, 100);
 
-		IF (t_caID IS NULL) AND (t_type = 'CA/B Forum lint') THEN
+		IF (t_caID IS NULL) AND (lower(t_type) LIKE '%lint') THEN
 			t_output := t_output ||
 '  <SPAN style="position:absolute">
-    &nbsp; &nbsp; &nbsp; <A style="font-size:8pt;vertical-align:sub" href="?cablint=' || urlEncode(t_value) || '&dir=' || t_direction || '&sort=' || t_sort::text
+    &nbsp; &nbsp; &nbsp; <A style="font-size:8pt;vertical-align:sub" href="?' || t_cmd || '=' || urlEncode(t_value) || '&dir=' || t_direction || '&sort=' || t_sort::text
 																	|| coalesce(t_excludeExpired, '') || t_minNotBeforeString || coalesce(t_excludeCAsString, '');
 			IF t_groupBy = 'none' THEN
 				t_output := t_output || '">Group';
@@ -1505,19 +1587,20 @@ BEGIN
     <TD class="outer">' || html_escape(t_type)
 						|| ' ' || html_escape(t_matchType)
 						|| ' ''';
-		IF t_type = 'CA/B Forum lint' THEN
-			SELECT CASE ci.SEVERITY
+		IF lower(t_type) LIKE '%lint' THEN
+			SELECT CASE li.SEVERITY
 						WHEN 'F' THEN '<SPAN class="fatal">&nbsp;FATAL:'
 						WHEN 'E' THEN '<SPAN class="error">&nbsp;ERROR:'
 						WHEN 'W' THEN '<SPAN class="warning">&nbsp;WARNING:'
 						WHEN 'N' THEN '<SPAN class="notice">&nbsp;NOTICE:'
 						WHEN 'I' THEN '<SPAN>&nbsp;INFO:'
 						WHEN 'B' THEN '<SPAN>&nbsp;BUG:'
-						ELSE '<SPAN>&nbsp;' || ci.SEVERITY || ':'
-					END || ' ' || ci.ISSUE_TEXT || '&nbsp;</SPAN>'
+						ELSE '<SPAN>&nbsp;' || li.SEVERITY || ':'
+					END || ' ' || li.ISSUE_TEXT || '&nbsp;</SPAN>'
 				INTO t_temp
-				FROM cablint_issue ci
-				WHERE ci.ID = t_value::integer;
+				FROM lint_issue li
+				WHERE li.ID = t_value::integer
+					AND li.LINTER = coalesce(t_linter, li.LINTER);
 			t_output := t_output || t_temp;
 		ELSE
 			t_output := t_output || html_escape(t_value);
@@ -1535,11 +1618,14 @@ BEGIN
 <BR>
 ';
 
-		IF t_type = 'CA/B Forum lint' THEN
+		IF lower(t_type) LIKE '%lint' THEN
 			t_output := t_output ||
 'For certificates with <B>notBefore >= ' || to_char(t_minNotBefore, 'YYYY-MM-DD') || '</B>:
 <BR><BR>
 ';
+			t_opt := '&opt=' || t_linters;
+		ELSE
+			t_opt := '';
 		END IF;
 
 		-- Search for (potentially) multiple certificates.
@@ -1565,14 +1651,19 @@ BEGIN
 			ELSIF (t_type = 'Identity') AND (t_value = '%') THEN
 				t_query := t_query ||
 						'	WHERE c.ISSUER_CA_ID = $1' || chr(10);
-			ELSIF t_type = 'CA/B Forum lint' THEN
+			ELSIF lower(t_type) LIKE '%lint' THEN
 				t_query := t_query ||
-						'		, cablint_cert_issue cci' || chr(10) ||
+						'		, lint_cert_issue lci, lint_issue li' || chr(10) ||
 						'	WHERE c.ISSUER_CA_ID = $1::integer' || chr(10) ||
-						'		AND c.ID = cci.CERTIFICATE_ID' || chr(10) ||
-						'		AND cci.ISSUER_CA_ID = $1::integer' || chr(10) ||
-						'		AND cci.NOT_BEFORE >= $3' || chr(10) ||
-						'		AND cci.CABLINT_ISSUE_ID = $2::integer' || chr(10);
+						'		AND c.ID = lci.CERTIFICATE_ID' || chr(10) ||
+						'		AND lci.ISSUER_CA_ID = $1::integer' || chr(10) ||
+						'		AND lci.NOT_BEFORE >= $3' || chr(10) ||
+						'		AND lci.LINT_ISSUE_ID = $2::integer' || chr(10) ||
+						'		AND lci.LINT_ISSUE_ID = li.ID' || chr(10);
+				IF t_linter IS NOT NULL THEN
+					t_query := t_query ||
+						'		AND li.LINTER = ''' || t_linter || '''' || chr(10);
+				END IF;
 			ELSE
 				t_query := t_query ||
 						'	WHERE c.ID IN (' || chr(10) ||
@@ -1598,7 +1689,7 @@ BEGIN
 				t_query := t_query ||
 						'		AND x509_notAfter(c.CERTIFICATE) > statement_timestamp()' || chr(10);
 			END IF;
-			IF t_type = 'CA/B Forum lint' THEN
+			IF lower(t_type) LIKE '%lint' THEN
 				t_query := t_query ||
 						'	GROUP BY c.ID, SUBJECT_NAME, NOT_BEFORE, NOT_AFTER' || chr(10);
 			END IF;
@@ -1621,8 +1712,8 @@ BEGIN
     <TD style="white-space:nowrap">' || to_char(l_record.NOT_BEFORE, 'YYYY-MM-DD') || '</TD>
     <TD style="white-space:nowrap">' || to_char(l_record.NOT_AFTER, 'YYYY-MM-DD') || '</TD>
     <TD><A href="?id=' || l_record.ID::text;
-				IF t_type = 'CA/B Forum lint' THEN
-					t_text := t_text || '&opt=cablint';
+				IF lower(t_type) LIKE '%lint' THEN
+					t_text := t_text || '&opt=' || t_linters;
 				END IF;
 				t_text := t_text || '">'
 					|| html_escape(l_record.SUBJECT_NAME) || '</A></TD>
@@ -1651,7 +1742,7 @@ BEGIN
 '<TABLE>
   <TR>
     <TH class="outer">Issuer Name</TH>
-    <TD class="outer"><A href="?caid=' || t_caID::text || coalesce(t_excludeExpired, '') || '">'
+    <TD class="outer"><A href="?caid=' || t_caID::text || coalesce(t_excludeExpired, '') || t_opt || '">'
 									|| coalesce(html_escape(t_temp), '&nbsp;') || '</A></TD>
   </TR>
   <TR>
@@ -1737,25 +1828,25 @@ BEGIN
 							'		min(c.ID) MIN_CERT_ID,' || chr(10) ||
 							'		count(DISTINCT c.ID) NUM_CERTS' || chr(10) ||
 							'	FROM certificate c';
-			ELSIF t_type = 'CA/B Forum lint' THEN
-				t_issuerCAID_table := 'cci';
+			ELSIF lower(t_type) LIKE '%lint' THEN
+				t_issuerCAID_table := 'lci';
 				IF coalesce(t_groupBy, '') = 'none' THEN
-					t_query := 'SELECT cci.ISSUER_CA_ID, ca.NAME,' || chr(10) ||
-							'		cci.CABLINT_ISSUE_ID::text NAME_VALUE,' || chr(10) ||
+					t_query := 'SELECT lci.ISSUER_CA_ID, ca.NAME,' || chr(10) ||
+							'		lci.LINT_ISSUE_ID::text NAME_VALUE,' || chr(10) ||
 							'		c.ID MIN_CERT_ID,' || chr(10) ||
 							'		min(ctle.ENTRY_TIMESTAMP) MIN_ENTRY_TIMESTAMP,' || chr(10) ||
 							'		x509_notBefore(c.CERTIFICATE) NOT_BEFORE' || chr(10) ||
-							'	FROM ct_log_entry ctle, cablint_cert_issue cci';
-					t_joinToCertificate_table := 'cci';
+							'	FROM ct_log_entry ctle, lint_issue li, lint_cert_issue lci';
+					t_joinToCertificate_table := 'lci';
 				ELSE
-					t_query := 'SELECT cci.ISSUER_CA_ID, ca.NAME,' || chr(10) ||
-							'		cci.CABLINT_ISSUE_ID::text NAME_VALUE,' || chr(10) ||
-							'		min(cci.CERTIFICATE_ID) MIN_CERT_ID,' || chr(10) ||
-							'		count(DISTINCT cci.CERTIFICATE_ID) NUM_CERTS' || chr(10) ||
-							'	FROM cablint_cert_issue cci';
+					t_query := 'SELECT lci.ISSUER_CA_ID, ca.NAME,' || chr(10) ||
+							'		lci.LINT_ISSUE_ID::text NAME_VALUE,' || chr(10) ||
+							'		min(lci.CERTIFICATE_ID) MIN_CERT_ID,' || chr(10) ||
+							'		count(DISTINCT lci.CERTIFICATE_ID) NUM_CERTS' || chr(10) ||
+							'	FROM lint_issue li, lint_cert_issue lci';
 				END IF;
 				IF t_excludeExpired IS NOT NULL THEN
-					t_joinToCertificate_table := 'cci';
+					t_joinToCertificate_table := 'lci';
 				END IF;
 			ELSE
 				t_issuerCAID_table := 'ci';
@@ -1789,14 +1880,19 @@ BEGIN
 			ELSIF t_type = 'SHA-1(Subject)' THEN
 				t_query := t_query ||
 							'	WHERE digest(x509_name(c.CERTIFICATE), ''sha1'') = decode($1, ''hex'')' || chr(10);
-			ELSIF t_type = 'CA/B Forum lint' THEN
+			ELSIF lower(t_type) LIKE '%lint' THEN
 				t_query := t_query ||
-							'	WHERE cci.CABLINT_ISSUE_ID = $1::integer' || chr(10) ||
-							'		AND cci.NOT_BEFORE >= $2' || chr(10) ||
-							'		AND ca.CABLINT_APPLIES' || chr(10);
+							'	WHERE lci.LINT_ISSUE_ID = $1::integer' || chr(10) ||
+							'		AND lci.NOT_BEFORE >= $2' || chr(10) ||
+							'		AND lci.LINT_ISSUE_ID = li.ID' || chr(10) ||
+							'		AND ca.LINTING_APPLIES' || chr(10);
+				IF t_linter IS NOT NULL THEN
+					t_query := t_query ||
+							'		AND li.LINTER = ''' || t_linter || '''' || chr(10);
+				END IF;
 				IF coalesce(t_groupBy, '') = 'none' THEN
 					t_query := t_query ||
-							'		AND cci.CERTIFICATE_ID = ctle.CERTIFICATE_ID' || chr(10);
+							'		AND lci.CERTIFICATE_ID = ctle.CERTIFICATE_ID' || chr(10);
 				END IF;
 			ELSIF t_useReverseIndex THEN
 				t_query := t_query ||
@@ -1805,7 +1901,7 @@ BEGIN
 				t_query := t_query ||
 							'	WHERE lower(ci.NAME_VALUE) LIKE lower($1)' || chr(10);
 			END IF;
-			IF t_type NOT IN ('CT Entry ID', 'Identity', 'Serial Number', 'SHA-1(SubjectPublicKeyInfo)', 'SHA-1(Subject)', 'CA/B Forum lint') THEN
+			IF t_type NOT IN ('CT Entry ID', 'Identity', 'Serial Number', 'SHA-1(SubjectPublicKeyInfo)', 'SHA-1(Subject)', 'CA/B Forum lint', 'X.509 lint', 'Lint') THEN
 				t_query := t_query ||
 							'		AND ci.NAME_TYPE = ' || quote_literal(t_nameType) || chr(10);
 			END IF;
@@ -1856,20 +1952,18 @@ BEGIN
     <TD style="text-align:center">';
 				IF coalesce(t_groupBy, '') = 'none' THEN
 					t_text := t_text || to_char(l_record.MIN_ENTRY_TIMESTAMP, 'YYYY-MM-DD') || '</A></TD>
-    <TD style="text-align:center"><A href="?id=' || l_record.MIN_CERT_ID::text;
-					IF t_type = 'CA/B Forum lint' THEN
-						t_text := t_text || '&opt=cablint';
-					END IF;
-					t_text := t_text || '">' || to_char(l_record.NOT_BEFORE, 'YYYY-MM-DD') || '</A>';
+    <TD style="text-align:center"><A href="?id=' || l_record.MIN_CERT_ID::text || t_opt || '">'
+												|| to_char(l_record.NOT_BEFORE, 'YYYY-MM-DD') || '</A>';
 				ELSIF (l_record.NUM_CERTS = 1)
 						AND (l_record.MIN_CERT_ID IS NOT NULL) THEN
-					t_text := t_text || '<A href="?id=' || l_record.MIN_CERT_ID::text || '">'
-								|| l_record.NUM_CERTS::text || '</A>';
+					t_text := t_text || '<A href="?id=' || l_record.MIN_CERT_ID::text || t_opt || '">'
+														|| l_record.NUM_CERTS::text || '</A>';
 				ELSIF (l_record.ISSUER_CA_ID IS NOT NULL)
 						AND (l_record.MIN_CERT_ID IS NOT NULL) THEN
-					t_text := t_text || '<A href="?' || t_paramName || '=' || urlEncode(l_record.NAME_VALUE);
-					t_text := t_text || '&iCAID=' || l_record.ISSUER_CA_ID::text || t_minNotBeforeString || coalesce(t_excludeExpired, '') || '">'
-								|| l_record.NUM_CERTS::text || '</A>';
+					t_text := t_text || '<A href="?' || t_paramName || '=' || urlEncode(l_record.NAME_VALUE)
+											|| '&iCAID=' || l_record.ISSUER_CA_ID::text || t_minNotBeforeString
+											|| coalesce(t_excludeExpired, '') || t_opt || '">'
+										|| l_record.NUM_CERTS::text || '</A>';
 				ELSE
 					t_text := t_text || l_record.NUM_CERTS::text;
 				END IF;
@@ -1880,7 +1974,7 @@ BEGIN
     <TD>';
 				END IF;
 				IF l_record.ISSUER_CA_ID IS NOT NULL THEN
-					t_text := t_text || '<A href="?caid=' || l_record.ISSUER_CA_ID::text || '">'
+					t_text := t_text || '<A href="?caid=' || l_record.ISSUER_CA_ID::text || t_opt || '">'
 								|| coalesce(html_escape(l_record.NAME), '&nbsp;')
 								|| '</A>';
 				ELSE
@@ -1902,18 +1996,18 @@ BEGIN
 <TABLE>
   <TR>
 ';
-				IF t_type = 'CA/B Forum lint' THEN
+				IF lower(t_type) LIKE '%lint' THEN
 					IF coalesce(t_groupBy, '') = 'none' THEN
 						t_output := t_output ||
 '    <TH>
-      <A href="?cablint=' || urlEncode(t_value) || '&dir=' || t_oppositeDirection || '&sort=1' || t_minNotBeforeString || coalesce(t_excludeExpired, '') || coalesce(t_excludeCAsString, '') || t_groupByParameter || '">Logged At</A>
+      <A href="?' || t_cmd || '=' || urlEncode(t_value) || '&dir=' || t_oppositeDirection || '&sort=1' || t_minNotBeforeString || coalesce(t_excludeExpired, '') || coalesce(t_excludeCAsString, '') || t_groupByParameter || '">Logged At</A>
 ';
 						IF t_sort = 1 THEN
 							t_output := t_output || ' ' || t_dirSymbol;
 						END IF;
 						t_output := t_output ||
 '    </TH>
-    <TH><A href="?cablint=' || urlEncode(t_value) || '&dir=' || t_oppositeDirection || '&sort=2' || t_minNotBeforeString || coalesce(t_excludeExpired, '') || coalesce(t_excludeCAsString, '') || t_groupByParameter || '">Not Before</A>
+    <TH><A href="?' || t_cmd || '=' || urlEncode(t_value) || '&dir=' || t_oppositeDirection || '&sort=2' || t_minNotBeforeString || coalesce(t_excludeExpired, '') || coalesce(t_excludeCAsString, '') || t_groupByParameter || '">Not Before</A>
 ';
 						IF t_sort = 2 THEN
 							t_output := t_output || ' ' || t_dirSymbol;
@@ -1924,7 +2018,7 @@ BEGIN
 					ELSE
 						t_output := t_output ||
 '    <TH>
-      <A href="?cablint=' || urlEncode(t_value) || '&dir=' || t_oppositeDirection || '&sort=1' || t_minNotBeforeString || coalesce(t_excludeExpired, '') || coalesce(t_excludeCAsString, '') || t_groupByParameter || '">#</A>
+      <A href="?' || t_cmd || '=' || urlEncode(t_value) || '&dir=' || t_oppositeDirection || '&sort=1' || t_minNotBeforeString || coalesce(t_excludeExpired, '') || coalesce(t_excludeCAsString, '') || t_groupByParameter || '">#</A>
 ';
 						IF t_sort = 1 THEN
 							t_output := t_output || ' ' || t_dirSymbol;
@@ -1949,10 +2043,10 @@ BEGIN
 ';
 					END IF;
 				END IF;
-				IF t_type = 'CA/B Forum lint' THEN
+				IF lower(t_type) LIKE '%lint' THEN
 					t_output := t_output ||
 '    <TH>
-      <A href="?cablint=' || urlEncode(t_value) || '&dir=' || t_oppositeDirection || '&sort=3' || t_minNotBeforeString || coalesce(t_excludeExpired, '') || coalesce(t_excludeCAsString, '') || t_groupByParameter || '">Issuer Name</A>
+      <A href="?' || t_cmd || '=' || urlEncode(t_value) || '&dir=' || t_oppositeDirection || '&sort=3' || t_minNotBeforeString || coalesce(t_excludeExpired, '') || coalesce(t_excludeCAsString, '') || t_groupByParameter || '">Issuer Name</A>
 ';
 					IF t_sort = 3 THEN
 						t_output := t_output || ' ' || t_dirSymbol;
@@ -1979,7 +2073,7 @@ BEGIN
 ';
 		END IF;
 
-	ELSIF t_type = 'CA/B Forum lint: Summary' THEN
+	ELSIF lower(t_type) LIKE '%lint: summary' THEN
 		IF t_sort NOT BETWEEN 1 AND 18 THEN
 			t_sort := 1;
 		END IF;
@@ -1992,7 +2086,7 @@ BEGIN
 
 		IF t_outputType = 'html' THEN
 			t_output := t_output ||
-'  <SPAN class="whiteongrey">CA/B Forum lint: Summary</SPAN>
+'  <SPAN class="whiteongrey">' || t_type || '</SPAN>
 ';
 		END IF;
 
@@ -2008,7 +2102,7 @@ BEGIN
 			IF t_outputType = 'html' THEN
 				t_output := t_output ||
 '  <SPAN style="position:absolute">
-    &nbsp; &nbsp; &nbsp; <A style="font-size:8pt;vertical-align:sub" href="?cablint=' || urlEncode(t_value) || '&dir=' || t_direction || '&sort=' || t_sort::text || t_issuerOParameter;
+    &nbsp; &nbsp; &nbsp; <A style="font-size:8pt;vertical-align:sub" href="?' || t_cmd || '=' || urlEncode(t_value) || '&dir=' || t_direction || '&sort=' || t_sort::text || t_issuerOParameter;
 				IF t_groupBy != 'IssuerO' THEN
 					t_output := t_output || '&group=IssuerO">Group';
 				ELSE
@@ -2017,7 +2111,7 @@ BEGIN
 				t_output := t_output || ' by "Issuer O"</A>
 ';
 				IF t_issuerO IS NOT NULL THEN
-					t_output := t_output || ' &nbsp; &nbsp; <A style="font-size:8pt;vertical-align:sub" href="?cablint=' || urlEncode(t_value)
+					t_output := t_output || ' &nbsp; &nbsp; <A style="font-size:8pt;vertical-align:sub" href="?' || t_cmd || '=' || urlEncode(t_value)
 										|| '&dir=' || t_direction || '&sort=' || t_sort::text || t_groupByParameter || '">Show all "Issuer O"s</A>
 ';
 				END IF;
@@ -2030,21 +2124,21 @@ BEGIN
 				END IF;
 				t_output := t_output || ':
   <BR><BR>
-  <TABLE class="cablint">
+  <TABLE class="lint">
     <TR>
-      <TH rowspan="2"><A href="?cablint=' || urlEncode(t_value) || '&dir=' || t_oppositeDirection || '&sort=1' || t_groupByParameter || t_issuerOParameter || '">Issuer O</A>';
+      <TH rowspan="2"><A href="?' || t_cmd || '=' || urlEncode(t_value) || '&dir=' || t_oppositeDirection || '&sort=1' || t_groupByParameter || t_issuerOParameter || '">Issuer O</A>';
 				IF t_sort = 1 THEN
 					t_output := t_output || ' ' || t_dirSymbol;
 				END IF;
 				IF t_groupBy != 'IssuerO' THEN
 					t_output := t_output || '</TH>
-      <TH rowspan="2"><A href="?cablint=' || urlEncode(t_value) || '&dir=' || t_oppositeDirection || '&sort=2' || t_groupByParameter || t_issuerOParameter || '">Issuer CN, OU or O</A>';
+      <TH rowspan="2"><A href="?' || t_cmd || '=' || urlEncode(t_value) || '&dir=' || t_oppositeDirection || '&sort=2' || t_groupByParameter || t_issuerOParameter || '">Issuer CN, OU or O</A>';
 					IF t_sort = 2 THEN
 						t_output := t_output || ' ' || t_dirSymbol;
 					END IF;
 				END IF;
 				t_output := t_output || '</TH>
-      <TH rowspan="2"><A href="?cablint=' || urlEncode(t_value) || '&dir=' || t_oppositeDirection || '&sort=3' || t_groupByParameter || t_issuerOParameter || '"># Certs<BR>Issued</A>';
+      <TH rowspan="2"><A href="?' || t_cmd || '=' || urlEncode(t_value) || '&dir=' || t_oppositeDirection || '&sort=3' || t_groupByParameter || t_issuerOParameter || '"># Certs<BR>Issued</A>';
 				IF t_sort = 3 THEN
 					t_output := t_output || ' ' || t_dirSymbol;
 				END IF;
@@ -2056,77 +2150,77 @@ BEGIN
       <TH colspan="3"><A title="FATAL + ERROR + WARNING + NOTICE">ALL</A></TH>
     </TR>
     <TR>
-      <TH><A href="?cablint=' || urlEncode(t_value) || '&dir=' || t_oppositeDirection || '&sort=4' || t_groupByParameter || t_issuerOParameter || '"># Certs</A>';
+      <TH><A href="?' || t_cmd || '=' || urlEncode(t_value) || '&dir=' || t_oppositeDirection || '&sort=4' || t_groupByParameter || t_issuerOParameter || '"># Certs</A>';
 				IF t_sort = 4 THEN
 					t_output := t_output || ' ' || t_dirSymbol;
 				END IF;
 				t_output := t_output || '</TH>
-      <TH><A href="?cablint=' || urlEncode(t_value) || '&dir=' || t_oppositeDirection || '&sort=5' || t_groupByParameter || t_issuerOParameter || '">%</A>';
+      <TH><A href="?' || t_cmd || '=' || urlEncode(t_value) || '&dir=' || t_oppositeDirection || '&sort=5' || t_groupByParameter || t_issuerOParameter || '">%</A>';
 				IF t_sort = 5 THEN
 					t_output := t_output || ' ' || t_dirSymbol;
 				END IF;
 				t_output := t_output || '</TH>
-      <TH><A href="?cablint=' || urlEncode(t_value) || '&dir=' || t_oppositeDirection || '&sort=6' || t_groupByParameter || t_issuerOParameter || '"># Issues</A>';
+      <TH><A href="?' || t_cmd || '=' || urlEncode(t_value) || '&dir=' || t_oppositeDirection || '&sort=6' || t_groupByParameter || t_issuerOParameter || '"># Issues</A>';
 				IF t_sort = 6 THEN
 					t_output := t_output || ' ' || t_dirSymbol;
 				END IF;
 				t_output := t_output || '</TH>
-      <TH><A href="?cablint=' || urlEncode(t_value) || '&dir=' || t_oppositeDirection || '&sort=7' || t_groupByParameter || t_issuerOParameter || '"># Certs</A>';
+      <TH><A href="?' || t_cmd || '=' || urlEncode(t_value) || '&dir=' || t_oppositeDirection || '&sort=7' || t_groupByParameter || t_issuerOParameter || '"># Certs</A>';
 				IF t_sort = 7 THEN
 					t_output := t_output || ' ' || t_dirSymbol;
 				END IF;
 				t_output := t_output || '</TH>
-      <TH><A href="?cablint=' || urlEncode(t_value) || '&dir=' || t_oppositeDirection || '&sort=8' || t_groupByParameter || t_issuerOParameter || '">%</A>';
+      <TH><A href="?' || t_cmd || '=' || urlEncode(t_value) || '&dir=' || t_oppositeDirection || '&sort=8' || t_groupByParameter || t_issuerOParameter || '">%</A>';
 				IF t_sort = 8 THEN
 					t_output := t_output || ' ' || t_dirSymbol;
 				END IF;
 				t_output := t_output || '</TH>
-      <TH><A href="?cablint=' || urlEncode(t_value) || '&dir=' || t_oppositeDirection || '&sort=9' || t_groupByParameter || t_issuerOParameter || '"># Issues</A>';
+      <TH><A href="?' || t_cmd || '=' || urlEncode(t_value) || '&dir=' || t_oppositeDirection || '&sort=9' || t_groupByParameter || t_issuerOParameter || '"># Issues</A>';
 				IF t_sort = 9 THEN
 					t_output := t_output || ' ' || t_dirSymbol;
 				END IF;
 				t_output := t_output || '</TH>
-      <TH><A href="?cablint=' || urlEncode(t_value) || '&dir=' || t_oppositeDirection || '&sort=10' || t_groupByParameter || t_issuerOParameter || '"># Certs</A>';
+      <TH><A href="?' || t_cmd || '=' || urlEncode(t_value) || '&dir=' || t_oppositeDirection || '&sort=10' || t_groupByParameter || t_issuerOParameter || '"># Certs</A>';
 				IF t_sort = 10 THEN
 					t_output := t_output || ' ' || t_dirSymbol;
 				END IF;
 				t_output := t_output || '</TH>
-      <TH><A href="?cablint=' || urlEncode(t_value) || '&dir=' || t_oppositeDirection || '&sort=11' || t_groupByParameter || t_issuerOParameter || '">%</A>';
+      <TH><A href="?' || t_cmd || '=' || urlEncode(t_value) || '&dir=' || t_oppositeDirection || '&sort=11' || t_groupByParameter || t_issuerOParameter || '">%</A>';
 				IF t_sort = 11 THEN
 					t_output := t_output || ' ' || t_dirSymbol;
 				END IF;
 				t_output := t_output || '</TH>
-      <TH><A href="?cablint=' || urlEncode(t_value) || '&dir=' || t_oppositeDirection || '&sort=12' || t_groupByParameter || t_issuerOParameter || '"># Issues</A>';
+      <TH><A href="?' || t_cmd || '=' || urlEncode(t_value) || '&dir=' || t_oppositeDirection || '&sort=12' || t_groupByParameter || t_issuerOParameter || '"># Issues</A>';
 				IF t_sort = 12 THEN
 					t_output := t_output || ' ' || t_dirSymbol;
 				END IF;
 				t_output := t_output || '</TH>
-      <TH><A href="?cablint=' || urlEncode(t_value) || '&dir=' || t_oppositeDirection || '&sort=13' || t_groupByParameter || t_issuerOParameter || '"># Certs</A>';
+      <TH><A href="?' || t_cmd || '=' || urlEncode(t_value) || '&dir=' || t_oppositeDirection || '&sort=13' || t_groupByParameter || t_issuerOParameter || '"># Certs</A>';
 				IF t_sort = 13 THEN
 					t_output := t_output || ' ' || t_dirSymbol;
 				END IF;
 				t_output := t_output || '</TH>
-      <TH><A href="?cablint=' || urlEncode(t_value) || '&dir=' || t_oppositeDirection || '&sort=14' || t_groupByParameter || t_issuerOParameter || '">%</A>';
+      <TH><A href="?' || t_cmd || '=' || urlEncode(t_value) || '&dir=' || t_oppositeDirection || '&sort=14' || t_groupByParameter || t_issuerOParameter || '">%</A>';
 				IF t_sort = 14 THEN
 					t_output := t_output || ' ' || t_dirSymbol;
 				END IF;
 				t_output := t_output || '</TH>
-      <TH><A href="?cablint=' || urlEncode(t_value) || '&dir=' || t_oppositeDirection || '&sort=15' || t_groupByParameter || t_issuerOParameter || '"># Issues</A>';
+      <TH><A href="?' || t_cmd || '=' || urlEncode(t_value) || '&dir=' || t_oppositeDirection || '&sort=15' || t_groupByParameter || t_issuerOParameter || '"># Issues</A>';
 				IF t_sort = 15 THEN
 					t_output := t_output || ' ' || t_dirSymbol;
 				END IF;
 				t_output := t_output || '</TH>
-      <TH><A href="?cablint=' || urlEncode(t_value) || '&dir=' || t_oppositeDirection || '&sort=16' || t_groupByParameter || t_issuerOParameter || '"># Certs</A>';
+      <TH><A href="?' || t_cmd || '=' || urlEncode(t_value) || '&dir=' || t_oppositeDirection || '&sort=16' || t_groupByParameter || t_issuerOParameter || '"># Certs</A>';
 				IF t_sort = 16 THEN
 					t_output := t_output || ' ' || t_dirSymbol;
 				END IF;
 				t_output := t_output || '</TH>
-      <TH><A href="?cablint=' || urlEncode(t_value) || '&dir=' || t_oppositeDirection || '&sort=17' || t_groupByParameter || t_issuerOParameter || '">%</A>';
+      <TH><A href="?' || t_cmd || '=' || urlEncode(t_value) || '&dir=' || t_oppositeDirection || '&sort=17' || t_groupByParameter || t_issuerOParameter || '">%</A>';
 				IF t_sort = 17 THEN
 					t_output := t_output || ' ' || t_dirSymbol;
 				END IF;
 				t_output := t_output || '</TH>
-      <TH><A href="?cablint=' || urlEncode(t_value) || '&dir=' || t_oppositeDirection || '&sort=18' || t_groupByParameter || t_issuerOParameter || '"># Issues</A>';
+      <TH><A href="?' || t_cmd || '=' || urlEncode(t_value) || '&dir=' || t_oppositeDirection || '&sort=18' || t_groupByParameter || t_issuerOParameter || '"># Issues</A>';
 				IF t_sort = 18 THEN
 					t_output := t_output || ' ' || t_dirSymbol;
 				END IF;
@@ -2137,58 +2231,61 @@ BEGIN
 
 			IF t_groupBy = 'IssuerO' THEN
 				t_query := 'SELECT NULL::integer ISSUER_CA_ID,' || chr(10) ||
-							'		(sum(c1s.CERTS_ISSUED))::bigint CERTS_ISSUED,' || chr(10) ||
-							'		(sum(c1s.ALL_CERTS))::bigint ALL_CERTS,' || chr(10) ||
-							'		(sum(c1s.ALL_ISSUES))::bigint ALL_ISSUES,' || chr(10) ||
-							'		((sum(c1s.ALL_CERTS) * 100) / sum(c1s.CERTS_ISSUED))::numeric ALL_PERC,' || chr(10) ||
-							'		(sum(c1s.FATAL_CERTS))::bigint FATAL_CERTS,' || chr(10) ||
-							'		(sum(c1s.FATAL_ISSUES))::bigint FATAL_ISSUES,' || chr(10) ||
-							'		((sum(c1s.FATAL_CERTS) * 100) / sum(c1s.CERTS_ISSUED))::numeric FATAL_PERC,' || chr(10) ||
-							'		(sum(c1s.ERROR_CERTS))::bigint ERROR_CERTS,' || chr(10) ||
-							'		(sum(c1s.ERROR_ISSUES))::bigint ERROR_ISSUES,' || chr(10) ||
-							'		((sum(c1s.ERROR_CERTS) * 100) / sum(c1s.CERTS_ISSUED))::numeric ERROR_PERC,' || chr(10) ||
-							'		(sum(c1s.WARNING_CERTS))::bigint WARNING_CERTS,' || chr(10) ||
-							'		(sum(c1s.WARNING_ISSUES))::bigint WARNING_ISSUES,' || chr(10) ||
-							'		((sum(c1s.WARNING_CERTS) * 100) / sum(c1s.CERTS_ISSUED))::numeric WARNING_PERC,' || chr(10) ||
-							'		(sum(c1s.NOTICE_CERTS))::bigint NOTICE_CERTS,' || chr(10) ||
-							'		(sum(c1s.NOTICE_ISSUES))::bigint NOTICE_ISSUES,' || chr(10) ||
-							'		((sum(c1s.NOTICE_CERTS) * 100) / sum(c1s.CERTS_ISSUED))::numeric NOTICE_PERC,' || chr(10) ||
-							'		get_ca_name_attribute(c1s.ISSUER_CA_ID, ''organizationName'') ISSUER_ORGANIZATION_NAME,' || chr(10) ||
-							'		NULL ISSUER_FRIENDLY_NAME' || chr(10) ||
-							'	FROM cablint_1week_summary c1s' || chr(10) ||
-							'	';
-				IF t_issuerO IS NOT NULL THEN
-					t_query := t_query || 'WHERE get_ca_name_attribute(c1s.ISSUER_CA_ID, ''organizationName'') LIKE $1' || chr(10) ||
-							'	';
-				END IF;
-				t_query := t_query || 'GROUP BY ISSUER_ORGANIZATION_NAME' || chr(10) ||
-							'	';
+							'		(sum(l1s.CERTS_ISSUED))::bigint CERTS_ISSUED,' || chr(10) ||
+							'		(sum(l1s.ALL_CERTS))::bigint ALL_CERTS,' || chr(10) ||
+							'		(sum(l1s.ALL_ISSUES))::bigint ALL_ISSUES,' || chr(10) ||
+							'		((sum(l1s.ALL_CERTS) * 100) / sum(l1s.CERTS_ISSUED))::numeric ALL_PERC,' || chr(10) ||
+							'		(sum(l1s.FATAL_CERTS))::bigint FATAL_CERTS,' || chr(10) ||
+							'		(sum(l1s.FATAL_ISSUES))::bigint FATAL_ISSUES,' || chr(10) ||
+							'		((sum(l1s.FATAL_CERTS) * 100) / sum(l1s.CERTS_ISSUED))::numeric FATAL_PERC,' || chr(10) ||
+							'		(sum(l1s.ERROR_CERTS))::bigint ERROR_CERTS,' || chr(10) ||
+							'		(sum(l1s.ERROR_ISSUES))::bigint ERROR_ISSUES,' || chr(10) ||
+							'		((sum(l1s.ERROR_CERTS) * 100) / sum(l1s.CERTS_ISSUED))::numeric ERROR_PERC,' || chr(10) ||
+							'		(sum(l1s.WARNING_CERTS))::bigint WARNING_CERTS,' || chr(10) ||
+							'		(sum(l1s.WARNING_ISSUES))::bigint WARNING_ISSUES,' || chr(10) ||
+							'		((sum(l1s.WARNING_CERTS) * 100) / sum(l1s.CERTS_ISSUED))::numeric WARNING_PERC,' || chr(10) ||
+							'		(sum(l1s.NOTICE_CERTS))::bigint NOTICE_CERTS,' || chr(10) ||
+							'		(sum(l1s.NOTICE_ISSUES))::bigint NOTICE_ISSUES,' || chr(10) ||
+							'		((sum(l1s.NOTICE_CERTS) * 100) / sum(l1s.CERTS_ISSUED))::numeric NOTICE_PERC,' || chr(10) ||
+							'		get_ca_name_attribute(l1s.ISSUER_CA_ID, ''organizationName'') ISSUER_ORGANIZATION_NAME,' || chr(10) ||
+							'		NULL ISSUER_FRIENDLY_NAME' || chr(10);
 			ELSE
-				t_query := 'SELECT c1s.ISSUER_CA_ID::integer,' || chr(10) ||
-							'		c1s.CERTS_ISSUED::bigint,' || chr(10) ||
-							'		c1s.ALL_CERTS::bigint,' || chr(10) ||
-							'		c1s.ALL_ISSUES::bigint,' || chr(10) ||
-							'		((c1s.ALL_CERTS * 100) / c1s.CERTS_ISSUED::numeric) ALL_PERC,' || chr(10) ||
-							'		c1s.FATAL_CERTS::bigint,' || chr(10) ||
-							'		c1s.FATAL_ISSUES::bigint,' || chr(10) ||
-							'		((c1s.FATAL_CERTS * 100) / c1s.CERTS_ISSUED::numeric) FATAL_PERC,' || chr(10) ||
-							'		c1s.ERROR_CERTS::bigint,' || chr(10) ||
-							'		c1s.ERROR_ISSUES::bigint,' || chr(10) ||
-							'		((c1s.ERROR_CERTS * 100) / c1s.CERTS_ISSUED::numeric) ERROR_PERC,' || chr(10) ||
-							'		c1s.WARNING_CERTS::bigint,' || chr(10) ||
-							'		c1s.WARNING_ISSUES::bigint,' || chr(10) ||
-							'		((c1s.WARNING_CERTS * 100) / c1s.CERTS_ISSUED::numeric) WARNING_PERC,' || chr(10) ||
-							'		c1s.NOTICE_CERTS::bigint,' || chr(10) ||
-							'		c1s.NOTICE_ISSUES::bigint,' || chr(10) ||
-							'		((c1s.NOTICE_CERTS * 100) / c1s.CERTS_ISSUED::numeric) NOTICE_PERC,' || chr(10) ||
-							'		get_ca_name_attribute(c1s.ISSUER_CA_ID, ''organizationName'') ISSUER_ORGANIZATION_NAME,' || chr(10) ||
-							'		get_ca_name_attribute(c1s.ISSUER_CA_ID, ''_friendlyName_'') ISSUER_FRIENDLY_NAME' || chr(10) ||
-							'	FROM cablint_1week_summary c1s' || chr(10) ||
+				t_query := 'SELECT l1s.ISSUER_CA_ID::integer,' || chr(10) ||
+							'		l1s.CERTS_ISSUED::bigint,' || chr(10) ||
+							'		l1s.ALL_CERTS::bigint,' || chr(10) ||
+							'		l1s.ALL_ISSUES::bigint,' || chr(10) ||
+							'		((l1s.ALL_CERTS * 100) / l1s.CERTS_ISSUED::numeric) ALL_PERC,' || chr(10) ||
+							'		l1s.FATAL_CERTS::bigint,' || chr(10) ||
+							'		l1s.FATAL_ISSUES::bigint,' || chr(10) ||
+							'		((l1s.FATAL_CERTS * 100) / l1s.CERTS_ISSUED::numeric) FATAL_PERC,' || chr(10) ||
+							'		l1s.ERROR_CERTS::bigint,' || chr(10) ||
+							'		l1s.ERROR_ISSUES::bigint,' || chr(10) ||
+							'		((l1s.ERROR_CERTS * 100) / l1s.CERTS_ISSUED::numeric) ERROR_PERC,' || chr(10) ||
+							'		l1s.WARNING_CERTS::bigint,' || chr(10) ||
+							'		l1s.WARNING_ISSUES::bigint,' || chr(10) ||
+							'		((l1s.WARNING_CERTS * 100) / l1s.CERTS_ISSUED::numeric) WARNING_PERC,' || chr(10) ||
+							'		l1s.NOTICE_CERTS::bigint,' || chr(10) ||
+							'		l1s.NOTICE_ISSUES::bigint,' || chr(10) ||
+							'		((l1s.NOTICE_CERTS * 100) / l1s.CERTS_ISSUED::numeric) NOTICE_PERC,' || chr(10) ||
+							'		get_ca_name_attribute(l1s.ISSUER_CA_ID, ''organizationName'') ISSUER_ORGANIZATION_NAME,' || chr(10) ||
+							'		get_ca_name_attribute(l1s.ISSUER_CA_ID, ''_friendlyName_'') ISSUER_FRIENDLY_NAME' || chr(10);
+			END IF;
+			t_query := t_query ||
+							'	FROM lint_1week_summary l1s' || chr(10) ||
+							'	WHERE l1s.LINTER ';
+			IF t_linter IS NOT NULL THEN
+				t_query := t_query || '= ''' || t_linter || '''' || chr(10);
+			ELSE
+				t_query := t_query || 'IS NULL' || chr(10);
+			END IF;
+			IF t_issuerO IS NOT NULL THEN
+				t_query := t_query ||
+							'		AND get_ca_name_attribute(l1s.ISSUER_CA_ID, ''organizationName'') LIKE $1' || chr(10);
+			END IF;
+			t_query := t_query || '	';
+			IF t_groupBy = 'IssuerO' THEN
+				t_query := t_query || '	GROUP BY ISSUER_ORGANIZATION_NAME' || chr(10) ||
 							'	';
-				IF t_issuerO IS NOT NULL THEN
-					t_query := t_query || 'WHERE get_ca_name_attribute(c1s.ISSUER_CA_ID, ''organizationName'') LIKE $1' || chr(10) ||
-							'	';
-				END IF;
 			END IF;
 
 			IF t_sort = 1 THEN
@@ -2237,7 +2334,7 @@ BEGIN
     <TR>
       <TD>';
 					IF l_record.ISSUER_ORGANIZATION_NAME IS NOT NULL THEN
-						t_output := t_output || '<A href="?cablint=' || urlEncode(t_value) || '&dir=' || t_direction
+						t_output := t_output || '<A href="?' || t_cmd || '=' || urlEncode(t_value) || '&dir=' || t_direction
 											|| '&sort=' || t_sort::text || t_groupByParameter
 											|| '&issuerO=' || urlEncode(l_record.ISSUER_ORGANIZATION_NAME) || '">'
 											|| l_record.ISSUER_ORGANIZATION_NAME || '</A>';
@@ -2248,7 +2345,7 @@ BEGIN
 ';
 					IF t_groupBy != 'IssuerO' THEN
 						t_output := t_output ||
-'      <TD><A href="?caid=' || l_record.ISSUER_CA_ID::text || '&opt=cablint">' || coalesce(l_record.ISSUER_FRIENDLY_NAME, '&nbsp;') || '</A></TD>
+'      <TD><A href="?caid=' || l_record.ISSUER_CA_ID::text || '&opt=' || t_linters || '">' || coalesce(l_record.ISSUER_FRIENDLY_NAME, '&nbsp;') || '</A></TD>
 ';
 					END IF;
 					t_output := t_output ||
@@ -2280,7 +2377,7 @@ BEGIN
 			END IF;
 		END IF;
 
-	ELSIF t_type = 'CA/B Forum lint: Issues' THEN
+	ELSIF lower(t_type) LIKE '%lint: issues' THEN
 		IF t_sort NOT BETWEEN 1 AND 3 THEN
 			t_sort := 1;
 		END IF;
@@ -2292,23 +2389,23 @@ BEGIN
 
 		IF t_outputType = 'html' THEN
 			t_output := t_output ||
-'  <SPAN class="whiteongrey">CA/B Forum lint: Issues</SPAN>
+'  <SPAN class="whiteongrey">' || t_type || '</SPAN>
   <BR><BR>
   For certificates with <B>notBefore >= ' || to_char(t_minNotBefore, 'YYYY-MM-DD') || '</B>:
   <BR><BR>
-  <TABLE class="cablint">
+  <TABLE class="lint">
     <TR>
-      <TH><A href="?cablint=' || urlEncode(t_value) || '&dir=' || t_oppositeDirection || '&sort=1' || t_groupByParameter || coalesce(t_excludeAffectedCerts, '') || '">Severity</A>';
+      <TH><A href="?' || t_cmd || '=' || urlEncode(t_value) || '&dir=' || t_oppositeDirection || '&sort=1' || t_groupByParameter || coalesce(t_excludeAffectedCerts, '') || '">Severity</A>';
 			IF t_sort = 1 THEN
 				t_output := t_output || ' ' || t_dirSymbol;
 			END IF;
 			t_output := t_output || '</TH>
-      <TH><A href="?cablint=' || urlEncode(t_value) || '&dir=' || t_oppositeDirection || '&sort=2' || t_groupByParameter || coalesce(t_excludeAffectedCerts, '') || '">Issue</A>';
+      <TH><A href="?' || t_cmd || '=' || urlEncode(t_value) || '&dir=' || t_oppositeDirection || '&sort=2' || t_groupByParameter || coalesce(t_excludeAffectedCerts, '') || '">Issue</A>';
 			IF t_sort = 2 THEN
 				t_output := t_output || ' ' || t_dirSymbol;
 			END IF;
 			t_output := t_output || '</TH>
-      <TH><A href="?cablint=' || urlEncode(t_value) || '&dir=' || t_oppositeDirection || '&sort=3' || t_groupByParameter || coalesce(t_excludeAffectedCerts, '') || '"># Affected Certs</A>';
+      <TH><A href="?' || t_cmd || '=' || urlEncode(t_value) || '&dir=' || t_oppositeDirection || '&sort=3' || t_groupByParameter || coalesce(t_excludeAffectedCerts, '') || '"># Affected Certs</A>';
 			IF t_sort = 3 THEN
 				t_output := t_output || ' ' || t_dirSymbol;
 			END IF;
@@ -2317,14 +2414,14 @@ BEGIN
 ';
 		END IF;
 
-		t_query := 'SELECT ci.ID, ci.ISSUE_TEXT,';
+		t_query := 'SELECT li.ID, li.ISSUE_TEXT,';
 		IF t_excludeAffectedCerts IS NULL THEN
-			t_query := t_query || ' count(DISTINCT cci.CERTIFICATE_ID) NUM_CERTS,';
+			t_query := t_query || ' count(DISTINCT lci.CERTIFICATE_ID) NUM_CERTS,';
 		ELSE
 			t_query := t_query || ' -1::bigint NUM_CERTS,';
 		END IF;
 		t_query := t_query || chr(10) ||
-					'		CASE ci.SEVERITY' || chr(10) ||
+					'		CASE li.SEVERITY' || chr(10) ||
 					'			WHEN ''F'' THEN 1' || chr(10) ||
 					'			WHEN ''E'' THEN 2' || chr(10) ||
 					'			WHEN ''W'' THEN 3' || chr(10) ||
@@ -2333,16 +2430,16 @@ BEGIN
 					'			WHEN ''B'' THEN 6' || chr(10) ||
 					'			ELSE 7' || chr(10) ||
 					'		END ISSUE_TYPE,' || chr(10) ||
-					'		CASE ci.SEVERITY' || chr(10) ||
+					'		CASE li.SEVERITY' || chr(10) ||
 					'			WHEN ''F'' THEN ''FATAL''' || chr(10) ||
 					'			WHEN ''E'' THEN ''ERROR''' || chr(10) ||
 					'			WHEN ''W'' THEN ''WARNING''' || chr(10) ||
 					'			WHEN ''N'' THEN ''NOTICE''' || chr(10) ||
 					'			WHEN ''I'' THEN ''INFO''' || chr(10) ||
 					'			WHEN ''B'' THEN ''BUG''' || chr(10) ||
-					'			ELSE ci.SEVERITY ' || chr(10) ||
+					'			ELSE li.SEVERITY ' || chr(10) ||
 					'		END ISSUE_HEADING,' || chr(10) ||
-					'		CASE ci.SEVERITY' || chr(10) ||
+					'		CASE li.SEVERITY' || chr(10) ||
 					'			WHEN ''F'' THEN ''class="fatal"''' || chr(10) ||
 					'			WHEN ''E'' THEN ''class="error"''' || chr(10) ||
 					'			WHEN ''W'' THEN ''class="warning"''' || chr(10) ||
@@ -2351,20 +2448,29 @@ BEGIN
 					'		END ISSUE_CLASS' || chr(10);
 		IF t_excludeAffectedCerts IS NULL THEN
 			t_query := t_query ||
-					'	FROM cablint_cert_issue cci, cablint_issue ci' || chr(10) ||
-					'	WHERE cci.CABLINT_ISSUE_ID = ci.ID' || chr(10) ||
-					'		AND cci.NOT_BEFORE >= $1' || chr(10) ||
-					'	GROUP BY ci.ID, ci.SEVERITY, ci.ISSUE_TEXT' || chr(10);
+					'	FROM lint_cert_issue lci, lint_issue li' || chr(10) ||
+					'	WHERE lci.LINT_ISSUE_ID = li.ID' || chr(10);
+			IF t_linter IS NOT NULL THEN
+				t_query := t_query ||
+					'		AND li.LINTER = ''' || t_linter || '''' || chr(10);
+			END IF;
+			t_query := t_query ||
+					'		AND lci.NOT_BEFORE >= $1' || chr(10) ||
+					'	GROUP BY li.ID, li.SEVERITY, li.ISSUE_TEXT' || chr(10);
 		ELSE
 			t_query := t_query ||
-					'	FROM cablint_issue ci' || chr(10);
+					'	FROM lint_issue li' || chr(10);
+			IF t_linter IS NOT NULL THEN
+				t_query := t_query ||
+					'		AND li.LINTER = ''' || t_linter || '''' || chr(10);
+			END IF;
 		END IF;
 		IF t_sort = 1 THEN
 			t_query := t_query ||
-					'	ORDER BY ISSUE_TYPE, ci.ISSUE_TEXT ' || t_orderBy;
+					'	ORDER BY ISSUE_TYPE, li.ISSUE_TEXT ' || t_orderBy;
 		ELSIF t_sort = 2 THEN
 			t_query := t_query ||
-					'	ORDER BY ci.ISSUE_TEXT ' || t_orderBy;
+					'	ORDER BY li.ISSUE_TEXT ' || t_orderBy;
 		ELSIF t_sort = 3 THEN
 			t_query := t_query ||
 					'	ORDER BY NUM_CERTS ' || t_orderBy;
@@ -2378,7 +2484,7 @@ BEGIN
 '    <TR>
       <TD ' || l_record.ISSUE_CLASS || '>' || l_record.ISSUE_HEADING || '</TD>
       <TD ' || l_record.ISSUE_CLASS || '>' || l_record.ISSUE_TEXT || '</TD>
-      <TD><A href="?cablint=' || l_record.ID::text || t_minNotBeforeString || '">';
+      <TD><A href="?' || t_cmd || '=' || l_record.ID::text || t_minNotBeforeString || '">';
 				IF l_record.NUM_CERTS = -1 THEN
 					t_output := t_output || '?';
 				ELSE
