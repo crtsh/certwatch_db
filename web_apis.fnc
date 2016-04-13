@@ -2448,8 +2448,10 @@ BEGIN
 					'		END ISSUE_CLASS' || chr(10);
 		IF t_excludeAffectedCerts IS NULL THEN
 			t_query := t_query ||
-					'	FROM lint_cert_issue lci, lint_issue li' || chr(10) ||
-					'	WHERE lci.LINT_ISSUE_ID = li.ID' || chr(10);
+					'	FROM lint_cert_issue lci, lint_issue li, ca' || chr(10) ||
+					'	WHERE lci.LINT_ISSUE_ID = li.ID' || chr(10) ||
+					'		AND lci.ISSUER_CA_ID = ca.ID' || chr(10) ||
+					'		AND ca.LINTING_APPLIES' || chr(10);
 			IF t_linter IS NOT NULL THEN
 				t_query := t_query ||
 					'		AND li.LINTER = ''' || t_linter || '''' || chr(10);
