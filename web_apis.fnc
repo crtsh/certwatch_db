@@ -36,6 +36,7 @@ DECLARE
 		'caname', 'CA Name', NULL,
 		'serial', 'Serial Number', NULL,
 		'spkisha1', 'SHA-1(SubjectPublicKeyInfo)', NULL,
+		'spkisha256', 'SHA-256(SubjectPublicKeyInfo)', NULL,
 		'subjectsha1', 'SHA-1(Subject)', NULL,
 		'identity', 'Identity', NULL,
 		'commonname', 'Common Name', NULL,
@@ -75,7 +76,7 @@ DECLARE
 	t_caID				ca.ID%TYPE;
 	t_caName			ca.NAME%TYPE;
 	t_serialNumber		bytea;
-	t_spkiSHA1			bytea;
+	t_spkiSHA256		bytea;
 	t_nameType			name_type;
 	t_text				text;
 	t_offset			integer;
@@ -165,7 +166,9 @@ BEGIN
 						'SHA-1(Subject)'
 					) THEN
 				EXIT WHEN length(t_bytea) = 20;
-			ELSIF t_type = 'SHA-256(Certificate)' THEN
+			ELSIF t_type IN (
+						'SHA-256(Certificate)', 'SHA-256(SubjectPublicKeyInfo)'
+					) THEN
 				EXIT WHEN length(t_bytea) = 32;
 			ELSIF t_type = 'Serial Number' THEN
 				EXIT WHEN t_bytea IS NOT NULL;
@@ -183,10 +186,11 @@ BEGIN
 	IF t_type IN ('Simple', 'Advanced') THEN
 		t_title := 'Certificate Search';
 	ELSIF t_type IN (
-				'SHA-1(SubjectPublicKeyInfo)',
-				'SHA-1(Subject)',
 				'SHA-1(Certificate)',
-				'SHA-256(Certificate)'
+				'SHA-256(Certificate)',
+				'SHA-1(SubjectPublicKeyInfo)',
+				'SHA-256(SubjectPublicKeyInfo)',
+				'SHA-1(Subject)'
 			) THEN
 		t_value := encode(t_bytea, 'hex');
 	ELSIF t_type = 'CT Entry ID' THEN
@@ -482,7 +486,7 @@ BEGIN
         return;
       var t_url;
       if (document.search_form.searchCensys.checked && (type != "CAID")) {
-        if ((type == "id") || (type == "ctid") || (type == "spkisha1")
+        if ((type == "id") || (type == "ctid") || (type == "spkisha1") || (type == "spkisha256")
              || (type == "subjectsha1") || (type == "E")) {
           alert("Sorry, Censys doesn''t support this search type");
           return;
@@ -548,6 +552,7 @@ BEGIN
             <OPTION value="ctid">&nbsp; CT Entry ID</OPTION>
             <OPTION value="serial">&nbsp; Serial Number</OPTION>
             <OPTION value="spkisha1">&nbsp; SHA-1(SubjectPublicKeyInfo)</OPTION>
+            <OPTION value="spkisha256">&nbsp; SHA-256(SubjectPublicKeyInfo)</OPTION>
             <OPTION value="subjectsha1">&nbsp; SHA-1(Subject)</OPTION>
             <OPTION value="sha1">&nbsp; SHA-1(Certificate)</OPTION>
             <OPTION value="sha256">&nbsp; SHA-256(Certificate)</OPTION>
@@ -681,13 +686,13 @@ BEGIN
 					digest(c.CERTIFICATE, 'sha1'::text),
 					digest(c.CERTIFICATE, 'sha256'::text),
 					x509_serialNumber(c.CERTIFICATE),
-					digest(x509_publicKey(c.CERTIFICATE), 'sha1'::text),
+					digest(x509_publicKey(c.CERTIFICATE), 'sha256'::text),
 					c.CERTIFICATE
 				INTO t_certificateID, t_text, t_issuerCAID, t_caID,
 					t_certificateSHA1,
 					t_certificateSHA256,
 					t_serialNumber,
-					t_spkiSHA1,
+					t_spkiSHA256,
 					t_certificate
 				FROM certificate c
 					LEFT OUTER JOIN ca ON (c.ISSUER_CA_ID = ca.ID)
@@ -698,13 +703,13 @@ BEGIN
 					digest(c.CERTIFICATE, 'sha1'::text),
 					digest(c.CERTIFICATE, 'sha256'::text),
 					x509_serialNumber(c.CERTIFICATE),
-					digest(x509_publicKey(c.CERTIFICATE), 'sha1'::text),
+					digest(x509_publicKey(c.CERTIFICATE), 'sha256'::text),
 					c.CERTIFICATE
 				INTO t_certificateID, t_text, t_issuerCAID, t_caID,
 					t_certificateSHA1,
 					t_certificateSHA256,
 					t_serialNumber,
-					t_spkiSHA1,
+					t_spkiSHA256,
 					t_certificate
 				FROM certificate c
 					LEFT OUTER JOIN ca ON (c.ISSUER_CA_ID = ca.ID)
@@ -716,13 +721,13 @@ BEGIN
 					digest(c.CERTIFICATE, 'sha1'::text),
 					digest(c.CERTIFICATE, 'sha256'::text),
 					x509_serialNumber(c.CERTIFICATE),
-					digest(x509_publicKey(c.CERTIFICATE), 'sha1'::text),
+					digest(x509_publicKey(c.CERTIFICATE), 'sha256'::text),
 					c.CERTIFICATE
 				INTO t_certificateID, t_text, t_issuerCAID, t_caID,
 					t_certificateSHA1,
 					t_certificateSHA256,
 					t_serialNumber,
-					t_spkiSHA1,
+					t_spkiSHA256,
 					t_certificate
 				FROM certificate c
 					LEFT OUTER JOIN ca ON (c.ISSUER_CA_ID = ca.ID)
@@ -734,13 +739,13 @@ BEGIN
 					digest(c.CERTIFICATE, 'sha1'::text),
 					digest(c.CERTIFICATE, 'sha256'::text),
 					x509_serialNumber(c.CERTIFICATE),
-					digest(x509_publicKey(c.CERTIFICATE), 'sha1'::text),
+					digest(x509_publicKey(c.CERTIFICATE), 'sha256'::text),
 					c.CERTIFICATE
 				INTO t_certificateID, t_text, t_issuerCAID, t_caID,
 					t_certificateSHA1,
 					t_certificateSHA256,
 					t_serialNumber,
-					t_spkiSHA1,
+					t_spkiSHA256,
 					t_certificate
 				FROM certificate c
 					LEFT OUTER JOIN ca ON (c.ISSUER_CA_ID = ca.ID)
@@ -806,8 +811,8 @@ BEGIN
 		END IF;
 		t_text := replace(
 			t_text, '<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Subject&nbsp;Public&nbsp;Key&nbsp;Info:<BR>',
-				'<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<A href="?spkisha1='
-						|| encode(t_spkiSHA1, 'hex')
+				'<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<A href="?spkisha256='
+						|| encode(t_spkiSHA256, 'hex')
 						|| '">Subject&nbsp;Public&nbsp;Key&nbsp;Info:</A><BR>'
 		);
 
@@ -1523,6 +1528,7 @@ BEGIN
 				'CT Entry ID',
 				'Serial Number',
 				'SHA-1(SubjectPublicKeyInfo)',
+				'SHA-256(SubjectPublicKeyInfo)',
 				'SHA-1(Subject)',
 				'Identity',
 				'Common Name',
@@ -1635,13 +1641,16 @@ BEGIN
 						'		x509_notBefore(c.CERTIFICATE) NOT_BEFORE,' || chr(10) ||
 						'		x509_notAfter(c.CERTIFICATE) NOT_AFTER' || chr(10) ||
 						'	FROM certificate c' || chr(10);
-			IF t_type IN ('Serial Number', 'SHA-1(SubjectPublicKeyInfo)', 'SHA-1(Subject)') THEN
+			IF t_type IN ('Serial Number', 'SHA-1(SubjectPublicKeyInfo)', 'SHA-256(SubjectPublicKeyInfo)', 'SHA-1(Subject)') THEN
 				IF t_type = 'Serial Number' THEN
 					t_query := t_query ||
 						'	WHERE x509_serialNumber(c.CERTIFICATE) = decode($2, ''hex'')' || chr(10);
 				ELSIF t_type = 'SHA-1(SubjectPublicKeyInfo)' THEN
 					t_query := t_query ||
 						'	WHERE digest(x509_publickey(c.CERTIFICATE), ''sha1'') = decode($2, ''hex'')' || chr(10);
+				ELSIF t_type = 'SHA-256(SubjectPublicKeyInfo)' THEN
+					t_query := t_query ||
+						'	WHERE digest(x509_publickey(c.CERTIFICATE), ''sha256'') = decode($2, ''hex'')' || chr(10);
 				ELSIF t_type = 'SHA-1(Subject)' THEN
 					t_query := t_query ||
 						'	WHERE digest(x509_name(c.CERTIFICATE), ''sha1'') = decode($2, ''hex'')' || chr(10);
@@ -1821,6 +1830,13 @@ BEGIN
 							'		min(c.ID) MIN_CERT_ID,' || chr(10) ||
 							'		count(DISTINCT c.ID) NUM_CERTS' || chr(10) ||
 							'	FROM certificate c';
+			ELSIF t_type = 'SHA-256(SubjectPublicKeyInfo)' THEN
+				t_issuerCAID_table := 'c';
+				t_query := 'SELECT c.ISSUER_CA_ID, ca.NAME,' || chr(10) ||
+							'		encode(digest(x509_publickey(c.CERTIFICATE), ''sha256''), ''hex'') NAME_VALUE,' || chr(10) ||
+							'		min(c.ID) MIN_CERT_ID,' || chr(10) ||
+							'		count(DISTINCT c.ID) NUM_CERTS' || chr(10) ||
+							'	FROM certificate c';
 			ELSIF t_type = 'SHA-1(Subject)' THEN
 				t_issuerCAID_table := 'c';
 				t_query := 'SELECT c.ISSUER_CA_ID, ca.NAME,' || chr(10) ||
@@ -1877,6 +1893,9 @@ BEGIN
 			ELSIF t_type = 'SHA-1(SubjectPublicKeyInfo)' THEN
 				t_query := t_query ||
 							'	WHERE digest(x509_publickey(c.CERTIFICATE), ''sha1'') = decode($1, ''hex'')' || chr(10);
+			ELSIF t_type = 'SHA-256(SubjectPublicKeyInfo)' THEN
+				t_query := t_query ||
+							'	WHERE digest(x509_publickey(c.CERTIFICATE), ''sha256'') = decode($1, ''hex'')' || chr(10);
 			ELSIF t_type = 'SHA-1(Subject)' THEN
 				t_query := t_query ||
 							'	WHERE digest(x509_name(c.CERTIFICATE), ''sha1'') = decode($1, ''hex'')' || chr(10);
@@ -1901,7 +1920,8 @@ BEGIN
 				t_query := t_query ||
 							'	WHERE lower(ci.NAME_VALUE) LIKE lower($1)' || chr(10);
 			END IF;
-			IF t_type NOT IN ('CT Entry ID', 'Identity', 'Serial Number', 'SHA-1(SubjectPublicKeyInfo)', 'SHA-1(Subject)', 'CA/B Forum lint', 'X.509 lint', 'Lint') THEN
+			IF t_type NOT IN ('CT Entry ID', 'Identity', 'Serial Number', 'SHA-1(SubjectPublicKeyInfo)', 'SHA-256(SubjectPublicKeyInfo)',
+								'SHA-1(Subject)', 'CA/B Forum lint', 'X.509 lint', 'Lint') THEN
 				t_query := t_query ||
 							'		AND ci.NAME_TYPE = ' || quote_literal(t_nameType) || chr(10);
 			END IF;

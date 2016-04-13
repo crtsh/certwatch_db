@@ -71,6 +71,9 @@ CREATE UNIQUE INDEX c_sha256
 CREATE INDEX c_spki_sha1
 	ON certificate (digest(x509_publicKey(CERTIFICATE), 'sha1'));
 
+CREATE INDEX c_spki_sha256
+	ON certificate (digest(x509_publicKey(CERTIFICATE), 'sha256'));
+
 CREATE INDEX c_subject_sha1
 	ON certificate (digest(x509_name(CERTIFICATE), 'sha1'));
 
