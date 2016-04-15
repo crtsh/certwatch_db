@@ -368,7 +368,6 @@ BEGIN
     }
     table {
       border-collapse: collapse;
-      border: 1px solid #888888;
       color: #222222;
       font: 10pt Arial, sans-serif;
       margin-left: auto;
@@ -379,19 +378,19 @@ BEGIN
       margin-left: 10px
     }
     td, th {
-      border: 1px solid #DDDDDD;
+      border: 1px solid #CCCCCC;
       padding: 0px 2px;
       text-align: left;
       vertical-align: top
     }
     td.outer, th.outer {
-      border: 1px solid #DDDDDD;
+      border: 1px solid #CCCCCC;
       padding: 2px 20px;
       text-align: left
     }
     th.heading {
       color: #888888;
-      font: bold italic 12pt Arial;
+      font: bold italic 12pt Arial, sans-serif;
       padding: 20px 0px 0px;
       text-align: center
     }
@@ -403,16 +402,23 @@ BEGIN
       font: 10pt Courier New, sans-serif;
       padding: 2px 20px
     }
+    td.heading {
+      border: none;
+      color: #888888;
+      font: 12pt Arial, sans-serif;
+      padding-top: 20px;
+      text-align: center
+    }
     table.lint td, th {
       text-align: center
     }
     .button {
       background-color: #BF2E1A;
       color: #FFFFFF;
-      font: 13pt Arial
+      font: 13pt Arial, sans-serif
     }
     .copyright {
-      font: 8pt Arial;
+      font: 8pt Arial, sans-serif;
       color: #DF4F3C
     }
     .input {
@@ -421,7 +427,7 @@ BEGIN
       text-align: center
     }
     .small {
-      font: 8pt Arial;
+      font: 8pt Arial, sans-serif;
       color: #888888
     }
     .error {
@@ -546,7 +552,7 @@ BEGIN
       <TR>
         <TD style="border:none;text-align:center">
           <SPAN class="heading">Select search type:</SPAN>
-          <BR><SELECT name="searchtype" size="20">
+          <BR><SELECT name="searchtype" size="18">
             <OPTION value="c">CERTIFICATE</OPTION>
             <OPTION value="id">&nbsp; crt.sh ID</OPTION>
             <OPTION value="ctid">&nbsp; CT Entry ID</OPTION>
@@ -612,16 +618,16 @@ BEGIN
   <SCRIPT type="text/javascript">
     document.search_form.q.focus();
   </SCRIPT>
-  <BR><BR>CT Logs monitored:
   <BR>
   <TABLE>
+    <TR><TD colspan="8" class="heading">CT Logs currently monitored:</TD></TR>
     <TR>
       <TH>Name</TH>
       <TH>Operator</TH>
       <TH>URL</TH>
       <TH>Latest Entry #</TH>
       <TH>Latest STH</TH>
-      <TH>MMD (hrs)</TH>
+      <TH>MMD</TH>
       <TH>Last Contacted</TH>
       <TH>In Chrome?</TH>
     </TR>';
@@ -633,7 +639,7 @@ BEGIN
 								THEN ' style="color:#FF0000"'
 								ELSE ''
 							END FONT_STYLE,
-							ctl.INCLUDED_IN_CHROME, ctl.CHROME_ISSUE_NUMBER
+							ctl.INCLUDED_IN_CHROME, ctl.CHROME_ISSUE_NUMBER, ctl.NON_INCLUSION_STATUS
 						FROM ct_log ctl
 						WHERE ctl.IS_ACTIVE = 't'
 						ORDER BY ctl.LATEST_ENTRY_ID DESC
@@ -645,7 +651,7 @@ BEGIN
       <TD' || l_record.FONT_STYLE || '>' || l_record.URL || '</TD>
       <TD' || l_record.FONT_STYLE || '>' || l_record.LATEST_ENTRY_ID::text || '</TD>
       <TD' || l_record.FONT_STYLE || '>' || to_char(l_record.LATEST_STH_TIMESTAMP, 'YYYY-MM-DD HH24:MI:SS') || '</TD>
-      <TD' || l_record.FONT_STYLE || '>' || coalesce((l_record.MMD_IN_SECONDS / 60 / 60)::text, '?') || '</TD>
+      <TD' || l_record.FONT_STYLE || '>' || coalesce((l_record.MMD_IN_SECONDS / 60 / 60)::text, '?') || 'hrs</TD>
       <TD>' || to_char(l_record.LATEST_UPDATE, 'YYYY-MM-DD HH24:MI:SS') || '</TD>
       <TD>
 ';
@@ -653,11 +659,65 @@ BEGIN
 				t_output := t_output || '<A href="https://code.google.com/p/chromium/issues/detail?id='
 									|| l_record.CHROME_ISSUE_NUMBER::text || '" target="_blank">';
 				IF l_record.INCLUDED_IN_CHROME IS NOT NULL THEN
-					t_output := t_output || 'M' || l_record.INCLUDED_IN_CHROME::text;
+					t_output := t_output || coalesce(l_record.NON_INCLUSION_STATUS, 'M' || l_record.INCLUDED_IN_CHROME::text);
 				ELSE
-					t_output := t_output || 'Pending';
+					t_output := t_output || coalesce(l_record.NON_INCLUSION_STATUS, 'Pending');
 				END IF;
 				t_output := t_output || '</A>' || chr(10);
+			ELSIF l_record.NON_INCLUSION_STATUS IS NOT NULL THEN
+				t_output := t_output || l_record.NON_INCLUSION_STATUS;
+			END IF;
+			t_output := t_output ||
+'    </TR>';
+		END LOOP;
+		t_output := t_output || '
+    <TR><TD colspan="8" class="heading">CT Logs no longer monitored:</TD></TR>
+    <TR>
+      <TH>Name</TH>
+      <TH>Operator</TH>
+      <TH>URL</TH>
+      <TH>Latest Entry #</TH>
+      <TH>Latest STH</TH>
+      <TH>MMD</TH>
+      <TH>Last Contacted</TH>
+      <TH>In Chrome?</TH>
+    </TR>';
+		FOR l_record IN (
+					SELECT ctl.NAME, ctl.OPERATOR, ctl.URL,
+							ctl.LATEST_ENTRY_ID, ctl.LATEST_UPDATE,
+							ctl.LATEST_STH_TIMESTAMP, ctl.MMD_IN_SECONDS,
+							CASE WHEN ctl.LATEST_STH_TIMESTAMP + (ctl.MMD_IN_SECONDS || ' seconds')::interval < statement_timestamp()
+								THEN ' style="color:#FF0000"'
+								ELSE ''
+							END FONT_STYLE,
+							ctl.INCLUDED_IN_CHROME, ctl.CHROME_ISSUE_NUMBER, ctl.NON_INCLUSION_STATUS
+						FROM ct_log ctl
+						WHERE ctl.IS_ACTIVE = 'f'
+							AND ctl.LATEST_ENTRY_ID IS NOT NULL
+						ORDER BY ctl.LATEST_ENTRY_ID DESC
+				) LOOP
+			t_output := t_output || '
+    <TR>
+      <TD' || l_record.FONT_STYLE || '>' || l_record.NAME || '</TD>
+      <TD' || l_record.FONT_STYLE || '>' || l_record.OPERATOR || '</TD>
+      <TD' || l_record.FONT_STYLE || '>' || l_record.URL || '</TD>
+      <TD' || l_record.FONT_STYLE || '>' || l_record.LATEST_ENTRY_ID::text || '</TD>
+      <TD' || l_record.FONT_STYLE || '>' || to_char(l_record.LATEST_STH_TIMESTAMP, 'YYYY-MM-DD HH24:MI:SS') || '</TD>
+      <TD' || l_record.FONT_STYLE || '>' || coalesce((l_record.MMD_IN_SECONDS / 60 / 60)::text, '?') || 'hrs</TD>
+      <TD>' || to_char(l_record.LATEST_UPDATE, 'YYYY-MM-DD HH24:MI:SS') || '</TD>
+      <TD>
+';
+			IF l_record.CHROME_ISSUE_NUMBER IS NOT NULL THEN
+				t_output := t_output || '<A href="https://code.google.com/p/chromium/issues/detail?id='
+									|| l_record.CHROME_ISSUE_NUMBER::text || '" target="_blank">';
+				IF l_record.INCLUDED_IN_CHROME IS NOT NULL THEN
+					t_output := t_output || coalesce(l_record.NON_INCLUSION_STATUS, 'M' || l_record.INCLUDED_IN_CHROME::text);
+				ELSE
+					t_output := t_output || coalesce(l_record.NON_INCLUSION_STATUS, 'Pending');
+				END IF;
+				t_output := t_output || '</A>' || chr(10);
+			ELSIF l_record.NON_INCLUSION_STATUS IS NOT NULL THEN
+				t_output := t_output || l_record.NON_INCLUSION_STATUS;
 			END IF;
 			t_output := t_output ||
 '    </TR>';
