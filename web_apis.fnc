@@ -82,6 +82,11 @@ DECLARE
 	t_offset			integer;
 	t_pos1				integer;
 	t_temp				text;
+	t_select			text;
+	t_from				text;
+	t_where				text;
+	t_nameValue			text;
+	t_certID_field		text;
 	t_query				text;
 	t_sort				integer;
 	t_groupBy			text;
@@ -101,6 +106,7 @@ DECLARE
 	t_certType			integer;
 	t_useReverseIndex	boolean			:= FALSE;
 	t_joinToCertificate_table	text;
+	t_joinToCTLogEntry	text;
 	t_showIdentity		boolean;
 	t_minNotBefore		timestamp;
 	t_minNotBeforeString	text;
@@ -271,18 +277,18 @@ BEGIN
 		RAISE no_data_found USING MESSAGE = 'Unsupported output type: ' || html_escape(t_outputType);
 	END IF;
 
-	IF lower(t_type) LIKE '%lint%' THEN
+	t_groupBy := coalesce(get_parameter('group', paramNames, paramValues), '');
+	t_groupByParameter := t_groupBy;
+	IF t_groupByParameter != '' THEN
+		t_groupByParameter := '&group=' || t_groupByParameter;
+	END IF;
+
+--	IF lower(t_type) LIKE '%lint%' THEN
 		t_temp := get_parameter('sort', paramNames, paramValues);
 		IF coalesce(t_temp, '') = '' THEN
 			t_sort := 1;
 		ELSE
 			t_sort := t_temp::integer;
-		END IF;
-
-		t_groupBy := coalesce(get_parameter('group', paramNames, paramValues), '');
-		t_groupByParameter := t_groupBy;
-		IF t_groupByParameter != '' THEN
-			t_groupByParameter := '&group=' || t_groupByParameter;
 		END IF;
 
 		t_direction := coalesce(get_parameter('dir', paramNames, paramValues), 'v');
@@ -303,15 +309,13 @@ BEGIN
 		IF array_length(t_excludeCAs, 1) > 0 THEN
 			t_excludeCAsString := '&excludeCAs=' || array_to_string(t_excludeCAs, ',');
 		END IF;
-	ELSE
+/*	ELSE
 		t_sort := 1;
-		t_groupBy := '';
-		t_groupByParameter := '';
 		t_direction := '';
 		t_dirSymbol := '';
 		t_orderBy := '';
 		t_oppositeDirection := '';
-	END IF;
+	END IF;*/
 
 	-- Generate page header.
 	t_output := '';
@@ -1630,7 +1634,7 @@ BEGIN
 		END IF;
 		t_resultsPerPage := coalesce(get_parameter('n', paramNames, paramValues)::integer, 100);
 
-		IF (t_caID IS NULL) AND (lower(t_type) LIKE '%lint') THEN
+		IF t_caID IS NULL THEN
 			t_output := t_output ||
 '  <SPAN style="position:absolute">
     &nbsp; &nbsp; &nbsp; <A style="font-size:8pt;vertical-align:sub" href="?' || t_cmd || '=' || urlEncode(t_value) || '&dir=' || t_direction || '&sort=' || t_sort::text
@@ -1868,158 +1872,168 @@ BEGIN
 <BR><BR>Value not permitted: ''%''';
 			END IF;
 
-			-- Group certs for the same identity issued by the same CA.
-			IF t_type = 'CT Entry ID' THEN
-				t_issuerCAID_table := 'c';
-				t_query := 'SELECT c.ISSUER_CA_ID, ca.NAME,' || chr(10) ||
-							'		ctl.NAME NAME_VALUE,' || chr(10) ||
-							'		min(c.ID) MIN_CERT_ID,' || chr(10) ||
-							'		count(DISTINCT c.ID) NUM_CERTS' || chr(10) ||
-							'	FROM ct_log_entry ctle, ct_log ctl, certificate c';
-			ELSIF t_type = 'Serial Number' THEN
-				t_issuerCAID_table := 'c';
-				t_query := 'SELECT c.ISSUER_CA_ID, ca.NAME,' || chr(10) ||
-							'		encode(x509_serialNumber(c.CERTIFICATE), ''hex'') NAME_VALUE,' || chr(10) ||
-							'		min(c.ID) MIN_CERT_ID,' || chr(10) ||
-							'		count(DISTINCT c.ID) NUM_CERTS' || chr(10) ||
-							'	FROM certificate c';
-			ELSIF t_type = 'SHA-1(SubjectPublicKeyInfo)' THEN
-				t_issuerCAID_table := 'c';
-				t_query := 'SELECT c.ISSUER_CA_ID, ca.NAME,' || chr(10) ||
-							'		encode(digest(x509_publickey(c.CERTIFICATE), ''sha1''), ''hex'') NAME_VALUE,' || chr(10) ||
-							'		min(c.ID) MIN_CERT_ID,' || chr(10) ||
-							'		count(DISTINCT c.ID) NUM_CERTS' || chr(10) ||
-							'	FROM certificate c';
-			ELSIF t_type = 'SHA-256(SubjectPublicKeyInfo)' THEN
-				t_issuerCAID_table := 'c';
-				t_query := 'SELECT c.ISSUER_CA_ID, ca.NAME,' || chr(10) ||
-							'		encode(digest(x509_publickey(c.CERTIFICATE), ''sha256''), ''hex'') NAME_VALUE,' || chr(10) ||
-							'		min(c.ID) MIN_CERT_ID,' || chr(10) ||
-							'		count(DISTINCT c.ID) NUM_CERTS' || chr(10) ||
-							'	FROM certificate c';
-			ELSIF t_type = 'SHA-1(Subject)' THEN
-				t_issuerCAID_table := 'c';
-				t_query := 'SELECT c.ISSUER_CA_ID, ca.NAME,' || chr(10) ||
-							'		encode(digest(x509_name(c.CERTIFICATE), ''sha1''), ''hex'') NAME_VALUE,' || chr(10) ||
-							'		min(c.ID) MIN_CERT_ID,' || chr(10) ||
-							'		count(DISTINCT c.ID) NUM_CERTS' || chr(10) ||
-							'	FROM certificate c';
-			ELSIF lower(t_type) LIKE '%lint' THEN
-				t_issuerCAID_table := 'lci';
-				IF coalesce(t_groupBy, '') = 'none' THEN
-					t_query := 'SELECT lci.ISSUER_CA_ID, ca.NAME,' || chr(10) ||
-							'		lci.LINT_ISSUE_ID::text NAME_VALUE,' || chr(10) ||
-							'		c.ID MIN_CERT_ID,' || chr(10) ||
-							'		min(ctle.ENTRY_TIMESTAMP) MIN_ENTRY_TIMESTAMP,' || chr(10) ||
-							'		x509_notBefore(c.CERTIFICATE) NOT_BEFORE' || chr(10) ||
-							'	FROM ct_log_entry ctle, lint_issue li, lint_cert_issue lci';
-					t_joinToCertificate_table := 'lci';
-				ELSE
-					t_query := 'SELECT lci.ISSUER_CA_ID, ca.NAME,' || chr(10) ||
-							'		lci.LINT_ISSUE_ID::text NAME_VALUE,' || chr(10) ||
-							'		min(lci.CERTIFICATE_ID) MIN_CERT_ID,' || chr(10) ||
-							'		count(DISTINCT lci.CERTIFICATE_ID) NUM_CERTS' || chr(10) ||
-							'	FROM lint_issue li, lint_cert_issue lci';
-				END IF;
-				IF t_excludeExpired IS NOT NULL THEN
-					t_joinToCertificate_table := 'lci';
-				END IF;
-			ELSE
-				t_issuerCAID_table := 'ci';
-				t_query := 'SELECT ci.ISSUER_CA_ID, ca.NAME,' || chr(10) ||
-							'		ci.NAME_VALUE,' || chr(10) ||
-							'		min(ci.CERTIFICATE_ID) MIN_CERT_ID,' || chr(10) ||
-							'		count(DISTINCT ci.CERTIFICATE_ID) NUM_CERTS' || chr(10) ||
-							'	FROM certificate_identity ci';
-				IF t_excludeExpired IS NOT NULL THEN
-					t_joinToCertificate_table := 'ci';
-				END IF;
-			END IF;
-			t_query := t_query || chr(10) ||
-							'		LEFT OUTER JOIN ca ON (' || t_issuerCAID_table || '.ISSUER_CA_ID = ca.ID)' || chr(10);
-			IF t_joinToCertificate_table IS NOT NULL THEN
-				t_query := t_query ||
-							'		, certificate c' || chr(10);
-			END IF;
-
-			IF t_type = 'CT Entry ID' THEN
-				t_query := t_query ||
-							'	WHERE ctle.ENTRY_ID = $1::integer' || chr(10) ||
-							'		AND ctle.CT_LOG_ID = ctl.ID' || chr(10) ||
-							'		AND ctle.CERTIFICATE_ID = c.ID' || chr(10);
-			ELSIF t_type = 'Serial Number' THEN
-				t_query := t_query ||
-							'	WHERE x509_serialNumber(c.CERTIFICATE) = decode($1, ''hex'')' || chr(10);
-			ELSIF t_type = 'SHA-1(SubjectPublicKeyInfo)' THEN
-				t_query := t_query ||
-							'	WHERE digest(x509_publickey(c.CERTIFICATE), ''sha1'') = decode($1, ''hex'')' || chr(10);
-			ELSIF t_type = 'SHA-256(SubjectPublicKeyInfo)' THEN
-				t_query := t_query ||
-							'	WHERE digest(x509_publickey(c.CERTIFICATE), ''sha256'') = decode($1, ''hex'')' || chr(10);
-			ELSIF t_type = 'SHA-1(Subject)' THEN
-				t_query := t_query ||
-							'	WHERE digest(x509_name(c.CERTIFICATE), ''sha1'') = decode($1, ''hex'')' || chr(10);
-			ELSIF lower(t_type) LIKE '%lint' THEN
-				t_query := t_query ||
-							'	WHERE lci.LINT_ISSUE_ID = $1::integer' || chr(10) ||
-							'		AND lci.NOT_BEFORE >= $2' || chr(10) ||
-							'		AND lci.LINT_ISSUE_ID = li.ID' || chr(10) ||
-							'		AND ca.LINTING_APPLIES' || chr(10);
-				IF t_linter IS NOT NULL THEN
-					t_query := t_query ||
-							'		AND li.LINTER = ''' || t_linter || '''' || chr(10);
-				END IF;
-				IF coalesce(t_groupBy, '') = 'none' THEN
-					t_query := t_query ||
-							'		AND lci.CERTIFICATE_ID = ctle.CERTIFICATE_ID' || chr(10);
-				END IF;
-			ELSIF t_useReverseIndex THEN
-				t_query := t_query ||
-							'	WHERE reverse(lower(ci.NAME_VALUE)) LIKE reverse(lower($1))' || chr(10);
-			ELSE
-				t_query := t_query ||
-							'	WHERE lower(ci.NAME_VALUE) LIKE lower($1)' || chr(10);
-			END IF;
-			IF t_type NOT IN ('CT Entry ID', 'Identity', 'Serial Number', 'SHA-1(SubjectPublicKeyInfo)', 'SHA-256(SubjectPublicKeyInfo)',
-								'SHA-1(Subject)', 'CA/B Forum lint', 'X.509 lint', 'Lint') THEN
-				t_query := t_query ||
-							'		AND ci.NAME_TYPE = ' || quote_literal(t_nameType) || chr(10);
-			END IF;
-			IF t_joinToCertificate_table IS NOT NULL THEN
-				t_query := t_query ||
-							'		AND ' || t_joinToCertificate_table || '.CERTIFICATE_ID = c.ID' || chr(10);
-			END IF;
-			IF t_excludeExpired IS NOT NULL THEN
-				t_query := t_query ||
-							'		AND x509_notAfter(c.CERTIFICATE) > statement_timestamp()' || chr(10);
-			END IF;
-
-			IF t_excludeCAsString IS NOT NULL THEN
-				t_query := t_query ||
-							'		AND ' || t_issuerCAID_table || '.ISSUER_CA_ID NOT IN (' || array_to_string(t_excludeCAs, ',') || ')
-';
-			END IF;
-
+			t_select := 	'SELECT __issuer_ca_id_table__.ISSUER_CA_ID,' || chr(10) ||
+							'        ca.NAME,' || chr(10) ||
+							'        __name_value__ NAME_VALUE,' || chr(10) ||
+							'        min(__cert_id_field__) MIN_CERT_ID,' || chr(10);
+			t_from := 		'    FROM ca';
+			t_where :=		'    WHERE __issuer_ca_id_table__.ISSUER_CA_ID = ca.ID';
 			IF coalesce(t_groupBy, '') = 'none' THEN
-				t_query := t_query ||
-							'	GROUP BY c.ID, ' || t_issuerCAID_table || '.ISSUER_CA_ID, ca.NAME, NAME_VALUE' || chr(10) ||
-							'	ORDER BY ';
+				t_select := t_select ||
+							'        min(ctle.ENTRY_TIMESTAMP) MIN_ENTRY_TIMESTAMP,' || chr(10) ||
+							'        x509_notBefore(c.CERTIFICATE) NOT_BEFORE';
+				t_from := t_from || ',' || chr(10) ||
+							'        ct_log_entry ctle';
+				t_where := t_where || chr(10) ||
+							'        AND __ctle_cert_id__ = ctle.CERTIFICATE_ID';
+				t_joinToCTLogEntry := 'c.ID';
+
+				t_query :=	'    GROUP BY c.ID, __issuer_ca_id_table__.ISSUER_CA_ID, ca.NAME, NAME_VALUE' || chr(10) ||
+							'    ORDER BY ';
 				IF t_sort = 1 THEN
 					t_query := t_query || 'MIN_ENTRY_TIMESTAMP ' || t_orderBy || ', NAME_VALUE, ca.NAME';
 				ELSIF t_sort = 2 THEN
 					t_query := t_query || 'NOT_BEFORE ' || t_orderBy || ', NAME_VALUE, ca.NAME';
 				ELSE
-					t_query := t_query || 'ca.NAME ' || t_orderBy || ', NAME_VALUE';
+					t_query := t_query || 'ca.NAME ' || t_orderBy || ', NOT_BEFORE ' || t_orderBy || ', NAME_VALUE';
 				END IF;
 			ELSE
-				t_query := t_query ||
-							'	GROUP BY ' || t_issuerCAID_table || '.ISSUER_CA_ID, ca.NAME, NAME_VALUE' || chr(10) ||
-							'	ORDER BY ';
+				-- Group certs for the same identity issued by the same CA.
+				t_select := t_select ||
+							'        count(DISTINCT __cert_id_field__) NUM_CERTS';
+
+				t_query :=	'    GROUP BY __issuer_ca_id_table__.ISSUER_CA_ID, ca.NAME, NAME_VALUE' || chr(10) ||
+							'    ORDER BY ';
 				IF t_sort = 3 THEN
 					t_query := t_query || 'ca.NAME ' || t_orderBy || ', NAME_VALUE, NUM_CERTS';
 				ELSE
 					t_query := t_query || 'NUM_CERTS ' || t_orderBy || ', NAME_VALUE, ca.NAME';
 				END IF;
+			END IF;
+
+			IF t_type = 'CT Entry ID' THEN
+				IF coalesce(t_groupBy, '') != 'none' THEN
+					t_from := t_from || ',' || chr(10) ||
+							'        ct_log_entry ctle';
+				END IF;
+				t_from := t_from || ',' || chr(10) ||
+							'        ct_log ctl';
+				t_issuerCAID_table := 'c';
+				t_nameValue := 'ctl.NAME';
+				t_certID_field := 'c.ID';
+				t_joinToCertificate_table := 'ctle';
+				t_where := t_where || chr(10) ||
+							'        AND ctle.ENTRY_ID = $1::integer' || chr(10) ||
+							'        AND ctle.CT_LOG_ID = ctl.ID';
+			ELSIF t_type = 'Serial Number' THEN
+				t_from := t_from || ',' || chr(10) ||
+							'        certificate c';
+				t_issuerCAID_table := 'c';
+				t_nameValue := 'encode(x509_serialNumber(c.CERTIFICATE), ''hex'')';
+				t_certID_field := 'c.ID';
+				t_where := t_where || chr(10) ||
+							'        AND x509_serialNumber(c.CERTIFICATE) = decode($1, ''hex'')';
+			ELSIF t_type = 'SHA-1(SubjectPublicKeyInfo)' THEN
+				t_from := t_from || ',' || chr(10) ||
+							'        certificate c';
+				t_issuerCAID_table := 'c';
+				t_nameValue := 'encode(digest(x509_publickey(c.CERTIFICATE), ''sha1''), ''hex'')';
+				t_certID_field := 'c.ID';
+				t_where := t_where || chr(10) ||
+							'        AND digest(x509_publickey(c.CERTIFICATE), ''sha1'') = decode($1, ''hex'')';
+			ELSIF t_type = 'SHA-256(SubjectPublicKeyInfo)' THEN
+				t_from := t_from || ',' || chr(10) ||
+							'        certificate c';
+				t_issuerCAID_table := 'c';
+				t_nameValue := 'encode(digest(x509_publickey(c.CERTIFICATE), ''sha256''), ''hex'')';
+				t_certID_field := 'c.ID';
+				t_where := t_where || chr(10) ||
+							'        AND digest(x509_publickey(c.CERTIFICATE), ''sha256'') = decode($1, ''hex'')';
+			ELSIF t_type = 'SHA-1(Subject)' THEN
+				t_from := t_from || ',' || chr(10) ||
+							'        certificate c';
+				t_issuerCAID_table := 'c';
+				t_nameValue := 'encode(digest(x509_name(c.CERTIFICATE), ''sha1''), ''hex'')';
+				t_certID_field := 'c.ID';
+				t_where := t_where || chr(10) ||
+							'	WHERE digest(x509_name(c.CERTIFICATE), ''sha1'') = decode($1, ''hex'')';
+			ELSIF lower(t_type) LIKE '%lint' THEN
+				t_from := t_from || ',' || chr(10) ||
+							'        lint_issue li,' || chr(10) ||
+							'        lint_cert_issue lci';
+				t_issuerCAID_table := 'lci';
+				t_nameValue := 'lci.LINT_ISSUE_ID::text';
+				IF coalesce(t_groupBy, '') = 'none' THEN
+					t_certID_field := 'c.ID';
+					t_joinToCertificate_table := 'lci';
+				ELSE
+					t_certID_field := 'lci.CERTIFICATE_ID';
+					IF t_excludeExpired IS NOT NULL THEN
+						t_joinToCertificate_table := 'lci';
+					END IF;
+				END IF;
+				t_where := t_where || chr(10) ||
+							'        AND lci.LINT_ISSUE_ID = $1::integer' || chr(10) ||
+							'        AND lci.NOT_BEFORE >= $2' || chr(10) ||
+							'        AND lci.LINT_ISSUE_ID = li.ID' || chr(10) ||
+							'        AND ca.LINTING_APPLIES';
+				IF t_linter IS NOT NULL THEN
+					t_where := t_where || chr(10) ||
+							'        AND li.LINTER = ''' || t_linter || '''';
+				END IF;
+			ELSE
+				t_from := t_from || ',' || chr(10) ||
+							'        certificate_identity ci';
+				t_issuerCAID_table := 'ci';
+				t_nameValue := 'ci.NAME_VALUE';
+				IF coalesce(t_groupBy, '') = 'none' THEN
+					t_certID_field := 'c.ID';
+					t_joinToCertificate_table := 'ci';
+				ELSE
+					t_certID_field := 'ci.CERTIFICATE_ID';
+					IF t_excludeExpired IS NOT NULL THEN
+						t_joinToCertificate_table := 'ci';
+					END IF;
+				END IF;
+				IF t_useReverseIndex THEN
+					t_where := t_where || chr(10) ||
+							'        AND reverse(lower(ci.NAME_VALUE)) LIKE reverse(lower($1))';
+				ELSE
+					t_where := t_where || chr(10) ||
+							'        AND lower(ci.NAME_VALUE) LIKE lower($1)';
+				END IF;
+				IF t_type != 'Identity' THEN
+					t_where := t_where || chr(10) ||
+							'        AND ci.NAME_TYPE = ' || quote_literal(t_nameType);
+				END IF;
+			END IF;
+
+			IF t_joinToCertificate_table IS NOT NULL THEN
+				t_from := t_from || ',' || chr(10) ||
+							'        certificate c';
+				t_where := t_where || chr(10) ||
+							'        AND ' || t_joinToCertificate_table || '.CERTIFICATE_ID = c.ID';
+			END IF;
+
+			IF t_excludeExpired IS NOT NULL THEN
+				t_where := t_where || chr(10) ||
+							'        AND x509_notAfter(c.CERTIFICATE) > statement_timestamp()';
+			END IF;
+			IF t_excludeCAsString IS NOT NULL THEN
+				t_where := t_where || chr(10) ||
+							'        AND ' || t_issuerCAID_table || '.ISSUER_CA_ID NOT IN (' || array_to_string(t_excludeCAs, ',') || ')';
+			END IF;
+
+			t_query := t_select || chr(10)
+					|| t_from || chr(10)
+					|| t_where || chr(10)
+					|| t_query;
+
+			t_query := replace(t_query, '__issuer_ca_id_table__', t_issuerCAID_table);
+			t_query := replace(t_query, '__name_value__', t_nameValue);
+			t_query := replace(t_query, '__cert_id_field__', t_certID_field);
+			IF t_joinToCTLogEntry IS NOT NULL THEN
+				t_query := replace(t_query, '__ctle_cert_id__', t_joinToCTLogEntry);
 			END IF;
 
 			t_showIdentity := (position('%' IN t_value) > 0) OR (t_type = 'CT Entry ID');
@@ -2076,40 +2090,34 @@ BEGIN
 <TABLE>
   <TR>
 ';
-				IF lower(t_type) LIKE '%lint' THEN
-					IF coalesce(t_groupBy, '') = 'none' THEN
-						t_output := t_output ||
+				IF coalesce(t_groupBy, '') = 'none' THEN
+					t_output := t_output ||
 '    <TH>
       <A href="?' || t_cmd || '=' || urlEncode(t_value) || '&dir=' || t_oppositeDirection || '&sort=1' || t_minNotBeforeString || coalesce(t_excludeExpired, '') || coalesce(t_excludeCAsString, '') || t_groupByParameter || '">Logged At</A>
 ';
-						IF t_sort = 1 THEN
-							t_output := t_output || ' ' || t_dirSymbol;
-						END IF;
-						t_output := t_output ||
+					IF t_sort = 1 THEN
+						t_output := t_output || ' ' || t_dirSymbol;
+					END IF;
+					t_output := t_output ||
 '    </TH>
     <TH><A href="?' || t_cmd || '=' || urlEncode(t_value) || '&dir=' || t_oppositeDirection || '&sort=2' || t_minNotBeforeString || coalesce(t_excludeExpired, '') || coalesce(t_excludeCAsString, '') || t_groupByParameter || '">Not Before</A>
 ';
-						IF t_sort = 2 THEN
-							t_output := t_output || ' ' || t_dirSymbol;
-						END IF;
-						t_output := t_output ||
+					IF t_sort = 2 THEN
+						t_output := t_output || ' ' || t_dirSymbol;
+					END IF;
+					t_output := t_output ||
 '    </TH>
 ';
-					ELSE
-						t_output := t_output ||
+				ELSE
+					t_output := t_output ||
 '    <TH>
       <A href="?' || t_cmd || '=' || urlEncode(t_value) || '&dir=' || t_oppositeDirection || '&sort=1' || t_minNotBeforeString || coalesce(t_excludeExpired, '') || coalesce(t_excludeCAsString, '') || t_groupByParameter || '">#</A>
 ';
-						IF t_sort = 1 THEN
-							t_output := t_output || ' ' || t_dirSymbol;
-						END IF;
-						t_output := t_output ||
-'    </TH>
-';
+					IF t_sort = 1 THEN
+						t_output := t_output || ' ' || t_dirSymbol;
 					END IF;
-				ELSE
 					t_output := t_output ||
-'    <TH>#</TH>
+'    </TH>
 ';
 				END IF;
 				IF t_showIdentity THEN
@@ -2123,18 +2131,12 @@ BEGIN
 ';
 					END IF;
 				END IF;
-				IF lower(t_type) LIKE '%lint' THEN
-					t_output := t_output ||
+				t_output := t_output ||
 '    <TH>
       <A href="?' || t_cmd || '=' || urlEncode(t_value) || '&dir=' || t_oppositeDirection || '&sort=3' || t_minNotBeforeString || coalesce(t_excludeExpired, '') || coalesce(t_excludeCAsString, '') || t_groupByParameter || '">Issuer Name</A>
 ';
-					IF t_sort = 3 THEN
-						t_output := t_output || ' ' || t_dirSymbol;
-					END IF;
-				ELSE
-					t_output := t_output ||
-'    <TH>Issuer Name
-';
+				IF t_sort = 3 THEN
+					t_output := t_output || ' ' || t_dirSymbol;
 				END IF;
 				t_output := t_output ||
 '    </TH>
