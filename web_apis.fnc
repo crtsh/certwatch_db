@@ -69,6 +69,7 @@ DECLARE
 	t_output			text;
 	t_outputType		text;
 	t_title				text;
+	t_b64Certificate	text;
 	t_certificateID		certificate.ID%TYPE;
 	t_certificateSHA1	bytea;
 	t_certificateSHA256	bytea;
@@ -89,14 +90,14 @@ DECLARE
 	t_certID_field		text;
 	t_query				text;
 	t_sort				integer;
-	t_groupBy			text;
-	t_groupByParameter	text;
+	t_groupBy			text			:= 'none';
+	t_groupByParameter	text			:= 'none';
 	t_direction			text;
 	t_oppositeDirection	text;
 	t_dirSymbol			text;
 	t_issuerO			text;
 	t_issuerOParameter	text;
-	t_orderBy			text;
+	t_orderBy			text			:= 'ASC';
 	t_matchType			text			:= '=';
 	t_opt				text;
 	t_linter			linter_type;
@@ -117,6 +118,7 @@ DECLARE
 	t_searchProvider	text;
 	t_issuerCAID		certificate.ISSUER_CA_ID%TYPE;
 	t_issuerCAID_table	text;
+	t_feedUpdated		timestamp;
 	t_caPublicKey		ca.PUBLIC_KEY%TYPE;
 	t_count				integer;
 	t_pageNo			integer;
@@ -273,25 +275,24 @@ BEGIN
 	IF t_outputType = '' THEN
 		t_outputType := 'html';
 	END IF;
-	IF t_outputType NOT IN ('html', 'json') THEN
+	IF t_outputType NOT IN ('html', 'json', 'atom') THEN
 		RAISE no_data_found USING MESSAGE = 'Unsupported output type: ' || html_escape(t_outputType);
 	END IF;
 
-	t_groupBy := coalesce(get_parameter('group', paramNames, paramValues), '');
-	t_groupByParameter := t_groupBy;
-	IF t_groupByParameter != '' THEN
-		t_groupByParameter := '&group=' || t_groupByParameter;
-	END IF;
-
---	IF lower(t_type) LIKE '%lint%' THEN
-		t_temp := get_parameter('sort', paramNames, paramValues);
-		IF coalesce(t_temp, '') = '' THEN
-			t_sort := 1;
+	IF t_outputType = 'html' THEN
+		IF lower(t_type) LIKE '%lint%' THEN
+			t_groupBy := coalesce(get_parameter('group', paramNames, paramValues), '');
+			t_direction := coalesce(get_parameter('dir', paramNames, paramValues), 'v');
 		ELSE
-			t_sort := t_temp::integer;
+			t_groupBy := coalesce(get_parameter('group', paramNames, paramValues), 'none');
+			t_direction := coalesce(get_parameter('dir', paramNames, paramValues), '^');
 		END IF;
 
-		t_direction := coalesce(get_parameter('dir', paramNames, paramValues), 'v');
+		t_groupByParameter := t_groupBy;
+		IF t_groupByParameter != '' THEN
+			t_groupByParameter := '&group=' || t_groupByParameter;
+		END IF;
+
 		IF t_direction NOT IN ('^', 'v') THEN
 			t_direction := 'v';
 		END IF;
@@ -304,18 +305,19 @@ BEGIN
 			t_orderBy := 'DESC';
 			t_oppositeDirection := 'v';
 		END IF;
+	END IF;
 
-		t_excludeCAs := string_to_array(coalesce(get_parameter('excludecas', paramNames, paramValues), ''), ',');
-		IF array_length(t_excludeCAs, 1) > 0 THEN
-			t_excludeCAsString := '&excludeCAs=' || array_to_string(t_excludeCAs, ',');
-		END IF;
-/*	ELSE
+	t_temp := get_parameter('sort', paramNames, paramValues);
+	IF coalesce(t_temp, '') = '' THEN
 		t_sort := 1;
-		t_direction := '';
-		t_dirSymbol := '';
-		t_orderBy := '';
-		t_oppositeDirection := '';
-	END IF;*/
+	ELSE
+		t_sort := t_temp::integer;
+	END IF;
+
+	t_excludeCAs := string_to_array(coalesce(get_parameter('excludecas', paramNames, paramValues), ''), ',');
+	IF array_length(t_excludeCAs, 1) > 0 THEN
+		t_excludeCAsString := '&excludeCAs=' || array_to_string(t_excludeCAs, ',');
+	END IF;
 
 	-- Generate page header.
 	t_output := '';
@@ -537,7 +539,7 @@ BEGIN
           t_url += t_field + ":" + encodeURIComponent("\"" + value + "\"");
       }
       else {
-        t_url = "?" + encodeURIComponent(type) + "=" + encodeURIComponent(value).replace("%20","+");
+        t_url = "?" + encodeURIComponent(type) + "=" + encodeURIComponent(value).replace(/%20/g, "+");
         if (document.search_form.excludeExpired.checked)
           t_url += "&exclude=expired";
         if (document.search_form.searchCensys.checked)
@@ -1606,10 +1608,6 @@ BEGIN
 				'X.509 lint',
 				'Lint'
 			) THEN
-		t_output := t_output ||
-' <SPAN class="whiteongrey">Identity Search</SPAN>
-';
-
 		-- Determine whether to use a reverse index (if available).
 		IF position('%' IN t_value) != 0 THEN
 			t_matchType := 'LIKE';
@@ -1634,22 +1632,29 @@ BEGIN
 		END IF;
 		t_resultsPerPage := coalesce(get_parameter('n', paramNames, paramValues)::integer, 100);
 
-		IF t_caID IS NULL THEN
+		IF t_outputType = 'html' THEN
 			t_output := t_output ||
+'  <SPAN class="whiteongrey">Identity Search</SPAN>
+';
+
+			IF t_caID IS NULL THEN
+				t_temp := urlEncode(t_cmd) || '=' || urlEncode(t_value) || coalesce(t_excludeExpired, '')
+							|| coalesce(t_excludeCAsString, '') || t_minNotBeforeString;
+				t_output := t_output ||
 '  <SPAN style="position:absolute">
-    &nbsp; &nbsp; &nbsp; <A style="font-size:8pt;vertical-align:sub" href="?' || t_cmd || '=' || urlEncode(t_value) || '&dir=' || t_direction || '&sort=' || t_sort::text
-																	|| coalesce(t_excludeExpired, '') || t_minNotBeforeString || coalesce(t_excludeCAsString, '');
-			IF t_groupBy = 'none' THEN
-				t_output := t_output || '">Group';
-			ELSE
-				t_output := t_output || '&group=none">Ungroup';
-			END IF;
-			t_output := t_output || ' by Issuer</A>
+    &nbsp; &nbsp; &nbsp; <A href="atom?' || t_temp || '"><IMG src="/feed-icon-28x28.png"></A>
+    &nbsp; &nbsp; &nbsp; <A style="font-size:8pt" href="?' || t_temp || '&dir=' || t_direction || '&sort=' || t_sort::text;
+				IF t_groupBy = 'none' THEN
+					t_output := t_output || '&group=icaid">Group';
+				ELSE
+					t_output := t_output || '&group=none">Ungroup';
+				END IF;
+				t_output := t_output || ' by Issuer</A>
   </SPAN>
 ';
-		END IF;
+			END IF;
 
-		t_output := t_output ||
+			t_output := t_output ||
 '<BR><BR>
 <TABLE>
   <TR>
@@ -1657,45 +1662,46 @@ BEGIN
     <TD class="outer">' || html_escape(t_type)
 						|| ' ' || html_escape(t_matchType)
 						|| ' ''';
-		IF lower(t_type) LIKE '%lint' THEN
-			SELECT CASE li.SEVERITY
-						WHEN 'F' THEN '<SPAN class="fatal">&nbsp;FATAL:'
-						WHEN 'E' THEN '<SPAN class="error">&nbsp;ERROR:'
-						WHEN 'W' THEN '<SPAN class="warning">&nbsp;WARNING:'
-						WHEN 'N' THEN '<SPAN class="notice">&nbsp;NOTICE:'
-						WHEN 'I' THEN '<SPAN>&nbsp;INFO:'
-						WHEN 'B' THEN '<SPAN>&nbsp;BUG:'
-						ELSE '<SPAN>&nbsp;' || li.SEVERITY || ':'
-					END || ' ' || li.ISSUE_TEXT || '&nbsp;</SPAN>'
-				INTO t_temp
-				FROM lint_issue li
-				WHERE li.ID = t_value::integer
-					AND li.LINTER = coalesce(t_linter, li.LINTER);
-			t_output := t_output || t_temp;
-		ELSE
-			t_output := t_output || html_escape(t_value);
-		END IF;
-		t_output := t_output || '''';
-		IF t_caID IS NOT NULL THEN
-			t_output := t_output || '; Issuer CA ID = ' || t_caID::text;
-		END IF;
-		IF t_excludeExpired IS NOT NULL THEN
-			t_output := t_output || '; Exclude expired certificates';
-		END IF;
-		t_output := t_output || '</TD>
+			IF lower(t_type) LIKE '%lint' THEN
+				SELECT CASE li.SEVERITY
+							WHEN 'F' THEN '<SPAN class="fatal">&nbsp;FATAL:'
+							WHEN 'E' THEN '<SPAN class="error">&nbsp;ERROR:'
+							WHEN 'W' THEN '<SPAN class="warning">&nbsp;WARNING:'
+							WHEN 'N' THEN '<SPAN class="notice">&nbsp;NOTICE:'
+							WHEN 'I' THEN '<SPAN>&nbsp;INFO:'
+							WHEN 'B' THEN '<SPAN>&nbsp;BUG:'
+							ELSE '<SPAN>&nbsp;' || li.SEVERITY || ':'
+						END || ' ' || li.ISSUE_TEXT || '&nbsp;</SPAN>'
+					INTO t_temp
+					FROM lint_issue li
+					WHERE li.ID = t_value::integer
+						AND li.LINTER = coalesce(t_linter, li.LINTER);
+				t_output := t_output || t_temp;
+			ELSE
+				t_output := t_output || html_escape(t_value);
+			END IF;
+			t_output := t_output || '''';
+			IF t_caID IS NOT NULL THEN
+				t_output := t_output || '; Issuer CA ID = ' || t_caID::text;
+			END IF;
+			IF t_excludeExpired IS NOT NULL THEN
+				t_output := t_output || '; Exclude expired certificates';
+			END IF;
+			t_output := t_output || '</TD>
   </TR>
 </TABLE>
 <BR>
 ';
 
-		IF lower(t_type) LIKE '%lint' THEN
-			t_output := t_output ||
+			IF lower(t_type) LIKE '%lint' THEN
+				t_output := t_output ||
 'For certificates with <B>notBefore >= ' || to_char(t_minNotBefore, 'YYYY-MM-DD') || '</B>:
 <BR><BR>
 ';
-			t_opt := '&opt=' || t_linters;
-		ELSE
-			t_opt := '';
+				t_opt := '&opt=' || t_linters;
+			ELSE
+				t_opt := '';
+			END IF;
 		END IF;
 
 		-- Search for (potentially) multiple certificates.
@@ -1873,7 +1879,7 @@ BEGIN
 			END IF;
 
 			t_select := 	'SELECT __issuer_ca_id_table__.ISSUER_CA_ID,' || chr(10) ||
-							'        ca.NAME,' || chr(10) ||
+							'        ca.NAME ISSUER_NAME,' || chr(10) ||
 							'        __name_value__ NAME_VALUE,' || chr(10) ||
 							'        min(__cert_id_field__) MIN_CERT_ID,' || chr(10);
 			t_from := 		'    FROM ca';
@@ -1888,26 +1894,26 @@ BEGIN
 							'        AND __ctle_cert_id__ = ctle.CERTIFICATE_ID';
 				t_joinToCTLogEntry := 'c.ID';
 
-				t_query :=	'    GROUP BY c.ID, __issuer_ca_id_table__.ISSUER_CA_ID, ca.NAME, NAME_VALUE' || chr(10) ||
+				t_query :=	'    GROUP BY c.ID, __issuer_ca_id_table__.ISSUER_CA_ID, ISSUER_NAME, NAME_VALUE' || chr(10) ||
 							'    ORDER BY ';
 				IF t_sort = 1 THEN
-					t_query := t_query || 'MIN_ENTRY_TIMESTAMP ' || t_orderBy || ', NAME_VALUE, ca.NAME';
+					t_query := t_query || 'MIN_ENTRY_TIMESTAMP ' || t_orderBy || ', NAME_VALUE, ISSUER_NAME';
 				ELSIF t_sort = 2 THEN
-					t_query := t_query || 'NOT_BEFORE ' || t_orderBy || ', NAME_VALUE, ca.NAME';
+					t_query := t_query || 'NOT_BEFORE ' || t_orderBy || ', NAME_VALUE, ISSUER_NAME';
 				ELSE
-					t_query := t_query || 'ca.NAME ' || t_orderBy || ', NOT_BEFORE ' || t_orderBy || ', NAME_VALUE';
+					t_query := t_query || 'ISSUER_NAME ' || t_orderBy || ', NOT_BEFORE ' || t_orderBy || ', NAME_VALUE';
 				END IF;
 			ELSE
 				-- Group certs for the same identity issued by the same CA.
 				t_select := t_select ||
 							'        count(DISTINCT __cert_id_field__) NUM_CERTS';
 
-				t_query :=	'    GROUP BY __issuer_ca_id_table__.ISSUER_CA_ID, ca.NAME, NAME_VALUE' || chr(10) ||
+				t_query :=	'    GROUP BY __issuer_ca_id_table__.ISSUER_CA_ID, ISSUER_NAME, NAME_VALUE' || chr(10) ||
 							'    ORDER BY ';
 				IF t_sort = 3 THEN
-					t_query := t_query || 'ca.NAME ' || t_orderBy || ', NAME_VALUE, NUM_CERTS';
+					t_query := t_query || 'ISSUER_NAME ' || t_orderBy || ', NAME_VALUE, NUM_CERTS';
 				ELSE
-					t_query := t_query || 'NUM_CERTS ' || t_orderBy || ', NAME_VALUE, ca.NAME';
+					t_query := t_query || 'NUM_CERTS ' || t_orderBy || ', NAME_VALUE, ISSUER_NAME';
 				END IF;
 			END IF;
 
@@ -2041,118 +2047,204 @@ BEGIN
 			t_text := '';
 			FOR l_record IN EXECUTE t_query
 							USING t_value, t_minNotBefore LOOP
-				t_text := t_text ||
+				IF t_outputType = 'atom' THEN
+					SELECT to_char(x509_notAfter(c.CERTIFICATE), 'YYYY-MM-DD')
+							|| '; Serial number ' || encode(x509_serialNumber(c.CERTIFICATE), 'hex'),
+							c.CERTIFICATE
+						INTO t_temp,
+							t_certificate
+						FROM certificate c
+						WHERE c.ID = l_record.MIN_CERT_ID;
+					t_b64Certificate := replace(encode(t_certificate, 'base64'), chr(10), '');
+					t_feedUpdated := greatest(t_feedUpdated, l_record.MIN_ENTRY_TIMESTAMP);
+					t_text := t_text ||
+'  <entry>
+    <id>https://crt.sh/?id=' || l_record.MIN_CERT_ID || '</id>
+    <link rel="alternate" type="text/html" href="https://crt.sh/?id=' || l_record.MIN_CERT_ID || '"/>
+    <summary type="html">&lt;div style="font:8pt monospace"&gt;-----BEGIN CERTIFICATE-----';
+					WHILE length(t_b64Certificate) > 64 LOOP
+						t_text := t_text || '&lt;br&gt;' || substring(
+							t_b64Certificate from 1 for 64
+						);
+						t_b64Certificate := substring(t_b64Certificate from 65);
+					END LOOP;
+					t_text := t_text ||
+'&lt;br&gt;-----END CERTIFICATE-----&lt;/div&gt;
+    </summary>
+    <title>[';
+					IF x509_print(t_certificate) LIKE '%CT Precertificate Poison%' THEN
+						t_text := t_text || 'Precertificate';
+					ELSE
+						t_text := t_text || 'Certificate';
+					END IF;
+					t_text := t_text ||
+'] Issued by ' || get_ca_name_attribute(l_record.ISSUER_CA_ID)
+			|| '; Valid from ' || to_char(l_record.NOT_BEFORE, 'YYYY-MM-DD') || ' to '
+			|| t_temp || '</title>
+    <published>' || to_char(l_record.NOT_BEFORE, 'YYYY-MM-DD"T"HH24:MI:SS"Z"') || '</published>
+    <updated>' || to_char(l_record.MIN_ENTRY_TIMESTAMP, 'YYYY-MM-DD"T"HH24:MI:SS"Z"') || '</updated>
+  </entry>
+';
+				ELSIF t_outputType = 'json' THEN
+					t_output := t_output || row_to_json(l_record, FALSE);
+				ELSIF t_outputType = 'html' THEN
+					t_text := t_text ||
 '  <TR>
     <TD style="text-align:center">';
-				IF coalesce(t_groupBy, '') = 'none' THEN
-					t_text := t_text || to_char(l_record.MIN_ENTRY_TIMESTAMP, 'YYYY-MM-DD') || '</A></TD>
+					IF coalesce(t_groupBy, '') = 'none' THEN
+						t_text := t_text || to_char(l_record.MIN_ENTRY_TIMESTAMP, 'YYYY-MM-DD') || '</A></TD>
     <TD style="text-align:center"><A href="?id=' || l_record.MIN_CERT_ID::text || t_opt || '">'
-												|| to_char(l_record.NOT_BEFORE, 'YYYY-MM-DD') || '</A>';
-				ELSIF (l_record.NUM_CERTS = 1)
-						AND (l_record.MIN_CERT_ID IS NOT NULL) THEN
-					t_text := t_text || '<A href="?id=' || l_record.MIN_CERT_ID::text || t_opt || '">'
-														|| l_record.NUM_CERTS::text || '</A>';
-				ELSIF (l_record.ISSUER_CA_ID IS NOT NULL)
-						AND (l_record.MIN_CERT_ID IS NOT NULL) THEN
-					t_text := t_text || '<A href="?' || t_paramName || '=' || urlEncode(l_record.NAME_VALUE)
-											|| '&iCAID=' || l_record.ISSUER_CA_ID::text || t_minNotBeforeString
-											|| coalesce(t_excludeExpired, '') || t_opt || '">'
-										|| l_record.NUM_CERTS::text || '</A>';
-				ELSE
-					t_text := t_text || l_record.NUM_CERTS::text;
-				END IF;
-				t_text := t_text || '</TD>
+													|| to_char(l_record.NOT_BEFORE, 'YYYY-MM-DD') || '</A>';
+					ELSIF (l_record.NUM_CERTS = 1)
+							AND (l_record.MIN_CERT_ID IS NOT NULL) THEN
+						t_text := t_text || '<A href="?id=' || l_record.MIN_CERT_ID::text || t_opt || '">'
+															|| l_record.NUM_CERTS::text || '</A>';
+					ELSIF (l_record.ISSUER_CA_ID IS NOT NULL)
+							AND (l_record.MIN_CERT_ID IS NOT NULL) THEN
+						t_text := t_text || '<A href="?' || t_paramName || '=' || urlEncode(l_record.NAME_VALUE)
+												|| '&iCAID=' || l_record.ISSUER_CA_ID::text || t_minNotBeforeString
+												|| coalesce(t_excludeExpired, '') || t_opt || '">'
+											|| l_record.NUM_CERTS::text || '</A>';
+					ELSE
+						t_text := t_text || l_record.NUM_CERTS::text;
+					END IF;
+					t_text := t_text || '</TD>
     <TD>';
-				IF t_showIdentity THEN
-					t_text := t_text || html_escape(l_record.NAME_VALUE) || '</TD>
+					IF t_showIdentity THEN
+						t_text := t_text || html_escape(l_record.NAME_VALUE) || '</TD>
     <TD>';
-				END IF;
-				IF l_record.ISSUER_CA_ID IS NOT NULL THEN
-					t_text := t_text || '<A href="?caid=' || l_record.ISSUER_CA_ID::text || t_opt || '">'
-								|| coalesce(html_escape(l_record.NAME), '&nbsp;')
-								|| '</A>';
-				ELSE
-					t_text := t_text || coalesce(html_escape(l_record.NAME), '?');
-				END IF;
-				t_text := t_text ||
+					END IF;
+					IF l_record.ISSUER_CA_ID IS NOT NULL THEN
+						t_text := t_text || '<A href="?caid=' || l_record.ISSUER_CA_ID::text || t_opt || '">'
+									|| coalesce(html_escape(l_record.ISSUER_NAME), '&nbsp;')
+									|| '</A>';
+					ELSE
+						t_text := t_text || coalesce(html_escape(l_record.ISSUER_NAME), '?');
+					END IF;
+					t_text := t_text ||
 '    </TD>
   </TR>
 ';
+				END IF;
 			END LOOP;
 
-			t_output := t_output ||
+			t_temp := replace(
+				urlEncode(t_cmd) || '=' || urlEncode(t_value) || coalesce(t_excludeExpired, '') || coalesce(t_excludeCAsString, ''),
+				'&', '&amp;'
+			);
+			IF t_outputType = 'atom' THEN
+				t_output :=
+'[BEGIN_HEADERS]
+Content-Type: application/atom+xml
+[END_HEADERS]
+<?xml version="1.0" encoding="utf-8"?>
+<feed xmlns="http://www.w3.org/2005/Atom" xml:lang="en">
+  <author>
+    <name>crt.sh</name>
+    <uri>https://crt.sh/</uri>
+  </author>
+  <icon>https://crt.sh/favicon.ico</icon>
+  <id>https://crt.sh/?' || t_temp || '</id>
+  <link rel="self" type="application/atom+xml" href="https://crt.sh/atom?' || t_temp || '"/>
+  <link rel="via" type="text/html" href="https://crt.sh/"/>
+  <title>';
+			IF lower(t_type) LIKE '%lint' THEN
+				SELECT '[' || li.LINTER || '] ' || li.ISSUE_TEXT
+					INTO t_title
+					FROM lint_issue li
+					WHERE li.ID = t_value::integer;
+				t_output := t_output || t_title;
+			ELSE
+				t_output := t_output || t_cmd || '=' || t_value;
+			END IF;
+			IF t_excludeExpired IS NOT NULL THEN
+				t_output := t_output || '; ' || substring(t_excludeExpired from 2);
+			END IF;
+			IF t_excludeCAsString IS NOT NULL THEN
+				t_output := t_output || '; ' || substring(t_excludeCAsString from 2);
+			END IF;
+			IF coalesce(t_minNotBeforeString, '') != '' THEN
+				t_output := t_output || '; ' || substring(t_minNotBeforeString from 2);
+			END IF;
+			t_output := t_output || '</title>
+  <updated>' || to_char(coalesce(t_feedUpdated, statement_timestamp()), 'YYYY-MM-DD"T"HH24:MI:SS"Z"') || '</updated>
+' || t_text ||
+'</feed>';
+			ELSIF t_outputType = 'html' THEN
+				t_output := t_output ||
 '<TABLE>
   <TR>
     <TH class="outer">Certificates</TH>
     <TD class="outer">';
-			IF t_text != '' THEN
-				t_output := t_output || '
+				IF t_text != '' THEN
+					t_output := t_output || '
 <TABLE>
   <TR>
 ';
-				IF coalesce(t_groupBy, '') = 'none' THEN
-					t_output := t_output ||
-'    <TH>
-      <A href="?' || t_cmd || '=' || urlEncode(t_value) || '&dir=' || t_oppositeDirection || '&sort=1' || t_minNotBeforeString || coalesce(t_excludeExpired, '') || coalesce(t_excludeCAsString, '') || t_groupByParameter || '">Logged At</A>
-';
-					IF t_sort = 1 THEN
-						t_output := t_output || ' ' || t_dirSymbol;
-					END IF;
-					t_output := t_output ||
-'    </TH>
-    <TH><A href="?' || t_cmd || '=' || urlEncode(t_value) || '&dir=' || t_oppositeDirection || '&sort=2' || t_minNotBeforeString || coalesce(t_excludeExpired, '') || coalesce(t_excludeCAsString, '') || t_groupByParameter || '">Not Before</A>
-';
-					IF t_sort = 2 THEN
-						t_output := t_output || ' ' || t_dirSymbol;
-					END IF;
-					t_output := t_output ||
-'    </TH>
-';
-				ELSE
-					t_output := t_output ||
-'    <TH>
-      <A href="?' || t_cmd || '=' || urlEncode(t_value) || '&dir=' || t_oppositeDirection || '&sort=1' || t_minNotBeforeString || coalesce(t_excludeExpired, '') || coalesce(t_excludeCAsString, '') || t_groupByParameter || '">#</A>
-';
-					IF t_sort = 1 THEN
-						t_output := t_output || ' ' || t_dirSymbol;
-					END IF;
-					t_output := t_output ||
-'    </TH>
-';
-				END IF;
-				IF t_showIdentity THEN
-					IF t_type = 'CT Entry ID' THEN
+					IF coalesce(t_groupBy, '') = 'none' THEN
 						t_output := t_output ||
-'    <TH>CT Log</TH>
+'    <TH>
+      <A href="?' || t_temp || '&dir=' || t_oppositeDirection || '&sort=1' || t_minNotBeforeString || coalesce(t_excludeExpired, '') || coalesce(t_excludeCAsString, '') || t_groupByParameter || '">Logged At</A>
+';
+						IF t_sort = 1 THEN
+							t_output := t_output || ' ' || t_dirSymbol;
+						END IF;
+						t_output := t_output ||
+'    </TH>
+    <TH><A href="?' || t_temp || '&dir=' || t_oppositeDirection || '&sort=2' || t_minNotBeforeString || coalesce(t_excludeExpired, '') || coalesce(t_excludeCAsString, '') || t_groupByParameter || '">Not Before</A>
+';
+						IF t_sort = 2 THEN
+							t_output := t_output || ' ' || t_dirSymbol;
+						END IF;
+						t_output := t_output ||
+'    </TH>
 ';
 					ELSE
 						t_output := t_output ||
-'    <TH>Identity</TH>
+'    <TH>
+      <A href="?' || t_temp || '&dir=' || t_oppositeDirection || '&sort=1' || t_minNotBeforeString || coalesce(t_excludeExpired, '') || coalesce(t_excludeCAsString, '') || t_groupByParameter || '">#</A>
+';
+						IF t_sort = 1 THEN
+							t_output := t_output || ' ' || t_dirSymbol;
+						END IF;
+						t_output := t_output ||
+'    </TH>
 ';
 					END IF;
-				END IF;
-				t_output := t_output ||
-'    <TH>
-      <A href="?' || t_cmd || '=' || urlEncode(t_value) || '&dir=' || t_oppositeDirection || '&sort=3' || t_minNotBeforeString || coalesce(t_excludeExpired, '') || coalesce(t_excludeCAsString, '') || t_groupByParameter || '">Issuer Name</A>
+					IF t_showIdentity THEN
+						IF t_type = 'CT Entry ID' THEN
+							t_output := t_output ||
+'    <TH>CT Log</TH>
 ';
-				IF t_sort = 3 THEN
-					t_output := t_output || ' ' || t_dirSymbol;
-				END IF;
-				t_output := t_output ||
+						ELSE
+							t_output := t_output ||
+'    <TH>Identity</TH>
+';
+						END IF;
+					END IF;
+					t_output := t_output ||
+'    <TH>
+      <A href="?' || t_temp || '&dir=' || t_oppositeDirection || '&sort=3' || t_minNotBeforeString || coalesce(t_excludeExpired, '') || coalesce(t_excludeCAsString, '') || t_groupByParameter || '">Issuer Name</A>
+';
+					IF t_sort = 3 THEN
+						t_output := t_output || ' ' || t_dirSymbol;
+					END IF;
+					t_output := t_output ||
 '    </TH>
   </TR>
 ' || t_text ||
 '</TABLE>
 ';
-			ELSE
-				t_output := t_output ||
+				ELSE
+					t_output := t_output ||
 '<I>None found</I>';
-			END IF;
+				END IF;
 
-			t_output := t_output || '</TD>
+				t_output := t_output || '</TD>
   </TR>
 </TABLE>
 ';
+			END IF;
 		END IF;
 
 	ELSIF lower(t_type) LIKE '%lint: summary' THEN
