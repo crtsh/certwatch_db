@@ -69,6 +69,7 @@ DECLARE
 	t_output			text;
 	t_outputType		text;
 	t_title				text;
+	t_summary			text;
 	t_b64Certificate	text;
 	t_certificateID		certificate.ID%TYPE;
 	t_certificateSHA1	bytea;
@@ -2045,9 +2046,21 @@ BEGIN
 			t_showIdentity := (position('%' IN t_value) > 0) OR (t_type = 'CT Entry ID');
 
 			t_text := '';
+			t_summary := '';
 			FOR l_record IN EXECUTE t_query
 							USING t_value, t_minNotBefore LOOP
 				IF t_outputType = 'atom' THEN
+					IF coalesce(t_certificateID, -l_record.MIN_CERT_ID) != l_record.MIN_CERT_ID THEN
+						IF lower(t_type) NOT LIKE '%lint' THEN
+							t_text := replace(t_text, '__entry_summary__', t_summary);
+						END IF;
+						t_summary := l_record.NAME_VALUE;
+						t_certificateID := l_record.MIN_CERT_ID;
+					ELSE
+						t_summary := t_summary || ' &amp;nbsp; ' || l_record.NAME_VALUE;
+						CONTINUE;
+					END IF;
+
 					SELECT to_char(x509_notAfter(c.CERTIFICATE), 'YYYY-MM-DD')
 							|| '; Serial number ' || encode(x509_serialNumber(c.CERTIFICATE), 'hex'),
 							c.CERTIFICATE
@@ -2059,9 +2072,9 @@ BEGIN
 					t_feedUpdated := greatest(t_feedUpdated, l_record.MIN_ENTRY_TIMESTAMP);
 					t_text := t_text ||
 '  <entry>
-    <id>https://crt.sh/?id=' || l_record.MIN_CERT_ID || '</id>
+    <id>https://crt.sh/?id=' || l_record.MIN_CERT_ID || '#' || t_cmd || ';' || t_value || '</id>
     <link rel="alternate" type="text/html" href="https://crt.sh/?id=' || l_record.MIN_CERT_ID || '"/>
-    <summary type="html">&lt;div style="font:8pt monospace"&gt;-----BEGIN CERTIFICATE-----';
+    <summary type="html">__entry_summary__&lt;br&gt;&lt;br&gt;&lt;div style="font:8pt monospace"&gt;-----BEGIN CERTIFICATE-----';
 					WHILE length(t_b64Certificate) > 64 LOOP
 						t_text := t_text || '&lt;br&gt;' || substring(
 							t_b64Certificate from 1 for 64
@@ -2150,10 +2163,10 @@ Content-Type: application/atom+xml
   <title>';
 			IF lower(t_type) LIKE '%lint' THEN
 				SELECT '[' || li.LINTER || '] ' || li.ISSUE_TEXT
-					INTO t_title
+					INTO t_summary
 					FROM lint_issue li
 					WHERE li.ID = t_value::integer;
-				t_output := t_output || t_title;
+				t_output := t_output || t_summary;
 			ELSE
 				t_output := t_output || t_cmd || '=' || t_value;
 			END IF;
@@ -2168,7 +2181,7 @@ Content-Type: application/atom+xml
 			END IF;
 			t_output := t_output || '</title>
   <updated>' || to_char(coalesce(t_feedUpdated, statement_timestamp()), 'YYYY-MM-DD"T"HH24:MI:SS"Z"') || '</updated>
-' || t_text ||
+' || replace(t_text, '__entry_summary__', t_summary) ||
 '</feed>';
 			ELSIF t_outputType = 'html' THEN
 				t_output := t_output ||
