@@ -188,8 +188,24 @@ BEGIN
 		END IF;
 	END LOOP;
 
-	IF t_type IS NULL THEN
+	t_outputType := coalesce(get_parameter('output', paramNames, paramValues), '');
+	IF t_outputType = '' THEN
+		t_outputType := 'html';
+	END IF;
+	IF lower(t_outputType) = 'forum' THEN
+		t_type := 'Forum';
+		t_outputType := 'html';
+	ELSIF lower(t_outputType) IN ('advanced') THEN
+		t_type := 'Advanced';
+		t_outputType := 'html';
+	END IF;
+	IF t_outputType NOT IN ('html', 'json', 'atom') THEN
+		RAISE no_data_found USING MESSAGE = 'Unsupported output type: ' || html_escape(t_outputType);
+	END IF;
+
+	IF coalesce(t_type, 'Simple') = 'Simple' THEN
 		t_type := 'Simple';
+		t_outputType := 'html';
 	END IF;
 
 	IF t_type IN ('Simple', 'Advanced') THEN
@@ -270,14 +286,6 @@ BEGIN
 	t_opt := coalesce(get_parameter('opt', paramNames, paramValues), '');
 	IF t_opt != '' THEN
 		t_opt := t_opt || ',';
-	END IF;
-
-	t_outputType := coalesce(get_parameter('output', paramNames, paramValues), '');
-	IF t_outputType = '' THEN
-		t_outputType := 'html';
-	END IF;
-	IF t_outputType NOT IN ('html', 'json', 'atom') THEN
-		RAISE no_data_found USING MESSAGE = 'Unsupported output type: ' || html_escape(t_outputType);
 	END IF;
 
 	IF t_outputType = 'html' THEN
@@ -731,6 +739,24 @@ BEGIN
 		END LOOP;
 		t_output := t_output || '
 </TABLE>';
+
+	ELSIF t_type = 'Forum' THEN
+		t_output := t_output ||
+' <SPAN class="whiteongrey">Forum</SPAN>
+<BR><BR>
+<IFRAME id="forum_embed"
+  src="javascript:void(0)"
+  scrolling="no"
+  frameborder="0"
+  width="900"
+  height="600">
+</IFRAME>
+<SCRIPT type="text/javascript">
+  document.getElementById(''forum_embed'').src =
+     ''https://groups.google.com/forum/embed/?place=forum/crtsh''
+     + ''&showsearch=true&showpopout=true&showtabs=false''
+     + ''&parenturl='' + encodeURIComponent(window.location.href);
+</SCRIPT>';
 
 	ELSIF t_type IN (
 				'ID',
