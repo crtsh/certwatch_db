@@ -989,11 +989,81 @@ BEGIN
 '      No log entries found
 ';
 		END IF;
-
 		t_output := t_output ||
 '    </TD>
   </TR>
+';
+
+		IF t_caID IS NOT NULL THEN
+			t_output := t_output ||
+'  <TR>
+    <TH class="outer">Audit details<BR>
+      <DIV class="small" style="padding-top:3px">Disclosed via
+        <A href="//mozillacaprogram.secure.force.com/CA/PublicIntermediateCerts" target="_blank">Mozilla</A></DIV>
+    </TH>
+    <TD class="outer">
+';
+			t_temp := 'Not disclosed';
+			FOR l_record IN (
+						SELECT *
+							FROM mozilla_disclosure md
+							WHERE md.CERTIFICATE_ID = t_certificateID
+					) LOOP
+				t_temp := '';
+				t_output := t_output ||
+'<TABLE class="options" style="margin-left:0px">
   <TR>
+    <TH>Auditor</TH>
+    <TH>Standard Audit</TH>
+    <TH>BR Audit</TH>
+    <TH>Documents</TH>
+  </TR>
+  <TR>
+    <TD>' || coalesce(l_record.AUDITOR, '') || '</TD>
+    <TD>';
+				IF coalesce(l_record.STANDARD_AUDIT_URL, '') NOT LIKE '%://%' THEN
+					t_output := t_output || coalesce(l_record.STANDARD_AUDIT_URL, 'Not disclosed');
+				ELSE
+					t_output := t_output || '
+      <A href="' || l_record.STANDARD_AUDIT_URL || '" target="_blank">' || l_record.STANDARD_AUDIT_DATE::text || '</A>
+    ';
+				END IF;
+				t_output := t_output || '</TD>
+    <TD>';
+				IF coalesce(l_record.BR_AUDIT_URL, '') NOT LIKE '%://%' THEN
+					t_output := t_output || coalesce(l_record.BR_AUDIT_URL, 'No');
+				ELSE
+					t_output := t_output || '
+      <A href="' || l_record.BR_AUDIT_URL || '" target="_blank">Yes</A>
+    ';
+				END IF;
+				t_output := t_output || '</TD>
+    <TD>
+';
+				IF coalesce(l_record.CP_URL, '') != '' THEN
+					t_output := t_output ||
+'      <A href="' || l_record.CP_URL || '" target="blank">CP</A>
+';
+				END IF;
+				IF coalesce(l_record.CPS_URL, '') != '' THEN
+					t_output := t_output ||
+'      <A href="' || l_record.CPS_URL || '" target="blank">CPS</A>
+';
+				END IF;
+				t_output := t_output ||
+'    </TD>
+  </TR>
+</TABLE>';
+				EXIT;
+			END LOOP;
+			t_output := t_output || t_temp || '
+    </TD>
+  </TR>
+';
+		END IF;
+
+		t_output := t_output ||
+'  <TR>
     <TH class="outer">SHA-256(Certificate)</TH>
     <TD class="outer"><A href="//censys.io/certificates/' || coalesce(lower(encode(t_certificateSHA256, 'hex')), '') || '">'
 						|| coalesce(upper(encode(t_certificateSHA256, 'hex')), '<I>Not found</I>') || '</A></TD>
@@ -1008,8 +1078,8 @@ BEGIN
 		IF t_showCABLint THEN
 			t_output := t_output ||
 '  <TR>
-    <TH class="outer">CA/B Forum lint
-      <BR><BR><SPAN class="small">Powered by <A href="//github.com/awslabs/certlint" target="_blank">certlint</A></SPAN>
+    <TH class="outer">CA/B Forum lint<BR>
+      <DIV class="small" style="padding-top:3px">Powered by <A href="//github.com/awslabs/certlint" target="_blank">certlint</A></DIV>
     </TH>
     <TD class="text">
 ';
@@ -1057,8 +1127,8 @@ BEGIN
 
 			t_output := t_output ||
 '  <TR>
-    <TH class="outer">X.509 lint
-      <BR><BR><SPAN class="small">Powered by <A href="//github.com/kroeckx/x509lint" target="_blank">x509lint</A></SPAN>
+    <TH class="outer">X.509 lint<BR>
+      <DIV class="small" style="padding-top:3px">Powered by <A href="//github.com/kroeckx/x509lint" target="_blank">x509lint</A></DIV>
     </TH>
     <TD class="text">
 ';
