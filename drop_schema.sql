@@ -45,6 +45,16 @@ DROP FUNCTION lint_cached(
 );
 
 
+DROP TYPE disclosure_status_type;
+
+DROP TABLE ca_trust_purpose;
+
+DROP TABLE root_trust_purpose;
+
+DROP TABLE trust_purpose;
+
+DROP TABLE trust_context;
+
 DROP TABLE lint_cert_issue;
 
 DROP TABLE lint_issue;

@@ -52,11 +52,76 @@ SELECT		c.ID	CERTIFICATE_ID,
 		CASE WHEN (mdi.STANDARD_AUDIT_DATE = '') THEN NULL
 			ELSE to_date(mdi.STANDARD_AUDIT_DATE, 'YYYY.MM.DD')
 		END STANDARD_AUDIT_DATE,
-		mdi.CA_OWNER_OR_CERT_NAME,
-		decode(replace(mdi.CERT_SHA1, ':', ''), 'hex') CERT_SHA1
+		CASE WHEN (mdi.CA_OWNER_OR_CERT_NAME = '') THEN NULL
+			ELSE mdi.CA_OWNER_OR_CERT_NAME
+		END CA_OWNER_OR_CERT_NAME,
+		CASE WHEN (mdi.ISSUER_CN = '') THEN NULL
+			ELSE mdi.ISSUER_CN
+		END ISSUER_CN,
+		CASE WHEN (mdi.ISSUER_O = '') THEN NULL
+			ELSE mdi.ISSUER_O
+		END ISSUER_O,
+		CASE WHEN (mdi.SUBJECT_CN = '') THEN NULL
+			ELSE mdi.SUBJECT_CN
+		END SUBJECT_CN,
+		CASE WHEN (mdi.SUBJECT_O = '') THEN NULL
+			ELSE mdi.SUBJECT_O
+		END SUBJECT_O,
+		decode(replace(mdi.CERT_SHA1, ':', ''), 'hex') CERT_SHA1,
+		'Disclosed'::disclosure_status_type	DISCLOSURE_STATUS
 	FROM mozilla_disclosure_import mdi
 		LEFT OUTER JOIN certificate c ON (decode(replace(mdi.CERT_SHA1, ':', ''), 'hex') = digest(c.CERTIFICATE, 'sha1'))
 	WHERE mdi.RECORD_TYPE != 'Owner';
+
+CREATE TABLE mozilla_revoked_disclosure_import (
+	CA_OWNER				text,
+	REVOCATION_STATUS		text,
+	REASON_CODE				text,
+	REVOCATION_DATE			text,
+	CA_OWNER_OR_CERT_NAME	text,
+	ISSUER_CN				text,
+	ISSUER_O				text,
+	SUBJECT_CN				text,
+	SUBJECT_O				text,
+	CERT_SHA1				text,
+	VALID_FROM_GMT			text,
+	VALID_TO_GMT			text,
+	SIGNING_KEY_PARAMETERS	text,
+	SIGNATURE_ALGORITHM		text
+);
+
+\COPY mozilla_revoked_disclosure_import FROM 'mozilla_revoked_disclosures.csv' CSV HEADER;
+
+INSERT INTO mozilla_disclosure_temp (
+		CERTIFICATE_ID, PARENT_CERTIFICATE_ID, RECORD_TYPE,
+		CA_OWNER_OR_CERT_NAME,
+		ISSUER_CN,
+		ISSUER_O,
+		SUBJECT_CN,
+		SUBJECT_O,
+		CERT_SHA1,
+		DISCLOSURE_STATUS
+	)
+	SELECT c.ID, NULL, 'Revoked',
+			CASE WHEN (mrdi.CA_OWNER_OR_CERT_NAME = '') THEN NULL
+				ELSE mrdi.CA_OWNER_OR_CERT_NAME
+			END,
+			CASE WHEN (mrdi.ISSUER_CN = '') THEN NULL
+				ELSE mrdi.ISSUER_CN
+			END,
+			CASE WHEN (mrdi.ISSUER_O = '') THEN NULL
+				ELSE mrdi.ISSUER_O
+			END,
+			CASE WHEN (mrdi.SUBJECT_CN = '') THEN NULL
+				ELSE mrdi.SUBJECT_CN
+			END,
+			CASE WHEN (mrdi.SUBJECT_O = '') THEN NULL
+				ELSE mrdi.SUBJECT_O
+			END,
+			decode(replace(mrdi.CERT_SHA1, ':', ''), 'hex'),
+			'Revoked'
+		FROM mozilla_revoked_disclosure_import mrdi
+			LEFT OUTER JOIN certificate c ON (decode(replace(mrdi.CERT_SHA1, ':', ''), 'hex') = digest(c.CERTIFICATE, 'sha1'));
 
 /* Look for the issuer, prioritizing Disclosed Root CA certs... */
 UPDATE mozilla_disclosure_temp mdt
@@ -153,10 +218,69 @@ UPDATE mozilla_disclosure_temp mdt
 		AND mdt.AUDITS_SAME_AS_PARENT
 		AND mdt.PARENT_CERTIFICATE_ID = mdt_parent.CERTIFICATE_ID;
 
-
 ALTER TABLE mozilla_disclosure_temp DROP COLUMN CP_CPS_SAME_AS_PARENT;
 
 ALTER TABLE mozilla_disclosure_temp DROP COLUMN AUDITS_SAME_AS_PARENT;
+
+CREATE INDEX md_c_temp
+	ON mozilla_disclosure_temp (CERTIFICATE_ID);
+
+CREATE INDEX md_ds_c_temp
+	ON mozilla_disclosure_temp (DISCLOSURE_STATUS, CERTIFICATE_ID);
+
+INSERT INTO mozilla_disclosure_temp (
+		CERTIFICATE_ID, CA_OWNER_OR_CERT_NAME,
+		ISSUER_O,
+		ISSUER_CN,
+		SUBJECT_O,
+		SUBJECT_CN,
+		CERT_SHA1, DISCLOSURE_STATUS
+	)
+	SELECT c.ID, get_ca_name_attribute(cac.CA_ID),
+			get_ca_name_attribute(c.ISSUER_CA_ID, 'organizationName'),
+			get_ca_name_attribute(c.ISSUER_CA_ID, 'commonName'),
+			get_ca_name_attribute(cac.CA_ID, 'organizationName'),
+			get_ca_name_attribute(cac.CA_ID, 'commonName'),
+			digest(c.CERTIFICATE, 'sha1'), 'Undisclosed'
+		FROM ca, ca_certificate cac, certificate c
+		WHERE ca.LINTING_APPLIES
+			AND ca.ID = cac.CA_ID
+			AND cac.CERTIFICATE_ID = c.ID
+			AND NOT EXISTS (
+				SELECT 1
+					FROM mozilla_disclosure_temp mdt
+					WHERE mdt.CERTIFICATE_ID = c.ID
+			);
+
+UPDATE mozilla_disclosure_temp mdt
+	SET DISCLOSURE_STATUS = 'Expired'
+	FROM certificate c
+	WHERE mdt.DISCLOSURE_STATUS = 'Undisclosed'
+		AND mdt.CERTIFICATE_ID = c.ID
+		AND x509_notAfter(c.CERTIFICATE) < statement_timestamp();
+
+UPDATE mozilla_disclosure_temp mdt
+	SET DISCLOSURE_STATUS = 'TechnicallyConstrained'
+	FROM certificate c
+	WHERE mdt.DISCLOSURE_STATUS = 'Undisclosed'
+		AND mdt.CERTIFICATE_ID = c.ID
+		AND is_technically_constrained(c.CERTIFICATE);
+
+UPDATE mozilla_disclosure_temp mdt
+	SET DISCLOSURE_STATUS = 'NoKnownServerAuthTrustPath'
+	FROM certificate c
+	WHERE mdt.DISCLOSURE_STATUS = 'Undisclosed'
+		AND mdt.CERTIFICATE_ID = c.ID
+		AND NOT EXISTS (
+			SELECT 1
+				FROM ca_trust_purpose ctp
+				WHERE ctp.CA_ID = c.ISSUER_CA_ID
+					AND ctp.TRUST_CONTEXT_ID = 5
+					AND ctp.TRUST_PURPOSE_ID = 1
+					AND statement_timestamp() BETWEEN ctp.EARLIEST_NOT_BEFORE
+												AND ctp.LATEST_NOT_AFTER
+		);
+
 
 ANALYZE mozilla_disclosure_temp;
 
@@ -164,6 +288,12 @@ GRANT SELECT ON mozilla_disclosure_temp TO httpd;
 
 DROP TABLE mozilla_disclosure_import;
 
+DROP TABLE mozilla_revoked_disclosure_import;
+
 DROP TABLE mozilla_disclosure;
 
 ALTER TABLE mozilla_disclosure_temp RENAME TO mozilla_disclosure;
+
+ALTER INDEX md_c_temp RENAME TO md_c;
+
+ALTER INDEX md_ds_c_temp RENAME TO md_ds_c;

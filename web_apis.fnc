@@ -84,6 +84,7 @@ DECLARE
 	t_offset			integer;
 	t_pos1				integer;
 	t_temp				text;
+	t_temp2				text;
 	t_select			text;
 	t_from				text;
 	t_where				text;
@@ -120,6 +121,13 @@ DECLARE
 	t_issuerCAID		certificate.ISSUER_CA_ID%TYPE;
 	t_issuerCAID_table	text;
 	t_feedUpdated		timestamp;
+	t_undisclosedCount	integer			:= 0;
+	t_noTrustPathCount	integer			:= 0;
+	t_constrainedCount	integer			:= 0;
+	t_expiredCount		integer			:= 0;
+	t_revokedCount		integer			:= 0;
+	t_disclosedCount	integer			:= 0;
+	t_unknownCount		integer			:= 0;
 	t_caPublicKey		ca.PUBLIC_KEY%TYPE;
 	t_count				integer;
 	t_pageNo			integer;
@@ -192,8 +200,9 @@ BEGIN
 	IF t_outputType = '' THEN
 		t_outputType := 'html';
 	END IF;
-	IF lower(t_outputType) = 'forum' THEN
-		t_type := 'Forum';
+	IF lower(t_outputType) IN ('forum', 'mozilla-disclosures') THEN
+		t_type := lower(t_outputType);
+		t_title := t_type;
 		t_outputType := 'html';
 	ELSIF lower(t_outputType) IN ('advanced') THEN
 		t_type := 'Advanced';
@@ -740,7 +749,7 @@ BEGIN
 		t_output := t_output || '
 </TABLE>';
 
-	ELSIF t_type = 'Forum' THEN
+	ELSIF t_type = 'forum' THEN
 		t_output := t_output ||
 ' <SPAN class="whiteongrey">Forum</SPAN>
 <BR><BR>
@@ -757,6 +766,382 @@ BEGIN
      + ''&showsearch=true&showpopout=true&showtabs=false''
      + ''&parenturl='' + encodeURIComponent(window.location.href);
 </SCRIPT>';
+
+	ELSIF t_type = 'mozilla-disclosures' THEN
+		t_output := t_output ||
+'  <SPAN class="whiteongrey">Mozilla Disclosures</SPAN>
+<BR><BR>
+';
+
+		t_temp := '';
+		FOR l_record IN (
+					SELECT md.CA_OWNER_OR_CERT_NAME, md.ISSUER_O, md.ISSUER_CN,
+							md.SUBJECT_O, md.SUBJECT_CN, md.CERT_SHA1
+						FROM mozilla_disclosure md
+						WHERE md.DISCLOSURE_STATUS IN ('Disclosed', 'Revoked')
+							AND md.CERTIFICATE_ID IS NULL
+						GROUP BY md.CA_OWNER_OR_CERT_NAME, md.ISSUER_O, md.ISSUER_CN,
+								md.SUBJECT_O, md.SUBJECT_CN, md.CERT_SHA1
+						ORDER BY md.ISSUER_O, md.ISSUER_CN, md.SUBJECT_O, md.SUBJECT_CN
+				) LOOP
+			t_unknownCount := t_unknownCount + 1;
+			t_temp := t_temp ||
+'  <TR>
+    <TD>' || coalesce(l_record.CA_OWNER_OR_CERT_NAME, '&nbsp;') || '</TD>
+    <TD>' || coalesce(l_record.ISSUER_O, '&nbsp;') || '</TD>
+    <TD>' || coalesce(l_record.ISSUER_CN, '&nbsp;') || '</TD>
+    <TD>' || coalesce(l_record.SUBJECT_O, '&nbsp;') || '</TD>
+    <TD>' || coalesce(l_record.SUBJECT_CN, '&nbsp;') || '</TD>
+    <TD style="font-family:monospace">' || upper(encode(l_record.CERT_SHA1, 'hex')) || '</TD>
+  </TR>
+';
+		END LOOP;
+		t_temp :=
+'<BR><BR><SPAN class="title"><A name="unknown">Disclosed; Unknown to crt.sh</A></SPAN>
+<SPAN class="whiteongrey">' || t_unknownCount::text || ' CA certificates</SPAN>
+<BR>
+<TABLE>
+  <TR>
+    <TH>CA Owner or Certificate Name</TH>
+    <TH>Issuer O</TH>
+    <TH>Issuer CN</TH>
+    <TH>Subject O</TH>
+    <TH>Subject CN</TH>
+    <TH>SHA-1(Certificate)</TH>
+  </TR>
+' || t_temp;
+		IF t_unknownCount = 0 THEN
+			t_temp := t_temp ||
+'  <TR><TD colspan="6">None found</TD></TR>
+';
+		END IF;
+		t_temp := t_temp ||
+'</TABLE>
+';
+
+		t_temp2 := '';
+		FOR l_record IN (
+					SELECT *
+						FROM mozilla_disclosure md
+						WHERE md.DISCLOSURE_STATUS = 'Disclosed'
+							AND md.CERTIFICATE_ID IS NOT NULL
+						ORDER BY md.ISSUER_O, md.ISSUER_CN NULLS FIRST, md.RECORD_TYPE DESC, md.SUBJECT_O, md.SUBJECT_CN
+				) LOOP
+			t_disclosedCount := t_disclosedCount + 1;
+			IF l_record.RECORD_TYPE = 'Root' THEN
+				t_temp2 := t_temp2 ||
+'  <TR style="font-style:italic">
+    <TD><B>[Root]</B>';
+			ELSE
+				t_temp2 := t_temp2 ||
+'  <TR>
+    <TD>';
+			END IF;
+			t_temp2 := t_temp2 || '
+      ' || coalesce(l_record.CA_OWNER_OR_CERT_NAME, '&nbsp;') || '
+    </TD>
+    <TD>' || coalesce(l_record.ISSUER_O, '&nbsp;') || '</TD>
+    <TD>' || coalesce(l_record.ISSUER_CN, '&nbsp;') || '</TD>
+    <TD>' || coalesce(l_record.SUBJECT_O, '&nbsp;') || '</TD>
+    <TD>' || coalesce(l_record.SUBJECT_CN, '&nbsp;') || '</TD>
+    <TD style="font-family:monospace"><A href="/?sha1=' || encode(l_record.CERT_SHA1, 'hex') || '">' || upper(encode(l_record.CERT_SHA1, 'hex')) || '</A></TD>
+  </TR>
+';
+		END LOOP;
+		t_temp2 :=
+'<BR><BR><SPAN class="title" style="background-color:#F2A2E8"><A name="disclosed">Disclosed</A></SPAN>
+<SPAN class="whiteongrey">' || t_disclosedCount::text || ' CA certificates</SPAN>
+<BR>
+<TABLE style="background-color:#F2A2E8">
+  <TR>
+    <TH>CA Owner or Certificate Name</TH>
+    <TH>Issuer O</TH>
+    <TH>Issuer CN</TH>
+    <TH>Subject O</TH>
+    <TH>Subject CN</TH>
+    <TH>SHA-1(Certificate)</TH>
+  </TR>
+' || t_temp2;
+		IF t_disclosedCount = 0 THEN
+			t_temp2 := t_temp2 ||
+'  <TR><TD colspan="6">None found</TD></TR>
+';
+		END IF;
+		t_temp2 := t_temp2 ||
+'</TABLE>
+';
+
+		t_temp := t_temp2 || t_temp;
+
+		t_temp2 := '';
+		FOR l_record IN (
+					SELECT *
+						FROM mozilla_disclosure md
+						WHERE md.DISCLOSURE_STATUS = 'Revoked'
+							AND md.CERTIFICATE_ID IS NOT NULL
+						ORDER BY md.ISSUER_O, md.ISSUER_CN, md.SUBJECT_O, md.SUBJECT_CN
+				) LOOP
+			t_revokedCount := t_revokedCount + 1;
+			t_temp2 := t_temp2 ||
+'  <TR>
+    <TD>' || coalesce(l_record.CA_OWNER_OR_CERT_NAME, '&nbsp;') || '</TD>
+    <TD>' || coalesce(l_record.ISSUER_O, '&nbsp;') || '</TD>
+    <TD>' || coalesce(l_record.ISSUER_CN, '&nbsp;') || '</TD>
+    <TD>' || coalesce(l_record.SUBJECT_O, '&nbsp;') || '</TD>
+    <TD>' || coalesce(l_record.SUBJECT_CN, '&nbsp;') || '</TD>
+    <TD style="font-family:monospace"><A href="/?sha1=' || encode(l_record.CERT_SHA1, 'hex') || '">' || upper(encode(l_record.CERT_SHA1, 'hex')) || '</A></TD>
+  </TR>
+';
+		END LOOP;
+		t_temp2 :=
+'<BR><BR><SPAN class="title" style="background-color:#B2CEFE"><A name="revoked">Disclosed as Revoked</A></SPAN>
+<SPAN class="whiteongrey">' || t_revokedCount::text || ' CA certificates</SPAN>
+<BR>
+<TABLE style="background-color:#B2CEFE">
+  <TR>
+    <TH>CA Owner or Certificate Name</TH>
+    <TH>Issuer O</TH>
+    <TH>Issuer CN</TH>
+    <TH>Subject O</TH>
+    <TH>Subject CN</TH>
+    <TH>SHA-1(Certificate)</TH>
+  </TR>
+' || t_temp2;
+		IF t_revokedCount = 0 THEN
+			t_temp2 := t_temp2 ||
+'  <TR><TD colspan="6">None found</TD></TR>
+';
+		END IF;
+		t_temp2 := t_temp2 ||
+'</TABLE>
+';
+
+		t_temp := t_temp2 || t_temp;
+
+		t_temp2 := '';
+		FOR l_record IN (
+					SELECT *
+						FROM mozilla_disclosure md
+						WHERE md.DISCLOSURE_STATUS = 'Expired'
+							AND md.CERTIFICATE_ID IS NOT NULL
+						ORDER BY md.ISSUER_O, md.ISSUER_CN, md.SUBJECT_O, md.SUBJECT_CN
+				) LOOP
+			t_expiredCount := t_expiredCount + 1;
+			t_temp2 := t_temp2 ||
+'  <TR>
+    <TD>' || coalesce(l_record.CA_OWNER_OR_CERT_NAME, '&nbsp;') || '</TD>
+    <TD>' || coalesce(l_record.ISSUER_O, '&nbsp;') || '</TD>
+    <TD>' || coalesce(l_record.ISSUER_CN, '&nbsp;') || '</TD>
+    <TD>' || coalesce(l_record.SUBJECT_O, '&nbsp;') || '</TD>
+    <TD>' || coalesce(l_record.SUBJECT_CN, '&nbsp;') || '</TD>
+    <TD style="font-family:monospace"><A href="/?sha1=' || encode(l_record.CERT_SHA1, 'hex') || '">' || upper(encode(l_record.CERT_SHA1, 'hex')) || '</A></TD>
+  </TR>
+';
+		END LOOP;
+		t_temp2 :=
+'<BR><BR><SPAN class="title" style="background-color:#BAED91"><A name="expired">Undisclosed but Expired, so disclosure is not required</A></SPAN>
+<SPAN class="whiteongrey">' || t_expiredCount::text || ' CA certificates</SPAN>
+<BR>
+<TABLE style="background-color:#BAED91">
+  <TR>
+    <TH>CA Owner or Certificate Name</TH>
+    <TH>Issuer O</TH>
+    <TH>Issuer CN</TH>
+    <TH>Subject O</TH>
+    <TH>Subject CN</TH>
+    <TH>SHA-1(Certificate)</TH>
+  </TR>
+' || t_temp2;
+		IF t_expiredCount = 0 THEN
+			t_temp2 := t_temp2 ||
+'  <TR><TD colspan="6">None found</TD></TR>
+';
+		END IF;
+		t_temp2 := t_temp2 ||
+'</TABLE>
+';
+
+		t_temp := t_temp2 || t_temp;
+
+		t_temp2 := '';
+		FOR l_record IN (
+					SELECT *
+						FROM mozilla_disclosure md
+						WHERE md.DISCLOSURE_STATUS = 'TechnicallyConstrained'
+							AND md.CERTIFICATE_ID IS NOT NULL
+						ORDER BY md.ISSUER_O, md.ISSUER_CN, md.SUBJECT_O, md.SUBJECT_CN
+				) LOOP
+			t_constrainedCount := t_constrainedCount + 1;
+			t_temp2 := t_temp2 ||
+'  <TR>
+    <TD>' || coalesce(l_record.CA_OWNER_OR_CERT_NAME, '&nbsp;') || '</TD>
+    <TD>' || coalesce(l_record.ISSUER_O, '&nbsp;') || '</TD>
+    <TD>' || coalesce(l_record.ISSUER_CN, '&nbsp;') || '</TD>
+    <TD>' || coalesce(l_record.SUBJECT_O, '&nbsp;') || '</TD>
+    <TD>' || coalesce(l_record.SUBJECT_CN, '&nbsp;') || '</TD>
+    <TD style="font-family:monospace"><A href="/?sha1=' || encode(l_record.CERT_SHA1, 'hex') || '">' || upper(encode(l_record.CERT_SHA1, 'hex')) || '</A></TD>
+  </TR>
+';
+		END LOOP;
+		t_temp2 :=
+'<BR><BR><SPAN class="title" style="background-color:#FAF884"><A name="technicallyconstrained">Undisclosed but Technically Constrained, so disclosure is not required</A></SPAN>
+<SPAN class="whiteongrey">' || t_constrainedCount::text || ' CA certificates</SPAN>
+<BR>
+<TABLE style="background-color:#FAF884">
+  <TR>
+    <TH>CA Owner or Certificate Name</TH>
+    <TH>Issuer O</TH>
+    <TH>Issuer CN</TH>
+    <TH>Subject O</TH>
+    <TH>Subject CN</TH>
+    <TH>SHA-1(Certificate)</TH>
+  </TR>
+' || t_temp2;
+		IF t_constrainedCount = 0 THEN
+			t_temp2 := t_temp2 ||
+'  <TR><TD colspan="6">None found</TD></TR>
+';
+		END IF;
+		t_temp2 := t_temp2 ||
+'</TABLE>
+';
+
+		t_temp := t_temp2 || t_temp;
+
+		t_temp2 := '';
+		FOR l_record IN (
+					SELECT *
+						FROM mozilla_disclosure md
+						WHERE md.DISCLOSURE_STATUS = 'NoKnownServerAuthTrustPath'
+							AND md.CERTIFICATE_ID IS NOT NULL
+						ORDER BY md.ISSUER_O, md.ISSUER_CN, md.SUBJECT_O, md.SUBJECT_CN
+				) LOOP
+			t_noTrustPathCount := t_noTrustPathCount + 1;
+			t_temp2 := t_temp2 ||
+'  <TR>
+    <TD>' || coalesce(l_record.CA_OWNER_OR_CERT_NAME, '&nbsp;') || '</TD>
+    <TD>' || coalesce(l_record.ISSUER_O, '&nbsp;') || '</TD>
+    <TD>' || coalesce(l_record.ISSUER_CN, '&nbsp;') || '</TD>
+    <TD>' || coalesce(l_record.SUBJECT_O, '&nbsp;') || '</TD>
+    <TD>' || coalesce(l_record.SUBJECT_CN, '&nbsp;') || '</TD>
+    <TD style="font-family:monospace"><A href="/?sha1=' || encode(l_record.CERT_SHA1, 'hex') || '">' || upper(encode(l_record.CERT_SHA1, 'hex')) || '</A></TD>
+  </TR>
+';
+		END LOOP;
+		t_temp2 :=
+'<BR><BR><SPAN class="title" style="background-color:#F8B88B"><A name="noknownserverauthtrustpath">Undisclosed but No Known id-kp-serverAuth Trust Paths, so disclosure may or may not be required</A></SPAN>
+<SPAN class="whiteongrey">' || t_noTrustPathCount::text || ' CA certificates</SPAN>
+<BR>
+<TABLE style="background-color:#F8B88B">
+  <TR>
+    <TH>CA Owner or Certificate Name</TH>
+    <TH>Issuer O</TH>
+    <TH>Issuer CN</TH>
+    <TH>Subject O</TH>
+    <TH>Subject CN</TH>
+    <TH>SHA-1(Certificate)</TH>
+  </TR>
+' || t_temp2;
+		IF t_noTrustPathCount = 0 THEN
+			t_temp2 := t_temp2 ||
+'  <TR><TD colspan="6">None found</TD></TR>
+';
+		END IF;
+		t_temp2 := t_temp2 ||
+'</TABLE>
+';
+
+		t_temp := t_temp2 || t_temp;
+
+		t_temp2 := '';
+		FOR l_record IN (
+					SELECT *
+						FROM mozilla_disclosure md
+						WHERE md.DISCLOSURE_STATUS = 'Undisclosed'
+							AND md.CERTIFICATE_ID IS NOT NULL
+						ORDER BY md.ISSUER_O, md.ISSUER_CN, md.SUBJECT_O, md.SUBJECT_CN
+				) LOOP
+			t_undisclosedCount := t_undisclosedCount + 1;
+			t_temp2 := t_temp2 ||
+'  <TR>
+    <TD>' || coalesce(l_record.CA_OWNER_OR_CERT_NAME, '&nbsp;') || '</TD>
+    <TD>' || coalesce(l_record.ISSUER_O, '&nbsp;') || '</TD>
+    <TD>' || coalesce(l_record.ISSUER_CN, '&nbsp;') || '</TD>
+    <TD>' || coalesce(l_record.SUBJECT_O, '&nbsp;') || '</TD>
+    <TD>' || coalesce(l_record.SUBJECT_CN, '&nbsp;') || '</TD>
+    <TD style="font-family:monospace"><A href="/?sha1=' || encode(l_record.CERT_SHA1, 'hex') || '">' || upper(encode(l_record.CERT_SHA1, 'hex')) || '</A></TD>
+  </TR>
+';
+		END LOOP;
+		t_temp2 :=
+'<BR><BR><SPAN class="title" style="background-color:#FEA3AA"><A name="undisclosed">Undisclosed, but disclosure is required!</A></SPAN>
+<SPAN class="whiteongrey">' || t_undisclosedCount::text || ' CA certificates</SPAN>
+<BR>
+<TABLE style="background-color:#FEA3AA">
+  <TR>
+    <TH>CA Owner or Certificate Name</TH>
+    <TH>Issuer O</TH>
+    <TH>Issuer CN</TH>
+    <TH>Subject O</TH>
+    <TH>Subject CN</TH>
+    <TH>SHA-1(Certificate)</TH>
+  </TR>
+' || t_temp2;
+		IF t_undisclosedCount = 0 THEN
+			t_temp2 := t_temp2 ||
+'  <TR><TD colspan="6">None found</TD></TR>
+';
+		END IF;
+		t_temp2 := t_temp2 ||
+'</TABLE>
+';
+
+		t_temp := t_temp2 || t_temp;
+
+		t_output := t_output ||
+'<TABLE>
+  <TR>
+    <TH>Category</TH>
+    <TH>Disclosure Required?</TH>
+    <TH># of CA certs</TH>
+  </TR>
+  <TR style="background-color:#FEA3AA">
+    <TD>Undisclosed</TD>
+    <TD><B><U>Yes!</U></B></TD>
+    <TD><A href="#undisclosed">' || t_undisclosedCount::text || '</A></TD>
+  </TR>
+  <TR style="background-color:#F8B88B">
+    <TD>No Known id-kp-serverAuth Trust Paths</TD>
+    <TD>Maybe?</TD>
+    <TD><A href="#noknownserverauthtrustpath">' || t_noTrustPathCount::text || '</A></TD>
+  </TR>
+  <TR style="background-color:#FAF884">
+    <TD>Technically Constrained</TD>
+    <TD>No</TD>
+    <TD><A href="#technicallyconstrained">' || t_constrainedCount::text || '</A></TD>
+  </TR>
+  <TR style="background-color:#BAED91">
+    <TD>Expired</TD>
+    <TD>No</TD>
+    <TD><A href="#expired">' || t_expiredCount::text || '</A></TD>
+  </TR>
+  <TR style="background-color:#B2CEFE">
+    <TD>Revoked</TD>
+    <TD>No, already disclosed</TD>
+    <TD><A href="#revoked">' || t_revokedCount::text || '</A></TD>
+  </TR>
+  <TR style="background-color:#F2A2E8">
+    <TD>Disclosed</TD>
+    <TD>No, already disclosed</TD>
+    <TD><A href="#disclosed">' || t_disclosedCount::text || '</A></TD>
+  </TR>
+  <TR>
+    <TD>Unknown to crt.sh</TD>
+    <TD>No, already disclosed</TD>
+    <TD><A href="#unknown">' || t_unknownCount::text || '</TD>
+  </TR>
+</TABLE>
+' || t_temp;
 
 	ELSIF t_type IN (
 				'ID',
@@ -1007,7 +1392,8 @@ BEGIN
 			FOR l_record IN (
 						SELECT *
 							FROM mozilla_disclosure md
-							WHERE md.CERTIFICATE_ID = t_certificateID
+							WHERE md.DISCLOSURE_STATUS = 'Disclosed'
+								AND md.CERTIFICATE_ID = t_certificateID
 					) LOOP
 				t_temp := '';
 				t_output := t_output ||
