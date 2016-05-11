@@ -35,6 +35,7 @@ DECLARE
 		'caid', 'CA ID', NULL,
 		'caname', 'CA Name', NULL,
 		'serial', 'Serial Number', NULL,
+		'ski', 'Subject Key Identifier', NULL,
 		'spkisha1', 'SHA-1(SubjectPublicKeyInfo)', NULL,
 		'spkisha256', 'SHA-256(SubjectPublicKeyInfo)', NULL,
 		'subjectsha1', 'SHA-1(Subject)', NULL,
@@ -187,7 +188,7 @@ BEGIN
 						'SHA-256(Certificate)', 'SHA-256(SubjectPublicKeyInfo)'
 					) THEN
 				EXIT WHEN length(t_bytea) = 32;
-			ELSIF t_type = 'Serial Number' THEN
+			ELSIF t_type IN ('Serial Number', 'Subject Key Identifier') THEN
 				EXIT WHEN t_bytea IS NOT NULL;
 			ELSE
 				t_type := 'Invalid value';
@@ -234,6 +235,9 @@ BEGIN
 	ELSIF t_type = 'Serial Number' THEN
 		t_value := encode(t_bytea, 'hex');
 		t_title := 'Serial#' || t_value;
+	ELSIF t_type = 'Subject Key Identifier' THEN
+		t_value := encode(t_bytea, 'hex');
+		t_title := 'SKI#' || t_value;
 	ELSIF t_type = 'Identity' THEN
 		t_nameType := NULL;
 	ELSIF t_type = 'Common Name' THEN
@@ -516,7 +520,8 @@ BEGIN
         return;
       var t_url;
       if (document.search_form.searchCensys.checked && (type != "CAID")) {
-        if ((type == "id") || (type == "ctid") || (type == "spkisha1") || (type == "spkisha256")
+        if ((type == "id") || (type == "ctid") || (type == "ski")
+             || (type == "spkisha1") || (type == "spkisha256")
              || (type == "subjectsha1") || (type == "E")) {
           alert("Sorry, Censys doesn''t support this search type");
           return;
@@ -576,11 +581,12 @@ BEGIN
       <TR>
         <TD style="border:none;text-align:center">
           <SPAN class="heading">Select search type:</SPAN>
-          <BR><SELECT name="searchtype" size="18">
+          <BR><SELECT name="searchtype" size="19">
             <OPTION value="c">CERTIFICATE</OPTION>
             <OPTION value="id">&nbsp; crt.sh ID</OPTION>
             <OPTION value="ctid">&nbsp; CT Entry ID</OPTION>
             <OPTION value="serial">&nbsp; Serial Number</OPTION>
+            <OPTION value="ski">&nbsp; Subject Key Identifier</OPTION>
             <OPTION value="spkisha1">&nbsp; SHA-1(SubjectPublicKeyInfo)</OPTION>
             <OPTION value="spkisha256">&nbsp; SHA-256(SubjectPublicKeyInfo)</OPTION>
             <OPTION value="subjectsha1">&nbsp; SHA-1(Subject)</OPTION>
@@ -1289,9 +1295,17 @@ BEGIN
 		END IF;
 		t_text := replace(
 			t_text, '<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Subject&nbsp;Public&nbsp;Key&nbsp;Info:<BR>',
+
+
 				'<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<A href="?spkisha256='
 						|| encode(t_spkiSHA256, 'hex')
 						|| '">Subject&nbsp;Public&nbsp;Key&nbsp;Info:</A><BR>'
+		);
+		t_text := replace(
+			t_text, '<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;X509v3&nbsp;Subject&nbsp;Key&nbsp;Identifier:&nbsp;<BR>',
+				'<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<A href="?ski='
+						|| encode(x509_subjectKeyIdentifier(t_certificate), 'hex')
+						|| '">X509v3&nbsp;Subject&nbsp;Key&nbsp;Identifier:</A><BR>'
 		);
 
 		t_offset := strpos(t_text, 'CT&nbsp;Precertificate');
@@ -2076,6 +2090,7 @@ BEGIN
 	ELSIF t_type IN (
 				'CT Entry ID',
 				'Serial Number',
+				'Subject Key Identifier',
 				'SHA-1(SubjectPublicKeyInfo)',
 				'SHA-256(SubjectPublicKeyInfo)',
 				'SHA-1(Subject)',
@@ -2194,10 +2209,16 @@ BEGIN
 						'		x509_notBefore(c.CERTIFICATE) NOT_BEFORE,' || chr(10) ||
 						'		x509_notAfter(c.CERTIFICATE) NOT_AFTER' || chr(10) ||
 						'	FROM certificate c' || chr(10);
-			IF t_type IN ('Serial Number', 'SHA-1(SubjectPublicKeyInfo)', 'SHA-256(SubjectPublicKeyInfo)', 'SHA-1(Subject)') THEN
+			IF t_type IN (
+						'Serial Number', 'Subject Key Identifier',
+						'SHA-1(SubjectPublicKeyInfo)', 'SHA-256(SubjectPublicKeyInfo)', 'SHA-1(Subject)'
+					) THEN
 				IF t_type = 'Serial Number' THEN
 					t_query := t_query ||
 						'	WHERE x509_serialNumber(c.CERTIFICATE) = decode($2, ''hex'')' || chr(10);
+				ELSIF t_type = 'Subject Key Identifier' THEN
+					t_query := t_query ||
+						'	WHERE x509_subjectKeyIdentifier(c.CERTIFICATE) = decode($2, ''hex'')' || chr(10);
 				ELSIF t_type = 'SHA-1(SubjectPublicKeyInfo)' THEN
 					t_query := t_query ||
 						'	WHERE digest(x509_publickey(c.CERTIFICATE), ''sha1'') = decode($2, ''hex'')' || chr(10);
@@ -2422,6 +2443,14 @@ BEGIN
 				t_certID_field := 'c.ID';
 				t_where := t_where || chr(10) ||
 							'        AND x509_serialNumber(c.CERTIFICATE) = decode($1, ''hex'')';
+			ELSIF t_type = 'Subject Key Identifier' THEN
+				t_from := t_from || ',' || chr(10) ||
+							'        certificate c';
+				t_issuerCAID_table := 'c';
+				t_nameValue := 'encode(x509_subjectKeyIdentifier(c.CERTIFICATE), ''hex'')';
+				t_certID_field := 'c.ID';
+				t_where := t_where || chr(10) ||
+							'        AND x509_subjectKeyIdentifier(c.CERTIFICATE) = decode($1, ''hex'')';
 			ELSIF t_type = 'SHA-1(SubjectPublicKeyInfo)' THEN
 				t_from := t_from || ',' || chr(10) ||
 							'        certificate c';
