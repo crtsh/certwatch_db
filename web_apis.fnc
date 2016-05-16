@@ -1304,7 +1304,7 @@ BEGIN
 		t_text := replace(
 			t_text, '<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;X509v3&nbsp;Subject&nbsp;Key&nbsp;Identifier:&nbsp;<BR>',
 				'<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<A href="?ski='
-						|| encode(x509_subjectKeyIdentifier(t_certificate), 'hex')
+						|| coalesce(encode(x509_subjectKeyIdentifier(t_certificate), 'hex'), '')
 						|| '">X509v3&nbsp;Subject&nbsp;Key&nbsp;Identifier:</A><BR>'
 		);
 
