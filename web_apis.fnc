@@ -123,7 +123,7 @@ DECLARE
 	t_issuerCAID_table	text;
 	t_feedUpdated		timestamp;
 	t_undisclosedCount	integer			:= 0;
-	t_noTrustPathCount	integer			:= 0;
+	t_notTrustedCount	integer			:= 0;
 	t_constrainedCount	integer			:= 0;
 	t_expiredCount		integer			:= 0;
 	t_revokedCount		integer			:= 0;
@@ -945,7 +945,7 @@ BEGIN
 ';
 		END LOOP;
 		t_temp2 :=
-'<BR><BR><SPAN class="title" style="background-color:#BAED91"><A name="expired">Undisclosed but Expired, so disclosure is not required</A></SPAN>
+'<BR><BR><SPAN class="title" style="background-color:#BAED91"><A name="expired">Expired: Disclosure is not required</A></SPAN>
 <SPAN class="whiteongrey">' || t_expiredCount::text || ' CA certificates</SPAN>
 <BR>
 <TABLE style="background-color:#BAED91">
@@ -990,7 +990,7 @@ BEGIN
 ';
 		END LOOP;
 		t_temp2 :=
-'<BR><BR><SPAN class="title" style="background-color:#FAF884"><A name="technicallyconstrained">Undisclosed but Technically Constrained, so disclosure is not required</A></SPAN>
+'<BR><BR><SPAN class="title" style="background-color:#FAF884"><A name="constrained">Technically Constrained: Disclosure is not required</A></SPAN>
 <SPAN class="whiteongrey">' || t_constrainedCount::text || ' CA certificates</SPAN>
 <BR>
 <TABLE style="background-color:#FAF884">
@@ -1022,7 +1022,7 @@ BEGIN
 							AND md.CERTIFICATE_ID IS NOT NULL
 						ORDER BY md.ISSUER_O, md.ISSUER_CN, md.SUBJECT_O, md.SUBJECT_CN
 				) LOOP
-			t_noTrustPathCount := t_noTrustPathCount + 1;
+			t_notTrustedCount := t_notTrustedCount + 1;
 			t_temp2 := t_temp2 ||
 '  <TR>
     <TD>' || coalesce(l_record.CA_OWNER_OR_CERT_NAME, '&nbsp;') || '</TD>
@@ -1035,8 +1035,8 @@ BEGIN
 ';
 		END LOOP;
 		t_temp2 :=
-'<BR><BR><SPAN class="title" style="background-color:#F8B88B"><A name="noknownserverauthtrustpath">Undisclosed but No Known id-kp-serverAuth Trust Paths, so disclosure may or may not be required</A></SPAN>
-<SPAN class="whiteongrey">' || t_noTrustPathCount::text || ' CA certificates</SPAN>
+'<BR><BR><SPAN class="title" style="background-color:#F8B88B"><A name="nottrusted">No Observed Unconstrained id-kp-serverAuth Trust: Disclosure is not known to be required</A></SPAN>
+<SPAN class="whiteongrey">' || t_notTrustedCount::text || ' CA certificates</SPAN>
 <BR>
 <TABLE style="background-color:#F8B88B">
   <TR>
@@ -1048,7 +1048,7 @@ BEGIN
     <TH>SHA-1(Certificate)</TH>
   </TR>
 ' || t_temp2;
-		IF t_noTrustPathCount = 0 THEN
+		IF t_notTrustedCount = 0 THEN
 			t_temp2 := t_temp2 ||
 '  <TR><TD colspan="6">None found</TD></TR>
 ';
@@ -1080,7 +1080,7 @@ BEGIN
 ';
 		END LOOP;
 		t_temp2 :=
-'<BR><BR><SPAN class="title" style="background-color:#FEA3AA"><A name="undisclosed">Undisclosed, but disclosure is required!</A></SPAN>
+'<BR><BR><SPAN class="title" style="background-color:#FEA3AA"><A name="undisclosed">Unconstrained id-kp-serverAuth Trust: Disclosure is required!</A></SPAN>
 <SPAN class="whiteongrey">' || t_undisclosedCount::text || ' CA certificates</SPAN>
 <BR>
 <TABLE style="background-color:#FEA3AA">
@@ -1112,38 +1112,38 @@ BEGIN
     <TH># of CA certs</TH>
   </TR>
   <TR style="background-color:#FEA3AA">
-    <TD>Undisclosed</TD>
+    <TD>Unconstrained id-kp-serverAuth Trust</TD>
     <TD><B><U>Yes!</U></B></TD>
     <TD><A href="#undisclosed">' || t_undisclosedCount::text || '</A></TD>
   </TR>
   <TR style="background-color:#F8B88B">
-    <TD>No Known id-kp-serverAuth Trust Paths</TD>
-    <TD>Maybe?</TD>
-    <TD><A href="#noknownserverauthtrustpath">' || t_noTrustPathCount::text || '</A></TD>
+    <TD>No Observed Unconstrained id-kp-serverAuth Trust</TD>
+    <TD>No</TD>
+    <TD><A href="#nottrusted">' || t_notTrustedCount::text || '</A></TD>
   </TR>
   <TR style="background-color:#FAF884">
     <TD>Technically Constrained</TD>
-    <TD>No</TD>
-    <TD><A href="#technicallyconstrained">' || t_constrainedCount::text || '</A></TD>
+    <TD>Never</TD>
+    <TD><A href="#constrained">' || t_constrainedCount::text || '</A></TD>
   </TR>
   <TR style="background-color:#BAED91">
     <TD>Expired</TD>
-    <TD>No</TD>
+    <TD>Never</TD>
     <TD><A href="#expired">' || t_expiredCount::text || '</A></TD>
   </TR>
   <TR style="background-color:#B2CEFE">
     <TD>Revoked</TD>
-    <TD>No, already disclosed</TD>
+    <TD>Already disclosed</TD>
     <TD><A href="#revoked">' || t_revokedCount::text || '</A></TD>
   </TR>
   <TR style="background-color:#F2A2E8">
     <TD>Disclosed</TD>
-    <TD>No, already disclosed</TD>
+    <TD>Already disclosed</TD>
     <TD><A href="#disclosed">' || t_disclosedCount::text || '</A></TD>
   </TR>
   <TR>
     <TD>Unknown to crt.sh</TD>
-    <TD>No, already disclosed</TD>
+    <TD>Already disclosed</TD>
     <TD><A href="#unknown">' || t_unknownCount::text || '</TD>
   </TR>
 </TABLE>

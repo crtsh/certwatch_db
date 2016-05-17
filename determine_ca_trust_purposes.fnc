@@ -15,10 +15,12 @@ BEGIN
 
 	INSERT INTO ca_trust_purpose (
 			CA_ID, TRUST_CONTEXT_ID, TRUST_PURPOSE_ID, PATH_LEN_CONSTRAINT,
-			EARLIEST_NOT_BEFORE, LATEST_NOT_AFTER
+			EARLIEST_NOT_BEFORE, LATEST_NOT_AFTER,
+			ALL_CHAINS_TECHNICALLY_CONSTRAINED
 		)
 		SELECT cac.CA_ID, rtp.TRUST_CONTEXT_ID, rtp.TRUST_PURPOSE_ID, max_iterations,
-				min(x509_notBefore(c.CERTIFICATE)), max(x509_notAfter(c.CERTIFICATE))
+				min(x509_notBefore(c.CERTIFICATE)), max(x509_notAfter(c.CERTIFICATE)),
+				FALSE
 			FROM root_trust_purpose rtp, ca_certificate cac, certificate c
 			WHERE rtp.CERTIFICATE_ID = cac.CERTIFICATE_ID
 				AND cac.CERTIFICATE_ID = c.ID
@@ -32,7 +34,8 @@ BEGIN
 							c.ID, c.ISSUER_CA_ID, c.CERTIFICATE,
 							tp.PURPOSE, tp.PURPOSE_OID,
 							ctp.PATH_LEN_CONSTRAINT,
-							ctp.EARLIEST_NOT_BEFORE, ctp.LATEST_NOT_AFTER
+							ctp.EARLIEST_NOT_BEFORE, ctp.LATEST_NOT_AFTER,
+							ctp.ALL_CHAINS_TECHNICALLY_CONSTRAINED
 						FROM ca_trust_purpose ctp, trust_purpose tp,
 							certificate c
 						WHERE ctp.PATH_LEN_CONSTRAINT BETWEEN 1 AND (max_iterations - t_iterations)
@@ -75,7 +78,8 @@ BEGIN
 							TRUST_PURPOSE_ID,
 							PATH_LEN_CONSTRAINT,
 							EARLIEST_NOT_BEFORE,
-							LATEST_NOT_AFTER
+							LATEST_NOT_AFTER,
+							ALL_CHAINS_TECHNICALLY_CONSTRAINED
 						)
 						VALUES (
 							coalesce(t_caID, -l_ctp.ID),
@@ -91,7 +95,9 @@ BEGIN
 								)
 							),
 							greatest(l_ctp.EARLIEST_NOT_BEFORE, x509_notBefore(l_ctp.CERTIFICATE)),
-							least(l_ctp.LATEST_NOT_AFTER, x509_notAfter(l_ctp.CERTIFICATE))
+							least(l_ctp.LATEST_NOT_AFTER, x509_notAfter(l_ctp.CERTIFICATE)),
+							greatest(l_ctp.ALL_CHAINS_TECHNICALLY_CONSTRAINED,
+										is_technically_constrained(l_ctp.CERTIFICATE))
 						);
 					t_rowsAdded := t_rowsAdded + 1;
 				END IF;
@@ -107,13 +113,26 @@ BEGIN
 													max_iterations)
 									)
 								),
-								EARLIEST_NOT_BEFORE = greatest(
+								EARLIEST_NOT_BEFORE = least(
 									EARLIEST_NOT_BEFORE,
-									x509_notBefore(l_ctp.CERTIFICATE)
+									greatest(
+										l_ctp.EARLIEST_NOT_BEFORE,
+										x509_notBefore(l_ctp.CERTIFICATE)
+									)
 								),
-								LATEST_NOT_AFTER = least(
+								LATEST_NOT_AFTER = greatest(
 									LATEST_NOT_AFTER,
-									x509_notAfter(l_ctp.CERTIFICATE)
+									least(
+										l_ctp.LATEST_NOT_AFTER,
+										x509_notAfter(l_ctp.CERTIFICATE)
+									)
+								),
+								ALL_CHAINS_TECHNICALLY_CONSTRAINED = least(
+									ALL_CHAINS_TECHNICALLY_CONSTRAINED,
+									greatest(
+										l_ctp.ALL_CHAINS_TECHNICALLY_CONSTRAINED,
+										is_technically_constrained(l_ctp.CERTIFICATE)
+									)
 								)
 							WHERE CA_ID = coalesce(t_caID, -l_ctp.ID)
 								AND TRUST_CONTEXT_ID = l_ctp.TRUST_CONTEXT_ID

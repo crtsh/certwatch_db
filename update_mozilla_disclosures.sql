@@ -1,3 +1,5 @@
+\echo Importing Disclosed CA Certificates
+
 CREATE TABLE mozilla_disclosure_import (
 	RECORD_TYPE				text,
 	CA_OWNER_OR_CERT_NAME	text,
@@ -73,6 +75,9 @@ SELECT		c.ID	CERTIFICATE_ID,
 		LEFT OUTER JOIN certificate c ON (decode(replace(mdi.CERT_SHA1, ':', ''), 'hex') = digest(c.CERTIFICATE, 'sha1'))
 	WHERE mdi.RECORD_TYPE != 'Owner';
 
+
+\echo Importing Revoked Intermediate Certificates
+
 CREATE TABLE mozilla_revoked_disclosure_import (
 	CA_OWNER				text,
 	REVOCATION_STATUS		text,
@@ -123,6 +128,9 @@ INSERT INTO mozilla_disclosure_temp (
 		FROM mozilla_revoked_disclosure_import mrdi
 			LEFT OUTER JOIN certificate c ON (decode(replace(mrdi.CERT_SHA1, ':', ''), 'hex') = digest(c.CERTIFICATE, 'sha1'));
 
+
+\echo Determining Parent CA Certificates
+
 /* Look for the issuer, prioritizing Disclosed Root CA certs... */
 UPDATE mozilla_disclosure_temp mdt
 	SET PARENT_CERTIFICATE_ID = mdt_parent.CERTIFICATE_ID
@@ -151,6 +159,7 @@ UPDATE mozilla_disclosure_temp mdt
 		AND c.ISSUER_CA_ID = cac_parent.CA_ID;
 
 /* Handle CP/CPS inheritance.  Repeat several times, to populate several levels of Sub-CA */
+\echo Handling CP/CPS Inheritance
 UPDATE mozilla_disclosure_temp mdt
 	SET CP_URL = coalesce(mdt.CP_URL, mdt_parent.CP_URL),
 		CPS_URL = coalesce(mdt.CPS_URL, mdt_parent.CPS_URL)
@@ -181,6 +190,7 @@ UPDATE mozilla_disclosure_temp mdt
 		AND mdt.PARENT_CERTIFICATE_ID = mdt_parent.CERTIFICATE_ID;
 
 /* Handle inheritance of audit details.  Repeat several times, to populate several levels of Sub-CA */
+\echo Handling Audit Inheritance
 UPDATE mozilla_disclosure_temp mdt
 	SET STANDARD_AUDIT_URL = coalesce(mdt.STANDARD_AUDIT_URL, mdt_parent.STANDARD_AUDIT_URL),
 		BR_AUDIT_URL = coalesce(mdt.BR_AUDIT_URL, mdt_parent.BR_AUDIT_URL),
@@ -217,10 +227,16 @@ UPDATE mozilla_disclosure_temp mdt
 	WHERE mdt.CERTIFICATE_ID IS NOT NULL
 		AND mdt.AUDITS_SAME_AS_PARENT
 		AND mdt.PARENT_CERTIFICATE_ID = mdt_parent.CERTIFICATE_ID;
+
+
+\echo Dropping Some Columns
 
 ALTER TABLE mozilla_disclosure_temp DROP COLUMN CP_CPS_SAME_AS_PARENT;
 
 ALTER TABLE mozilla_disclosure_temp DROP COLUMN AUDITS_SAME_AS_PARENT;
+
+
+\echo Creating Some Indexes
 
 CREATE INDEX md_c_temp
 	ON mozilla_disclosure_temp (CERTIFICATE_ID);
@@ -228,6 +244,8 @@ CREATE INDEX md_c_temp
 CREATE INDEX md_ds_c_temp
 	ON mozilla_disclosure_temp (DISCLOSURE_STATUS, CERTIFICATE_ID);
 
+
+\echo Finding All CA Certificates
 INSERT INTO mozilla_disclosure_temp (
 		CERTIFICATE_ID, CA_OWNER_OR_CERT_NAME,
 		ISSUER_O,
@@ -252,6 +270,7 @@ INSERT INTO mozilla_disclosure_temp (
 					WHERE mdt.CERTIFICATE_ID = c.ID
 			);
 
+\echo Undisclosed -> Expired
 UPDATE mozilla_disclosure_temp mdt
 	SET DISCLOSURE_STATUS = 'Expired'
 	FROM certificate c
@@ -259,6 +278,7 @@ UPDATE mozilla_disclosure_temp mdt
 		AND mdt.CERTIFICATE_ID = c.ID
 		AND x509_notAfter(c.CERTIFICATE) < statement_timestamp();
 
+\echo Undisclosed -> TechnicallyConstrained
 UPDATE mozilla_disclosure_temp mdt
 	SET DISCLOSURE_STATUS = 'TechnicallyConstrained'
 	FROM certificate c
@@ -266,6 +286,7 @@ UPDATE mozilla_disclosure_temp mdt
 		AND mdt.CERTIFICATE_ID = c.ID
 		AND is_technically_constrained(c.CERTIFICATE);
 
+\echo Undisclosed -> NoKnownServerAuthTrustPath
 UPDATE mozilla_disclosure_temp mdt
 	SET DISCLOSURE_STATUS = 'NoKnownServerAuthTrustPath'
 	FROM certificate c
@@ -279,8 +300,11 @@ UPDATE mozilla_disclosure_temp mdt
 					AND ctp.TRUST_PURPOSE_ID = 1
 					AND statement_timestamp() BETWEEN ctp.EARLIEST_NOT_BEFORE
 												AND ctp.LATEST_NOT_AFTER
+					AND NOT ctp.ALL_CHAINS_TECHNICALLY_CONSTRAINED
 		);
 
+
+\echo Tidying Up
 
 ANALYZE mozilla_disclosure_temp;
 
