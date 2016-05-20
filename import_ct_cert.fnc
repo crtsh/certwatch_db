@@ -39,6 +39,10 @@ BEGIN
 			timestamp without time zone 'epoch'
 				+ (ct_log_timestamp * interval '1 millisecond');
 
+	UPDATE ct_log
+		SET LATEST_ENTRY_ID = ct_log_entry_id
+		WHERE ID = ct_log_id;
+
 	RETURN t_certificateID;
 END;
 $$ LANGUAGE plpgsql;
