@@ -369,11 +369,14 @@ CREATE TABLE root_trust_purpose(
 );
 
 CREATE TABLE ca_trust_purpose (
-	CA_ID						integer,
-	TRUST_CONTEXT_ID			integer,
-	TRUST_PURPOSE_ID			integer,
-	PATH_LEN_CONSTRAINT			integer	DEFAULT 20	NOT NULL,
-	IS_TECHNICALLY_CONTRAINED	boolean,
+	CA_ID								integer,
+	TRUST_CONTEXT_ID					integer,
+	TRUST_PURPOSE_ID					integer,
+	PATH_LEN_CONSTRAINT					integer	DEFAULT 20	NOT NULL,
+	EARLIEST_NOT_BEFORE					timestamp,
+	LATEST_NOT_AFTER					timestamp,
+	ALL_CHAINS_TECHNICALLY_CONTRAINED	boolean,
+	LONGEST_CHAIN						integer,
 	CONSTRAINT ctp_pk
 		PRIMARY KEY (CA_ID, TRUST_CONTEXT_ID, TRUST_PURPOSE_ID),
 	CONSTRAINT ctp_ca_fk

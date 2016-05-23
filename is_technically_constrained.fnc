@@ -57,7 +57,8 @@ BEGIN
 	t_serverAuth := x509_isEKUPermitted(cert_data, '1.3.6.1.5.5.7.3.1')
 					OR x509_isEKUPermitted(cert_data, '1.3.6.1.4.1.311.10.3.3')	-- MS SGC.
 					OR x509_isEKUPermitted(cert_data, '2.16.840.1.113730.4.1');	-- NS Step-Up.
-	t_codeSigning := x509_isEKUPermitted(cert_data, '1.3.6.1.5.5.7.3.3');
+	-- Don't consider Code Signing, because this is no longer of interest to Mozilla.
+	t_codeSigning := FALSE;	-- x509_isEKUPermitted(cert_data, '1.3.6.1.5.5.7.3.3');
 	IF t_serverAuth OR t_codeSigning THEN
 		t_text := x509_print(cert_data);
 		t_temp := '            X509v3 Name Constraints: ' || chr(10);
