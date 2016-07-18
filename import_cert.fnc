@@ -86,14 +86,33 @@ BEGIN
 		END IF;
 	END LOOP;
 
-	INSERT INTO certificate (
-			CERTIFICATE, ISSUER_CA_ID
-		)
-		VALUES (
-			cert_data, t_issuerCAID
-		)
-		RETURNING ID
-			INTO t_certificateID;
+	IF NOT t_verified THEN
+		SELECT ic.CERTIFICATE_ID
+			INTO t_certificateID
+			FROM invalid_certificate ic
+			WHERE ic.CERTIFICATE_AS_LOGGED = cert_data;
+		t_verified := FOUND;
+	END IF;
+
+	IF t_certificateID IS NULL THEN
+		INSERT INTO certificate (
+				CERTIFICATE, ISSUER_CA_ID
+			)
+			VALUES (
+				cert_data, t_issuerCAID
+			)
+			RETURNING ID
+				INTO t_certificateID;
+	END IF;
+
+	IF NOT t_verified THEN
+		INSERT INTO invalid_certificate (
+				CERTIFICATE_ID
+			)
+			VALUES (
+				t_certificateID
+			);
+	END IF;
 
 	UPDATE ca
 		SET NO_OF_CERTS_ISSUED = NO_OF_CERTS_ISSUED + 1
@@ -114,15 +133,6 @@ BEGIN
 				SET LINTING_APPLIES = FALSE
 				WHERE ID = t_caID;
 		END IF;
-	END IF;
-
-	IF NOT t_verified THEN
-		INSERT INTO invalid_certificate (
-				CERTIFICATE_ID
-			)
-			VALUES (
-				t_certificateID
-			);
 	END IF;
 
 	PERFORM lint_cached(t_certificateID, 'x509lint');

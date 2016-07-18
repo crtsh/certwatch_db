@@ -28,7 +28,24 @@ DECLARE
 BEGIN
 	t_certificateID := import_cert(cert_data);
 	IF t_certificateID IS NULL THEN
-		RETURN NULL;
+		t_certificateID := import_cert(cert_data);
+	END IF;
+	IF t_certificateID IS NULL THEN
+		INSERT INTO certificate (
+				CERTIFICATE, ISSUER_CA_ID
+			)
+			VALUES (
+				cert_data, -1
+			)
+			RETURNING ID
+				INTO t_certificateID;
+
+		INSERT INTO invalid_certificate (
+				CERTIFICATE_ID
+			)
+			VALUES (
+				t_certificateID
+			);
 	END IF;
 
 	INSERT INTO ct_log_entry (
