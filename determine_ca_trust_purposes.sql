@@ -5,11 +5,18 @@ CREATE INDEX ctpt_lc
 
 SELECT determine_ca_trust_purposes();
 
+BEGIN WORK;
+
+LOCK ca_trust_purpose;
+
 TRUNCATE ca_trust_purpose;
 
 INSERT INTO ca_trust_purpose
 	SELECT * FROM ca_trust_purpose_temp;
 
+COMMIT WORK;
+
 CLUSTER ca_trust_purpose USING ctp_pk;
 
 DROP TABLE ca_trust_purpose_temp;
+
