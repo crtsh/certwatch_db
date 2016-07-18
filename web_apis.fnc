@@ -3237,6 +3237,6 @@ EXCEPTION
 ';
 	WHEN others THEN
 		GET STACKED DIAGNOSTICS t_temp = PG_EXCEPTION_CONTEXT;
-		RETURN coalesce(t_output, '') || '<BR><BR>' || SQLERRM || '<BR><BR>' || html_escape(coalesce(t_temp, '')) || '<BR><BR>' || html_escape(coalesce(t_query, ''));
+		RETURN coalesce(t_output, '') || '<BR><BR>' || html_escape(SQLERRM) || '<BR><BR>' || html_escape(coalesce(t_temp, '')) || '<BR><BR>' || html_escape(coalesce(t_query, ''));
 END;
 $$ LANGUAGE plpgsql;
