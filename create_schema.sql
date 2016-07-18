@@ -478,6 +478,19 @@ CREATE TABLE microsoft_disallowedcert (
 );
 
 
+CREATE TYPE revocation_entry_type AS ENUM (
+	'Serial Number',
+	'SHA-256(Certificate)',
+	'SHA-256(SubjectPublicKeyInfo)'
+);
+
+CREATE TABLE google_blacklist_import (
+	ENTRY_SHA256	bytea,
+	ENTRY_TYPE		revocation_entry_type,
+	CONSTRAINT gbi_pk
+		PRIMARY KEY (ENTRY_SHA256)
+);
+
 CREATE TABLE google_crlset_import (
 	ISSUER_SPKI_SHA256	bytea,
 	SERIAL_NUMBER		bytea,
@@ -485,11 +498,12 @@ CREATE TABLE google_crlset_import (
 		PRIMARY KEY (ISSUER_SPKI_SHA256, SERIAL_NUMBER)
 );
 
-CREATE TABLE google_crlset (
+CREATE TABLE google_revoked (
 	CERTIFICATE_ID		integer,
-	CONSTRAINT gc_pk
-		PRIMARY KEY (CERTIFICATE_ID),
-	CONSTRAINT gc_c_fk
+	ENTRY_TYPE			revocation_entry_type,
+	CONSTRAINT gr_pk
+		PRIMARY KEY (CERTIFICATE_ID, ENTRY_TYPE),
+	CONSTRAINT gr_c_fk
 		FOREIGN KEY (CERTIFICATE_ID)
 		REFERENCES certificate(ID)
 );
@@ -527,6 +541,11 @@ GRANT SELECT ON ca_trust_purpose TO crtsh;
 
 GRANT SELECT ON applicable_purpose TO crtsh;
 
+GRANT SELECT ON microsoft_disallowedcert TO crtsh;
+
+GRANT SELECT ON mozilla_onecrl TO crtsh;
+
+GRANT SELECT ON google_revoked TO crtsh;
 
 \i lint_cached.fnc
 \i download_cert.fnc

@@ -94,8 +94,8 @@ BEGIN
 					WHERE mo.CERTIFICATE_ID = l_ctp.ID;
 				SELECT true
 					INTO t_isRevokedViaCRLSet
-					FROM google_crlset gc
-					WHERE gc.CERTIFICATE_ID = l_ctp.ID;
+					FROM google_revoked gr
+					WHERE gr.CERTIFICATE_ID = l_ctp.ID;
 				SELECT true
 					INTO t_isRevokedViaDisallowedSTL
 					FROM microsoft_disallowedcert mdc

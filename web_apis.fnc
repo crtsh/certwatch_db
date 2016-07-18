@@ -1580,7 +1580,7 @@ BEGIN
     </TH>
     <TD class="outer">
 ';
-			t_temp := 'Not disclosed';
+			t_temp := NULL;
 			FOR l_record IN (
 						SELECT *
 							FROM mozilla_disclosure md
@@ -1634,14 +1634,67 @@ BEGIN
 </TABLE>';
 				EXIT;
 			END LOOP;
+			IF t_temp IS NULL THEN
+				SELECT 'Disclosed as Revoked'
+					INTO t_temp
+					FROM mozilla_disclosure md
+					WHERE md.CERTIFICATE_ID = t_certificateID;
+				t_temp := coalesce(t_temp, 'Not disclosed');
+			END IF;
 			t_output := t_output || t_temp || '
     </TD>
   </TR>
 ';
 		END IF;
 
+		SELECT '<SPAN style="color:#CC0000">Revoked</SPAN></TD><TD>' || gr.ENTRY_TYPE
+			INTO t_temp
+			FROM google_revoked gr
+			WHERE gr.CERTIFICATE_ID = t_certificateID;
+		t_temp := coalesce(t_temp, 'Not Revoked</TD><TD><SPAN style="color:#888888">n/a</SPAN>');
+
+		SELECT '<SPAN style="color:#CC0000">Revoked</SPAN></TD><TD>MD5(PublicKey)'
+			INTO t_temp2
+			FROM microsoft_disallowedcert mdc
+			WHERE mdc.CERTIFICATE_ID = t_certificateID;
+		t_temp2 := coalesce(t_temp2, 'Not Revoked</TD><TD><SPAN style="color:#888888">n/a</SPAN>');
+
+		SELECT '<SPAN style="color:#CC0000">Revoked</SPAN></TD><TD>Issuer Name, Serial Number'
+			INTO t_temp3
+			FROM mozilla_onecrl mo
+			WHERE mo.CERTIFICATE_ID = t_certificateID;
+		t_temp3 := coalesce(t_temp3, 'Not Revoked</TD><TD><SPAN style="color:#888888">n/a</SPAN>');
+
 		t_output := t_output ||
 '  <TR>
+    <TH class="outer">Revocation</TH>
+    <TD class="outer">
+      <TABLE class="options" style="margin-left:0px">
+        <TR>
+          <TH>Mechanism</TH>
+          <TH>Provider</TH>
+          <TH>Status</TH>
+          <TH>Revoked by</TH>
+        </TR>
+        <TR>
+          <TD>CRLSet / Blacklist</TD>
+          <TD>Google</TD>
+          <TD>' || t_temp || '</TD>
+        </TR>
+        <TR>
+          <TD>disallowedcert.stl</TD>
+          <TD>Microsoft</TD>
+          <TD>' || t_temp2 || '</TD>
+        </TR>
+        <TR>
+          <TD>OneCRL</TD>
+          <TD>Mozilla</TD>
+          <TD>' || t_temp3 || '</TD>
+        </TR>
+      </TABLE>
+    </TD>
+  </TR>
+  <TR>
     <TH class="outer">SHA-256(Certificate)</TH>
     <TD class="outer"><A href="//censys.io/certificates/' || coalesce(lower(encode(t_certificateSHA256, 'hex')), '') || '">'
 						|| coalesce(upper(encode(t_certificateSHA256, 'hex')), '<I>Not found</I>') || '</A></TD>
@@ -2272,7 +2325,7 @@ BEGIN
 				ELSIF l_record.ALL_CHAINS_REVOKED_VIA_ONECRL AND (l_record.TRUST_CONTEXT_ID = 5) THEN
 					t_text := t_text || 'CC0000 style="font-weight:bold">Revoked</FONT><BR><FONT style="font-size:8pt;color:#CC0000">via OneCRL';
 				ELSIF l_record.ALL_CHAINS_REVOKED_VIA_CRLSET AND (l_record.TRUST_CONTEXT_ID = 6) THEN
-					t_text := t_text || 'CC0000 style="font-weight:bold">Revoked</FONT><BR><FONT style="font-size:8pt;color:#CC0000">via CRLSet';
+					t_text := t_text || 'CC0000 style="font-weight:bold">Revoked</FONT> <FONT style="font-size:8pt;color:#CC0000">via<BR>CRLSet / Blacklist';
 				ELSIF l_record.ALL_CHAINS_REVOKED_VIA_DISALLOWEDSTL AND (l_record.TRUST_CONTEXT_ID = 1) THEN
 					t_text := t_text || 'CC0000 style="font-weight:bold">Revoked</FONT> <FONT style="font-size:8pt;color:#CC0000">via<BR>disallowedcert.stl';
 				ELSIF (l_record.PURPOSE = 'Server Authentication') AND (l_record.TRUST_CONTEXT_ID = 6) THEN
