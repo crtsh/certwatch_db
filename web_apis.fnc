@@ -659,7 +659,6 @@ BEGIN
   <TABLE>
     <TR><TD colspan="8" class="heading">CT Logs currently monitored:</TD></TR>
     <TR>
-      <TH>Name</TH>
       <TH>Operator</TH>
       <TH>URL</TH>
       <TH>Latest Entry #</TH>
@@ -669,7 +668,7 @@ BEGIN
       <TH>In Chrome?</TH>
     </TR>';
 		FOR l_record IN (
-					SELECT ctl.NAME, ctl.OPERATOR, ctl.URL,
+					SELECT ctl.OPERATOR, ctl.URL,
 							ctl.LATEST_ENTRY_ID, ctl.LATEST_UPDATE,
 							ctl.LATEST_STH_TIMESTAMP, ctl.MMD_IN_SECONDS,
 							CASE WHEN ctl.LATEST_STH_TIMESTAMP + (ctl.MMD_IN_SECONDS || ' seconds')::interval < statement_timestamp()
@@ -683,7 +682,6 @@ BEGIN
 				) LOOP
 			t_output := t_output || '
     <TR>
-      <TD' || l_record.FONT_STYLE || '>' || l_record.NAME || '</TD>
       <TD' || l_record.FONT_STYLE || '>' || l_record.OPERATOR || '</TD>
       <TD' || l_record.FONT_STYLE || '>' || l_record.URL || '</TD>
       <TD' || l_record.FONT_STYLE || '>' || l_record.LATEST_ENTRY_ID::text || '</TD>
@@ -710,7 +708,6 @@ BEGIN
 		t_output := t_output || '
     <TR><TD colspan="8" class="heading">CT Logs no longer monitored:</TD></TR>
     <TR>
-      <TH>Name</TH>
       <TH>Operator</TH>
       <TH>URL</TH>
       <TH>Latest Entry #</TH>
@@ -720,7 +717,7 @@ BEGIN
       <TH>In Chrome?</TH>
     </TR>';
 		FOR l_record IN (
-					SELECT ctl.NAME, ctl.OPERATOR, ctl.URL,
+					SELECT ctl.OPERATOR, ctl.URL,
 							ctl.LATEST_ENTRY_ID, ctl.LATEST_UPDATE,
 							ctl.LATEST_STH_TIMESTAMP, ctl.MMD_IN_SECONDS,
 							CASE WHEN ctl.LATEST_STH_TIMESTAMP + (ctl.MMD_IN_SECONDS || ' seconds')::interval < statement_timestamp()
@@ -735,7 +732,6 @@ BEGIN
 				) LOOP
 			t_output := t_output || '
     <TR>
-      <TD' || l_record.FONT_STYLE || '>' || l_record.NAME || '</TD>
       <TD' || l_record.FONT_STYLE || '>' || l_record.OPERATOR || '</TD>
       <TD' || l_record.FONT_STYLE || '>' || l_record.URL || '</TD>
       <TD' || l_record.FONT_STYLE || '>' || l_record.LATEST_ENTRY_ID::text || '</TD>
@@ -1544,11 +1540,10 @@ BEGIN
 			t_temp := t_temp ||
 '  <TR>
     <TD>' || to_char(l_record.ENTRY_TIMESTAMP, 'YYYY-MM-DD')
-						|| '<BR><FONT class="small">'
+						|| '&nbsp; <FONT class="small">'
 						|| to_char(l_record.ENTRY_TIMESTAMP, 'HH24:MI:SS GMT')
 						|| '</FONT></TD>
     <TD>' || l_record.ENTRY_ID::text || '</TD>
-    <TD>' || html_escape(l_record.NAME) || '</TD>
     <TD>' || html_escape(l_record.OPERATOR) || '</TD>
     <TD>' || html_escape(l_record.URL) || '</TD>
   </TR>
@@ -1560,9 +1555,8 @@ BEGIN
   <TR>
     <TH>Timestamp</TH>
     <TH>Entry #</TH>
-    <TH>Log</TH>
-    <TH>Operator</TH>
-    <TH>URL</TH>
+    <TH>Log Operator</TH>
+    <TH>Log URL</TH>
   </TR>
 ' || t_temp ||
 '</TABLE>
