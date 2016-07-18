@@ -1898,7 +1898,7 @@ BEGIN
 ';
 			IF t_showMozillaDisclosure THEN
 				t_output := t_output ||
-'    <TH style="white-space:nowrap">Mozilla Trust<BR><SPAN class="small">(id-kp-serverAuth)</SPAN></TH>
+'    <TH style="white-space:nowrap">Mozilla Disclosure<BR><SPAN class="small">(id-kp-serverAuth)</SPAN></TH>
 ';
 			END IF;
 			t_output := t_output ||
@@ -1946,7 +1946,7 @@ BEGIN
 							t_temp3 := t_temp3 || 'CC0000>Revoked';
 						ELSIF is_technically_constrained(l_record.CERTIFICATE) THEN
 							t_temp3 := t_temp3 || '00CC00>Technically Constrained';
-						ELSIF t_ctp.ALL_CHAINS_REVOKED THEN
+						ELSIF t_ctp.ALL_CHAINS_REVOKED_IN_SALESFORCE OR t_ctp.ALL_CHAINS_REVOKED_VIA_ONECRL THEN
 							t_temp3 := t_temp3 || 'CC0000>All Paths Revoked';
 						ELSIF t_ctp.ALL_CHAINS_TECHNICALLY_CONSTRAINED THEN
 							t_temp3 := t_temp3 || '00CC00>All Paths Technically Constrained';
@@ -2216,7 +2216,8 @@ BEGIN
 								(ap.PURPOSE IS NOT NULL) IS_APPLICABLE,
 								ctp.EARLIEST_NOT_BEFORE,
 								ctp.LATEST_NOT_AFTER,
-								ctp.ALL_CHAINS_REVOKED,
+								ctp.ALL_CHAINS_REVOKED_VIA_ONECRL,
+								ctp.ALL_CHAINS_REVOKED_VIA_CRLSET,
 								ctp.ALL_CHAINS_TECHNICALLY_CONSTRAINED
 							FROM (SELECT tc.CTX,
 											tc.ID TRUST_CONTEXT_ID,
@@ -2272,8 +2273,10 @@ BEGIN
 					t_text := t_text || '888888>Pending';
 				ELSIF statement_timestamp() > l_record.LATEST_NOT_AFTER THEN
 					t_text := t_text || '888888>Expired';
-				ELSIF l_record.ALL_CHAINS_REVOKED AND (l_record.TRUST_CONTEXT_ID = 5) THEN
+				ELSIF l_record.ALL_CHAINS_REVOKED_VIA_ONECRL AND (l_record.TRUST_CONTEXT_ID = 5) THEN
 					t_text := t_text || 'CC0000>Revoked (OneCRL)';
+				ELSIF l_record.ALL_CHAINS_REVOKED_VIA_CRLSET AND (l_record.TRUST_CONTEXT_ID = 6) THEN
+					t_text := t_text || 'CC0000>Revoked (CRLSet)';
 				ELSIF l_record.ALL_CHAINS_TECHNICALLY_CONSTRAINED THEN
 					t_text := t_text || '00CC00>Constrained';
 				ELSE

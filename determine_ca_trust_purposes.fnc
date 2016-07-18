@@ -21,24 +21,30 @@ CREATE OR REPLACE FUNCTION determine_ca_trust_purposes(
 ) RETURNS integer
 AS $$
 DECLARE
-	l_rtp				RECORD;
-	l_ctp				RECORD;
-	t_iteration			integer		:= 1;
-	t_isTrusted			boolean;
-	t_isRevoked			boolean;
-	t_nothingChanged	boolean;
-	t_caID				ca.ID%TYPE;
-	t_ctp1				ca_trust_purpose_temp%ROWTYPE;
-	t_ctp2				ca_trust_purpose_temp%ROWTYPE;
+	l_rtp					RECORD;
+	l_ctp					RECORD;
+	t_iteration				integer		:= 1;
+	t_isTrusted				boolean;
+	t_isRevokedInSalesforce	boolean;
+	t_isRevokedViaOneCRL	boolean;
+	t_isRevokedViaCRLSet	boolean;
+	t_nothingChanged		boolean;
+	t_caID					ca.ID%TYPE;
+	t_ctp1					ca_trust_purpose_temp%ROWTYPE;
+	t_ctp2					ca_trust_purpose_temp%ROWTYPE;
 BEGIN
 	INSERT INTO ca_trust_purpose_temp (
 			CA_ID, TRUST_CONTEXT_ID, TRUST_PURPOSE_ID, PATH_LEN_CONSTRAINT,
 			EARLIEST_NOT_BEFORE, LATEST_NOT_AFTER,
-			ALL_CHAINS_TECHNICALLY_CONSTRAINED, ALL_CHAINS_REVOKED, LONGEST_CHAIN
+			ALL_CHAINS_TECHNICALLY_CONSTRAINED, LONGEST_CHAIN,
+			ALL_CHAINS_REVOKED_IN_SALESFORCE, ALL_CHAINS_REVOKED_VIA_ONECRL,
+			ALL_CHAINS_REVOKED_VIA_CRLSET
 		)
 		SELECT cac.CA_ID, rtp.TRUST_CONTEXT_ID, rtp.TRUST_PURPOSE_ID, max_iterations,
 				min(x509_notBefore(c.CERTIFICATE)), max(x509_notAfter(c.CERTIFICATE)),
-				FALSE, FALSE, t_iteration
+				FALSE, t_iteration,
+				FALSE, FALSE,
+				FALSE
 			FROM root_trust_purpose rtp, ca_certificate cac, certificate c
 			WHERE rtp.CERTIFICATE_ID = cac.CERTIFICATE_ID
 				AND cac.CERTIFICATE_ID = c.ID
@@ -54,7 +60,9 @@ BEGIN
 							ctp.PATH_LEN_CONSTRAINT,
 							ctp.EARLIEST_NOT_BEFORE, ctp.LATEST_NOT_AFTER,
 							ctp.ALL_CHAINS_TECHNICALLY_CONSTRAINED,
-							ctp.ALL_CHAINS_REVOKED
+							ctp.ALL_CHAINS_REVOKED_IN_SALESFORCE,
+							ctp.ALL_CHAINS_REVOKED_VIA_ONECRL,
+							ctp.ALL_CHAINS_REVOKED_VIA_CRLSET
 						FROM ca_trust_purpose_temp ctp, trust_purpose tp,
 							certificate c
 						WHERE ctp.PATH_LEN_CONSTRAINT > 0
@@ -65,16 +73,22 @@ BEGIN
 				) LOOP
 			BEGIN
 				t_isTrusted := FALSE;
-				t_isRevoked := FALSE;
+				t_isRevokedInSalesforce := FALSE;
+				t_isRevokedViaOneCRL := FALSE;
+				t_isRevokedViaCRLSet := FALSE;
 				SELECT cac.CA_ID
 					INTO t_caID
 					FROM ca_certificate cac
 					WHERE cac.CERTIFICATE_ID = l_ctp.ID;
 				SELECT true
-					INTO t_isRevoked
-					FROM mozilla_disclosure m
-					WHERE m.CERTIFICATE_ID = l_ctp.ID
-						AND m.DISCLOSURE_STATUS IN ('Revoked', 'RevokedViaOneCRL');
+					INTO t_isRevokedInSalesforce
+					FROM mozilla_disclosure md
+					WHERE md.CERTIFICATE_ID = l_ctp.ID
+						AND md.DISCLOSURE_STATUS = 'Revoked';
+				SELECT true
+					INTO t_isRevokedViaOneCRL
+					FROM mozilla_onecrl mo
+					WHERE mo.CERTIFICATE_ID = l_ctp.ID;
 				IF l_ctp.PURPOSE = 'EV Server Authentication' THEN
 					IF x509_isPolicyPermitted(l_ctp.CERTIFICATE,
 												l_ctp.PURPOSE_OID) THEN
@@ -106,8 +120,10 @@ BEGIN
 							EARLIEST_NOT_BEFORE,
 							LATEST_NOT_AFTER,
 							ALL_CHAINS_TECHNICALLY_CONSTRAINED,
-							ALL_CHAINS_REVOKED,
-							LONGEST_CHAIN
+							LONGEST_CHAIN,
+							ALL_CHAINS_REVOKED_IN_SALESFORCE,
+							ALL_CHAINS_REVOKED_VIA_ONECRL,
+							ALL_CHAINS_REVOKED_VIA_CRLSET
 						)
 						VALUES (
 							coalesce(t_caID, -l_ctp.ID),
@@ -126,8 +142,10 @@ BEGIN
 							least(l_ctp.LATEST_NOT_AFTER, x509_notAfter(l_ctp.CERTIFICATE)),
 							greatest(l_ctp.ALL_CHAINS_TECHNICALLY_CONSTRAINED,
 										is_technically_constrained(l_ctp.CERTIFICATE)),
-							greatest(l_ctp.ALL_CHAINS_REVOKED, t_isRevoked),
-							t_iteration + 1
+							t_iteration + 1,
+							greatest(l_ctp.ALL_CHAINS_REVOKED_IN_SALESFORCE, t_isRevokedInSalesforce),
+							greatest(l_ctp.ALL_CHAINS_REVOKED_VIA_ONECRL, t_isRevokedViaOneCRL),
+							greatest(l_ctp.ALL_CHAINS_REVOKED_VIA_CRLSET, t_isRevokedViaCRLSet)
 						);
 					t_nothingChanged := FALSE;
 				END IF;
@@ -170,23 +188,35 @@ BEGIN
 								is_technically_constrained(l_ctp.CERTIFICATE)
 							)
 						);
-						t_ctp2.ALL_CHAINS_REVOKED := least(
-							t_ctp1.ALL_CHAINS_REVOKED,
-							greatest(l_ctp.ALL_CHAINS_REVOKED, t_isRevoked)
+						t_ctp2.ALL_CHAINS_REVOKED_IN_SALESFORCE := least(
+							t_ctp1.ALL_CHAINS_REVOKED_IN_SALESFORCE,
+							greatest(l_ctp.ALL_CHAINS_REVOKED_IN_SALESFORCE, t_isRevokedInSalesforce)
+						);
+						t_ctp2.ALL_CHAINS_REVOKED_VIA_ONECRL := least(
+							t_ctp1.ALL_CHAINS_REVOKED_VIA_ONECRL,
+							greatest(l_ctp.ALL_CHAINS_REVOKED_VIA_ONECRL, t_isRevokedViaOneCRL)
+						);
+						t_ctp2.ALL_CHAINS_REVOKED_VIA_CRLSET := least(
+							t_ctp1.ALL_CHAINS_REVOKED_VIA_CRLSET,
+							greatest(l_ctp.ALL_CHAINS_REVOKED_VIA_CRLSET, t_isRevokedViaCRLSet)
 						);
 
 						IF (t_ctp1.PATH_LEN_CONSTRAINT != t_ctp2.PATH_LEN_CONSTRAINT)
 								OR (t_ctp1.EARLIEST_NOT_BEFORE != t_ctp2.EARLIEST_NOT_BEFORE)
 								OR (t_ctp1.LATEST_NOT_AFTER != t_ctp2.LATEST_NOT_AFTER)
 								OR (t_ctp1.ALL_CHAINS_TECHNICALLY_CONSTRAINED != t_ctp2.ALL_CHAINS_TECHNICALLY_CONSTRAINED)
-								OR (t_ctp1.ALL_CHAINS_REVOKED != t_ctp2.ALL_CHAINS_REVOKED) THEN
+								OR (t_ctp1.ALL_CHAINS_REVOKED_IN_SALESFORCE != t_ctp2.ALL_CHAINS_REVOKED_IN_SALESFORCE)
+								OR (t_ctp1.ALL_CHAINS_REVOKED_VIA_ONECRL != t_ctp2.ALL_CHAINS_REVOKED_VIA_ONECRL)
+								OR (t_ctp1.ALL_CHAINS_REVOKED_VIA_CRLSET != t_ctp2.ALL_CHAINS_REVOKED_VIA_CRLSET) THEN
 							UPDATE ca_trust_purpose_temp
 								SET PATH_LEN_CONSTRAINT = t_ctp2.PATH_LEN_CONSTRAINT,
 									EARLIEST_NOT_BEFORE = t_ctp2.EARLIEST_NOT_BEFORE,
 									LATEST_NOT_AFTER = t_ctp2.LATEST_NOT_AFTER,
 									ALL_CHAINS_TECHNICALLY_CONSTRAINED = t_ctp2.ALL_CHAINS_TECHNICALLY_CONSTRAINED,
-									ALL_CHAINS_REVOKED = t_ctp2.ALL_CHAINS_REVOKED,
-									LONGEST_CHAIN = t_iteration + 1
+									LONGEST_CHAIN = t_iteration + 1,
+									ALL_CHAINS_REVOKED_IN_SALESFORCE = t_ctp2.ALL_CHAINS_REVOKED_IN_SALESFORCE,
+									ALL_CHAINS_REVOKED_VIA_ONECRL = t_ctp2.ALL_CHAINS_REVOKED_VIA_ONECRL,
+									ALL_CHAINS_REVOKED_VIA_CRLSET = t_ctp2.ALL_CHAINS_REVOKED_VIA_CRLSET
 								WHERE CA_ID = coalesce(t_caID, -l_ctp.ID)
 									AND TRUST_CONTEXT_ID = l_ctp.TRUST_CONTEXT_ID
 									AND TRUST_PURPOSE_ID = l_ctp.TRUST_PURPOSE_ID;
