@@ -1,3 +1,5 @@
+\timing
+
 \echo Importing Disclosed CA Certificates
 
 CREATE TABLE mozilla_disclosure_import (

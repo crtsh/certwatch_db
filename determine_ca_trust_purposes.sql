@@ -1,3 +1,5 @@
+\timing
+
 CREATE TABLE ca_trust_purpose_temp ( LIKE ca_trust_purpose INCLUDING INDEXES);
 
 CREATE INDEX ctpt_lc
