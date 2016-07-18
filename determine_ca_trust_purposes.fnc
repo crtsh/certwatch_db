@@ -28,12 +28,10 @@ DECLARE
 	t_isRevoked			boolean;
 	t_nothingChanged	boolean;
 	t_caID				ca.ID%TYPE;
-	t_ctp1				ca_trust_purpose%ROWTYPE;
-	t_ctp2				ca_trust_purpose%ROWTYPE;
+	t_ctp1				ca_trust_purpose_temp%ROWTYPE;
+	t_ctp2				ca_trust_purpose_temp%ROWTYPE;
 BEGIN
-	TRUNCATE ca_trust_purpose;
-
-	INSERT INTO ca_trust_purpose (
+	INSERT INTO ca_trust_purpose_temp (
 			CA_ID, TRUST_CONTEXT_ID, TRUST_PURPOSE_ID, PATH_LEN_CONSTRAINT,
 			EARLIEST_NOT_BEFORE, LATEST_NOT_AFTER,
 			ALL_CHAINS_TECHNICALLY_CONSTRAINED, ALL_CHAINS_REVOKED, LONGEST_CHAIN
@@ -57,7 +55,7 @@ BEGIN
 							ctp.EARLIEST_NOT_BEFORE, ctp.LATEST_NOT_AFTER,
 							ctp.ALL_CHAINS_TECHNICALLY_CONSTRAINED,
 							ctp.ALL_CHAINS_REVOKED
-						FROM ca_trust_purpose ctp, trust_purpose tp,
+						FROM ca_trust_purpose_temp ctp, trust_purpose tp,
 							certificate c
 						WHERE ctp.PATH_LEN_CONSTRAINT > 0
 							AND ctp.LONGEST_CHAIN = t_iteration
@@ -100,7 +98,7 @@ BEGIN
 					t_isTrusted := TRUE;
 				END IF;
 				IF t_isTrusted THEN
-					INSERT INTO ca_trust_purpose (
+					INSERT INTO ca_trust_purpose_temp (
 							CA_ID,
 							TRUST_CONTEXT_ID,
 							TRUST_PURPOSE_ID,
@@ -138,7 +136,7 @@ BEGIN
 					IF t_isTrusted THEN
 						SELECT *
 							INTO t_ctp1
-							FROM ca_trust_purpose ctp
+							FROM ca_trust_purpose_temp ctp
 							WHERE ctp.CA_ID = coalesce(t_caID, -l_ctp.ID)
 								AND TRUST_CONTEXT_ID = l_ctp.TRUST_CONTEXT_ID
 								AND TRUST_PURPOSE_ID = l_ctp.TRUST_PURPOSE_ID;
@@ -182,7 +180,7 @@ BEGIN
 								OR (t_ctp1.LATEST_NOT_AFTER != t_ctp2.LATEST_NOT_AFTER)
 								OR (t_ctp1.ALL_CHAINS_TECHNICALLY_CONSTRAINED != t_ctp2.ALL_CHAINS_TECHNICALLY_CONSTRAINED)
 								OR (t_ctp1.ALL_CHAINS_REVOKED != t_ctp2.ALL_CHAINS_REVOKED) THEN
-							UPDATE ca_trust_purpose
+							UPDATE ca_trust_purpose_temp
 								SET PATH_LEN_CONSTRAINT = t_ctp2.PATH_LEN_CONSTRAINT,
 									EARLIEST_NOT_BEFORE = t_ctp2.EARLIEST_NOT_BEFORE,
 									LATEST_NOT_AFTER = t_ctp2.LATEST_NOT_AFTER,
@@ -200,8 +198,6 @@ BEGIN
 		t_iteration := t_iteration + 1;
 		EXIT WHEN t_nothingChanged;
 	END LOOP;
-
-	CLUSTER ca_trust_purpose USING ctp_ca_tc_tp;
 
 	RETURN t_iteration - 1;
 END;
