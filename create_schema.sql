@@ -68,6 +68,9 @@ CREATE INDEX c_sha1
 CREATE UNIQUE INDEX c_sha256
 	ON certificate (digest(CERTIFICATE, 'sha256'));
 
+CREATE INDEX c_pubkey_md5
+	ON certificate (x509_publicKeyMD5(CERTIFICATE));
+
 CREATE INDEX c_spki_sha1
 	ON certificate (digest(x509_publicKey(CERTIFICATE), 'sha1'));
 
@@ -409,17 +412,18 @@ CREATE TABLE root_trust_purpose(
 
 
 CREATE TABLE ca_trust_purpose (
-	CA_ID								integer,
-	TRUST_CONTEXT_ID					integer,
-	TRUST_PURPOSE_ID					integer,
-	PATH_LEN_CONSTRAINT					integer	DEFAULT 20	NOT NULL,
-	EARLIEST_NOT_BEFORE					timestamp,
-	LATEST_NOT_AFTER					timestamp,
-	ALL_CHAINS_TECHNICALLY_CONSTRAINED	boolean,
-	ALL_CHAINS_REVOKED_IN_SALESFORCE	boolean,
-	ALL_CHAINS_REVOKED_VIA_ONECRL		boolean,
-	ALL_CHAINS_REVOKED_VIA_CRLSET		boolean,
-	LONGEST_CHAIN						integer,
+	CA_ID									integer,
+	TRUST_CONTEXT_ID						integer,
+	TRUST_PURPOSE_ID						integer,
+	PATH_LEN_CONSTRAINT						integer	DEFAULT 20	NOT NULL,
+	EARLIEST_NOT_BEFORE						timestamp,
+	LATEST_NOT_AFTER						timestamp,
+	ALL_CHAINS_TECHNICALLY_CONSTRAINED		boolean,
+	LONGEST_CHAIN							integer,
+	ALL_CHAINS_REVOKED_IN_SALESFORCE		boolean,
+	ALL_CHAINS_REVOKED_VIA_ONECRL			boolean,
+	ALL_CHAINS_REVOKED_VIA_CRLSET			boolean,
+	ALL_CHAINS_REVOKED_VIA_DISALLOWEDSTL	boolean,
 	CONSTRAINT ctp_pk
 		PRIMARY KEY (CA_ID, TRUST_CONTEXT_ID, TRUST_PURPOSE_ID),
 	CONSTRAINT ctp_ca_fk
@@ -449,6 +453,23 @@ CREATE TYPE disclosure_status_type AS ENUM (
 	'Revoked',
 	'RevokedViaOneCRL',
 	'Disclosed'
+);
+
+
+CREATE TABLE microsoft_disallowedcert_import (
+	PUBLIC_KEY_MD5		bytea,
+	CONSTRAINT mdci_pk
+		PRIMARY KEY (PUBLIC_KEY_MD5)
+);
+
+CREATE TABLE microsoft_disallowedcert (
+	CERTIFICATE_ID		integer,
+	PUBLIC_KEY_MD5		bytea,
+	CONSTRAINT mdc_pk
+		PRIMARY KEY (CERTIFICATE_ID),
+	CONSTRAINT mdc_c_fk
+		FOREIGN KEY (CERTIFICATE_ID)
+		REFERENCES certificate(ID)
 );
 
 

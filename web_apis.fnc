@@ -2212,6 +2212,7 @@ BEGIN
 								ctp.LATEST_NOT_AFTER,
 								ctp.ALL_CHAINS_REVOKED_VIA_ONECRL,
 								ctp.ALL_CHAINS_REVOKED_VIA_CRLSET,
+								ctp.ALL_CHAINS_REVOKED_VIA_DISALLOWEDSTL,
 								ctp.ALL_CHAINS_TECHNICALLY_CONSTRAINED
 							FROM (SELECT tc.CTX,
 											tc.ID TRUST_CONTEXT_ID,
@@ -2263,20 +2264,22 @@ BEGIN
 					t_text := t_text || 'CCCCCC>n/a';
 				ELSIF NOT l_record.HAS_TRUST THEN
 					t_text := t_text || '888888>No';
+				ELSIF l_record.ALL_CHAINS_REVOKED_VIA_ONECRL AND (l_record.TRUST_CONTEXT_ID = 5) THEN
+					t_text := t_text || 'CC0000 style="font-weight:bold">Revoked</FONT> <FONT style="font-size:8pt;color:#CC0000">via<BR>OneCRL';
+				ELSIF l_record.ALL_CHAINS_REVOKED_VIA_CRLSET AND (l_record.TRUST_CONTEXT_ID = 6) THEN
+					t_text := t_text || 'CC0000 style="font-weight:bold">Revoked</FONT> <FONT style="font-size:8pt;color:#CC0000">via<BR>CRLSet';
+				ELSIF l_record.ALL_CHAINS_REVOKED_VIA_DISALLOWEDSTL AND (l_record.TRUST_CONTEXT_ID = 1) THEN
+					t_text := t_text || 'CC0000 style="font-weight:bold">Revoked</FONT> <FONT style="font-size:8pt;color:#CC0000">via<BR>disallowedcert.stl';
 				ELSIF statement_timestamp() < l_record.EARLIEST_NOT_BEFORE THEN
 					t_text := t_text || '888888>Pending';
 				ELSIF statement_timestamp() > l_record.LATEST_NOT_AFTER THEN
 					t_text := t_text || '888888>Expired';
-				ELSIF l_record.ALL_CHAINS_REVOKED_VIA_ONECRL AND (l_record.TRUST_CONTEXT_ID = 5) THEN
-					t_text := t_text || 'CC0000>Revoked (OneCRL)';
-				ELSIF l_record.ALL_CHAINS_REVOKED_VIA_CRLSET AND (l_record.TRUST_CONTEXT_ID = 6) THEN
-					t_text := t_text || 'CC0000>Revoked (CRLSet)';
 				ELSIF l_record.ALL_CHAINS_TECHNICALLY_CONSTRAINED THEN
 					t_text := t_text || '00CC00>Constrained';
 				ELSE
 					t_text := t_text || '00CC00>Valid';
 				END IF;
-				t_text := t_text || '</TD>
+				t_text := t_text || '</FONT></TD>
 ';
 			END LOOP;
 
