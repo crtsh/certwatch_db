@@ -86,6 +86,7 @@ DECLARE
 	t_pos1				integer;
 	t_temp				text;
 	t_temp2				text;
+	t_temp3				text;
 	t_select			text;
 	t_from				text;
 	t_where				text;
@@ -108,6 +109,8 @@ DECLARE
 	t_showCABLint		boolean;
 	t_showX509Lint		boolean;
 	t_certType			integer;
+	t_showMozillaDisclosure	boolean;
+	t_ctp				ca_trust_purpose%ROWTYPE;
 	t_useReverseIndex	boolean			:= FALSE;
 	t_joinToCertificate_table	text;
 	t_joinToCTLogEntry	text;
@@ -136,6 +139,7 @@ DECLARE
 	t_pageNo			integer;
 	t_resultsPerPage	integer			:= 100;
 	l_record			RECORD;
+	l_record2			RECORD;
 BEGIN
 	FOR t_paramNo IN 1..array_length(c_params, 1) LOOP
 		IF t_cmd IS NULL THEN
@@ -916,7 +920,7 @@ BEGIN
     <TD>' || coalesce(html_escape(l_record.ISSUER_CN), '&nbsp;') || '</TD>
     <TD>' || coalesce(html_escape(l_record.SUBJECT_O), '&nbsp;') || '</TD>
     <TD>' || coalesce(html_escape(l_record.SUBJECT_CN), '&nbsp;') || '</TD>
-    <TD style="font-family:monospace"><A href="/?sha1=' || encode(l_record.CERT_SHA1, 'hex') || '">' || upper(encode(l_record.CERT_SHA1, 'hex')) || '</A></TD>
+    <TD style="font-family:monospace"><A href="/?sha1=' || encode(l_record.CERT_SHA1, 'hex') || '&opt=mozilladisclosure">' || upper(encode(l_record.CERT_SHA1, 'hex')) || '</A></TD>
   </TR>
 ';
 		END LOOP;
@@ -961,7 +965,7 @@ BEGIN
     <TD>' || coalesce(html_escape(l_record.ISSUER_CN), '&nbsp;') || '</TD>
     <TD>' || coalesce(html_escape(l_record.SUBJECT_O), '&nbsp;') || '</TD>
     <TD>' || coalesce(html_escape(l_record.SUBJECT_CN), '&nbsp;') || '</TD>
-    <TD style="font-family:monospace"><A href="/?sha1=' || encode(l_record.CERT_SHA1, 'hex') || '">' || upper(encode(l_record.CERT_SHA1, 'hex')) || '</A></TD>
+    <TD style="font-family:monospace"><A href="/?sha1=' || encode(l_record.CERT_SHA1, 'hex') || '&opt=mozilladisclosure">' || upper(encode(l_record.CERT_SHA1, 'hex')) || '</A></TD>
   </TR>
 ';
 		END LOOP;
@@ -1006,7 +1010,7 @@ BEGIN
     <TD>' || coalesce(html_escape(l_record.ISSUER_CN), '&nbsp;') || '</TD>
     <TD>' || coalesce(html_escape(l_record.SUBJECT_O), '&nbsp;') || '</TD>
     <TD>' || coalesce(html_escape(l_record.SUBJECT_CN), '&nbsp;') || '</TD>
-    <TD style="font-family:monospace"><A href="/?sha1=' || encode(l_record.CERT_SHA1, 'hex') || '">' || upper(encode(l_record.CERT_SHA1, 'hex')) || '</A></TD>
+    <TD style="font-family:monospace"><A href="/?sha1=' || encode(l_record.CERT_SHA1, 'hex') || '&opt=mozilladisclosure">' || upper(encode(l_record.CERT_SHA1, 'hex')) || '</A></TD>
   </TR>
 ';
 		END LOOP;
@@ -1051,7 +1055,7 @@ BEGIN
     <TD>' || coalesce(html_escape(l_record.ISSUER_CN), '&nbsp;') || '</TD>
     <TD>' || coalesce(html_escape(l_record.SUBJECT_O), '&nbsp;') || '</TD>
     <TD>' || coalesce(html_escape(l_record.SUBJECT_CN), '&nbsp;') || '</TD>
-    <TD style="font-family:monospace"><A href="/?sha1=' || encode(l_record.CERT_SHA1, 'hex') || '">' || upper(encode(l_record.CERT_SHA1, 'hex')) || '</A></TD>
+    <TD style="font-family:monospace"><A href="/?sha1=' || encode(l_record.CERT_SHA1, 'hex') || '&opt=mozilladisclosure">' || upper(encode(l_record.CERT_SHA1, 'hex')) || '</A></TD>
   </TR>
 ';
 		END LOOP;
@@ -1096,7 +1100,7 @@ BEGIN
     <TD>' || coalesce(html_escape(l_record.ISSUER_CN), '&nbsp;') || '</TD>
     <TD>' || coalesce(html_escape(l_record.SUBJECT_O), '&nbsp;') || '</TD>
     <TD>' || coalesce(html_escape(l_record.SUBJECT_CN), '&nbsp;') || '</TD>
-    <TD style="font-family:monospace"><A href="/?sha1=' || encode(l_record.CERT_SHA1, 'hex') || '">' || upper(encode(l_record.CERT_SHA1, 'hex')) || '</A></TD>
+    <TD style="font-family:monospace"><A href="/?sha1=' || encode(l_record.CERT_SHA1, 'hex') || '&opt=mozilladisclosure">' || upper(encode(l_record.CERT_SHA1, 'hex')) || '</A></TD>
   </TR>
 ';
 		END LOOP;
@@ -1141,7 +1145,7 @@ BEGIN
     <TD>' || coalesce(html_escape(l_record.ISSUER_CN), '&nbsp;') || '</TD>
     <TD>' || coalesce(html_escape(l_record.SUBJECT_O), '&nbsp;') || '</TD>
     <TD>' || coalesce(html_escape(l_record.SUBJECT_CN), '&nbsp;') || '</TD>
-    <TD style="font-family:monospace"><A href="/?sha1=' || encode(l_record.CERT_SHA1, 'hex') || '">' || upper(encode(l_record.CERT_SHA1, 'hex')) || '</A></TD>
+    <TD style="font-family:monospace"><A href="/?sha1=' || encode(l_record.CERT_SHA1, 'hex') || '&opt=mozilladisclosure">' || upper(encode(l_record.CERT_SHA1, 'hex')) || '</A></TD>
   </TR>
 ';
 		END LOOP;
@@ -1186,7 +1190,7 @@ BEGIN
     <TD>' || coalesce(html_escape(l_record.ISSUER_CN), '&nbsp;') || '</TD>
     <TD>' || coalesce(html_escape(l_record.SUBJECT_O), '&nbsp;') || '</TD>
     <TD>' || coalesce(html_escape(l_record.SUBJECT_CN), '&nbsp;') || '</TD>
-    <TD style="font-family:monospace"><A href="/?sha1=' || encode(l_record.CERT_SHA1, 'hex') || '">' || upper(encode(l_record.CERT_SHA1, 'hex')) || '</A></TD>
+    <TD style="font-family:monospace"><A href="/?sha1=' || encode(l_record.CERT_SHA1, 'hex') || '&opt=mozilladisclosure">' || upper(encode(l_record.CERT_SHA1, 'hex')) || '</A></TD>
   </TR>
 ';
 		END LOOP;
@@ -1231,7 +1235,7 @@ BEGIN
     <TD>' || coalesce(html_escape(l_record.ISSUER_CN), '&nbsp;') || '</TD>
     <TD>' || coalesce(html_escape(l_record.SUBJECT_O), '&nbsp;') || '</TD>
     <TD>' || coalesce(html_escape(l_record.SUBJECT_CN), '&nbsp;') || '</TD>
-    <TD style="font-family:monospace"><A href="/?sha1=' || encode(l_record.CERT_SHA1, 'hex') || '">' || upper(encode(l_record.CERT_SHA1, 'hex')) || '</A></TD>
+    <TD style="font-family:monospace"><A href="/?sha1=' || encode(l_record.CERT_SHA1, 'hex') || '&opt=mozilladisclosure">' || upper(encode(l_record.CERT_SHA1, 'hex')) || '</A></TD>
   </TR>
 ';
 		END LOOP;
@@ -1443,12 +1447,16 @@ BEGIN
 						|| encode(t_serialNumber, 'hex')
 						|| '">Serial&nbsp;Number:</A>'
 		);
+		t_temp := '';
+		IF t_opt != '' THEN
+			t_temp := '&opt=' || RTRIM(t_opt, ',');
+		END IF;
 		IF t_issuerCAID IS NOT NULL THEN
 			t_text := replace(
 				t_text, '<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Issuer:<BR>',
 				'<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<A href="?caid='
 						|| t_issuerCAID::text
-						|| '">Issuer:</A><BR>'
+						|| t_temp || '">Issuer:</A><BR>'
 			);
 		END IF;
 		IF t_caID IS NOT NULL THEN
@@ -1456,7 +1464,7 @@ BEGIN
 				t_text, '<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Subject:<BR>',
 				'<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<A href="?caid='
 						|| t_caID::text
-						|| '">Subject:</A><BR>'
+						|| t_temp || '">Subject:</A><BR>'
 			);
 		END IF;
 		t_text := replace(
@@ -1856,6 +1864,12 @@ BEGIN
 				t_text := replace(t_text, ' ', '&nbsp;');
 			END IF;
 
+			t_showMozillaDisclosure := (',' || t_opt || ',') LIKE '%,mozilladisclosure,%';
+			t_temp := '';
+			IF t_opt != '' THEN
+				t_temp := '&opt=' || RTRIM(t_opt, ',');
+			END IF;
+
 			t_output := t_output ||
 '<TABLE>
   <TR>
@@ -1871,7 +1885,14 @@ BEGIN
     <TD class="outer">
 <TABLE class="options" style="margin-left:0px">
   <TR>
-    <TH style="white-space:nowrap">Not Before</TH>
+';
+			IF t_showMozillaDisclosure THEN
+				t_output := t_output ||
+'    <TH style="white-space:nowrap">Mozilla Trust<BR><SPAN class="small">(id-kp-serverAuth)</SPAN></TH>
+';
+			END IF;
+			t_output := t_output ||
+'    <TH style="white-space:nowrap">Not Before</TH>
     <TH style="white-space:nowrap">Not After</TH>
     <TH>Issuer Name</TH>
   </TR>
@@ -1879,6 +1900,8 @@ BEGIN
 			FOR l_record IN (
 						SELECT x509_issuerName(c.CERTIFICATE)	ISSUER_NAME,
 								c.ID,
+								c.ISSUER_CA_ID,
+								c.CERTIFICATE,
 								x509_notBefore(c.CERTIFICATE)	NOT_BEFORE,
 								x509_notAfter(c.CERTIFICATE)	NOT_AFTER
 							FROM ca_certificate cac, certificate c
@@ -1889,9 +1912,46 @@ BEGIN
 					) LOOP
 				t_output := t_output ||
 '  <TR>
-    <TD style="white-space:nowrap">' || to_char(l_record.NOT_BEFORE, 'YYYY-MM-DD') || '</TD>
+';
+				IF t_showMozillaDisclosure THEN
+					t_temp3 := '<FONT color=#';
+					SELECT ctp.*
+						INTO t_ctp
+						FROM ca_trust_purpose ctp
+						WHERE ctp.CA_ID = l_record.ISSUER_CA_ID
+							AND ctp.TRUST_CONTEXT_ID = 5
+							AND ctp.TRUST_PURPOSE_ID = 1;
+					IF NOT FOUND THEN
+						t_temp3 := t_temp3 || '888888>Not Trusted';
+					ELSIF statement_timestamp() < greatest(l_record.NOT_BEFORE, t_ctp.EARLIEST_NOT_BEFORE) THEN
+						t_temp3 := t_temp3 || '888888>Not Yet Valid';
+					ELSIF statement_timestamp() > least(l_record.NOT_AFTER, t_ctp.LATEST_NOT_AFTER) THEN
+						t_temp3 := t_temp3 || '888888>Expired';
+					ELSE
+						SELECT md.DISCLOSURE_STATUS
+							INTO t_temp2
+							FROM mozilla_disclosure md
+							WHERE md.CERTIFICATE_ID = l_record.ID;
+						IF FOUND AND (t_temp2 LIKE 'Revoked%') THEN
+							t_temp3 := t_temp3 || 'CC0000>Revoked';
+						ELSIF is_technically_constrained(l_record.CERTIFICATE) THEN
+							t_temp3 := t_temp3 || '00CC00>Technically Constrained';
+						ELSIF t_ctp.ALL_CHAINS_REVOKED THEN
+							t_temp3 := t_temp3 || 'CC0000>All Paths Revoked';
+						ELSIF t_ctp.ALL_CHAINS_TECHNICALLY_CONSTRAINED THEN
+							t_temp3 := t_temp3 || '00CC00>All Paths Technically Constrained';
+						ELSE
+							t_temp3 := t_temp3 || '00CC00>Valid';
+						END IF;
+					END IF;
+					t_output := t_output ||
+'    <TD style="white-space:nowrap">' || t_temp3 || '</FONT></TD>
+';
+				END IF;
+				t_output := t_output ||
+'    <TD style="white-space:nowrap">' || to_char(l_record.NOT_BEFORE, 'YYYY-MM-DD') || '</TD>
     <TD style="white-space:nowrap">' || to_char(l_record.NOT_AFTER, 'YYYY-MM-DD') || '</TD>
-    <TD><A href="?id=' || l_record.ID || '">'
+    <TD><A href="?id=' || l_record.ID || t_temp || '">'
 						|| html_escape(l_record.ISSUER_NAME) || '</A></TD>
   </TR>
 ';
@@ -2119,6 +2179,61 @@ BEGIN
   </TR>
   <TR><TD colspan=2>&nbsp;</TD></TR>
   <TR>
+    <TH class="outer">Trust</TH>
+    <TD class="outer">
+';
+
+			t_text := '';
+			FOR l_record IN (
+						SELECT *
+							FROM ca_trust_purpose ctp, trust_context tc, trust_purpose tp
+							WHERE ctp.CA_ID = t_caID
+								AND ctp.TRUST_CONTEXT_ID = tc.ID
+								AND ctp.TRUST_PURPOSE_ID = tp.ID
+							ORDER BY tc.ID, tp.ID
+					) LOOP
+				t_text := t_text ||
+'        <TR>
+          <TD><A href="' || l_record.URL || '" target="_blank">' || l_record.CTX || '</A></TD>
+          <TD>' || l_record.PURPOSE || '</TD>
+          <TD>' || l_record.PURPOSE_OID || '</TD>
+          <TD>';
+				IF statement_timestamp() < l_record.EARLIEST_NOT_BEFORE THEN
+					t_text := t_text || 'No (All Not Yet Valid)';
+				ELSIF statement_timestamp() > l_record.LATEST_NOT_AFTER THEN
+					t_text := t_text || 'No (All Expired)';
+				ELSIF l_record.ALL_CHAINS_REVOKED THEN
+					t_text := t_text || 'No (All Revoked)';
+				ELSIF l_record.ALL_CHAINS_TECHNICALLY_CONSTRAINED THEN
+					t_text := t_text || 'Yes (All Technically Constrained)';
+				ELSE
+					t_text := t_text || 'Yes';
+				END IF;
+				t_text := t_text || '</TD>
+        </TR>
+';
+			END LOOP;
+			IF t_text = '' THEN
+				t_text := t_text || '<I>None</I>';
+			ELSE
+				t_text :=
+'      <TABLE class="options" style="margin-left:0px">
+        <TR>
+          <TH>Context</TH>
+          <TH>Purpose</TH>
+          <TH>Policy/EKU OID</TH>
+          <TH>Valid Path(s)?</TH>
+        </TR>
+' || t_text || '
+      </TABLE>
+      ';
+			END IF;
+
+			t_output := t_output || t_text ||
+'    </TD>
+  </TR>
+  <TR><TD colspan=2>&nbsp;</TD></TR>
+  <TR>
     <TH class="outer">Parent CAs</TH>
     <TD class="outer">
 ';
@@ -2147,7 +2262,7 @@ BEGIN
 				IF l_record.ISSUER_CA_ID IS NULL THEN
 					t_text := t_text || html_escape(l_record.ISSUER_NAME);
 				ELSE
-					t_text := t_text || '<A href="?caid=' || l_record.ISSUER_CA_ID::text || '">'
+					t_text := t_text || '<A href="?caid=' || l_record.ISSUER_CA_ID::text || t_temp || '">'
 									|| html_escape(l_record.ISSUER_NAME) || '</A>';
 				END IF;
 				t_text := t_text || '</TD>
@@ -2191,7 +2306,7 @@ BEGIN
 				IF l_record.CA_ID IS NULL THEN
 					t_text := t_text || html_escape(l_record.SUBJECT_NAME);
 				ELSE
-					t_text := t_text || '<A href="?caid=' || l_record.CA_ID::text || '">'
+					t_text := t_text || '<A href="?caid=' || l_record.CA_ID::text || t_temp || '">'
 									|| html_escape(l_record.SUBJECT_NAME) || '</A>';
 				END IF;
 				t_text := t_text || '</TD>
