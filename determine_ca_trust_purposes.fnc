@@ -25,6 +25,7 @@ DECLARE
 	l_ctp				RECORD;
 	t_iteration			integer		:= 1;
 	t_isTrusted			boolean;
+	t_isRevoked			boolean;
 	t_nothingChanged	boolean;
 	t_caID				ca.ID%TYPE;
 	t_ctp1				ca_trust_purpose%ROWTYPE;
@@ -35,11 +36,11 @@ BEGIN
 	INSERT INTO ca_trust_purpose (
 			CA_ID, TRUST_CONTEXT_ID, TRUST_PURPOSE_ID, PATH_LEN_CONSTRAINT,
 			EARLIEST_NOT_BEFORE, LATEST_NOT_AFTER,
-			ALL_CHAINS_TECHNICALLY_CONSTRAINED, LONGEST_CHAIN
+			ALL_CHAINS_TECHNICALLY_CONSTRAINED, ALL_CHAINS_REVOKED, LONGEST_CHAIN
 		)
 		SELECT cac.CA_ID, rtp.TRUST_CONTEXT_ID, rtp.TRUST_PURPOSE_ID, max_iterations,
 				min(x509_notBefore(c.CERTIFICATE)), max(x509_notAfter(c.CERTIFICATE)),
-				FALSE, t_iteration
+				FALSE, FALSE, t_iteration
 			FROM root_trust_purpose rtp, ca_certificate cac, certificate c
 			WHERE rtp.CERTIFICATE_ID = cac.CERTIFICATE_ID
 				AND cac.CERTIFICATE_ID = c.ID
@@ -54,7 +55,8 @@ BEGIN
 							tp.PURPOSE, tp.PURPOSE_OID,
 							ctp.PATH_LEN_CONSTRAINT,
 							ctp.EARLIEST_NOT_BEFORE, ctp.LATEST_NOT_AFTER,
-							ctp.ALL_CHAINS_TECHNICALLY_CONSTRAINED
+							ctp.ALL_CHAINS_TECHNICALLY_CONSTRAINED,
+							ctp.ALL_CHAINS_REVOKED
 						FROM ca_trust_purpose ctp, trust_purpose tp,
 							certificate c
 						WHERE ctp.PATH_LEN_CONSTRAINT > 0
@@ -65,10 +67,16 @@ BEGIN
 				) LOOP
 			BEGIN
 				t_isTrusted := FALSE;
+				t_isRevoked := FALSE;
 				SELECT cac.CA_ID
 					INTO t_caID
 					FROM ca_certificate cac
 					WHERE cac.CERTIFICATE_ID = l_ctp.ID;
+				SELECT true
+					INTO t_isRevoked
+					FROM mozilla_disclosure m
+					WHERE m.CERTIFICATE_ID = l_ctp.ID
+						AND m.DISCLOSURE_STATUS IN ('Revoked', 'RevokedViaOneCRL');
 				IF l_ctp.PURPOSE = 'EV Server Authentication' THEN
 					IF x509_isPolicyPermitted(l_ctp.CERTIFICATE,
 												l_ctp.PURPOSE_OID) THEN
@@ -100,6 +108,7 @@ BEGIN
 							EARLIEST_NOT_BEFORE,
 							LATEST_NOT_AFTER,
 							ALL_CHAINS_TECHNICALLY_CONSTRAINED,
+							ALL_CHAINS_REVOKED,
 							LONGEST_CHAIN
 						)
 						VALUES (
@@ -119,6 +128,7 @@ BEGIN
 							least(l_ctp.LATEST_NOT_AFTER, x509_notAfter(l_ctp.CERTIFICATE)),
 							greatest(l_ctp.ALL_CHAINS_TECHNICALLY_CONSTRAINED,
 										is_technically_constrained(l_ctp.CERTIFICATE)),
+							greatest(l_ctp.ALL_CHAINS_REVOKED, t_isRevoked),
 							t_iteration + 1
 						);
 					t_nothingChanged := FALSE;
@@ -162,16 +172,22 @@ BEGIN
 								is_technically_constrained(l_ctp.CERTIFICATE)
 							)
 						);
+						t_ctp2.ALL_CHAINS_REVOKED := least(
+							t_ctp1.ALL_CHAINS_REVOKED,
+							greatest(l_ctp.ALL_CHAINS_REVOKED, t_isRevoked)
+						);
 
 						IF (t_ctp1.PATH_LEN_CONSTRAINT != t_ctp2.PATH_LEN_CONSTRAINT)
 								OR (t_ctp1.EARLIEST_NOT_BEFORE != t_ctp2.EARLIEST_NOT_BEFORE)
 								OR (t_ctp1.LATEST_NOT_AFTER != t_ctp2.LATEST_NOT_AFTER)
-								OR (t_ctp1.ALL_CHAINS_TECHNICALLY_CONSTRAINED != t_ctp2.ALL_CHAINS_TECHNICALLY_CONSTRAINED) THEN
+								OR (t_ctp1.ALL_CHAINS_TECHNICALLY_CONSTRAINED != t_ctp2.ALL_CHAINS_TECHNICALLY_CONSTRAINED)
+								OR (t_ctp1.ALL_CHAINS_REVOKED != t_ctp2.ALL_CHAINS_REVOKED) THEN
 							UPDATE ca_trust_purpose
 								SET PATH_LEN_CONSTRAINT = t_ctp2.PATH_LEN_CONSTRAINT,
 									EARLIEST_NOT_BEFORE = t_ctp2.EARLIEST_NOT_BEFORE,
 									LATEST_NOT_AFTER = t_ctp2.LATEST_NOT_AFTER,
 									ALL_CHAINS_TECHNICALLY_CONSTRAINED = t_ctp2.ALL_CHAINS_TECHNICALLY_CONSTRAINED,
+									ALL_CHAINS_REVOKED = t_ctp2.ALL_CHAINS_REVOKED,
 									LONGEST_CHAIN = t_iteration + 1
 								WHERE CA_ID = coalesce(t_caID, -l_ctp.ID)
 									AND TRUST_CONTEXT_ID = l_ctp.TRUST_CONTEXT_ID

@@ -357,6 +357,13 @@ INSERT INTO mozilla_disclosure_temp (
 					WHERE mdt.CERTIFICATE_ID = c.ID
 			);
 
+\echo Disclosed, Revoked -> Revoked via OneCRL
+UPDATE mozilla_disclosure_temp mdt
+	SET DISCLOSURE_STATUS = 'RevokedViaOneCRL'
+	FROM mozilla_onecrl m
+	WHERE mdt.DISCLOSURE_STATUS IN ('Disclosed', 'Revoked')
+		AND mdt.CERTIFICATE_ID = m.CERTIFICATE_ID;
+
 \echo Undisclosed -> Expired
 UPDATE mozilla_disclosure_temp mdt
 	SET DISCLOSURE_STATUS = 'Expired'
@@ -390,6 +397,23 @@ UPDATE mozilla_disclosure_temp mdt
 					AND NOT ctp.ALL_CHAINS_TECHNICALLY_CONSTRAINED
 		);
 
+\echo Undisclosed -> AllServerAuthPathsRevoked
+UPDATE mozilla_disclosure_temp mdt
+	SET DISCLOSURE_STATUS = 'AllServerAuthPathsRevoked'
+	FROM certificate c
+	WHERE mdt.DISCLOSURE_STATUS = 'Undisclosed'
+		AND mdt.CERTIFICATE_ID = c.ID
+		AND NOT EXISTS (
+			SELECT 1
+				FROM ca_trust_purpose ctp
+				WHERE ctp.CA_ID = c.ISSUER_CA_ID
+					AND ctp.TRUST_CONTEXT_ID = 5
+					AND ctp.TRUST_PURPOSE_ID = 1
+					AND statement_timestamp() BETWEEN ctp.EARLIEST_NOT_BEFORE
+												AND ctp.LATEST_NOT_AFTER
+					AND NOT ctp.ALL_CHAINS_TECHNICALLY_CONSTRAINED
+					AND NOT ctp.ALL_CHAINS_REVOKED
+		);
 
 \echo Tidying Up
 

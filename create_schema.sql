@@ -376,6 +376,7 @@ CREATE TABLE ca_trust_purpose (
 	EARLIEST_NOT_BEFORE					timestamp,
 	LATEST_NOT_AFTER					timestamp,
 	ALL_CHAINS_TECHNICALLY_CONTRAINED	boolean,
+	ALL_CHAINS_REVOKED					boolean,
 	LONGEST_CHAIN						integer,
 	CONSTRAINT ctp_pk
 		PRIMARY KEY (CA_ID, TRUST_CONTEXT_ID, TRUST_PURPOSE_ID),
@@ -399,10 +400,12 @@ CREATE INDEX ctp_ca_tc_tp
 
 CREATE TYPE disclosure_status_type AS ENUM (
 	'Undisclosed',
+	'AllServerAuthPathsRevoked',
 	'NoKnownServerAuthTrustPath',
 	'TechnicallyConstrained',
 	'Expired',
 	'Revoked',
+	'RevokedViaOneCRL',
 	'Disclosed'
 );
 

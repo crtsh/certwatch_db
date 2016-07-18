@@ -123,10 +123,12 @@ DECLARE
 	t_issuerCAID_table	text;
 	t_feedUpdated		timestamp;
 	t_undisclosedCount	integer			:= 0;
+	t_trustRevokedCount	integer			:= 0;
 	t_notTrustedCount	integer			:= 0;
 	t_constrainedCount	integer			:= 0;
 	t_expiredCount		integer			:= 0;
 	t_revokedCount		integer			:= 0;
+	t_revokedViaOneCRLCount	integer		:= 0;
 	t_disclosedCount	integer			:= 0;
 	t_unknownCount		integer			:= 0;
 	t_caPublicKey		ca.PUBLIC_KEY%TYPE;
@@ -851,20 +853,17 @@ BEGIN
 					SELECT md.CA_OWNER_OR_CERT_NAME, md.ISSUER_O, md.ISSUER_CN,
 							md.SUBJECT_O, md.SUBJECT_CN, md.CERT_SHA1
 						FROM mozilla_disclosure md
-						WHERE md.DISCLOSURE_STATUS IN ('Disclosed', 'Revoked')
-							AND md.CERTIFICATE_ID IS NULL
-						GROUP BY md.CA_OWNER_OR_CERT_NAME, md.ISSUER_O, md.ISSUER_CN,
-								md.SUBJECT_O, md.SUBJECT_CN, md.CERT_SHA1
+						WHERE md.CERTIFICATE_ID IS NULL
 						ORDER BY md.ISSUER_O, md.ISSUER_CN, md.SUBJECT_O, md.SUBJECT_CN
 				) LOOP
 			t_unknownCount := t_unknownCount + 1;
 			t_temp := t_temp ||
 '  <TR>
-    <TD>' || coalesce(l_record.CA_OWNER_OR_CERT_NAME, '&nbsp;') || '</TD>
-    <TD>' || coalesce(l_record.ISSUER_O, '&nbsp;') || '</TD>
-    <TD>' || coalesce(l_record.ISSUER_CN, '&nbsp;') || '</TD>
-    <TD>' || coalesce(l_record.SUBJECT_O, '&nbsp;') || '</TD>
-    <TD>' || coalesce(l_record.SUBJECT_CN, '&nbsp;') || '</TD>
+    <TD>' || coalesce(html_escape(l_record.CA_OWNER_OR_CERT_NAME), '&nbsp;') || '</TD>
+    <TD>' || coalesce(html_escape(l_record.ISSUER_O), '&nbsp;') || '</TD>
+    <TD>' || coalesce(html_escape(l_record.ISSUER_CN), '&nbsp;') || '</TD>
+    <TD>' || coalesce(html_escape(l_record.SUBJECT_O), '&nbsp;') || '</TD>
+    <TD>' || coalesce(html_escape(l_record.SUBJECT_CN), '&nbsp;') || '</TD>
     <TD style="font-family:monospace">' || upper(encode(l_record.CERT_SHA1, 'hex')) || '</TD>
   </TR>
 ';
@@ -911,12 +910,12 @@ BEGIN
     <TD>';
 			END IF;
 			t_temp2 := t_temp2 || '
-      ' || coalesce(l_record.CA_OWNER_OR_CERT_NAME, '&nbsp;') || '
+      ' || coalesce(html_escape(l_record.CA_OWNER_OR_CERT_NAME), '&nbsp;') || '
     </TD>
-    <TD>' || coalesce(l_record.ISSUER_O, '&nbsp;') || '</TD>
-    <TD>' || coalesce(l_record.ISSUER_CN, '&nbsp;') || '</TD>
-    <TD>' || coalesce(l_record.SUBJECT_O, '&nbsp;') || '</TD>
-    <TD>' || coalesce(l_record.SUBJECT_CN, '&nbsp;') || '</TD>
+    <TD>' || coalesce(html_escape(l_record.ISSUER_O), '&nbsp;') || '</TD>
+    <TD>' || coalesce(html_escape(l_record.ISSUER_CN), '&nbsp;') || '</TD>
+    <TD>' || coalesce(html_escape(l_record.SUBJECT_O), '&nbsp;') || '</TD>
+    <TD>' || coalesce(html_escape(l_record.SUBJECT_CN), '&nbsp;') || '</TD>
     <TD style="font-family:monospace"><A href="/?sha1=' || encode(l_record.CERT_SHA1, 'hex') || '">' || upper(encode(l_record.CERT_SHA1, 'hex')) || '</A></TD>
   </TR>
 ';
@@ -950,6 +949,51 @@ BEGIN
 		FOR l_record IN (
 					SELECT *
 						FROM mozilla_disclosure md
+						WHERE md.DISCLOSURE_STATUS = 'RevokedViaOneCRL'
+							AND md.CERTIFICATE_ID IS NOT NULL
+						ORDER BY md.ISSUER_O, md.ISSUER_CN, md.SUBJECT_O, md.SUBJECT_CN
+				) LOOP
+			t_revokedViaOneCRLCount := t_revokedViaOneCRLCount + 1;
+			t_temp2 := t_temp2 ||
+'  <TR>
+    <TD>' || coalesce(html_escape(l_record.CA_OWNER_OR_CERT_NAME), '&nbsp;') || '</TD>
+    <TD>' || coalesce(html_escape(l_record.ISSUER_O), '&nbsp;') || '</TD>
+    <TD>' || coalesce(html_escape(l_record.ISSUER_CN), '&nbsp;') || '</TD>
+    <TD>' || coalesce(html_escape(l_record.SUBJECT_O), '&nbsp;') || '</TD>
+    <TD>' || coalesce(html_escape(l_record.SUBJECT_CN), '&nbsp;') || '</TD>
+    <TD style="font-family:monospace"><A href="/?sha1=' || encode(l_record.CERT_SHA1, 'hex') || '">' || upper(encode(l_record.CERT_SHA1, 'hex')) || '</A></TD>
+  </TR>
+';
+		END LOOP;
+		t_temp2 :=
+'<BR><BR><SPAN class="title" style="background-color:#B2CEFE"><A name="revokedviaonecrl">Disclosed and Revoked via OneCRL</A></SPAN>
+<SPAN class="whiteongrey">' || t_revokedViaOneCRLCount::text || ' CA certificates</SPAN>
+<BR>
+<TABLE style="background-color:#B2CEFE">
+  <TR>
+    <TH>CA Owner or Certificate Name</TH>
+    <TH>Issuer O</TH>
+    <TH>Issuer CN</TH>
+    <TH>Subject O</TH>
+    <TH>Subject CN</TH>
+    <TH>SHA-1(Certificate)</TH>
+  </TR>
+' || t_temp2;
+		IF t_revokedViaOneCRLCount = 0 THEN
+			t_temp2 := t_temp2 ||
+'  <TR><TD colspan="6">None found</TD></TR>
+';
+		END IF;
+		t_temp2 := t_temp2 ||
+'</TABLE>
+';
+
+		t_temp := t_temp2 || t_temp;
+
+		t_temp2 := '';
+		FOR l_record IN (
+					SELECT *
+						FROM mozilla_disclosure md
 						WHERE md.DISCLOSURE_STATUS = 'Revoked'
 							AND md.CERTIFICATE_ID IS NOT NULL
 						ORDER BY md.ISSUER_O, md.ISSUER_CN, md.SUBJECT_O, md.SUBJECT_CN
@@ -957,17 +1001,17 @@ BEGIN
 			t_revokedCount := t_revokedCount + 1;
 			t_temp2 := t_temp2 ||
 '  <TR>
-    <TD>' || coalesce(l_record.CA_OWNER_OR_CERT_NAME, '&nbsp;') || '</TD>
-    <TD>' || coalesce(l_record.ISSUER_O, '&nbsp;') || '</TD>
-    <TD>' || coalesce(l_record.ISSUER_CN, '&nbsp;') || '</TD>
-    <TD>' || coalesce(l_record.SUBJECT_O, '&nbsp;') || '</TD>
-    <TD>' || coalesce(l_record.SUBJECT_CN, '&nbsp;') || '</TD>
+    <TD>' || coalesce(html_escape(l_record.CA_OWNER_OR_CERT_NAME), '&nbsp;') || '</TD>
+    <TD>' || coalesce(html_escape(l_record.ISSUER_O), '&nbsp;') || '</TD>
+    <TD>' || coalesce(html_escape(l_record.ISSUER_CN), '&nbsp;') || '</TD>
+    <TD>' || coalesce(html_escape(l_record.SUBJECT_O), '&nbsp;') || '</TD>
+    <TD>' || coalesce(html_escape(l_record.SUBJECT_CN), '&nbsp;') || '</TD>
     <TD style="font-family:monospace"><A href="/?sha1=' || encode(l_record.CERT_SHA1, 'hex') || '">' || upper(encode(l_record.CERT_SHA1, 'hex')) || '</A></TD>
   </TR>
 ';
 		END LOOP;
 		t_temp2 :=
-'<BR><BR><SPAN class="title" style="background-color:#B2CEFE"><A name="revoked">Disclosed as Revoked</A></SPAN>
+'<BR><BR><SPAN class="title" style="background-color:#B2CEFE"><A name="revoked">Disclosed as Revoked, but not currently in OneCRL</A></SPAN>
 <SPAN class="whiteongrey">' || t_revokedCount::text || ' CA certificates</SPAN>
 <BR>
 <TABLE style="background-color:#B2CEFE">
@@ -1002,11 +1046,11 @@ BEGIN
 			t_expiredCount := t_expiredCount + 1;
 			t_temp2 := t_temp2 ||
 '  <TR>
-    <TD>' || coalesce(l_record.CA_OWNER_OR_CERT_NAME, '&nbsp;') || '</TD>
-    <TD>' || coalesce(l_record.ISSUER_O, '&nbsp;') || '</TD>
-    <TD>' || coalesce(l_record.ISSUER_CN, '&nbsp;') || '</TD>
-    <TD>' || coalesce(l_record.SUBJECT_O, '&nbsp;') || '</TD>
-    <TD>' || coalesce(l_record.SUBJECT_CN, '&nbsp;') || '</TD>
+    <TD>' || coalesce(html_escape(l_record.CA_OWNER_OR_CERT_NAME), '&nbsp;') || '</TD>
+    <TD>' || coalesce(html_escape(l_record.ISSUER_O), '&nbsp;') || '</TD>
+    <TD>' || coalesce(html_escape(l_record.ISSUER_CN), '&nbsp;') || '</TD>
+    <TD>' || coalesce(html_escape(l_record.SUBJECT_O), '&nbsp;') || '</TD>
+    <TD>' || coalesce(html_escape(l_record.SUBJECT_CN), '&nbsp;') || '</TD>
     <TD style="font-family:monospace"><A href="/?sha1=' || encode(l_record.CERT_SHA1, 'hex') || '">' || upper(encode(l_record.CERT_SHA1, 'hex')) || '</A></TD>
   </TR>
 ';
@@ -1047,20 +1091,20 @@ BEGIN
 			t_constrainedCount := t_constrainedCount + 1;
 			t_temp2 := t_temp2 ||
 '  <TR>
-    <TD>' || coalesce(l_record.CA_OWNER_OR_CERT_NAME, '&nbsp;') || '</TD>
-    <TD>' || coalesce(l_record.ISSUER_O, '&nbsp;') || '</TD>
-    <TD>' || coalesce(l_record.ISSUER_CN, '&nbsp;') || '</TD>
-    <TD>' || coalesce(l_record.SUBJECT_O, '&nbsp;') || '</TD>
-    <TD>' || coalesce(l_record.SUBJECT_CN, '&nbsp;') || '</TD>
+    <TD>' || coalesce(html_escape(l_record.CA_OWNER_OR_CERT_NAME), '&nbsp;') || '</TD>
+    <TD>' || coalesce(html_escape(l_record.ISSUER_O), '&nbsp;') || '</TD>
+    <TD>' || coalesce(html_escape(l_record.ISSUER_CN), '&nbsp;') || '</TD>
+    <TD>' || coalesce(html_escape(l_record.SUBJECT_O), '&nbsp;') || '</TD>
+    <TD>' || coalesce(html_escape(l_record.SUBJECT_CN), '&nbsp;') || '</TD>
     <TD style="font-family:monospace"><A href="/?sha1=' || encode(l_record.CERT_SHA1, 'hex') || '">' || upper(encode(l_record.CERT_SHA1, 'hex')) || '</A></TD>
   </TR>
 ';
 		END LOOP;
 		t_temp2 :=
-'<BR><BR><SPAN class="title" style="background-color:#FAF884"><A name="constrained">Technically Constrained: Disclosure is not required</A></SPAN>
+'<BR><BR><SPAN class="title" style="background-color:#BAED91"><A name="constrained">Technically Constrained: Disclosure is not required</A></SPAN>
 <SPAN class="whiteongrey">' || t_constrainedCount::text || ' CA certificates</SPAN>
 <BR>
-<TABLE style="background-color:#FAF884">
+<TABLE style="background-color:#BAED91">
   <TR>
     <TH>CA Owner or Certificate Name</TH>
     <TH>Issuer O</TH>
@@ -1092,20 +1136,20 @@ BEGIN
 			t_notTrustedCount := t_notTrustedCount + 1;
 			t_temp2 := t_temp2 ||
 '  <TR>
-    <TD>' || coalesce(l_record.CA_OWNER_OR_CERT_NAME, '&nbsp;') || '</TD>
-    <TD>' || coalesce(l_record.ISSUER_O, '&nbsp;') || '</TD>
-    <TD>' || coalesce(l_record.ISSUER_CN, '&nbsp;') || '</TD>
-    <TD>' || coalesce(l_record.SUBJECT_O, '&nbsp;') || '</TD>
-    <TD>' || coalesce(l_record.SUBJECT_CN, '&nbsp;') || '</TD>
+    <TD>' || coalesce(html_escape(l_record.CA_OWNER_OR_CERT_NAME), '&nbsp;') || '</TD>
+    <TD>' || coalesce(html_escape(l_record.ISSUER_O), '&nbsp;') || '</TD>
+    <TD>' || coalesce(html_escape(l_record.ISSUER_CN), '&nbsp;') || '</TD>
+    <TD>' || coalesce(html_escape(l_record.SUBJECT_O), '&nbsp;') || '</TD>
+    <TD>' || coalesce(html_escape(l_record.SUBJECT_CN), '&nbsp;') || '</TD>
     <TD style="font-family:monospace"><A href="/?sha1=' || encode(l_record.CERT_SHA1, 'hex') || '">' || upper(encode(l_record.CERT_SHA1, 'hex')) || '</A></TD>
   </TR>
 ';
 		END LOOP;
 		t_temp2 :=
-'<BR><BR><SPAN class="title" style="background-color:#F8B88B"><A name="nottrusted">No Observed Unconstrained id-kp-serverAuth Trust: Disclosure is not known to be required</A></SPAN>
+'<BR><BR><SPAN class="title" style="background-color:#FAF884"><A name="nottrusted">Unconstrained for id-kp-serverAuth, but no trust paths have been observed: Disclosure is not known to be required</A></SPAN>
 <SPAN class="whiteongrey">' || t_notTrustedCount::text || ' CA certificates</SPAN>
 <BR>
-<TABLE style="background-color:#F8B88B">
+<TABLE style="background-color:#FAF884">
   <TR>
     <TH>CA Owner or Certificate Name</TH>
     <TH>Issuer O</TH>
@@ -1130,6 +1174,51 @@ BEGIN
 		FOR l_record IN (
 					SELECT *
 						FROM mozilla_disclosure md
+						WHERE md.DISCLOSURE_STATUS = 'AllServerAuthPathsRevoked'
+							AND md.CERTIFICATE_ID IS NOT NULL
+						ORDER BY md.ISSUER_O, md.ISSUER_CN, md.SUBJECT_O, md.SUBJECT_CN
+				) LOOP
+			t_trustRevokedCount := t_trustRevokedCount + 1;
+			t_temp2 := t_temp2 ||
+'  <TR>
+    <TD>' || coalesce(html_escape(l_record.CA_OWNER_OR_CERT_NAME), '&nbsp;') || '</TD>
+    <TD>' || coalesce(html_escape(l_record.ISSUER_O), '&nbsp;') || '</TD>
+    <TD>' || coalesce(html_escape(l_record.ISSUER_CN), '&nbsp;') || '</TD>
+    <TD>' || coalesce(html_escape(l_record.SUBJECT_O), '&nbsp;') || '</TD>
+    <TD>' || coalesce(html_escape(l_record.SUBJECT_CN), '&nbsp;') || '</TD>
+    <TD style="font-family:monospace"><A href="/?sha1=' || encode(l_record.CERT_SHA1, 'hex') || '">' || upper(encode(l_record.CERT_SHA1, 'hex')) || '</A></TD>
+  </TR>
+';
+		END LOOP;
+		t_temp2 :=
+'<BR><BR><SPAN class="title" style="background-color:#F8B88B"><A name="trustrevoked">Unconstrained id-kp-serverAuth Trust, although all paths contain at least one revoked intermediate: Disclosure is probably required!</A></SPAN>
+<SPAN class="whiteongrey">' || t_trustRevokedCount::text || ' CA certificates</SPAN>
+<BR>
+<TABLE style="background-color:#F8B88B">
+  <TR>
+    <TH>CA Owner or Certificate Name</TH>
+    <TH>Issuer O</TH>
+    <TH>Issuer CN</TH>
+    <TH>Subject O</TH>
+    <TH>Subject CN</TH>
+    <TH>SHA-1(Certificate)</TH>
+  </TR>
+' || t_temp2;
+		IF t_trustRevokedCount = 0 THEN
+			t_temp2 := t_temp2 ||
+'  <TR><TD colspan="6">None found</TD></TR>
+';
+		END IF;
+		t_temp2 := t_temp2 ||
+'</TABLE>
+';
+
+		t_temp := t_temp2 || t_temp;
+
+		t_temp2 := '';
+		FOR l_record IN (
+					SELECT *
+						FROM mozilla_disclosure md
 						WHERE md.DISCLOSURE_STATUS = 'Undisclosed'
 							AND md.CERTIFICATE_ID IS NOT NULL
 						ORDER BY md.ISSUER_O, md.ISSUER_CN, md.SUBJECT_O, md.SUBJECT_CN
@@ -1137,11 +1226,11 @@ BEGIN
 			t_undisclosedCount := t_undisclosedCount + 1;
 			t_temp2 := t_temp2 ||
 '  <TR>
-    <TD>' || coalesce(l_record.CA_OWNER_OR_CERT_NAME, '&nbsp;') || '</TD>
-    <TD>' || coalesce(l_record.ISSUER_O, '&nbsp;') || '</TD>
-    <TD>' || coalesce(l_record.ISSUER_CN, '&nbsp;') || '</TD>
-    <TD>' || coalesce(l_record.SUBJECT_O, '&nbsp;') || '</TD>
-    <TD>' || coalesce(l_record.SUBJECT_CN, '&nbsp;') || '</TD>
+    <TD>' || coalesce(html_escape(l_record.CA_OWNER_OR_CERT_NAME), '&nbsp;') || '</TD>
+    <TD>' || coalesce(html_escape(l_record.ISSUER_O), '&nbsp;') || '</TD>
+    <TD>' || coalesce(html_escape(l_record.ISSUER_CN), '&nbsp;') || '</TD>
+    <TD>' || coalesce(html_escape(l_record.SUBJECT_O), '&nbsp;') || '</TD>
+    <TD>' || coalesce(html_escape(l_record.SUBJECT_CN), '&nbsp;') || '</TD>
     <TD style="font-family:monospace"><A href="/?sha1=' || encode(l_record.CERT_SHA1, 'hex') || '">' || upper(encode(l_record.CERT_SHA1, 'hex')) || '</A></TD>
   </TR>
 ';
@@ -1184,11 +1273,16 @@ BEGIN
     <TD><A href="#undisclosed">' || t_undisclosedCount::text || '</A></TD>
   </TR>
   <TR style="background-color:#F8B88B">
-    <TD>No Observed Unconstrained id-kp-serverAuth Trust</TD>
-    <TD>No</TD>
-    <TD><A href="#nottrusted">' || t_notTrustedCount::text || '</A></TD>
+    <TD>Unconstrained, but all observed paths Revoked</TD>
+    <TD><B><U>Probably!</U></B></TD>
+    <TD><A href="#trustrevoked">' || t_trustRevokedCount::text || '</A></TD>
   </TR>
   <TR style="background-color:#FAF884">
+    <TD>Unconstrained, but zero observed paths</TD>
+    <TD>Unknown</TD>
+    <TD><A href="#nottrusted">' || t_notTrustedCount::text || '</A></TD>
+  </TR>
+  <TR style="background-color:#BAED91">
     <TD>Technically Constrained</TD>
     <TD>Never</TD>
     <TD><A href="#constrained">' || t_constrainedCount::text || '</A></TD>
@@ -1199,9 +1293,14 @@ BEGIN
     <TD><A href="#expired">' || t_expiredCount::text || '</A></TD>
   </TR>
   <TR style="background-color:#B2CEFE">
-    <TD>Revoked</TD>
+    <TD>Disclosed as Revoked (but not in OneCRL)</TD>
     <TD>Already disclosed</TD>
     <TD><A href="#revoked">' || t_revokedCount::text || '</A></TD>
+  </TR>
+  <TR style="background-color:#B2CEFE">
+    <TD>Disclosed and Revoked via OneCRL</TD>
+    <TD>Already disclosed</TD>
+    <TD><A href="#revokedviaonecrl">' || t_revokedViaOneCRLCount::text || '</A></TD>
   </TR>
   <TR style="background-color:#F2A2E8">
     <TD>Disclosed</TD>
@@ -2023,6 +2122,7 @@ BEGIN
     <TH class="outer">Parent CAs</TH>
     <TD class="outer">
 ';
+
 			t_text := NULL;
 			FOR l_record IN (
 						SELECT x509_issuerName(c.CERTIFICATE)	ISSUER_NAME,
