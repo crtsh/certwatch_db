@@ -140,6 +140,7 @@ DECLARE
 	t_resultsPerPage	integer			:= 100;
 	l_record			RECORD;
 	l_record2			RECORD;
+	t_purposeOID		text;
 BEGIN
 	FOR t_paramNo IN 1..array_length(c_params, 1) LOOP
 		IF t_cmd IS NULL THEN
@@ -2181,56 +2182,100 @@ BEGIN
   <TR>
     <TH class="outer">Trust</TH>
     <TD class="outer">
+      <TABLE class="options" style="margin-left:0px">
+        <TR>
+          <TH>Purpose</TH>
 ';
 
 			t_text := '';
 			FOR l_record IN (
 						SELECT *
-							FROM ca_trust_purpose ctp, trust_context tc, trust_purpose tp
-							WHERE ctp.CA_ID = t_caID
-								AND ctp.TRUST_CONTEXT_ID = tc.ID
-								AND ctp.TRUST_PURPOSE_ID = tp.ID
-							ORDER BY tc.ID, tp.ID
+							FROM trust_context tc
+							ORDER BY tc.ID
 					) LOOP
 				t_text := t_text ||
-'        <TR>
-          <TD><A href="' || l_record.URL || '" target="_blank">' || l_record.CTX || '</A></TD>
-          <TD>' || l_record.PURPOSE || '</TD>
-          <TD>' || l_record.PURPOSE_OID || '</TD>
-          <TD>';
-				IF statement_timestamp() < l_record.EARLIEST_NOT_BEFORE THEN
-					t_text := t_text || 'No (All Not Yet Valid)';
-				ELSIF statement_timestamp() > l_record.LATEST_NOT_AFTER THEN
-					t_text := t_text || 'No (All Expired)';
-				ELSIF l_record.ALL_CHAINS_REVOKED THEN
-					t_text := t_text || 'No (All Revoked)';
-				ELSIF l_record.ALL_CHAINS_TECHNICALLY_CONSTRAINED THEN
-					t_text := t_text || 'Yes (All Technically Constrained)';
-				ELSE
-					t_text := t_text || 'Yes';
-				END IF;
-				t_text := t_text || '</TD>
-        </TR>
+'          <TH><A href="' || l_record.URL || '" target="_blank">' || l_record.CTX || '</A></TH>
 ';
 			END LOOP;
-			IF t_text = '' THEN
-				t_text := t_text || '<I>None</I>';
-			ELSE
-				t_text :=
-'      <TABLE class="options" style="margin-left:0px">
+
+			t_purposeOID := '';
+			FOR l_record IN (
+						SELECT trustsrc.TRUST_CONTEXT_ID,
+								trustsrc.PURPOSE,
+								trustsrc.PURPOSE_OID,
+								(ctp.CA_ID IS NOT NULL) HAS_TRUST,
+								(ap.PURPOSE IS NOT NULL) IS_APPLICABLE,
+								ctp.EARLIEST_NOT_BEFORE,
+								ctp.LATEST_NOT_AFTER,
+								ctp.ALL_CHAINS_REVOKED,
+								ctp.ALL_CHAINS_TECHNICALLY_CONSTRAINED
+							FROM (SELECT tc.ID TRUST_CONTEXT_ID,
+											tp.ID TRUST_PURPOSE_ID,
+											tp.DISPLAY_ORDER,
+											tp.PURPOSE,
+											tp.PURPOSE_OID
+										FROM trust_purpose tp, trust_context tc
+										WHERE tp.PURPOSE != 'EV Server Authentication'
+									UNION
+									SELECT tc.ID TRUST_CONTEXT_ID,
+											tp.ID TRUST_PURPOSE_ID,
+											tp.DISPLAY_ORDER,
+											tp.PURPOSE,
+											tp.PURPOSE_OID
+										FROM ca_trust_purpose ctp_ev, trust_purpose tp, trust_context tc
+										WHERE ctp_ev.CA_ID = t_caID
+											AND ctp_ev.TRUST_PURPOSE_ID = tp.ID
+											AND tp.PURPOSE = 'EV Server Authentication'
+										GROUP BY tc.ID, tp.ID, tp.DISPLAY_ORDER, tp.PURPOSE, tp.PURPOSE_OID
+									) trustsrc
+								LEFT OUTER JOIN ca_trust_purpose ctp ON (
+									ctp.CA_ID = t_caID
+									AND trustsrc.TRUST_CONTEXT_ID = ctp.TRUST_CONTEXT_ID
+									AND trustsrc.TRUST_PURPOSE_ID = ctp.TRUST_PURPOSE_ID
+								)
+								LEFT OUTER JOIN applicable_purpose ap ON (
+									trustsrc.TRUST_CONTEXT_ID = ap.TRUST_CONTEXT_ID
+									AND trustsrc.PURPOSE = ap.PURPOSE
+								)
+							ORDER BY trustsrc.DISPLAY_ORDER, trustsrc.PURPOSE_OID, trustsrc.TRUST_CONTEXT_ID
+					) LOOP
+				IF t_purposeOID != l_record.PURPOSE_OID THEN
+					t_purposeOID := l_record.PURPOSE_OID;
+					t_text := t_text ||
+'        </TR>
         <TR>
-          <TH>Context</TH>
-          <TH>Purpose</TH>
-          <TH>Policy/EKU OID</TH>
-          <TH>Valid Path(s)?</TH>
-        </TR>
-' || t_text || '
-      </TABLE>
-      ';
-			END IF;
+          <TD>' || l_record.PURPOSE;
+					IF l_record.PURPOSE = 'EV Server Authentication' THEN
+						t_text := t_text || ' (' || l_record.PURPOSE_OID || ')';
+					END IF;
+					t_text := t_text || '</TD>
+';
+				END IF;
+				t_text := t_text ||
+'          <TD style="text-align:center"><FONT color=#';
+				IF NOT l_record.IS_APPLICABLE THEN
+					t_text := t_text || 'CCCCCC>n/a';
+				ELSIF NOT l_record.HAS_TRUST THEN
+					t_text := t_text || '000000>No';
+				ELSIF statement_timestamp() < l_record.EARLIEST_NOT_BEFORE THEN
+					t_text := t_text || '888888>Pending';
+				ELSIF statement_timestamp() > l_record.LATEST_NOT_AFTER THEN
+					t_text := t_text || '888888>Expired';
+				ELSIF l_record.ALL_CHAINS_REVOKED AND (l_record.TRUST_CONTEXT_ID = 5) THEN
+					t_text := t_text || 'CC0000>Revoked (OneCRL)';
+				ELSIF l_record.ALL_CHAINS_TECHNICALLY_CONSTRAINED THEN
+					t_text := t_text || '00CC00>Constrained';
+				ELSE
+					t_text := t_text || '00CC00>Valid';
+				END IF;
+				t_text := t_text || '</TD>
+';
+			END LOOP;
 
 			t_output := t_output || t_text ||
-'    </TD>
+'        </TR>
+      </TABLE>
+    </TD>
   </TR>
   <TR><TD colspan=2>&nbsp;</TD></TR>
   <TR>
