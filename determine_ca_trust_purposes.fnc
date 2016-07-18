@@ -93,6 +93,10 @@ BEGIN
 					FROM mozilla_onecrl mo
 					WHERE mo.CERTIFICATE_ID = l_ctp.ID;
 				SELECT true
+					INTO t_isRevokedViaCRLSet
+					FROM google_crlset gc
+					WHERE gc.CERTIFICATE_ID = l_ctp.ID;
+				SELECT true
 					INTO t_isRevokedViaDisallowedSTL
 					FROM microsoft_disallowedcert mdc
 					WHERE mdc.CERTIFICATE_ID = l_ctp.ID;

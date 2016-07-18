@@ -2194,7 +2194,7 @@ BEGIN
 			FOR l_record IN (
 						SELECT *
 							FROM trust_context tc
-							ORDER BY tc.CTX
+							ORDER BY tc.DISPLAY_ORDER
 					) LOOP
 				t_text := t_text ||
 '          <TH><A href="' || l_record.URL || '" target="_blank">' || l_record.CTX || '</A></TH>
@@ -2214,7 +2214,7 @@ BEGIN
 								ctp.ALL_CHAINS_REVOKED_VIA_CRLSET,
 								ctp.ALL_CHAINS_REVOKED_VIA_DISALLOWEDSTL,
 								ctp.ALL_CHAINS_TECHNICALLY_CONSTRAINED
-							FROM (SELECT tc.CTX,
+							FROM (SELECT tc.DISPLAY_ORDER CTX_DISPLAY_ORDER,
 											tc.ID TRUST_CONTEXT_ID,
 											tp.ID TRUST_PURPOSE_ID,
 											tp.DISPLAY_ORDER,
@@ -2223,7 +2223,7 @@ BEGIN
 										FROM trust_purpose tp, trust_context tc
 										WHERE tp.PURPOSE != 'EV Server Authentication'
 									UNION
-									SELECT tc.CTX,
+									SELECT tc.DISPLAY_ORDER CTX_DISPLAY_ORDER,
 											tc.ID TRUST_CONTEXT_ID,
 											tp.ID TRUST_PURPOSE_ID,
 											tp.DISPLAY_ORDER,
@@ -2244,7 +2244,7 @@ BEGIN
 									trustsrc.TRUST_CONTEXT_ID = ap.TRUST_CONTEXT_ID
 									AND trustsrc.PURPOSE = ap.PURPOSE
 								)
-							ORDER BY trustsrc.DISPLAY_ORDER, trustsrc.PURPOSE_OID, trustsrc.CTX
+							ORDER BY trustsrc.DISPLAY_ORDER, trustsrc.PURPOSE_OID, trustsrc.CTX_DISPLAY_ORDER
 					) LOOP
 				IF t_purposeOID != l_record.PURPOSE_OID THEN
 					t_purposeOID := l_record.PURPOSE_OID;
@@ -2258,18 +2258,27 @@ BEGIN
 					t_text := t_text || '</TD>
 ';
 				END IF;
+				IF (l_record.TRUST_CONTEXT_ID = 6) AND (l_record.IS_APPLICABLE) THEN
+					SELECT true
+						INTO l_record.ALL_CHAINS_REVOKED_VIA_CRLSET
+						FROM ca_trust_purpose ctp
+						WHERE ctp.CA_ID = t_caID
+							AND ctp.ALL_CHAINS_REVOKED_VIA_CRLSET;
+				END IF;
 				t_text := t_text ||
 '          <TD style="text-align:center"><FONT color=#';
 				IF NOT l_record.IS_APPLICABLE THEN
 					t_text := t_text || 'CCCCCC>n/a';
-				ELSIF NOT l_record.HAS_TRUST THEN
-					t_text := t_text || '888888>No';
 				ELSIF l_record.ALL_CHAINS_REVOKED_VIA_ONECRL AND (l_record.TRUST_CONTEXT_ID = 5) THEN
-					t_text := t_text || 'CC0000 style="font-weight:bold">Revoked</FONT> <FONT style="font-size:8pt;color:#CC0000">via<BR>OneCRL';
+					t_text := t_text || 'CC0000 style="font-weight:bold">Revoked</FONT><BR><FONT style="font-size:8pt;color:#CC0000">via OneCRL';
 				ELSIF l_record.ALL_CHAINS_REVOKED_VIA_CRLSET AND (l_record.TRUST_CONTEXT_ID = 6) THEN
-					t_text := t_text || 'CC0000 style="font-weight:bold">Revoked</FONT> <FONT style="font-size:8pt;color:#CC0000">via<BR>CRLSet';
+					t_text := t_text || 'CC0000 style="font-weight:bold">Revoked</FONT><BR><FONT style="font-size:8pt;color:#CC0000">via CRLSet';
 				ELSIF l_record.ALL_CHAINS_REVOKED_VIA_DISALLOWEDSTL AND (l_record.TRUST_CONTEXT_ID = 1) THEN
 					t_text := t_text || 'CC0000 style="font-weight:bold">Revoked</FONT> <FONT style="font-size:8pt;color:#CC0000">via<BR>disallowedcert.stl';
+				ELSIF (l_record.PURPOSE = 'Server Authentication') AND (l_record.TRUST_CONTEXT_ID = 6) THEN
+					t_text := t_text || '888888>Defer to OS';
+				ELSIF NOT l_record.HAS_TRUST THEN
+					t_text := t_text || '888888>No';
 				ELSIF statement_timestamp() < l_record.EARLIEST_NOT_BEFORE THEN
 					t_text := t_text || '888888>Pending';
 				ELSIF statement_timestamp() > l_record.LATEST_NOT_AFTER THEN

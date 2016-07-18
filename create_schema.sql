@@ -37,6 +37,9 @@ CREATE INDEX ca_brand_reverse
 CREATE INDEX ca_linting_applies
 	ON ca (LINTING_APPLIES, ID);
 
+CREATE INDEX ca_spki_sha256
+	ON ca (digest(PUBLIC_KEY, 'sha256'));
+
 CREATE TABLE certificate (
 	ID						serial,
 	CERTIFICATE				bytea		NOT NULL,
@@ -252,6 +255,7 @@ CREATE TABLE trust_context (
 	CTX				text		NOT NULL,
 	URL				text,
 	VERSION			text,
+	DISPLAY_ORDER	integer,
 	CONSTRAINT tc_pk
 		PRIMARY KEY (ID)
 );
@@ -261,7 +265,7 @@ CREATE UNIQUE INDEX tc_ctx_uniq
 
 INSERT INTO trust_context ( ID, CTX, URL ) VALUES ( 1, 'Microsoft', 'https://aka.ms/rootcert' );
 INSERT INTO trust_context ( ID, CTX, URL ) VALUES ( 5, 'Mozilla', 'https://www.mozilla.org/en-US/about/governance/policies/security-group/certs/policy/' );
-INSERT INTO trust_context ( ID, CTX, URL ) VALUES ( 6, 'Chrome EV', 'https://www.chromium.org/Home/chromium-security/root-ca-policy' );
+INSERT INTO trust_context ( ID, CTX, URL ) VALUES ( 6, 'Chrome', 'https://www.chromium.org/Home/chromium-security/root-ca-policy' );
 INSERT INTO trust_context ( ID, CTX, URL ) VALUES ( 12, 'Apple', 'https://www.apple.com/certificateauthority/ca_program.html' );
 
 
@@ -385,6 +389,7 @@ INSERT INTO applicable_purpose ( TRUST_CONTEXT_ID, PURPOSE ) VALUES ( 5, 'EV Ser
 INSERT INTO applicable_purpose ( TRUST_CONTEXT_ID, PURPOSE ) VALUES ( 5, 'Secure Email' );
 INSERT INTO applicable_purpose ( TRUST_CONTEXT_ID, PURPOSE ) VALUES ( 5, 'Server Authentication' );
 INSERT INTO applicable_purpose ( TRUST_CONTEXT_ID, PURPOSE ) VALUES ( 6, 'EV Server Authentication' );
+INSERT INTO applicable_purpose ( TRUST_CONTEXT_ID, PURPOSE ) VALUES ( 6, 'Server Authentication' );
 INSERT INTO applicable_purpose ( TRUST_CONTEXT_ID, PURPOSE ) VALUES ( 12, 'Code Signing' );
 INSERT INTO applicable_purpose ( TRUST_CONTEXT_ID, PURPOSE ) VALUES ( 12, 'EV Server Authentication' );
 INSERT INTO applicable_purpose ( TRUST_CONTEXT_ID, PURPOSE ) VALUES ( 12, 'IP security user' );
@@ -468,6 +473,23 @@ CREATE TABLE microsoft_disallowedcert (
 	CONSTRAINT mdc_pk
 		PRIMARY KEY (CERTIFICATE_ID),
 	CONSTRAINT mdc_c_fk
+		FOREIGN KEY (CERTIFICATE_ID)
+		REFERENCES certificate(ID)
+);
+
+
+CREATE TABLE google_crlset_import (
+	ISSUER_SPKI_SHA256	bytea,
+	SERIAL_NUMBER		bytea,
+	CONSTRAINT gci_pk
+		PRIMARY KEY (ISSUER_SPKI_SHA256, SERIAL_NUMBER)
+);
+
+CREATE TABLE google_crlset (
+	CERTIFICATE_ID		integer,
+	CONSTRAINT gc_pk
+		PRIMARY KEY (CERTIFICATE_ID),
+	CONSTRAINT gc_c_fk
 		FOREIGN KEY (CERTIFICATE_ID)
 		REFERENCES certificate(ID)
 );
