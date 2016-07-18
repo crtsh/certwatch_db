@@ -318,13 +318,6 @@ UPDATE mozilla_disclosure_temp mdt
 		AND mdt.PARENT_CERTIFICATE_ID = mdt_parent.CERTIFICATE_ID;
 
 
-\echo Dropping Some Columns
-
-ALTER TABLE mozilla_disclosure_temp DROP COLUMN CP_CPS_SAME_AS_PARENT;
-
-ALTER TABLE mozilla_disclosure_temp DROP COLUMN AUDITS_SAME_AS_PARENT;
-
-
 \echo Creating Some Indexes
 
 CREATE INDEX md_c_temp
@@ -414,7 +407,7 @@ UPDATE mozilla_disclosure_temp mdt
 					AND statement_timestamp() BETWEEN ctp.EARLIEST_NOT_BEFORE
 												AND ctp.LATEST_NOT_AFTER
 					AND NOT ctp.ALL_CHAINS_TECHNICALLY_CONSTRAINED
-					AND NOT ctp.ALL_CHAINS_REVOKED
+					AND NOT ctp.ALL_CHAINS_REVOKED_IN_SALESFORCE
 		);
 
 \echo Tidying Up
