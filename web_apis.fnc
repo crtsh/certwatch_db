@@ -2191,7 +2191,7 @@ BEGIN
 			FOR l_record IN (
 						SELECT *
 							FROM trust_context tc
-							ORDER BY tc.ID
+							ORDER BY tc.CTX
 					) LOOP
 				t_text := t_text ||
 '          <TH><A href="' || l_record.URL || '" target="_blank">' || l_record.CTX || '</A></TH>
@@ -2209,7 +2209,8 @@ BEGIN
 								ctp.LATEST_NOT_AFTER,
 								ctp.ALL_CHAINS_REVOKED,
 								ctp.ALL_CHAINS_TECHNICALLY_CONSTRAINED
-							FROM (SELECT tc.ID TRUST_CONTEXT_ID,
+							FROM (SELECT tc.CTX,
+											tc.ID TRUST_CONTEXT_ID,
 											tp.ID TRUST_PURPOSE_ID,
 											tp.DISPLAY_ORDER,
 											tp.PURPOSE,
@@ -2217,7 +2218,8 @@ BEGIN
 										FROM trust_purpose tp, trust_context tc
 										WHERE tp.PURPOSE != 'EV Server Authentication'
 									UNION
-									SELECT tc.ID TRUST_CONTEXT_ID,
+									SELECT tc.CTX,
+											tc.ID TRUST_CONTEXT_ID,
 											tp.ID TRUST_PURPOSE_ID,
 											tp.DISPLAY_ORDER,
 											tp.PURPOSE,
@@ -2226,7 +2228,7 @@ BEGIN
 										WHERE ctp_ev.CA_ID = t_caID
 											AND ctp_ev.TRUST_PURPOSE_ID = tp.ID
 											AND tp.PURPOSE = 'EV Server Authentication'
-										GROUP BY tc.ID, tp.ID, tp.DISPLAY_ORDER, tp.PURPOSE, tp.PURPOSE_OID
+										GROUP BY tc.CTX, tc.ID, tp.ID, tp.DISPLAY_ORDER, tp.PURPOSE, tp.PURPOSE_OID
 									) trustsrc
 								LEFT OUTER JOIN ca_trust_purpose ctp ON (
 									ctp.CA_ID = t_caID
@@ -2237,7 +2239,7 @@ BEGIN
 									trustsrc.TRUST_CONTEXT_ID = ap.TRUST_CONTEXT_ID
 									AND trustsrc.PURPOSE = ap.PURPOSE
 								)
-							ORDER BY trustsrc.DISPLAY_ORDER, trustsrc.PURPOSE_OID, trustsrc.TRUST_CONTEXT_ID
+							ORDER BY trustsrc.DISPLAY_ORDER, trustsrc.PURPOSE_OID, trustsrc.CTX
 					) LOOP
 				IF t_purposeOID != l_record.PURPOSE_OID THEN
 					t_purposeOID := l_record.PURPOSE_OID;
@@ -2256,7 +2258,7 @@ BEGIN
 				IF NOT l_record.IS_APPLICABLE THEN
 					t_text := t_text || 'CCCCCC>n/a';
 				ELSIF NOT l_record.HAS_TRUST THEN
-					t_text := t_text || '000000>No';
+					t_text := t_text || '888888>No';
 				ELSIF statement_timestamp() < l_record.EARLIEST_NOT_BEFORE THEN
 					t_text := t_text || '888888>Pending';
 				ELSIF statement_timestamp() > l_record.LATEST_NOT_AFTER THEN
