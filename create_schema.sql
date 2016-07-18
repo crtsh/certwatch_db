@@ -78,11 +78,12 @@ CREATE INDEX c_subject_sha1
 	ON certificate (digest(x509_name(CERTIFICATE), 'sha1'));
 
 CREATE TABLE invalid_certificate (
+	ID						serial,
 	CERTIFICATE_ID			integer,
 	PROBLEMS				text,
 	CERTIFICATE_AS_LOGGED	bytea,
 	CONSTRAINT ic_pk
-		PRIMARY KEY (CERTIFICATE_ID),
+		PRIMARY KEY (ID),
 	CONSTRAINT ic_c_fk
 		FOREIGN KEY (CERTIFICATE_ID)
 		REFERENCES certificate(ID)
@@ -457,6 +458,8 @@ GRANT SELECT ON certificate TO crtsh;
 
 GRANT USAGE ON certificate_id_seq TO crtsh;
 
+GRANT SELECT ON invalid_certificate TO crtsh;
+
 GRANT SELECT ON certificate_identity TO crtsh;
 
 GRANT SELECT ON ca_certificate TO crtsh;
@@ -469,15 +472,15 @@ GRANT SELECT ON lint_issue TO crtsh;
 
 GRANT SELECT ON lint_cert_issue TO crtsh;
 
-GRANT SELECT ON trust_context TO httpd;
+GRANT SELECT ON trust_context TO crtsh;
 
-GRANT SELECT ON trust_purpose TO httpd;
+GRANT SELECT ON trust_purpose TO crtsh;
 
-GRANT SELECT ON root_trust_purpose TO httpd;
+GRANT SELECT ON root_trust_purpose TO crtsh;
 
-GRANT SELECT ON ca_trust_purpose TO httpd;
+GRANT SELECT ON ca_trust_purpose TO crtsh;
 
-GRANT SELECT ON applicable_purpose TO httpd;
+GRANT SELECT ON applicable_purpose TO crtsh;
 
 
 \i lint_cached.fnc
