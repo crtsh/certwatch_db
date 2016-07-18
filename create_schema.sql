@@ -246,6 +246,8 @@ CREATE INDEX lci_nb_ca_ci
 CREATE TABLE trust_context (
 	ID				integer,
 	CTX				text		NOT NULL,
+	URL				text,
+	VERSION			text,
 	CONSTRAINT tc_pk
 		PRIMARY KEY (ID)
 );
@@ -256,6 +258,7 @@ CREATE UNIQUE INDEX tc_ctx_uniq
 INSERT INTO trust_context ( ID, CTX, URL ) VALUES ( 1, 'Microsoft', 'https://aka.ms/rootcert' );
 INSERT INTO trust_context ( ID, CTX, URL ) VALUES ( 5, 'Mozilla', 'https://www.mozilla.org/en-US/about/governance/policies/security-group/certs/policy/' );
 INSERT INTO trust_context ( ID, CTX, URL ) VALUES ( 6, 'Chrome EV', 'https://www.chromium.org/Home/chromium-security/root-ca-policy' );
+INSERT INTO trust_context ( ID, CTX, URL ) VALUES ( 12, 'Apple', 'https://www.apple.com/certificateauthority/ca_program.html' );
 
 
 CREATE TABLE trust_purpose (
@@ -354,6 +357,7 @@ INSERT INTO trust_purpose ( ID, PURPOSE, PURPOSE_OID, DISPLAY_ORDER ) VALUES ( 1
 INSERT INTO trust_purpose ( ID, PURPOSE, PURPOSE_OID, DISPLAY_ORDER ) VALUES ( 166, 'EV Server Authentication', '2.16.756.5.14.7.4.8', 1);
 INSERT INTO trust_purpose ( ID, PURPOSE, PURPOSE_OID, DISPLAY_ORDER ) VALUES ( 167, 'EV Server Authentication', '2.23.140.1.1', 1);
 
+
 CREATE TABLE applicable_purpose(
 	TRUST_CONTEXT_ID	integer,
 	PURPOSE				text
@@ -373,10 +377,17 @@ INSERT INTO applicable_purpose ( TRUST_CONTEXT_ID, PURPOSE ) VALUES ( 1, 'Secure
 INSERT INTO applicable_purpose ( TRUST_CONTEXT_ID, PURPOSE ) VALUES ( 1, 'Server Authentication' );
 INSERT INTO applicable_purpose ( TRUST_CONTEXT_ID, PURPOSE ) VALUES ( 1, 'Time Stamping' );
 INSERT INTO applicable_purpose ( TRUST_CONTEXT_ID, PURPOSE ) VALUES ( 5, 'Code Signing' );
+INSERT INTO applicable_purpose ( TRUST_CONTEXT_ID, PURPOSE ) VALUES ( 5, 'EV Server Authentication' );
 INSERT INTO applicable_purpose ( TRUST_CONTEXT_ID, PURPOSE ) VALUES ( 5, 'Secure Email' );
 INSERT INTO applicable_purpose ( TRUST_CONTEXT_ID, PURPOSE ) VALUES ( 5, 'Server Authentication' );
-INSERT INTO applicable_purpose ( TRUST_CONTEXT_ID, PURPOSE ) VALUES ( 5, 'EV Server Authentication' );
 INSERT INTO applicable_purpose ( TRUST_CONTEXT_ID, PURPOSE ) VALUES ( 6, 'EV Server Authentication' );
+INSERT INTO applicable_purpose ( TRUST_CONTEXT_ID, PURPOSE ) VALUES ( 12, 'Code Signing' );
+INSERT INTO applicable_purpose ( TRUST_CONTEXT_ID, PURPOSE ) VALUES ( 12, 'EV Server Authentication' );
+INSERT INTO applicable_purpose ( TRUST_CONTEXT_ID, PURPOSE ) VALUES ( 12, 'IP security user' );
+INSERT INTO applicable_purpose ( TRUST_CONTEXT_ID, PURPOSE ) VALUES ( 12, 'Secure Email' );
+INSERT INTO applicable_purpose ( TRUST_CONTEXT_ID, PURPOSE ) VALUES ( 12, 'Server Authentication' );
+INSERT INTO applicable_purpose ( TRUST_CONTEXT_ID, PURPOSE ) VALUES ( 12, 'Time Stamping' );
+
 
 CREATE TABLE root_trust_purpose(
 	CERTIFICATE_ID		integer,
@@ -394,6 +405,7 @@ CREATE TABLE root_trust_purpose(
 		FOREIGN KEY (TRUST_PURPOSE_ID)
 		REFERENCES trust_purpose(ID)
 );
+
 
 CREATE TABLE ca_trust_purpose (
 	CA_ID								integer,
