@@ -1,13 +1,15 @@
 \echo Importing Disclosed CA Certificates
 
 CREATE TABLE mozilla_disclosure_import (
-	RECORD_TYPE				text,
-	CA_OWNER_OR_CERT_NAME	text,
+	CA_OWNER				text,
+	PARENT_NAME				text,
+	CERT_NAME				text,
 	ISSUER_CN				text,
 	ISSUER_O				text,
 	SUBJECT_CN				text,
 	SUBJECT_O				text,
 	CERT_SHA1				text,
+	CERT_SHA256				text,
 	VALID_FROM_GMT			text,
 	VALID_TO_GMT			text,
 	SIGNING_KEY_PARAMETERS	text,
@@ -29,7 +31,7 @@ CREATE TABLE mozilla_disclosure_import (
 CREATE TABLE mozilla_disclosure_temp AS
 SELECT		c.ID	CERTIFICATE_ID,
 		NULL::integer	PARENT_CERTIFICATE_ID,
-		mdi.RECORD_TYPE,
+		'Intermediate'::text	RECORD_TYPE,
 		CASE WHEN (mdi.CP_CPS_SAME_AS_PARENT = '') THEN NULL
 			ELSE (mdi.CP_CPS_SAME_AS_PARENT = 'TRUE')
 		END CP_CPS_SAME_AS_PARENT,
@@ -54,8 +56,8 @@ SELECT		c.ID	CERTIFICATE_ID,
 		CASE WHEN (mdi.STANDARD_AUDIT_DATE = '') THEN NULL
 			ELSE to_date(mdi.STANDARD_AUDIT_DATE, 'YYYY.MM.DD')
 		END STANDARD_AUDIT_DATE,
-		CASE WHEN (mdi.CA_OWNER_OR_CERT_NAME = '') THEN NULL
-			ELSE mdi.CA_OWNER_OR_CERT_NAME
+		CASE WHEN (mdi.CERT_NAME = '') THEN NULL
+			ELSE mdi.CERT_NAME
 		END CA_OWNER_OR_CERT_NAME,
 		CASE WHEN (mdi.ISSUER_CN = '') THEN NULL
 			ELSE mdi.ISSUER_CN
@@ -72,8 +74,7 @@ SELECT		c.ID	CERTIFICATE_ID,
 		decode(replace(mdi.CERT_SHA1, ':', ''), 'hex') CERT_SHA1,
 		'Disclosed'::disclosure_status_type	DISCLOSURE_STATUS
 	FROM mozilla_disclosure_import mdi
-		LEFT OUTER JOIN certificate c ON (decode(replace(mdi.CERT_SHA1, ':', ''), 'hex') = digest(c.CERTIFICATE, 'sha1'))
-	WHERE mdi.RECORD_TYPE != 'Owner';
+		LEFT OUTER JOIN certificate c ON (decode(replace(mdi.CERT_SHA1, ':', ''), 'hex') = digest(c.CERTIFICATE, 'sha1'));
 
 
 \echo Importing Revoked Intermediate Certificates
@@ -89,6 +90,7 @@ CREATE TABLE mozilla_revoked_disclosure_import (
 	SUBJECT_CN				text,
 	SUBJECT_O				text,
 	CERT_SHA1				text,
+	CERT_SHA256				text,
 	VALID_FROM_GMT			text,
 	VALID_TO_GMT			text,
 	SIGNING_KEY_PARAMETERS	text,
@@ -127,6 +129,91 @@ INSERT INTO mozilla_disclosure_temp (
 			'Revoked'
 		FROM mozilla_revoked_disclosure_import mrdi
 			LEFT OUTER JOIN certificate c ON (decode(replace(mrdi.CERT_SHA1, ':', ''), 'hex') = digest(c.CERTIFICATE, 'sha1'));
+
+
+\echo Importing Included CA Certificates
+
+CREATE TABLE mozilla_included_import (
+	CA_OWNER				text,
+	ISSUER_O				text,
+	ISSUER_OU				text,
+	CN_OR_CERT_NAME			text,
+	CERT_SHA1				text,
+	VALID_FROM_GMT			text,
+	VALID_TO_GMT			text,
+	SIGNING_KEY_PARAMETERS	text,
+	SIGNATURE_ALGORITHM		text,
+	TRUST_BITS				text,
+	EV_POLICY_OIDS			text,
+	APPROVAL_BUG			text,
+	FIRST_NSS_RELEASE		text,
+	FIRST_FIREFOX_RELEASE	text,
+	TEST_URL				text,
+	MOZILLA_CONSTRAINTS		text,
+	COMPANY_WEBSITE			text,
+	GEOGRAPHIC_FOCUS		text,
+	CP_URL					text,
+	CPS_URL					text,
+	STANDARD_AUDIT_URL		text,
+	BR_AUDIT_URL			text,
+	EV_AUDIT_URL			text,
+	AUDITOR					text,
+	STANDARD_AUDIT_TYPE		text,
+	STANDARD_AUDIT_DATE		text
+);
+
+\COPY mozilla_included_import FROM 'mozilla_included.csv' CSV HEADER;
+
+INSERT INTO mozilla_disclosure_temp (
+		CERTIFICATE_ID, PARENT_CERTIFICATE_ID, RECORD_TYPE,
+		CP_CPS_SAME_AS_PARENT,
+		CP_URL,
+		CPS_URL,
+		AUDITS_SAME_AS_PARENT,
+		STANDARD_AUDIT_URL,
+		BR_AUDIT_URL,
+		AUDITOR,
+		STANDARD_AUDIT_DATE,
+		CA_OWNER_OR_CERT_NAME,
+		ISSUER_CN,
+		ISSUER_O,
+		SUBJECT_CN,
+		SUBJECT_O,
+		CERT_SHA1,
+		DISCLOSURE_STATUS
+	)
+	SELECT c.ID, NULL, 'Root',
+			FALSE,
+			CASE WHEN (mii.CP_URL = '') THEN NULL
+				ELSE mii.CP_URL
+			END CP_URL,
+			CASE WHEN (mii.CPS_URL = '') THEN NULL
+				ELSE mii.CPS_URL
+			END CPS_URL,
+			FALSE,
+			CASE WHEN (mii.STANDARD_AUDIT_URL = '') THEN NULL
+				ELSE mii.STANDARD_AUDIT_URL
+			END STANDARD_AUDIT_URL,
+			CASE WHEN (mii.BR_AUDIT_URL = '') THEN NULL
+				ELSE mii.BR_AUDIT_URL
+			END BR_AUDIT_URL,
+			CASE WHEN (mii.AUDITOR = '') THEN NULL
+				ELSE mii.AUDITOR
+			END AUDITOR,
+			CASE WHEN (mii.STANDARD_AUDIT_DATE = '') THEN NULL
+				ELSE to_date(mii.STANDARD_AUDIT_DATE, 'YYYY.MM.DD')
+			END STANDARD_AUDIT_DATE,
+			CASE WHEN (mii.CA_OWNER = '') THEN NULL
+				ELSE mii.CA_OWNER
+			END,
+			(SELECT x509_nameAttributes(c.CERTIFICATE, 'commonName', FALSE) LIMIT 1),
+			(SELECT x509_nameAttributes(c.CERTIFICATE, 'organizationName', FALSE) LIMIT 1),
+			(SELECT x509_nameAttributes(c.CERTIFICATE, 'commonName', TRUE) LIMIT 1),
+			(SELECT x509_nameAttributes(c.CERTIFICATE, 'organizationName', TRUE) LIMIT 1),
+			decode(replace(mii.CERT_SHA1, ':', ''), 'hex'),
+			'Disclosed'
+		FROM mozilla_included_import mii
+			LEFT OUTER JOIN certificate c ON (decode(replace(mii.CERT_SHA1, ':', ''), 'hex') = digest(c.CERTIFICATE, 'sha1'));
 
 
 \echo Determining Parent CA Certificates
@@ -313,6 +400,8 @@ GRANT SELECT ON mozilla_disclosure_temp TO httpd;
 DROP TABLE mozilla_disclosure_import;
 
 DROP TABLE mozilla_revoked_disclosure_import;
+
+DROP TABLE mozilla_included_import;
 
 DROP TABLE mozilla_disclosure;
 
