@@ -201,7 +201,7 @@ BEGIN
 	IF t_outputType = '' THEN
 		t_outputType := 'html';
 	END IF;
-	IF lower(t_outputType) IN ('forum', 'mozilla-disclosures') THEN
+	IF lower(t_outputType) IN ('forum', 'mozilla-disclosures', 'redacted-precertificates') THEN
 		t_type := lower(t_outputType);
 		t_title := t_type;
 		t_outputType := 'html';
@@ -772,6 +772,73 @@ BEGIN
      + ''&showsearch=true&showpopout=true&showtabs=false''
      + ''&parenturl='' + encodeURIComponent(window.location.href);
 </SCRIPT>';
+
+	ELSIF t_type = 'redacted-precertificates' THEN
+		t_output := t_output ||
+'  <SPAN class="whiteongrey">Redacted Precertificates</SPAN>
+<BR><BR>
+';
+
+		t_temp := '';
+		FOR l_record IN (
+					SELECT pc.ID PRECERT_ID,
+							array_agg(pci.NAME_VALUE) REDACTED_LABELS,
+							c.ID CERT_ID,
+							pci.ISSUER_CA_ID,
+							ca.NAME  ISSUER_NAME
+						FROM certificate_identity pci, ca,
+							certificate pc
+								LEFT OUTER JOIN certificate c ON (
+									pc.ID != c.ID
+									AND pc.ISSUER_CA_ID = c.ISSUER_CA_ID
+									AND x509_serialNumber(pc.CERTIFICATE) = x509_serialNumber(c.CERTIFICATE)
+									AND c.CERTIFICATE IS NOT NULL
+								)
+						WHERE lower(pci.NAME_VALUE) LIKE '?%'
+							AND pci.NAME_TYPE IN ('dNSName', 'commonName')
+							AND pci.ISSUER_CA_ID = ca.ID
+							AND pci.CERTIFICATE_ID = pc.ID
+						GROUP BY pc.ID, c.ID, pci.ISSUER_CA_ID, ca.NAME
+						ORDER BY pc.ID DESC
+				) LOOP
+			t_temp := t_temp ||
+'  <TR>
+    <TD><A href="/?id=' || l_record.PRECERT_ID || '">' || l_record.PRECERT_ID || '</A></TD>
+    <TD>' || array_to_string(l_record.REDACTED_LABELS, '<BR>') || '</TD>
+';
+			IF l_record.CERT_ID IS NULL THEN
+				t_temp := t_temp ||
+'    <TD>&nbsp;</TD>
+    <TD>&nbsp;</TD>
+    <TD>&nbsp;</TD>
+';
+			ELSE
+				SELECT string_agg(ci.NAME_VALUE, '<BR>')
+					INTO t_temp2
+					FROM certificate_identity ci
+					WHERE ci.CERTIFICATE_ID = l_record.CERT_ID
+						AND ci.NAME_TYPE IN ('dNSName', 'commonName');
+				t_temp := t_temp ||
+'    <TD><A href="/?id=' || l_record.CERT_ID || '">' || l_record.CERT_ID || '</A></TD>
+    <TD>' || t_temp2 || '</TD>
+    <TD><A href="/?id=' || l_record.ISSUER_CA_ID || '">' || l_record.ISSUER_NAME || '</A></TD>
+';
+			END IF;
+			t_temp := t_temp ||
+'  </TR>
+';
+		END LOOP;
+		t_output := t_output ||
+'<TABLE>
+  <TR>
+    <TH>Precertificate</TH>
+    <TH>Redacted Labels</TH>
+    <TH>Certificate</TH>
+    <TH>Unredacted Labels</TH>
+    <TH>Issuer Name</TH>
+  </TR>
+'  || t_temp || '
+</TABLE>';
 
 	ELSIF t_type = 'mozilla-disclosures' THEN
 		t_output := t_output ||
