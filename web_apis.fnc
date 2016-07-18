@@ -856,10 +856,13 @@ BEGIN
 		t_temp := '';
 		FOR l_record IN (
 					SELECT md.CA_OWNER_OR_CERT_NAME, md.ISSUER_O, md.ISSUER_CN,
-							md.SUBJECT_O, md.SUBJECT_CN, md.CERT_SHA1
+							md.SUBJECT_O, md.SUBJECT_CN, md.CERT_SHA1,
+							ic.CERTIFICATE_ID, ic.PROBLEMS
 						FROM mozilla_disclosure md
+								LEFT OUTER JOIN invalid_certificate ic
+									ON (md.CERT_SHA1 = digest(ic.CERTIFICATE_AS_LOGGED, 'sha1'))
 						WHERE md.CERTIFICATE_ID IS NULL
-						ORDER BY md.ISSUER_O, md.ISSUER_CN, md.SUBJECT_O, md.SUBJECT_CN
+						ORDER BY (ic.PROBLEMS IS NOT NULL), md.ISSUER_O, md.ISSUER_CN, md.SUBJECT_O, md.SUBJECT_CN
 				) LOOP
 			t_unknownCount := t_unknownCount + 1;
 			t_temp := t_temp ||
@@ -870,11 +873,16 @@ BEGIN
     <TD>' || coalesce(html_escape(l_record.SUBJECT_O), '&nbsp;') || '</TD>
     <TD>' || coalesce(html_escape(l_record.SUBJECT_CN), '&nbsp;') || '</TD>
     <TD style="font-family:monospace">' || upper(encode(l_record.CERT_SHA1, 'hex')) || '</TD>
+    <TD>' || coalesce(html_escape(l_record.PROBLEMS), '&nbsp;');
+			IF l_record.CERTIFICATE_ID IS NOT NULL THEN
+				t_temp := t_temp || '.<BR><A href="/?id=' || l_record.CERTIFICATE_ID::text || '">View the correct encoding of this certificate</A>';
+			END IF;
+			t_temp := t_temp || '</TD>
   </TR>
 ';
 		END LOOP;
 		t_temp :=
-'<BR><BR><SPAN class="title"><A name="unknown">Disclosed; Unknown to crt.sh</A></SPAN>
+'<BR><BR><SPAN class="title"><A name="unknown">Disclosed; Unknown to crt.sh or Incorrectly Encoded</A></SPAN>
 <SPAN class="whiteongrey">' || t_unknownCount::text || ' CA certificates</SPAN>
 <BR>
 <TABLE>
@@ -885,6 +893,7 @@ BEGIN
     <TH>Subject O</TH>
     <TH>Subject CN</TH>
     <TH>SHA-1(Certificate)</TH>
+    <TH>Encoding Problems?</TH>
   </TR>
 ' || t_temp;
 		IF t_unknownCount = 0 THEN
@@ -1313,7 +1322,7 @@ BEGIN
     <TD><A href="#disclosed">' || t_disclosedCount::text || '</A></TD>
   </TR>
   <TR>
-    <TD>Unknown to crt.sh</TD>
+    <TD>Unknown to crt.sh or Incorrectly Encoded</TD>
     <TD>Already disclosed</TD>
     <TD><A href="#unknown">' || t_unknownCount::text || '</TD>
   </TR>
