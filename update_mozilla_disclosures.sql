@@ -2,6 +2,33 @@
 
 \echo Importing Disclosed CA Certificates
 
+CREATE TABLE mozilla_disclosure_manual_import (
+	PARENT_CERT_NAME		text,
+	CERT_NAME				text,
+	ISSUER_CN				text,
+	ISSUER_O				text,
+	SUBJECT_CN				text,
+	SUBJECT_O				text,
+	CERT_SHA1				text,
+	VALID_FROM_GMT			text,
+	VALID_TO_GMT			text,
+	SIGNING_KEY_PARAMETERS	text,
+	SIGNATURE_ALGORITHM		text,
+	EXTENDED_KEY_USAGE		text,
+	CP_CPS_SAME_AS_PARENT	text,
+	CP_URL					text,
+	CPS_URL					text,
+	AUDITS_SAME_AS_PARENT	text,
+	STANDARD_AUDIT_URL		text,
+	BR_AUDIT_URL			text,
+	AUDITOR					text,
+	STANDARD_AUDIT_DATE		text,
+	MGMT_ASSERTIONS_BY		text,
+	CA_OWNER				text
+);
+
+\COPY mozilla_disclosure_manual_import FROM 'mozilla_disclosures_manual.csv' CSV HEADER;
+
 CREATE TABLE mozilla_disclosure_import (
 	CA_OWNER				text,
 	PARENT_NAME				text,
@@ -31,10 +58,12 @@ CREATE TABLE mozilla_disclosure_import (
 \COPY mozilla_disclosure_import FROM 'mozilla_disclosures.csv' CSV HEADER;
 
 CREATE TABLE mozilla_disclosure_temp AS
-SELECT		c.ID	CERTIFICATE_ID,
+SELECT	c.ID	CERTIFICATE_ID,
 		NULL::integer	PARENT_CERTIFICATE_ID,
+		mdi.PARENT_NAME	PARENT_NAME,
 		'Intermediate'::text	RECORD_TYPE,
-		CASE WHEN (mdi.CP_CPS_SAME_AS_PARENT = '') THEN NULL
+		regexp_replace(replace(mdmi.CERT_NAME, '<a href="', ''), '".*$', '')	SALESFORCE_ID,
+		CASE WHEN (mdi.CP_CPS_SAME_AS_PARENT = '') THEN FALSE
 			ELSE (mdi.CP_CPS_SAME_AS_PARENT = 'TRUE')
 		END CP_CPS_SAME_AS_PARENT,
 		CASE WHEN (mdi.CP_URL = '') THEN NULL
@@ -43,7 +72,7 @@ SELECT		c.ID	CERTIFICATE_ID,
 		CASE WHEN (mdi.CPS_URL = '') THEN NULL
 			ELSE mdi.CPS_URL
 		END CPS_URL,
-		CASE WHEN (mdi.AUDITS_SAME_AS_PARENT = '') THEN NULL
+		CASE WHEN (mdi.AUDITS_SAME_AS_PARENT = '') THEN FALSE
 			ELSE (mdi.AUDITS_SAME_AS_PARENT = 'TRUE')
 		END AUDITS_SAME_AS_PARENT,
 		CASE WHEN (mdi.STANDARD_AUDIT_URL = '') THEN NULL
@@ -76,10 +105,30 @@ SELECT		c.ID	CERTIFICATE_ID,
 		decode(replace(mdi.CERT_SHA1, ':', ''), 'hex') CERT_SHA1,
 		'Disclosed'::disclosure_status_type	DISCLOSURE_STATUS
 	FROM mozilla_disclosure_import mdi
-		LEFT OUTER JOIN certificate c ON (decode(replace(mdi.CERT_SHA1, ':', ''), 'hex') = digest(c.CERTIFICATE, 'sha1'));
+		LEFT OUTER JOIN certificate c ON (decode(replace(mdi.CERT_SHA1, ':', ''), 'hex') = digest(c.CERTIFICATE, 'sha1'))
+		LEFT OUTER JOIN mozilla_disclosure_manual_import mdmi ON ((mdi.CERT_SHA1 = mdmi.CERT_SHA1) AND (mdmi.CERT_NAME LIKE ('%' || mdi.CERT_NAME || '%')));
 
 
 \echo Importing Revoked Intermediate Certificates
+
+CREATE TABLE mozilla_revoked_disclosure_manual_import (
+	REVOCATION_STATUS		text,
+	REASON_CODE				text,
+	REVOCATION_DATE			text,
+	CERT_NAME				text,
+	ISSUER_CN				text,
+	ISSUER_O				text,
+	SUBJECT_CN				text,
+	SUBJECT_O				text,
+	CERT_SHA1				text,
+	VALID_FROM_GMT			text,
+	VALID_TO_GMT			text,
+	SIGNING_KEY_PARAMETERS	text,
+	SIGNATURE_ALGORITHM		text,
+	CA_OWNER				text
+);
+
+\COPY mozilla_revoked_disclosure_manual_import FROM 'mozilla_revoked_disclosures_manual.csv' CSV HEADER;
 
 CREATE TABLE mozilla_revoked_disclosure_import (
 	CA_OWNER				text,
@@ -103,6 +152,7 @@ CREATE TABLE mozilla_revoked_disclosure_import (
 
 INSERT INTO mozilla_disclosure_temp (
 		CERTIFICATE_ID, PARENT_CERTIFICATE_ID, RECORD_TYPE,
+		SALESFORCE_ID,
 		CA_OWNER_OR_CERT_NAME,
 		ISSUER_CN,
 		ISSUER_O,
@@ -112,6 +162,7 @@ INSERT INTO mozilla_disclosure_temp (
 		DISCLOSURE_STATUS
 	)
 	SELECT c.ID, NULL, 'Revoked',
+			regexp_replace(replace(mrdmi.CERT_NAME, '<a href="', ''), '".*$', '')	SALESFORCE_ID,
 			CASE WHEN (mrdi.CA_OWNER_OR_CERT_NAME = '') THEN NULL
 				ELSE mrdi.CA_OWNER_OR_CERT_NAME
 			END,
@@ -130,7 +181,8 @@ INSERT INTO mozilla_disclosure_temp (
 			decode(replace(mrdi.CERT_SHA1, ':', ''), 'hex'),
 			'Revoked'
 		FROM mozilla_revoked_disclosure_import mrdi
-			LEFT OUTER JOIN certificate c ON (decode(replace(mrdi.CERT_SHA1, ':', ''), 'hex') = digest(c.CERTIFICATE, 'sha1'));
+			LEFT OUTER JOIN certificate c ON (decode(replace(mrdi.CERT_SHA1, ':', ''), 'hex') = digest(c.CERTIFICATE, 'sha1'))
+			LEFT OUTER JOIN mozilla_revoked_disclosure_manual_import mrdmi ON ((mrdi.CERT_SHA1 = mrdmi.CERT_SHA1) AND (mrdmi.CERT_NAME LIKE ('%' || mrdi.CA_OWNER_OR_CERT_NAME || '%')));
 
 
 \echo Importing Included CA Certificates
@@ -359,6 +411,30 @@ UPDATE mozilla_disclosure_temp mdt
 	WHERE mdt.DISCLOSURE_STATUS IN ('Disclosed', 'Revoked')
 		AND mdt.CERTIFICATE_ID = m.CERTIFICATE_ID;
 
+\echo Disclosed -> DisclosureIncomplete
+UPDATE mozilla_disclosure_temp mdt
+	SET DISCLOSURE_STATUS = 'DisclosureIncomplete'
+	WHERE mdt.DISCLOSURE_STATUS = 'Disclosed'
+		AND (
+			(
+				NOT mdt.CP_CPS_SAME_AS_PARENT
+				AND (coalesce(mdt.CP_URL, mdt.CPS_URL) IS NULL)
+			)
+			OR (
+				NOT mdt.AUDITS_SAME_AS_PARENT
+				AND (coalesce(mdt.STANDARD_AUDIT_URL, mdt.BR_AUDIT_URL) IS NULL)
+			)
+		);
+
+\echo Disclosed -> DisclosedWithErrors
+UPDATE mozilla_disclosure_temp mdt
+	SET DISCLOSURE_STATUS = 'DisclosedWithErrors'
+	FROM certificate c
+	WHERE mdt.DISCLOSURE_STATUS = 'Disclosed'
+		AND mdt.CERTIFICATE_ID = c.ID
+		AND (mdt.PARENT_NAME NOT LIKE get_ca_name_attribute(c.ISSUER_CA_ID, 'commonName') || '%')
+		AND (mdt.PARENT_NAME NOT LIKE get_ca_name_attribute(c.ISSUER_CA_ID, 'organizationName') || '%');
+
 \echo Undisclosed -> Expired
 UPDATE mozilla_disclosure_temp mdt
 	SET DISCLOSURE_STATUS = 'Expired'
@@ -418,7 +494,11 @@ GRANT SELECT ON mozilla_disclosure_temp TO httpd;
 
 DROP TABLE mozilla_disclosure_import;
 
+DROP TABLE mozilla_disclosure_manual_import;
+
 DROP TABLE mozilla_revoked_disclosure_import;
+
+DROP TABLE mozilla_revoked_disclosure_manual_import;
 
 DROP TABLE mozilla_included_import;
 

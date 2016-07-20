@@ -453,6 +453,7 @@ CREATE INDEX ctp_ca_tc_tp
 
 
 CREATE TYPE disclosure_status_type AS ENUM (
+	'DisclosureIncomplete',
 	'Undisclosed',
 	'AllServerAuthPathsRevoked',
 	'NoKnownServerAuthTrustPath',
@@ -460,7 +461,8 @@ CREATE TYPE disclosure_status_type AS ENUM (
 	'Expired',
 	'Revoked',
 	'RevokedViaOneCRL',
-	'Disclosed'
+	'Disclosed',
+	'DisclosedWithErrors'
 );
 
 
