@@ -2149,8 +2149,9 @@ BEGIN
 							AND ctp.TRUST_PURPOSE_ID = 1;
 					IF NOT FOUND THEN
 						t_temp3 := t_temp3 || '888888>Not Trusted';
+						t_ctp.SHORTEST_CHAIN := NULL;
 					ELSIF statement_timestamp() < greatest(l_record.NOT_BEFORE, t_ctp.EARLIEST_NOT_BEFORE) THEN
-						t_temp3 := t_temp3 || '888888>Not Yet Valid';
+						t_temp3 := t_temp3 || 'FF9F00>Pending';
 					ELSIF statement_timestamp() > least(l_record.NOT_AFTER, t_ctp.LATEST_NOT_AFTER) THEN
 						t_temp3 := t_temp3 || '888888>Expired';
 					ELSE
@@ -2161,14 +2162,17 @@ BEGIN
 						IF FOUND AND (t_temp2 LIKE 'Revoked%') THEN
 							t_temp3 := t_temp3 || 'CC0000>Revoked';
 						ELSIF is_technically_constrained(l_record.CERTIFICATE) THEN
-							t_temp3 := t_temp3 || '00CC00>Technically Constrained';
+							t_temp3 := t_temp3 || '00CC00>Constrained';
 						ELSIF t_ctp.ALL_CHAINS_REVOKED_IN_SALESFORCE OR t_ctp.ALL_CHAINS_REVOKED_VIA_ONECRL THEN
 							t_temp3 := t_temp3 || 'CC0000>All Paths Revoked';
 						ELSIF t_ctp.ALL_CHAINS_TECHNICALLY_CONSTRAINED THEN
-							t_temp3 := t_temp3 || '00CC00>All Paths Technically Constrained';
+							t_temp3 := t_temp3 || '00CC00>All Paths Constrained';
 						ELSE
 							t_temp3 := t_temp3 || '00CC00>Valid';
 						END IF;
+					END IF;
+					IF t_ctp.SHORTEST_CHAIN IS NOT NULL THEN
+						t_temp3 := t_temp3 || ' <SPAN style="vertical-align:super;font-size:70%;color:#33A8FF">' || (t_ctp.SHORTEST_CHAIN + 1)::text || '</SPAN>';
 					END IF;
 					t_output := t_output ||
 '    <TD style="white-space:nowrap">' || t_temp3 || '</FONT></TD>
@@ -2409,10 +2413,11 @@ BEGIN
     <TD class="outer">
       <TABLE class="options" style="margin-left:0px">
         <TR>
-          <TH>Purpose</TH>
+          <TH rowspan="2" style="vertical-align:middle">Purpose</TH>
 ';
 
 			t_text := '';
+			t_count := 0;
 			FOR l_record IN (
 						SELECT *
 							FROM trust_context tc
@@ -2421,7 +2426,14 @@ BEGIN
 				t_text := t_text ||
 '          <TH><A href="' || l_record.URL || '" target="_blank">' || l_record.CTX || '</A></TH>
 ';
+				t_count := t_count + 1;
 			END LOOP;
+
+			t_output := t_output ||
+'          <TH colspan="' || t_count::text || '">Context <SPAN style="vertical-align:super;font-size:70%;color:#33A8FF">Shortest Path</SPAN></TH>
+        </TR>
+        <TR>
+';
 
 			t_purposeOID := '';
 			FOR l_record IN (
@@ -2432,6 +2444,7 @@ BEGIN
 								(ap.PURPOSE IS NOT NULL) IS_APPLICABLE,
 								ctp.EARLIEST_NOT_BEFORE,
 								ctp.LATEST_NOT_AFTER,
+								ctp.SHORTEST_CHAIN,
 								ctp.ALL_CHAINS_REVOKED_VIA_ONECRL,
 								ctp.ALL_CHAINS_REVOKED_VIA_CRLSET,
 								ctp.ALL_CHAINS_REVOKED_VIA_DISALLOWEDSTL,
@@ -2485,12 +2498,14 @@ BEGIN
 						INTO l_record.ALL_CHAINS_REVOKED_VIA_CRLSET
 						FROM ca_trust_purpose ctp
 						WHERE ctp.CA_ID = t_caID
-							AND ctp.ALL_CHAINS_REVOKED_VIA_CRLSET;
+							AND ctp.ALL_CHAINS_REVOKED_VIA_CRLSET
+						LIMIT 1;
 				END IF;
 				t_text := t_text ||
 '          <TD style="text-align:center"><FONT color=#';
 				IF NOT l_record.IS_APPLICABLE THEN
 					t_text := t_text || 'CCCCCC>n/a';
+					l_record.SHORTEST_CHAIN := NULL;
 				ELSIF l_record.ALL_CHAINS_REVOKED_VIA_ONECRL AND (l_record.TRUST_CONTEXT_ID = 5) THEN
 					t_text := t_text || 'CC0000 style="font-weight:bold">Revoked</FONT><BR><FONT style="font-size:8pt;color:#CC0000">via OneCRL';
 				ELSIF l_record.ALL_CHAINS_REVOKED_VIA_CRLSET AND (l_record.TRUST_CONTEXT_ID = 6) THEN
@@ -2501,14 +2516,18 @@ BEGIN
 					t_text := t_text || '888888>Defer to OS';
 				ELSIF NOT l_record.HAS_TRUST THEN
 					t_text := t_text || '888888>No';
+					l_record.SHORTEST_CHAIN := NULL;
 				ELSIF statement_timestamp() < l_record.EARLIEST_NOT_BEFORE THEN
-					t_text := t_text || '888888>Pending';
+					t_text := t_text || 'FF9F00>Pending';
 				ELSIF statement_timestamp() > l_record.LATEST_NOT_AFTER THEN
 					t_text := t_text || '888888>Expired';
 				ELSIF l_record.ALL_CHAINS_TECHNICALLY_CONSTRAINED THEN
 					t_text := t_text || '00CC00>Constrained';
 				ELSE
 					t_text := t_text || '00CC00>Valid';
+				END IF;
+				IF l_record.SHORTEST_CHAIN IS NOT NULL THEN
+					t_text := t_text || ' <SPAN style="vertical-align:super;font-size:70%;color:#33A8FF">' || l_record.SHORTEST_CHAIN || '</SPAN>';
 				END IF;
 				t_text := t_text || '</FONT></TD>
 ';

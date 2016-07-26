@@ -427,6 +427,7 @@ CREATE TABLE ca_trust_purpose (
 	EARLIEST_NOT_BEFORE						timestamp,
 	LATEST_NOT_AFTER						timestamp,
 	ALL_CHAINS_TECHNICALLY_CONSTRAINED		boolean,
+	SHORTEST_CHAIN							integer,
 	LONGEST_CHAIN							integer,
 	ALL_CHAINS_REVOKED_IN_SALESFORCE		boolean,
 	ALL_CHAINS_REVOKED_VIA_ONECRL			boolean,
