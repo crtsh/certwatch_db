@@ -258,6 +258,7 @@ CREATE TABLE trust_context (
 	CTX				text		NOT NULL,
 	URL				text,
 	VERSION			text,
+	VERSION_URL		text,
 	DISPLAY_ORDER	integer,
 	CONSTRAINT tc_pk
 		PRIMARY KEY (ID)

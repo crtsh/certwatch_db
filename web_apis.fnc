@@ -2424,13 +2424,24 @@ BEGIN
 							ORDER BY tc.DISPLAY_ORDER
 					) LOOP
 				t_text := t_text ||
-'          <TH><A href="' || l_record.URL || '" target="_blank">' || l_record.CTX || '</A></TH>
+'          <TH><A href="' || l_record.URL || '" target="_blank">' || l_record.CTX || '</A>';
+				IF l_record.VERSION IS NOT NULL THEN
+					t_text := t_text || '<BR>';
+					IF l_record.VERSION_URL IS NOT NULL THEN
+						t_text := t_text || '<A href="' || l_record.VERSION_URL || '" target="_blank">';
+					END IF;
+					t_text := t_text || '<SPAN class="small">(' || l_record.VERSION || ')</SPAN>';
+					IF l_record.VERSION_URL IS NOT NULL THEN
+						t_text := t_text || '</A>';
+					END IF;
+				END IF;
+				t_text := t_text || '</TH>
 ';
 				t_count := t_count + 1;
 			END LOOP;
 
 			t_output := t_output ||
-'          <TH colspan="' || t_count::text || '">Context <SPAN style="vertical-align:super;font-size:70%;color:#33A8FF">Shortest Path</SPAN></TH>
+'          <TH colspan="' || t_count::text || '">Context <SPAN class="small">(Version)</SPAN> <SPAN style="vertical-align:super;font-size:70%;color:#33A8FF">Shortest Path</SPAN></TH>
         </TR>
         <TR>
 ';
