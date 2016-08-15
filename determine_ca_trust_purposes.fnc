@@ -24,6 +24,8 @@ DECLARE
 	l_rtp						RECORD;
 	l_ctp						RECORD;
 	t_iteration					integer		:= 1;
+	t_certNotBefore				timestamp;
+	t_certNotAfter				timestamp;
 	t_isTrusted					boolean;
 	t_isRevokedInSalesforce		boolean;
 	t_isRevokedViaOneCRL		boolean;
@@ -44,8 +46,8 @@ BEGIN
 		SELECT cac.CA_ID, rtp.TRUST_CONTEXT_ID, rtp.TRUST_PURPOSE_ID, max_iterations,
 				min(x509_notBefore(c.CERTIFICATE)), max(x509_notAfter(c.CERTIFICATE)),
 				FALSE, t_iteration, t_iteration,
-				FALSE, FALSE,
-				FALSE, FALSE
+				NULL, NULL,
+				NULL, NULL
 			FROM root_trust_purpose rtp, ca_certificate cac, certificate c
 			WHERE rtp.CERTIFICATE_ID = cac.CERTIFICATE_ID
 				AND cac.CERTIFICATE_ID = c.ID
@@ -75,20 +77,30 @@ BEGIN
 							AND x509_canIssueCerts(c.CERTIFICATE)
 				) LOOP
 			BEGIN
-				t_isTrusted := FALSE;
-				t_isRevokedInSalesforce := FALSE;
-				t_isRevokedViaOneCRL := FALSE;
-				t_isRevokedViaCRLSet := FALSE;
-				t_isRevokedViaDisallowedSTL := FALSE;
+				t_caID := NULL;
 				SELECT cac.CA_ID
 					INTO t_caID
 					FROM ca_certificate cac
 					WHERE cac.CERTIFICATE_ID = l_ctp.ID;
+
+				t_certNotBefore := x509_notBefore(l_ctp.CERTIFICATE);
+				t_certNotAfter := x509_notAfter(l_ctp.CERTIFICATE);
+				IF statement_timestamp() NOT BETWEEN t_certNotBefore AND t_certNotAfter THEN
+					t_isRevokedInSalesforce := NULL;
+					t_isRevokedViaOneCRL := NULL;
+					t_isRevokedViaCRLSet := NULL;
+					t_isRevokedViaDisallowedSTL := NULL;
+				ELSE
+					t_isRevokedInSalesforce := FALSE;
+					t_isRevokedViaOneCRL := FALSE;
+					t_isRevokedViaCRLSet := FALSE;
+					t_isRevokedViaDisallowedSTL := FALSE;
+				END IF;
 				SELECT true
 					INTO t_isRevokedInSalesforce
 					FROM mozilla_disclosure md
 					WHERE md.CERTIFICATE_ID = l_ctp.ID
-						AND md.DISCLOSURE_STATUS = 'Revoked';
+						AND md.DISCLOSURE_STATUS IN ('Revoked', 'RevokedViaOneCRL');
 				SELECT true
 					INTO t_isRevokedViaOneCRL
 					FROM mozilla_onecrl mo
@@ -101,6 +113,8 @@ BEGIN
 					INTO t_isRevokedViaDisallowedSTL
 					FROM microsoft_disallowedcert mdc
 					WHERE mdc.CERTIFICATE_ID = l_ctp.ID;
+
+				t_isTrusted := FALSE;
 				IF l_ctp.PURPOSE = 'EV Server Authentication' THEN
 					IF x509_isPolicyPermitted(l_ctp.CERTIFICATE,
 												l_ctp.PURPOSE_OID) THEN
@@ -152,8 +166,8 @@ BEGIN
 													max_iterations)
 								)
 							),
-							greatest(l_ctp.EARLIEST_NOT_BEFORE, x509_notBefore(l_ctp.CERTIFICATE)),
-							least(l_ctp.LATEST_NOT_AFTER, x509_notAfter(l_ctp.CERTIFICATE)),
+							greatest(l_ctp.EARLIEST_NOT_BEFORE, t_certNotBefore),
+							least(l_ctp.LATEST_NOT_AFTER, t_certNotAfter),
 							greatest(l_ctp.ALL_CHAINS_TECHNICALLY_CONSTRAINED,
 										is_technically_constrained(l_ctp.CERTIFICATE)),
 							l_ctp.SHORTEST_CHAIN + 1,
@@ -186,15 +200,13 @@ BEGIN
 						t_ctp2.EARLIEST_NOT_BEFORE := least(
 							t_ctp1.EARLIEST_NOT_BEFORE,
 							greatest(
-								l_ctp.EARLIEST_NOT_BEFORE,
-								x509_notBefore(l_ctp.CERTIFICATE)
+								l_ctp.EARLIEST_NOT_BEFORE, t_certNotBefore
 							)
 						);
 						t_ctp2.LATEST_NOT_AFTER := greatest(
 							t_ctp1.LATEST_NOT_AFTER,
 							least(
-								l_ctp.LATEST_NOT_AFTER,
-								x509_notAfter(l_ctp.CERTIFICATE)
+								l_ctp.LATEST_NOT_AFTER, t_certNotAfter
 							)
 						);
 						t_ctp2.ALL_CHAINS_TECHNICALLY_CONSTRAINED := least(
@@ -229,10 +241,10 @@ BEGIN
 								OR (t_ctp1.LATEST_NOT_AFTER != t_ctp2.LATEST_NOT_AFTER)
 								OR (t_ctp1.ALL_CHAINS_TECHNICALLY_CONSTRAINED != t_ctp2.ALL_CHAINS_TECHNICALLY_CONSTRAINED)
 								OR (t_ctp1.SHORTEST_CHAIN != t_ctp2.SHORTEST_CHAIN)
-								OR (t_ctp1.ALL_CHAINS_REVOKED_IN_SALESFORCE != t_ctp2.ALL_CHAINS_REVOKED_IN_SALESFORCE)
-								OR (t_ctp1.ALL_CHAINS_REVOKED_VIA_ONECRL != t_ctp2.ALL_CHAINS_REVOKED_VIA_ONECRL)
-								OR (t_ctp1.ALL_CHAINS_REVOKED_VIA_CRLSET != t_ctp2.ALL_CHAINS_REVOKED_VIA_CRLSET)
-								OR (t_ctp1.ALL_CHAINS_REVOKED_VIA_DISALLOWEDSTL != t_ctp2.ALL_CHAINS_REVOKED_VIA_DISALLOWEDSTL) THEN
+								OR (coalesce(t_ctp1.ALL_CHAINS_REVOKED_IN_SALESFORCE::text, 'null') != coalesce(t_ctp2.ALL_CHAINS_REVOKED_IN_SALESFORCE::text, 'null'))
+								OR (coalesce(t_ctp1.ALL_CHAINS_REVOKED_VIA_ONECRL::text, 'null') != coalesce(t_ctp2.ALL_CHAINS_REVOKED_VIA_ONECRL::text, 'null'))
+								OR (coalesce(t_ctp1.ALL_CHAINS_REVOKED_VIA_CRLSET::text, 'null') != coalesce(t_ctp2.ALL_CHAINS_REVOKED_VIA_CRLSET::text, 'null'))
+								OR (coalesce(t_ctp1.ALL_CHAINS_REVOKED_VIA_DISALLOWEDSTL::text, 'null') != coalesce(t_ctp2.ALL_CHAINS_REVOKED_VIA_DISALLOWEDSTL::text, 'null')) THEN
 							UPDATE ca_trust_purpose_temp
 								SET PATH_LEN_CONSTRAINT = t_ctp2.PATH_LEN_CONSTRAINT,
 									EARLIEST_NOT_BEFORE = t_ctp2.EARLIEST_NOT_BEFORE,
@@ -255,6 +267,12 @@ BEGIN
 		t_iteration := t_iteration + 1;
 		EXIT WHEN t_nothingChanged;
 	END LOOP;
+
+	UPDATE ca_trust_purpose_temp
+		SET ALL_CHAINS_REVOKED_IN_SALESFORCE = coalesce(ALL_CHAINS_REVOKED_IN_SALESFORCE, FALSE),
+			ALL_CHAINS_REVOKED_VIA_ONECRL = coalesce(ALL_CHAINS_REVOKED_VIA_ONECRL, FALSE),
+			ALL_CHAINS_REVOKED_VIA_CRLSET = coalesce(ALL_CHAINS_REVOKED_VIA_CRLSET, FALSE),
+			ALL_CHAINS_REVOKED_VIA_DISALLOWEDSTL = coalesce(ALL_CHAINS_REVOKED_VIA_DISALLOWEDSTL, FALSE);
 
 	RETURN t_iteration - 1;
 END;

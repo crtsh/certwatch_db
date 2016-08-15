@@ -1246,7 +1246,7 @@ BEGIN
 ';
 		END LOOP;
 		t_temp2 :=
-'<BR><BR><SPAN class="title" style="background-color:#FAF884"><A name="nottrusted">Unconstrained for id-kp-serverAuth, but no trust paths have been observed: Disclosure is not known to be required</A></SPAN>
+'<BR><BR><SPAN class="title" style="background-color:#FAF884"><A name="nottrusted">Unconstrained for id-kp-serverAuth, but no unexpired trust paths have been observed: Disclosure is not known to be required</A></SPAN>
 <SPAN class="whiteongrey">' || t_notTrustedCount::text || ' CA certificates</SPAN>
 <BR>
 <TABLE style="background-color:#FAF884">
@@ -1291,7 +1291,7 @@ BEGIN
 ';
 		END LOOP;
 		t_temp2 :=
-'<BR><BR><SPAN class="title" style="background-color:#F8B88B"><A name="trustrevoked">Unconstrained id-kp-serverAuth Trust, although all paths contain at least one revoked intermediate: Disclosure is probably required!</A></SPAN>
+'<BR><BR><SPAN class="title" style="background-color:#F8B88B"><A name="trustrevoked">Unconstrained id-kp-serverAuth Trust, although all unexpired paths contain at least one revoked intermediate: Disclosure is probably required!</A></SPAN>
 <SPAN class="whiteongrey">' || t_trustRevokedCount::text || ' CA certificates</SPAN>
 <BR>
 <TABLE style="background-color:#F8B88B">
@@ -1437,12 +1437,12 @@ BEGIN
     <TD><A href="#undisclosed">' || t_undisclosedCount::text || '</A></TD>
   </TR>
   <TR style="background-color:#F8B88B">
-    <TD>Unconstrained, but all observed paths Revoked</TD>
+    <TD>Unconstrained, but all unexpired observed paths Revoked</TD>
     <TD><B><U>Probably!</U></B></TD>
     <TD><A href="#trustrevoked">' || t_trustRevokedCount::text || '</A></TD>
   </TR>
   <TR style="background-color:#FAF884">
-    <TD>Unconstrained, but zero observed paths</TD>
+    <TD>Unconstrained, but zero unexpired observed paths</TD>
     <TD>Unknown</TD>
     <TD><A href="#nottrusted">' || t_notTrustedCount::text || '</A></TD>
   </TR>
