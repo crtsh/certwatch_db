@@ -270,6 +270,7 @@ INSERT INTO trust_context ( ID, CTX, URL ) VALUES ( 1, 'Microsoft', 'https://aka
 INSERT INTO trust_context ( ID, CTX, URL ) VALUES ( 5, 'Mozilla', 'https://www.mozilla.org/en-US/about/governance/policies/security-group/certs/policy/' );
 INSERT INTO trust_context ( ID, CTX, URL ) VALUES ( 6, 'Chrome', 'https://www.chromium.org/Home/chromium-security/root-ca-policy' );
 INSERT INTO trust_context ( ID, CTX, URL ) VALUES ( 12, 'Apple', 'https://www.apple.com/certificateauthority/ca_program.html' );
+INSERT INTO trust_context ( ID, CTX, URL ) VALUES ( 23, 'Java', 'http://www.oracle.com/technetwork/java/javase/javasecarootcertsprogram-1876540.html' );
 
 
 CREATE TABLE trust_purpose (
@@ -399,6 +400,8 @@ INSERT INTO applicable_purpose ( TRUST_CONTEXT_ID, PURPOSE ) VALUES ( 12, 'IP se
 INSERT INTO applicable_purpose ( TRUST_CONTEXT_ID, PURPOSE ) VALUES ( 12, 'Secure Email' );
 INSERT INTO applicable_purpose ( TRUST_CONTEXT_ID, PURPOSE ) VALUES ( 12, 'Server Authentication' );
 INSERT INTO applicable_purpose ( TRUST_CONTEXT_ID, PURPOSE ) VALUES ( 12, 'Time Stamping' );
+INSERT INTO applicable_purpose ( TRUST_CONTEXT_ID, PURPOSE ) VALUES ( 23, 'Code Signing' );
+INSERT INTO applicable_purpose ( TRUST_CONTEXT_ID, PURPOSE ) VALUES ( 23, 'Server Authentication' );
 
 
 CREATE TABLE root_trust_purpose(
