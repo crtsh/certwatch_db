@@ -3185,7 +3185,7 @@ BEGIN
     <id>https://crt.sh/?id=' || l_record.MIN_CERT_ID || '#' || t_cmd || ';' || t_value || '</id>
     <link rel="alternate" type="text/html" href="https://crt.sh/?id=' || l_record.MIN_CERT_ID || '"/>
     <summary type="html">__entry_summary__&lt;br&gt;&lt;br&gt;&lt;div style="font:8pt monospace"&gt;-----BEGIN CERTIFICATE-----';
-					WHILE length(t_b64Certificate) > 64 LOOP
+					WHILE length(t_b64Certificate) > 0 LOOP
 						t_text := t_text || '&lt;br&gt;' || substring(
 							t_b64Certificate from 1 for 64
 						);
