@@ -1291,7 +1291,7 @@ BEGIN
 ';
 		END LOOP;
 		t_temp2 :=
-'<BR><BR><SPAN class="title" style="background-color:#F8B88B"><A name="trustrevoked">Unconstrained id-kp-serverAuth Trust, although all unexpired paths contain at least one revoked intermediate: Disclosure is probably required!</A></SPAN>
+'<BR><BR><SPAN class="title" style="background-color:#F8B88B"><A name="trustrevoked">Unconstrained id-kp-serverAuth Trust, although all unexpired paths contain at least one revoked intermediate: Disclosure is not known to be required</A></SPAN>
 <SPAN class="whiteongrey">' || t_trustRevokedCount::text || ' CA certificates</SPAN>
 <BR>
 <TABLE style="background-color:#F8B88B">
@@ -1438,7 +1438,7 @@ BEGIN
   </TR>
   <TR style="background-color:#F8B88B">
     <TD>Unconstrained, but all unexpired observed paths Revoked</TD>
-    <TD><B><U>Probably!</U></B></TD>
+    <TD>Unknown</TD>
     <TD><A href="#trustrevoked">' || t_trustRevokedCount::text || '</A></TD>
   </TR>
   <TR style="background-color:#FAF884">
