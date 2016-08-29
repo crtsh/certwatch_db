@@ -358,7 +358,6 @@ BEGIN
 <HTML>
 <HEAD>
   <META http-equiv="Content-Type" content="text/html; charset=UTF-8">
-  <LINK rel="canonical" href="https://crt.sh/">
   <TITLE>crt.sh | ' || html_escape(t_title) || '</TITLE>
   <META name="description" content="Free CT Log Certificate Search Tool from COMODO">
   <META name="keywords" content="crt.sh, CT, Certificate Transparency, Certificate Search, SSL Certificate, Comodo CA">
