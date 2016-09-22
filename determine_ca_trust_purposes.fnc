@@ -25,9 +25,9 @@ DECLARE
 	t_nothingChanged			boolean;
 	t_isTrusted					boolean;
 	t_count						integer;
+	t_certPathLenConstraint		integer;
 	l_record					RECORD;
 	t_ctp_parent				ca_trust_purpose_temp%ROWTYPE;
-	t_ctp_cert					ca_trust_purpose_temp%ROWTYPE;
 	t_ctp_old					ca_trust_purpose_temp%ROWTYPE;
 	t_ctp_new					ca_trust_purpose_temp%ROWTYPE;
 BEGIN
@@ -93,44 +93,8 @@ BEGIN
 			END IF;
 			CONTINUE WHEN (NOT t_isTrusted);
 
-			t_ctp_cert.PATH_LEN_CONSTRAINT := x509_getPathLenConstraint(l_record.CERTIFICATE);
-			CONTINUE WHEN (coalesce(t_ctp_cert.PATH_LEN_CONSTRAINT, 0) < 0);
-
-			t_ctp_cert.IS_TIME_VALID := (statement_timestamp() BETWEEN x509_notBefore(l_record.CERTIFICATE) AND x509_notAfter(l_record.CERTIFICATE));
-			IF NOT t_ctp_cert.IS_TIME_VALID THEN
-				t_ctp_cert.ALL_CHAINS_TECHNICALLY_CONSTRAINED := NULL;
-				t_ctp_cert.ALL_CHAINS_REVOKED_IN_SALESFORCE := NULL;
-				t_ctp_cert.ALL_CHAINS_REVOKED_VIA_ONECRL := NULL;
-				t_ctp_cert.ALL_CHAINS_REVOKED_VIA_CRLSET := NULL;
-				t_ctp_cert.ALL_CHAINS_REVOKED_VIA_DISALLOWEDSTL := NULL;
-			ELSE
-				t_ctp_cert.ALL_CHAINS_TECHNICALLY_CONSTRAINED := is_technically_constrained(l_record.CERTIFICATE);
-
-				SELECT count(*)
-					INTO t_count
-					FROM mozilla_disclosure md
-					WHERE md.CERTIFICATE_ID = l_record.ID
-						AND md.DISCLOSURE_STATUS IN ('Revoked', 'RevokedViaOneCRL');
-				t_ctp_cert.ALL_CHAINS_REVOKED_IN_SALESFORCE := (t_count > 0);
-
-				SELECT count(*)
-					INTO t_count
-					FROM mozilla_onecrl mo
-					WHERE mo.CERTIFICATE_ID = l_record.ID;
-				t_ctp_cert.ALL_CHAINS_REVOKED_VIA_ONECRL := (t_count > 0);
-
-				SELECT count(*)
-					INTO t_count
-					FROM google_revoked gr
-					WHERE gr.CERTIFICATE_ID = l_record.ID;
-				t_ctp_cert.ALL_CHAINS_REVOKED_VIA_CRLSET := (t_count > 0);
-
-				SELECT count(*)
-					INTO t_count
-					FROM microsoft_disallowedcert mdc
-					WHERE mdc.CERTIFICATE_ID = l_record.ID;
-				t_ctp_cert.ALL_CHAINS_REVOKED_VIA_DISALLOWEDSTL := (t_count > 0);
-			END IF;
+			t_certPathLenConstraint := x509_getPathLenConstraint(l_record.CERTIFICATE);
+			CONTINUE WHEN (coalesce(t_certPathLenConstraint, 0) < 0);
 
 			SELECT ctp.*
 				INTO t_ctp_parent
@@ -150,7 +114,7 @@ BEGIN
 			ELSE
 				t_ctp_new.CA_ID := NULL;
 				t_ctp_new.PATH_LEN_CONSTRAINT := 0;
-				t_ctp_new.IS_TIME_VALID := NULL;
+				t_ctp_new.IS_TIME_VALID := FALSE;
 				t_ctp_new.ALL_CHAINS_TECHNICALLY_CONSTRAINED := NULL;
 				t_ctp_new.ALL_CHAINS_REVOKED_IN_SALESFORCE := NULL;
 				t_ctp_new.ALL_CHAINS_REVOKED_VIA_CRLSET := NULL;
@@ -162,55 +126,67 @@ BEGIN
 				t_ctp_new.PATH_LEN_CONSTRAINT,
 				least(
 					t_ctp_parent.PATH_LEN_CONSTRAINT - 1,
-					coalesce(t_ctp_cert.PATH_LEN_CONSTRAINT, 999)
+					coalesce(t_certPathLenConstraint, 999)
 				)
 			);
 
-			t_ctp_new.IS_TIME_VALID := greatest(
-				t_ctp_new.IS_TIME_VALID,
-				least(
-					t_ctp_parent.IS_TIME_VALID,
-					t_ctp_cert.IS_TIME_VALID
-				)
-			);
-			IF t_ctp_parent.IS_TIME_VALID AND t_ctp_cert.IS_TIME_VALID THEN
+			IF t_ctp_parent.IS_TIME_VALID AND (statement_timestamp() BETWEEN x509_notBefore(l_record.CERTIFICATE) AND x509_notAfter(l_record.CERTIFICATE)) THEN
+				t_ctp_new.IS_TIME_VALID := TRUE;
+
 				t_ctp_new.ALL_CHAINS_TECHNICALLY_CONSTRAINED := least(
 					t_ctp_new.ALL_CHAINS_TECHNICALLY_CONSTRAINED,
 					greatest(
 						t_ctp_parent.ALL_CHAINS_TECHNICALLY_CONSTRAINED,
-						t_ctp_cert.ALL_CHAINS_TECHNICALLY_CONSTRAINED
+						is_technically_constrained(l_record.CERTIFICATE)
 					)
 				);
 
+				SELECT count(*)
+					INTO t_count
+					FROM mozilla_disclosure md
+					WHERE md.CERTIFICATE_ID = l_record.ID
+						AND md.DISCLOSURE_STATUS IN ('Revoked', 'RevokedViaOneCRL');
 				t_ctp_new.ALL_CHAINS_REVOKED_IN_SALESFORCE := least(
 					t_ctp_new.ALL_CHAINS_REVOKED_IN_SALESFORCE,
 					greatest(
 						t_ctp_parent.ALL_CHAINS_REVOKED_IN_SALESFORCE,
-						t_ctp_cert.ALL_CHAINS_REVOKED_IN_SALESFORCE
+						(t_count > 0)
 					)
 				);
 
+				SELECT count(*)
+					INTO t_count
+					FROM mozilla_onecrl mo
+					WHERE mo.CERTIFICATE_ID = l_record.ID;
 				t_ctp_new.ALL_CHAINS_REVOKED_VIA_ONECRL := least(
 					t_ctp_new.ALL_CHAINS_REVOKED_VIA_ONECRL,
 					greatest(
 						t_ctp_parent.ALL_CHAINS_REVOKED_VIA_ONECRL,
-						t_ctp_cert.ALL_CHAINS_REVOKED_VIA_ONECRL
+						(t_count > 0)
 					)
 				);
 
+				SELECT count(*)
+					INTO t_count
+					FROM google_revoked gr
+					WHERE gr.CERTIFICATE_ID = l_record.ID;
 				t_ctp_new.ALL_CHAINS_REVOKED_VIA_CRLSET := least(
 					t_ctp_new.ALL_CHAINS_REVOKED_VIA_CRLSET,
 					greatest(
 						t_ctp_parent.ALL_CHAINS_REVOKED_VIA_CRLSET,
-						t_ctp_cert.ALL_CHAINS_REVOKED_VIA_CRLSET
+						(t_count > 0)
 					)
 				);
 
+				SELECT count(*)
+					INTO t_count
+					FROM microsoft_disallowedcert mdc
+					WHERE mdc.CERTIFICATE_ID = l_record.ID;
 				t_ctp_new.ALL_CHAINS_REVOKED_VIA_DISALLOWEDSTL := least(
 					t_ctp_new.ALL_CHAINS_REVOKED_VIA_DISALLOWEDSTL,
 					greatest(
 						t_ctp_parent.ALL_CHAINS_REVOKED_VIA_DISALLOWEDSTL,
-						t_ctp_cert.ALL_CHAINS_REVOKED_VIA_DISALLOWEDSTL
+						(t_count > 0)
 					)
 				);
 			END IF;
