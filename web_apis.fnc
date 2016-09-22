@@ -180,7 +180,12 @@ BEGIN
 			IF t_type = 'Download Certificate' THEN
 				RETURN download_cert(t_value::integer);
 			ELSIF t_type IN ('ID', 'Certificate ASN.1', 'CA ID', 'CT Entry ID') THEN
-				EXIT WHEN btrim(t_value, '0123456789') = '';
+				BEGIN
+					EXIT WHEN t_value::integer IS NOT NULL;
+				EXCEPTION
+					WHEN OTHERS THEN
+						NULL;
+				END;
 			ELSIF t_type IN (
 						'Simple', 'Advanced', 'CA/B Forum lint', 'X.509 lint', 'Lint', 'CA Name',
 						'Identity', 'Common Name', 'Email Address',
