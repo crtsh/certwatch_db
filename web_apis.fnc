@@ -144,6 +144,7 @@ DECLARE
 	l_record			RECORD;
 	l_record2			RECORD;
 	t_purposeOID		text;
+	t_cacheControlMaxAge	integer		:= 300;
 BEGIN
 	FOR t_paramNo IN 1..array_length(c_params, 1) LOOP
 		IF t_cmd IS NULL THEN
@@ -3855,7 +3856,12 @@ Content-Type: application/atom+xml
 	END IF;
 
 	IF t_outputType = 'html' THEN
-		t_output := t_output || '
+        t_output :=                                                                                                                                                                                                                          
+'[BEGIN_HEADERS]
+Cache-Control: max-age=' || t_cacheControlMaxAge::integer || '
+Content-Type: text/html; charset=UTF-8
+[END_HEADERS]
+' || t_output || '
   <BR><BR><BR>
 ';
 		IF coalesce(get_parameter('showSQL', paramNames, paramValues), 'N') = 'Y' THEN
