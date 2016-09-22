@@ -1734,7 +1734,7 @@ BEGIN
 '  <TR>
     <TH class="outer">Audit details<BR>
       <DIV class="small" style="padding-top:3px">Disclosed via
-        <A href="//mozillacaprogram.secure.force.com/CA/PublicIntermediateCerts" target="_blank">Mozilla</A></DIV>
+        <A href="//mozillacaprogram.secure.force.com/CA/PublicAllIntermediateCerts" target="_blank">Mozilla</A></DIV>
     </TH>
     <TD class="outer">
 ';
