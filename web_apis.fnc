@@ -3077,7 +3077,7 @@ BEGIN
 				t_nameValue := 'encode(digest(x509_name(c.CERTIFICATE), ''sha1''), ''hex'')';
 				t_certID_field := 'c.ID';
 				t_where := t_where || chr(10) ||
-							'	WHERE digest(x509_name(c.CERTIFICATE), ''sha1'') = decode($1, ''hex'')';
+							'        AND digest(x509_name(c.CERTIFICATE), ''sha1'') = decode($1, ''hex'')';
 			ELSIF lower(t_type) LIKE '%lint' THEN
 				t_from := t_from || ',' || chr(10) ||
 							'        lint_issue li,' || chr(10) ||
