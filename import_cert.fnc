@@ -22,14 +22,14 @@ CREATE OR REPLACE FUNCTION import_cert(
 AS $$
 DECLARE
 	t_certificateID		certificate.ID%TYPE;
-	t_verified			boolean		:= FALSE;
+	t_verified			boolean							:= FALSE;
 	t_canIssueCerts		boolean;
-	t_issuerCAID		certificate.ISSUER_CA_ID%TYPE;
+	t_issuerCAID		certificate.ISSUER_CA_ID%TYPE	:= -1;
 	t_name				ca.NAME%TYPE;
 	t_brand				ca.BRAND%TYPE;
 	t_publicKey			ca.PUBLIC_KEY%TYPE;
 	t_caID				ca.ID%TYPE;
-	t_lintingApplies	ca.LINTING_APPLIES%TYPE;
+	t_lintingApplies	ca.LINTING_APPLIES%TYPE			:= TRUE;
 	l_ca				RECORD;
 BEGIN
 	IF cert_data IS NULL THEN
@@ -78,9 +78,9 @@ BEGIN
 						AND ca.PUBLIC_KEY != E'\\x00'
 					ORDER BY octet_length(PUBLIC_KEY) DESC
 			) LOOP
-		t_issuerCAID := l_ca.ID;
-		t_lintingApplies := l_ca.LINTING_APPLIES;
 		IF x509_verify(cert_data, l_ca.PUBLIC_KEY) THEN
+			t_issuerCAID := l_ca.ID;
+			t_lintingApplies := l_ca.LINTING_APPLIES;
 			t_verified := TRUE;
 			EXIT;
 		END IF;
@@ -105,7 +105,7 @@ BEGIN
 				INTO t_certificateID;
 	END IF;
 
-	IF NOT t_verified THEN
+	IF (NOT t_verified) AND (t_issuerCAID != -1) THEN
 		INSERT INTO invalid_certificate (
 				CERTIFICATE_ID
 			)
@@ -135,7 +135,9 @@ BEGIN
 		END IF;
 	END IF;
 
-	PERFORM lint_cached(t_certificateID, 'x509lint');
+	IF t_lintingApplies THEN
+		PERFORM lint_cached(t_certificateID, 'x509lint');
+	END IF;
 
 	RETURN t_certificateID;
 
