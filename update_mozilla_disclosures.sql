@@ -193,6 +193,26 @@ INSERT INTO mozilla_disclosure_temp (
 
 \echo Importing Included CA Certificates
 
+CREATE TABLE mozilla_included_manual_import (
+	ISSUER_O				text,
+	CERT_NAME				text,
+	CERT_SHA1				text,
+	VALID_FROM_GMT			text,
+	VALID_TO_GMT			text,
+	SIGNING_KEY_PARAMETERS	text,
+	SIGNATURE_ALGORITHM		text,
+	CP_URL					text,
+	CPS_URL					text,
+	STANDARD_AUDIT_URL		text,
+	BR_AUDIT_URL			text,
+	AUDITOR					text,
+	STANDARD_AUDIT_DATE		text,
+	MGMT_ASSERTIONS_BY		text,
+	CA_OWNER				text
+);
+
+\COPY mozilla_included_manual_import FROM 'mozilla_included_manual.csv' CSV HEADER;
+
 CREATE TABLE mozilla_included_import (
 	CA_OWNER				text,
 	ISSUER_O				text,
@@ -226,6 +246,7 @@ CREATE TABLE mozilla_included_import (
 
 INSERT INTO mozilla_disclosure_temp (
 		CERTIFICATE_ID, PARENT_CERTIFICATE_ID, RECORD_TYPE,
+		SALESFORCE_ID,
 		CP_CPS_SAME_AS_PARENT,
 		CP_URL,
 		CPS_URL,
@@ -243,6 +264,7 @@ INSERT INTO mozilla_disclosure_temp (
 		DISCLOSURE_STATUS
 	)
 	SELECT c.ID, NULL, 'Root',
+			regexp_replace(replace(mimi.CERT_NAME, '<a href="', ''), '".*$', ''),
 			FALSE,
 			CASE WHEN (mii.CP_URL = '') THEN NULL
 				ELSE mii.CP_URL
@@ -263,8 +285,8 @@ INSERT INTO mozilla_disclosure_temp (
 			CASE WHEN (mii.STANDARD_AUDIT_DATE = '') THEN NULL
 				ELSE to_date(mii.STANDARD_AUDIT_DATE, 'YYYY.MM.DD')
 			END STANDARD_AUDIT_DATE,
-			CASE WHEN (mii.CA_OWNER = '') THEN NULL
-				ELSE mii.CA_OWNER
+			CASE WHEN (mii.CN_OR_CERT_NAME = '') THEN NULL
+				ELSE mii.CN_OR_CERT_NAME
 			END,
 			(SELECT x509_nameAttributes(c.CERTIFICATE, 'commonName', FALSE) LIMIT 1),
 			(SELECT x509_nameAttributes(c.CERTIFICATE, 'organizationName', FALSE) LIMIT 1),
@@ -273,7 +295,8 @@ INSERT INTO mozilla_disclosure_temp (
 			decode(replace(mii.CERT_SHA1, ':', ''), 'hex'),
 			'Disclosed'
 		FROM mozilla_included_import mii
-			LEFT OUTER JOIN certificate c ON (decode(replace(mii.CERT_SHA1, ':', ''), 'hex') = digest(c.CERTIFICATE, 'sha1'));
+			LEFT OUTER JOIN certificate c ON (decode(replace(mii.CERT_SHA1, ':', ''), 'hex') = digest(c.CERTIFICATE, 'sha1'))
+			LEFT OUTER JOIN mozilla_included_manual_import mimi ON ((mii.CERT_SHA1 = mimi.CERT_SHA1) AND (mimi.CERT_NAME LIKE ('%' || mii.CN_OR_CERT_NAME || '%')));
 
 
 \echo Determining Parent CA Certificates
@@ -507,6 +530,8 @@ DROP TABLE mozilla_revoked_disclosure_import;
 DROP TABLE mozilla_revoked_disclosure_manual_import;
 
 DROP TABLE mozilla_included_import;
+
+DROP TABLE mozilla_included_manual_import;
 
 DROP TABLE mozilla_disclosure;
 
