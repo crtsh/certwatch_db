@@ -1685,7 +1685,13 @@ BEGIN
 <TABLE>
   <TR>
     <TH class="outer">crt.sh ID</TH>
-    <TD class="outer">' || coalesce(t_certificateID::text, '<I>Not found</I>') || '</TD>
+    <TD class="outer">';
+		IF t_certificateID IS NOT NULL THEN
+			t_output := t_output || '<A href="?id=' || t_certificateID::text || '">' || t_certificateID::text || '</A>';
+		ELSE
+			t_output := t_output || '<I>Not found</I>';
+		END IF;
+		t_output := t_output || '</TD>
   </TR>
   <TR>
     <TH class="outer">Certificate<BR>Transparency</TH>
