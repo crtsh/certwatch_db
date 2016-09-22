@@ -108,6 +108,7 @@ DECLARE
 	t_linters			text;
 	t_showCABLint		boolean;
 	t_showX509Lint		boolean;
+	t_showMetadata		boolean;
 	t_certType			integer;
 	t_showMozillaDisclosure	boolean;
 	t_ctp				ca_trust_purpose%ROWTYPE;
@@ -1693,20 +1694,25 @@ BEGIN
 		END IF;
 		t_output := t_output || '</TD>
   </TR>
-  <TR>
+';
+
+		t_showMetadata := lower(',' || t_opt) NOT LIKE '%,nometadata,%';
+		IF t_showMetadata THEN
+			t_output := t_output ||
+'  <TR>
     <TH class="outer">Certificate<BR>Transparency</TH>
     <TD class="outer">
 ';
 
-		t_temp := '';
-		FOR l_record IN (
-					SELECT ctl.NAME, ctl.URL, ctl.OPERATOR, ctle.ENTRY_ID, ctle.ENTRY_TIMESTAMP
-						FROM ct_log_entry ctle, ct_log ctl
-						WHERE ctle.CERTIFICATE_ID = t_certificateID
-							AND ctle.CT_LOG_ID = ctl.ID
-						ORDER BY ctle.ENTRY_TIMESTAMP
-				) LOOP
-			t_temp := t_temp ||
+			t_temp := '';
+			FOR l_record IN (
+						SELECT ctl.NAME, ctl.URL, ctl.OPERATOR, ctle.ENTRY_ID, ctle.ENTRY_TIMESTAMP
+							FROM ct_log_entry ctle, ct_log ctl
+							WHERE ctle.CERTIFICATE_ID = t_certificateID
+								AND ctle.CT_LOG_ID = ctl.ID
+							ORDER BY ctle.ENTRY_TIMESTAMP
+					) LOOP
+				t_temp := t_temp ||
 '  <TR>
     <TD>' || to_char(l_record.ENTRY_TIMESTAMP, 'YYYY-MM-DD')
 						|| '&nbsp; <FONT class="small">'
@@ -1717,9 +1723,9 @@ BEGIN
     <TD>' || html_escape(l_record.URL) || '</TD>
   </TR>
 ';
-		END LOOP;
-		IF t_temp != '' THEN
-			t_output := t_output ||
+			END LOOP;
+			IF t_temp != '' THEN
+				t_output := t_output ||
 '<TABLE class="options" style="margin-left:0px">
   <TR>
     <TH>Timestamp</TH>
@@ -1730,18 +1736,18 @@ BEGIN
 ' || t_temp ||
 '</TABLE>
 ';
-		ELSE
-			t_output := t_output ||
+			ELSE
+				t_output := t_output ||
 '      No log entries found
 ';
-		END IF;
-		t_output := t_output ||
+			END IF;
+			t_output := t_output ||
 '    </TD>
   </TR>
 ';
 
-		IF t_caID IS NOT NULL THEN
-			t_output := t_output ||
+			IF t_caID IS NOT NULL THEN
+				t_output := t_output ||
 '  <TR>
     <TH class="outer">Audit details<BR>
       <DIV class="small" style="padding-top:3px">Disclosed via
@@ -1749,15 +1755,15 @@ BEGIN
     </TH>
     <TD class="outer">
 ';
-			t_temp := NULL;
-			FOR l_record IN (
-						SELECT *
-							FROM mozilla_disclosure md
-							WHERE md.DISCLOSURE_STATUS IN ('Disclosed', 'DisclosedWithErrors')
-								AND md.CERTIFICATE_ID = t_certificateID
-					) LOOP
-				t_temp := '';
-				t_output := t_output ||
+				t_temp := NULL;
+				FOR l_record IN (
+							SELECT *
+								FROM mozilla_disclosure md
+								WHERE md.DISCLOSURE_STATUS IN ('Disclosed', 'DisclosedWithErrors')
+									AND md.CERTIFICATE_ID = t_certificateID
+						) LOOP
+					t_temp := '';
+					t_output := t_output ||
 '<TABLE class="options" style="margin-left:0px">
   <TR>
     <TH>Auditor</TH>
@@ -1769,82 +1775,82 @@ BEGIN
   <TR>
     <TD>' || coalesce(l_record.AUDITOR, '') || '</TD>
     <TD>';
-				IF coalesce(l_record.STANDARD_AUDIT_URL, '') NOT LIKE '%://%' THEN
-					t_output := t_output || coalesce(l_record.STANDARD_AUDIT_URL, 'Not disclosed');
-				ELSE
-					t_output := t_output || '
+					IF coalesce(l_record.STANDARD_AUDIT_URL, '') NOT LIKE '%://%' THEN
+						t_output := t_output || coalesce(l_record.STANDARD_AUDIT_URL, 'Not disclosed');
+					ELSE
+						t_output := t_output || '
       <A href="' || l_record.STANDARD_AUDIT_URL || '" target="_blank">' || l_record.STANDARD_AUDIT_DATE::text || '</A>
     ';
-				END IF;
-				t_output := t_output || '</TD>
+					END IF;
+					t_output := t_output || '</TD>
     <TD>';
-				IF coalesce(l_record.BR_AUDIT_URL, '') NOT LIKE '%://%' THEN
-					t_output := t_output || coalesce(l_record.BR_AUDIT_URL, 'No');
-				ELSE
-					t_output := t_output || '
+					IF coalesce(l_record.BR_AUDIT_URL, '') NOT LIKE '%://%' THEN
+						t_output := t_output || coalesce(l_record.BR_AUDIT_URL, 'No');
+					ELSE
+						t_output := t_output || '
       <A href="' || l_record.BR_AUDIT_URL || '" target="_blank">Yes</A>
     ';
-				END IF;
-				t_output := t_output || '</TD>
+					END IF;
+					t_output := t_output || '</TD>
     <TD>
 ';
-				IF coalesce(l_record.CP_URL, '') != '' THEN
-					t_output := t_output ||
+					IF coalesce(l_record.CP_URL, '') != '' THEN
+						t_output := t_output ||
 '      <A href="' || l_record.CP_URL || '" target="blank">CP</A>
 ';
-				END IF;
-				IF coalesce(l_record.CPS_URL, '') != '' THEN
-					t_output := t_output ||
+					END IF;
+					IF coalesce(l_record.CPS_URL, '') != '' THEN
+						t_output := t_output ||
 '      <A href="' || l_record.CPS_URL || '" target="blank">CPS</A>
 ';
-				END IF;
-				t_output := t_output ||
+					END IF;
+					t_output := t_output ||
 '    </TD>
     <TD>';
-				IF l_record.SALESFORCE_ID IS NOT NULL THEN
-					t_output := t_output || '<A href="//mozillacacommunity.force.com/' || l_record.SALESFORCE_ID || '" target="_blank">' || l_record.SALESFORCE_ID || '</A>';
-				ELSE
-					t_output := t_output || '&nbsp;';
-				END IF;
-				t_output := t_output || '</TD>
+					IF l_record.SALESFORCE_ID IS NOT NULL THEN
+						t_output := t_output || '<A href="//mozillacacommunity.force.com/' || l_record.SALESFORCE_ID || '" target="_blank">' || l_record.SALESFORCE_ID || '</A>';
+					ELSE
+						t_output := t_output || '&nbsp;';
+					END IF;
+					t_output := t_output || '</TD>
   </TR>
 </TABLE>';
-				EXIT;
-			END LOOP;
-			IF t_temp IS NULL THEN
-				SELECT CASE WHEN md.DISCLOSURE_STATUS IN ('Revoked', 'RevokedViaOneCRL') THEN 'Disclosed as Revoked'
-							WHEN md.DISCLOSURE_STATUS = 'DisclosureIncomplete' THEN 'Disclosure Incomplete'
-						END
-					INTO t_temp
-					FROM mozilla_disclosure md
-					WHERE md.CERTIFICATE_ID = t_certificateID;
-				t_temp := coalesce(t_temp, 'Not Disclosed');
-			END IF;
-			t_output := t_output || t_temp || '
+					EXIT;
+				END LOOP;
+				IF t_temp IS NULL THEN
+					SELECT CASE WHEN md.DISCLOSURE_STATUS IN ('Revoked', 'RevokedViaOneCRL') THEN 'Disclosed as Revoked'
+								WHEN md.DISCLOSURE_STATUS = 'DisclosureIncomplete' THEN 'Disclosure Incomplete'
+							END
+						INTO t_temp
+						FROM mozilla_disclosure md
+						WHERE md.CERTIFICATE_ID = t_certificateID;
+					t_temp := coalesce(t_temp, 'Not Disclosed');
+				END IF;
+				t_output := t_output || t_temp || '
     </TD>
   </TR>
 ';
-		END IF;
+			END IF;
 
-		SELECT '<SPAN style="color:#CC0000">Revoked</SPAN></TD><TD>' || gr.ENTRY_TYPE
-			INTO t_temp
-			FROM google_revoked gr
-			WHERE gr.CERTIFICATE_ID = t_certificateID;
-		t_temp := coalesce(t_temp, 'Not Revoked</TD><TD><SPAN style="color:#888888">n/a</SPAN>');
+			SELECT '<SPAN style="color:#CC0000">Revoked</SPAN></TD><TD>' || gr.ENTRY_TYPE
+				INTO t_temp
+				FROM google_revoked gr
+				WHERE gr.CERTIFICATE_ID = t_certificateID;
+			t_temp := coalesce(t_temp, 'Not Revoked</TD><TD><SPAN style="color:#888888">n/a</SPAN>');
 
-		SELECT '<SPAN style="color:#CC0000">Revoked</SPAN></TD><TD>MD5(PublicKey)'
-			INTO t_temp2
-			FROM microsoft_disallowedcert mdc
-			WHERE mdc.CERTIFICATE_ID = t_certificateID;
-		t_temp2 := coalesce(t_temp2, 'Not Revoked</TD><TD><SPAN style="color:#888888">n/a</SPAN>');
+			SELECT '<SPAN style="color:#CC0000">Revoked</SPAN></TD><TD>MD5(PublicKey)'
+				INTO t_temp2
+				FROM microsoft_disallowedcert mdc
+				WHERE mdc.CERTIFICATE_ID = t_certificateID;
+			t_temp2 := coalesce(t_temp2, 'Not Revoked</TD><TD><SPAN style="color:#888888">n/a</SPAN>');
 
-		SELECT '<SPAN style="color:#CC0000">Revoked</SPAN></TD><TD>Issuer Name, Serial Number'
-			INTO t_temp3
-			FROM mozilla_onecrl mo
-			WHERE mo.CERTIFICATE_ID = t_certificateID;
-		t_temp3 := coalesce(t_temp3, 'Not Revoked</TD><TD><SPAN style="color:#888888">n/a</SPAN>');
+			SELECT '<SPAN style="color:#CC0000">Revoked</SPAN></TD><TD>Issuer Name, Serial Number'
+				INTO t_temp3
+				FROM mozilla_onecrl mo
+				WHERE mo.CERTIFICATE_ID = t_certificateID;
+			t_temp3 := coalesce(t_temp3, 'Not Revoked</TD><TD><SPAN style="color:#888888">n/a</SPAN>');
 
-		t_output := t_output ||
+			t_output := t_output ||
 '  <TR>
     <TH class="outer">Revocation</TH>
     <TD class="outer">
@@ -1883,6 +1889,7 @@ BEGIN
     <TD class="outer">' || coalesce(upper(encode(t_certificateSHA1, 'hex')), '<I>Not found</I>') || '</TD>
   </TR>
 ';
+		END IF;
 
 		t_showCABLint := (',' || t_opt) LIKE '%,cablint,%';
 		IF t_showCABLint THEN
@@ -1983,6 +1990,20 @@ BEGIN
 '    <TH class="outer"><A href="?id=' || t_certificateID::text || '">Certificate</A> | ASN.1
       <BR><BR><SPAN class="small">Powered by <A href="//lapo.it/asn1js/" target="_blank">asn1js</A>
 ';
+			IF t_showMetadata THEN
+				t_output := t_output ||
+'      <BR><BR><A href="?asn1=' || t_certificateID::text || '&opt=' || t_opt || 'nometadata">Hide metadata</A>
+';
+			ELSE
+				IF t_opt = 'nometadata,' THEN
+					t_temp := '';
+				ELSE
+					t_temp := '&opt=' || rtrim(replace(t_opt, 'nometadata,', ''), ',');
+				END IF;
+				t_output := t_output ||
+'      <BR><BR><A href="?asn1=' || t_certificateID::text || t_temp || '">Show metadata</A>
+';
+			END IF;
 			IF NOT t_showCABLint THEN
 				t_output := t_output ||
 '      <BR><BR><A href="?asn1=' || t_certificateID::text || '&opt=' || t_opt || 'cablint">Run cablint</A>
@@ -2026,7 +2047,22 @@ BEGIN
 		ELSE
 			t_output := t_output ||
 '    <TH class="outer">Certificate | <A href="?asn1=' || t_certificateID::text || '">ASN.1</A>
+      <SPAN class="small">
 ';
+			IF t_showMetadata THEN
+				t_output := t_output ||
+'      <BR><BR><A href="?id=' || t_certificateID::text || '&opt=' || t_opt || 'nometadata">Hide metadata</A>
+';
+			ELSE
+				IF t_opt = 'nometadata,' THEN
+					t_temp := '';
+				ELSE
+					t_temp := '&opt=' || rtrim(replace(t_opt, 'nometadata,', ''), ',');
+				END IF;
+				t_output := t_output ||
+'      <BR><BR><A href="?id=' || t_certificateID::text || t_temp || '">Show metadata</A>
+';
+			END IF;
 			IF NOT t_showCABLint THEN
 				t_output := t_output ||
 '      <BR><BR><A href="?id=' || t_certificateID::text || '&opt=' || t_opt || 'cablint">Run cablint</A>
