@@ -52,7 +52,8 @@ CREATE TABLE mozilla_disclosure_import (
 	BR_AUDIT_URL			text,
 	AUDITOR					text,
 	STANDARD_AUDIT_DATE		text,
-	MGMT_ASSERTIONS_BY		text
+	MGMT_ASSERTIONS_BY		text,
+	COMMENTS				text
 );
 
 \COPY mozilla_disclosure_import FROM 'mozilla_disclosures.csv' CSV HEADER;
@@ -135,6 +136,8 @@ CREATE TABLE mozilla_revoked_disclosure_import (
 	REVOCATION_STATUS		text,
 	REASON_CODE				text,
 	REVOCATION_DATE			text,
+	ONECRL_STATUS			text,
+	SERIAL_NUMBER			text,
 	CA_OWNER_OR_CERT_NAME	text,
 	ISSUER_CN				text,
 	ISSUER_O				text,
@@ -145,7 +148,10 @@ CREATE TABLE mozilla_revoked_disclosure_import (
 	VALID_FROM_GMT			text,
 	VALID_TO_GMT			text,
 	SIGNING_KEY_PARAMETERS	text,
-	SIGNATURE_ALGORITHM		text
+	SIGNATURE_ALGORITHM		text,
+	CRL_URL					text,
+	OCSP_URL				text,
+	COMMENTS				text
 );
 
 \COPY mozilla_revoked_disclosure_import FROM 'mozilla_revoked_disclosures.csv' CSV HEADER;
