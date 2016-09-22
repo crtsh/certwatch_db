@@ -1631,14 +1631,14 @@ BEGIN
 						|| t_temp || '">Subject:</A><BR>'
 			);
 		END IF;
-		t_text := replace(
-			t_text, '<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Subject&nbsp;Public&nbsp;Key&nbsp;Info:<BR>',
-
-
+		IF t_spkiSHA256 IS NOT NULL THEN
+			t_text := replace(
+				t_text, '<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Subject&nbsp;Public&nbsp;Key&nbsp;Info:<BR>',
 				'<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<A href="?spkisha256='
 						|| encode(t_spkiSHA256, 'hex')
 						|| '">Subject&nbsp;Public&nbsp;Key&nbsp;Info:</A><BR>'
-		);
+			);
+		END IF;
 		t_text := replace(
 			t_text, '<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;X509v3&nbsp;Subject&nbsp;Key&nbsp;Identifier:&nbsp;<BR>',
 				'<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<A href="?ski='
