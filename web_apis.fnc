@@ -2197,9 +2197,7 @@ BEGIN
 					IF NOT FOUND THEN
 						t_temp3 := t_temp3 || '888888>Not Trusted';
 						t_ctp.SHORTEST_CHAIN := NULL;
-					ELSIF statement_timestamp() < greatest(l_record.NOT_BEFORE, t_ctp.EARLIEST_NOT_BEFORE) THEN
-						t_temp3 := t_temp3 || 'FF9F00>Pending';
-					ELSIF statement_timestamp() > least(l_record.NOT_AFTER, t_ctp.LATEST_NOT_AFTER) THEN
+					ELSIF NOT l_record.IS_TIME_VALID THEN
 						t_temp3 := t_temp3 || '888888>Expired';
 					ELSE
 						SELECT md.DISCLOSURE_STATUS
@@ -2500,8 +2498,7 @@ BEGIN
 								trustsrc.PURPOSE_OID,
 								(ctp.CA_ID IS NOT NULL) HAS_TRUST,
 								(ap.PURPOSE IS NOT NULL) IS_APPLICABLE,
-								ctp.EARLIEST_NOT_BEFORE,
-								ctp.LATEST_NOT_AFTER,
+								ctp.IS_TIME_VALID,
 								ctp.SHORTEST_CHAIN,
 								ctp.ALL_CHAINS_REVOKED_VIA_ONECRL,
 								ctp.ALL_CHAINS_REVOKED_VIA_CRLSET,
@@ -2575,9 +2572,7 @@ BEGIN
 				ELSIF NOT l_record.HAS_TRUST THEN
 					t_text := t_text || '888888>No';
 					l_record.SHORTEST_CHAIN := NULL;
-				ELSIF statement_timestamp() < l_record.EARLIEST_NOT_BEFORE THEN
-					t_text := t_text || 'FF9F00>Pending';
-				ELSIF statement_timestamp() > l_record.LATEST_NOT_AFTER THEN
+				ELSIF NOT l_record.IS_TIME_VALID THEN
 					t_text := t_text || '888888>Expired';
 				ELSIF l_record.ALL_CHAINS_TECHNICALLY_CONSTRAINED THEN
 					t_text := t_text || '00CC00>Constrained';

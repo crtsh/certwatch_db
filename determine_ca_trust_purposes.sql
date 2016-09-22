@@ -3,7 +3,7 @@
 CREATE TABLE ca_trust_purpose_temp ( LIKE ca_trust_purpose INCLUDING INDEXES);
 
 CREATE INDEX ctpt_lc
-	ON ca_trust_purpose_temp (LONGEST_CHAIN, PATH_LEN_CONSTRAINT, TRUST_PURPOSE_ID, CA_ID);
+	ON ca_trust_purpose_temp (ITERATION_LAST_MODIFIED, TRUST_PURPOSE_ID, CA_ID, TRUST_CONTEXT_ID);
 
 SELECT determine_ca_trust_purposes();
 
@@ -21,4 +21,3 @@ COMMIT WORK;
 CLUSTER ca_trust_purpose USING ctp_pk;
 
 DROP TABLE ca_trust_purpose_temp;
-

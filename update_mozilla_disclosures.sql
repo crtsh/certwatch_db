@@ -492,8 +492,7 @@ UPDATE mozilla_disclosure_temp mdt
 				WHERE ctp.CA_ID = c.ISSUER_CA_ID
 					AND ctp.TRUST_CONTEXT_ID = 5
 					AND ctp.TRUST_PURPOSE_ID = 1
-					AND statement_timestamp() BETWEEN ctp.EARLIEST_NOT_BEFORE
-												AND ctp.LATEST_NOT_AFTER
+					AND ctp.IS_TIME_VALID
 					AND NOT ctp.ALL_CHAINS_TECHNICALLY_CONSTRAINED
 		);
 
@@ -509,8 +508,7 @@ UPDATE mozilla_disclosure_temp mdt
 				WHERE ctp.CA_ID = c.ISSUER_CA_ID
 					AND ctp.TRUST_CONTEXT_ID = 5
 					AND ctp.TRUST_PURPOSE_ID = 1
-					AND statement_timestamp() BETWEEN ctp.EARLIEST_NOT_BEFORE
-												AND ctp.LATEST_NOT_AFTER
+					AND ctp.IS_TIME_VALID
 					AND NOT ctp.ALL_CHAINS_TECHNICALLY_CONSTRAINED
 					AND NOT ctp.ALL_CHAINS_REVOKED_IN_SALESFORCE
 		);
