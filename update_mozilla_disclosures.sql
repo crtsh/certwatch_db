@@ -3,57 +3,58 @@
 \echo Importing Disclosed CA Certificates
 
 CREATE TABLE mozilla_disclosure_manual_import (
-	PARENT_CERT_NAME		text,
-	CERT_NAME				text,
-	ISSUER_CN				text,
-	ISSUER_O				text,
-	SUBJECT_CN				text,
-	SUBJECT_O				text,
-	CERT_SHA1				text,
-	VALID_FROM_GMT			text,
-	VALID_TO_GMT			text,
-	SIGNING_KEY_PARAMETERS	text,
-	SIGNATURE_ALGORITHM		text,
-	EXTENDED_KEY_USAGE		text,
-	CP_CPS_SAME_AS_PARENT	text,
-	CP_URL					text,
-	CPS_URL					text,
-	AUDITS_SAME_AS_PARENT	text,
-	STANDARD_AUDIT_URL		text,
-	BR_AUDIT_URL			text,
-	AUDITOR					text,
-	STANDARD_AUDIT_DATE		text,
-	MGMT_ASSERTIONS_BY		text,
-	CA_OWNER				text
+	PARENT_CERT_NAME			text,
+	CERT_NAME					text,
+	ISSUER_CN					text,
+	ISSUER_O					text,
+	SUBJECT_CN					text,
+	SUBJECT_O					text,
+	CERT_SHA1					text,
+	VALID_FROM_GMT				text,
+	VALID_TO_GMT				text,
+	PUBLIC_KEY_ALGORITHM		text,
+	SIGNATURE_HASH_ALGORITHM	text,
+	EXTENDED_KEY_USAGE			text,
+	CP_CPS_SAME_AS_PARENT		text,
+	CP_URL						text,
+	CPS_URL						text,
+	AUDITS_SAME_AS_PARENT		text,
+	STANDARD_AUDIT_URL			text,
+	BR_AUDIT_URL				text,
+	AUDITOR						text,
+	STANDARD_AUDIT_DATE			text,
+	MGMT_ASSERTIONS_BY			text,
+	CA_OWNER					text
 );
 
 \COPY mozilla_disclosure_manual_import FROM 'mozilla_disclosures_manual.csv' CSV HEADER;
 
 CREATE TABLE mozilla_disclosure_import (
-	CA_OWNER				text,
-	PARENT_NAME				text,
-	CERT_NAME				text,
-	ISSUER_CN				text,
-	ISSUER_O				text,
-	SUBJECT_CN				text,
-	SUBJECT_O				text,
-	CERT_SHA1				text,
-	CERT_SHA256				text,
-	VALID_FROM_GMT			text,
-	VALID_TO_GMT			text,
-	SIGNING_KEY_PARAMETERS	text,
-	SIGNATURE_ALGORITHM		text,
-	EXTENDED_KEY_USAGE		text,
-	CP_CPS_SAME_AS_PARENT	text,
-	CP_URL					text,
-	CPS_URL					text,
-	AUDITS_SAME_AS_PARENT	text,
-	STANDARD_AUDIT_URL		text,
-	BR_AUDIT_URL			text,
-	AUDITOR					text,
-	STANDARD_AUDIT_DATE		text,
-	MGMT_ASSERTIONS_BY		text,
-	COMMENTS				text
+	CA_OWNER					text,
+	PARENT_NAME					text,
+	CERT_NAME					text,
+	ISSUER_CN					text,
+	ISSUER_O					text,
+	SUBJECT_CN					text,
+	SUBJECT_O					text,
+	SERIAL_NUMBER				text,
+	CERT_SHA256					text,
+	LOGICAL_CERTIFICATE_ID		text,
+	VALID_FROM_GMT				text,
+	VALID_TO_GMT				text,
+	PUBLIC_KEY_ALGORITHM		text,
+	SIGNATURE_HASH_ALGORITHM	text,
+	EXTENDED_KEY_USAGE			text,
+	CP_CPS_SAME_AS_PARENT		text,
+	CP_URL						text,
+	CPS_URL						text,
+	AUDITS_SAME_AS_PARENT		text,
+	STANDARD_AUDIT_URL			text,
+	BR_AUDIT_URL				text,
+	AUDITOR						text,
+	STANDARD_AUDIT_DATE			text,
+	MGMT_ASSERTIONS_BY			text,
+	COMMENTS					text
 );
 
 \COPY mozilla_disclosure_import FROM 'mozilla_disclosures.csv' CSV HEADER;
@@ -103,55 +104,56 @@ SELECT	c.ID	CERTIFICATE_ID,
 		CASE WHEN (mdi.SUBJECT_O = '') THEN NULL
 			ELSE mdi.SUBJECT_O
 		END SUBJECT_O,
-		decode(replace(mdi.CERT_SHA1, ':', ''), 'hex') CERT_SHA1,
+		decode(replace(mdi.CERT_SHA256, ':', ''), 'hex') CERT_SHA256,
 		'Disclosed'::disclosure_status_type	DISCLOSURE_STATUS
 	FROM mozilla_disclosure_import mdi
-		LEFT OUTER JOIN certificate c ON (decode(replace(mdi.CERT_SHA1, ':', ''), 'hex') = digest(c.CERTIFICATE, 'sha1'))
-		LEFT OUTER JOIN mozilla_disclosure_manual_import mdmi ON ((mdi.CERT_SHA1 = mdmi.CERT_SHA1) AND (mdmi.CERT_NAME LIKE ('%' || mdi.CERT_NAME || '%')));
+		LEFT OUTER JOIN certificate c ON (decode(replace(mdi.CERT_SHA256, ':', ''), 'hex') = digest(c.CERTIFICATE, 'sha256'))
+		LEFT OUTER JOIN mozilla_disclosure_manual_import mdmi ON (decode(replace(mdmi.CERT_SHA1, ':', ''), 'hex') = digest(c.CERTIFICATE, 'sha1'));
 
 
 \echo Importing Revoked Intermediate Certificates
 
 CREATE TABLE mozilla_revoked_disclosure_manual_import (
-	REVOCATION_STATUS		text,
-	REASON_CODE				text,
-	REVOCATION_DATE			text,
-	CERT_NAME				text,
-	ISSUER_CN				text,
-	ISSUER_O				text,
-	SUBJECT_CN				text,
-	SUBJECT_O				text,
-	CERT_SHA1				text,
-	VALID_FROM_GMT			text,
-	VALID_TO_GMT			text,
-	SIGNING_KEY_PARAMETERS	text,
-	SIGNATURE_ALGORITHM		text,
-	CA_OWNER				text
+	REVOCATION_STATUS			text,
+	REASON_CODE					text,
+	REVOCATION_DATE				text,
+	CERT_NAME					text,
+	ISSUER_CN					text,
+	ISSUER_O					text,
+	SUBJECT_CN					text,
+	SUBJECT_O					text,
+	CERT_SHA1					text,
+	VALID_FROM_GMT				text,
+	VALID_TO_GMT				text,
+	PUBLIC_KEY_ALGORITHM		text,
+	SIGNATURE_HASH_ALGORITHM	text,
+	CA_OWNER					text
 );
 
 \COPY mozilla_revoked_disclosure_manual_import FROM 'mozilla_revoked_disclosures_manual.csv' CSV HEADER;
 
 CREATE TABLE mozilla_revoked_disclosure_import (
-	CA_OWNER				text,
-	REVOCATION_STATUS		text,
-	REASON_CODE				text,
-	REVOCATION_DATE			text,
-	ONECRL_STATUS			text,
-	SERIAL_NUMBER			text,
-	CA_OWNER_OR_CERT_NAME	text,
-	ISSUER_CN				text,
-	ISSUER_O				text,
-	SUBJECT_CN				text,
-	SUBJECT_O				text,
-	CERT_SHA1				text,
-	CERT_SHA256				text,
-	VALID_FROM_GMT			text,
-	VALID_TO_GMT			text,
-	SIGNING_KEY_PARAMETERS	text,
-	SIGNATURE_ALGORITHM		text,
-	CRL_URL					text,
-	OCSP_URL				text,
-	COMMENTS				text
+	CA_OWNER					text,
+	REVOCATION_STATUS			text,
+	REASON_CODE					text,
+	REVOCATION_DATE				text,
+	ONECRL_STATUS				text,
+	SERIAL_NUMBER				text,
+	CA_OWNER_OR_CERT_NAME		text,
+	ISSUER_CN					text,
+	ISSUER_O					text,
+	SUBJECT_CN					text,
+	SUBJECT_O					text,
+	SERIAL_NUMBER_2				text,
+	CERT_SHA256					text,
+	LOGICAL_CERTIFICATE_ID		text,
+	VALID_FROM_GMT				text,
+	VALID_TO_GMT				text,
+	PUBLIC_KEY_ALGORITHM		text,
+	SIGNATURE_HASH_ALGORITHM	text,
+	CRL_URL						text,
+	OCSP_URL					text,
+	COMMENTS					text
 );
 
 \COPY mozilla_revoked_disclosure_import FROM 'mozilla_revoked_disclosures.csv' CSV HEADER;
@@ -164,7 +166,7 @@ INSERT INTO mozilla_disclosure_temp (
 		ISSUER_O,
 		SUBJECT_CN,
 		SUBJECT_O,
-		CERT_SHA1,
+		CERT_SHA256,
 		DISCLOSURE_STATUS
 	)
 	SELECT c.ID, NULL, 'Revoked',
@@ -184,62 +186,64 @@ INSERT INTO mozilla_disclosure_temp (
 			CASE WHEN (mrdi.SUBJECT_O = '') THEN NULL
 				ELSE mrdi.SUBJECT_O
 			END,
-			decode(replace(mrdi.CERT_SHA1, ':', ''), 'hex'),
+			decode(replace(mrdi.CERT_SHA256, ':', ''), 'hex'),
 			'Revoked'
 		FROM mozilla_revoked_disclosure_import mrdi
-			LEFT OUTER JOIN certificate c ON (decode(replace(mrdi.CERT_SHA1, ':', ''), 'hex') = digest(c.CERTIFICATE, 'sha1'))
-			LEFT OUTER JOIN mozilla_revoked_disclosure_manual_import mrdmi ON ((mrdi.CERT_SHA1 = mrdmi.CERT_SHA1) AND (mrdmi.CERT_NAME LIKE ('%' || mrdi.CA_OWNER_OR_CERT_NAME || '%')));
+			LEFT OUTER JOIN certificate c ON (decode(replace(mrdi.CERT_SHA256, ':', ''), 'hex') = digest(c.CERTIFICATE, 'sha256'))
+			LEFT OUTER JOIN mozilla_revoked_disclosure_manual_import mrdmi ON (decode(replace(mrdmi.CERT_SHA1, ':', ''), 'hex') = digest(c.CERTIFICATE, 'sha1'));
 
 
 \echo Importing Included CA Certificates
 
 CREATE TABLE mozilla_included_manual_import (
-	ISSUER_O				text,
-	CERT_NAME				text,
-	CERT_SHA1				text,
-	VALID_FROM_GMT			text,
-	VALID_TO_GMT			text,
-	SIGNING_KEY_PARAMETERS	text,
-	SIGNATURE_ALGORITHM		text,
-	CP_URL					text,
-	CPS_URL					text,
-	STANDARD_AUDIT_URL		text,
-	BR_AUDIT_URL			text,
-	AUDITOR					text,
-	STANDARD_AUDIT_DATE		text,
-	MGMT_ASSERTIONS_BY		text,
-	CA_OWNER				text
+	ISSUER_O					text,
+	CERT_NAME					text,
+	CERT_SHA1					text,
+	VALID_FROM_GMT				text,
+	VALID_TO_GMT				text,
+	PUBLIC_KEY_ALGORITHM		text,
+	SIGNATURE_HASH_ALGORITHM	text,
+	CP_URL						text,
+	CPS_URL						text,
+	STANDARD_AUDIT_URL			text,
+	BR_AUDIT_URL				text,
+	AUDITOR						text,
+	STANDARD_AUDIT_DATE			text,
+	MGMT_ASSERTIONS_BY			text,
+	CA_OWNER					text
 );
 
 \COPY mozilla_included_manual_import FROM 'mozilla_included_manual.csv' CSV HEADER;
 
 CREATE TABLE mozilla_included_import (
-	CA_OWNER				text,
-	ISSUER_O				text,
-	ISSUER_OU				text,
-	CN_OR_CERT_NAME			text,
-	CERT_SHA1				text,
-	VALID_FROM_GMT			text,
-	VALID_TO_GMT			text,
-	SIGNING_KEY_PARAMETERS	text,
-	SIGNATURE_ALGORITHM		text,
-	TRUST_BITS				text,
-	EV_POLICY_OIDS			text,
-	APPROVAL_BUG			text,
-	FIRST_NSS_RELEASE		text,
-	FIRST_FIREFOX_RELEASE	text,
-	TEST_URL				text,
-	MOZILLA_CONSTRAINTS		text,
-	COMPANY_WEBSITE			text,
-	GEOGRAPHIC_FOCUS		text,
-	CP_URL					text,
-	CPS_URL					text,
-	STANDARD_AUDIT_URL		text,
-	BR_AUDIT_URL			text,
-	EV_AUDIT_URL			text,
-	AUDITOR					text,
-	STANDARD_AUDIT_TYPE		text,
-	STANDARD_AUDIT_DATE		text
+	CA_OWNER					text,
+	ISSUER_O					text,
+	ISSUER_OU					text,
+	CN_OR_CERT_NAME				text,
+	SERIAL_NUMBER				text,
+	CERT_SHA256					text,
+	LOGICAL_CERTIFICATE_ID		text,
+	VALID_FROM_GMT				text,
+	VALID_TO_GMT				text,
+	PUBLIC_KEY_ALGORITHM		text,
+	SIGNATURE_HASH_ALGORITHM	text,
+	TRUST_BITS					text,
+	EV_POLICY_OIDS				text,
+	APPROVAL_BUG				text,
+	FIRST_NSS_RELEASE			text,
+	FIRST_FIREFOX_RELEASE		text,
+	TEST_URL					text,
+	MOZILLA_CONSTRAINTS			text,
+	COMPANY_WEBSITE				text,
+	GEOGRAPHIC_FOCUS			text,
+	CP_URL						text,
+	CPS_URL						text,
+	STANDARD_AUDIT_URL			text,
+	BR_AUDIT_URL				text,
+	EV_AUDIT_URL				text,
+	AUDITOR						text,
+	STANDARD_AUDIT_TYPE			text,
+	STANDARD_AUDIT_DATE			text
 );
 
 \COPY mozilla_included_import FROM 'mozilla_included.csv' CSV HEADER;
@@ -260,7 +264,7 @@ INSERT INTO mozilla_disclosure_temp (
 		ISSUER_O,
 		SUBJECT_CN,
 		SUBJECT_O,
-		CERT_SHA1,
+		CERT_SHA256,
 		DISCLOSURE_STATUS
 	)
 	SELECT c.ID, NULL, 'Root',
@@ -292,11 +296,11 @@ INSERT INTO mozilla_disclosure_temp (
 			(SELECT x509_nameAttributes(c.CERTIFICATE, 'organizationName', FALSE) LIMIT 1),
 			(SELECT x509_nameAttributes(c.CERTIFICATE, 'commonName', TRUE) LIMIT 1),
 			(SELECT x509_nameAttributes(c.CERTIFICATE, 'organizationName', TRUE) LIMIT 1),
-			decode(replace(mii.CERT_SHA1, ':', ''), 'hex'),
+			decode(replace(mii.CERT_SHA256, ':', ''), 'hex'),
 			'Disclosed'
 		FROM mozilla_included_import mii
-			LEFT OUTER JOIN certificate c ON (decode(replace(mii.CERT_SHA1, ':', ''), 'hex') = digest(c.CERTIFICATE, 'sha1'))
-			LEFT OUTER JOIN mozilla_included_manual_import mimi ON ((mii.CERT_SHA1 = mimi.CERT_SHA1) AND (mimi.CERT_NAME LIKE ('%' || mii.CN_OR_CERT_NAME || '%')));
+			LEFT OUTER JOIN certificate c ON (decode(replace(mii.CERT_SHA256, ':', ''), 'hex') = digest(c.CERTIFICATE, 'sha256'))
+			LEFT OUTER JOIN mozilla_included_manual_import mimi ON (decode(replace(mimi.CERT_SHA1, ':', ''), 'hex') = digest(c.CERTIFICATE, 'sha1'));
 
 
 \echo Determining Parent CA Certificates
@@ -415,14 +419,14 @@ INSERT INTO mozilla_disclosure_temp (
 		ISSUER_CN,
 		SUBJECT_O,
 		SUBJECT_CN,
-		CERT_SHA1, DISCLOSURE_STATUS
+		CERT_SHA256, DISCLOSURE_STATUS
 	)
 	SELECT c.ID, get_ca_name_attribute(cac.CA_ID),
 			get_ca_name_attribute(c.ISSUER_CA_ID, 'organizationName'),
 			get_ca_name_attribute(c.ISSUER_CA_ID, 'commonName'),
 			get_ca_name_attribute(cac.CA_ID, 'organizationName'),
 			get_ca_name_attribute(cac.CA_ID, 'commonName'),
-			digest(c.CERTIFICATE, 'sha1'), 'Undisclosed'
+			digest(c.CERTIFICATE, 'sha256'), 'Undisclosed'
 		FROM ca, ca_certificate cac, certificate c
 		WHERE ca.LINTING_APPLIES
 			AND ca.ID = cac.CA_ID

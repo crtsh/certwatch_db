@@ -860,11 +860,11 @@ BEGIN
 		t_temp := '';
 		FOR l_record IN (
 					SELECT md.CA_OWNER_OR_CERT_NAME, md.ISSUER_O, md.ISSUER_CN,
-							md.SUBJECT_O, md.SUBJECT_CN, md.CERT_SHA1, md.SALESFORCE_ID,
+							md.SUBJECT_O, md.SUBJECT_CN, md.CERT_SHA256, md.SALESFORCE_ID,
 							ic.CERTIFICATE_ID, ic.PROBLEMS
 						FROM mozilla_disclosure md
 								LEFT OUTER JOIN invalid_certificate ic
-									ON (md.CERT_SHA1 = digest(ic.CERTIFICATE_AS_LOGGED, 'sha1'))
+									ON (md.CERT_SHA256 = digest(ic.CERTIFICATE_AS_LOGGED, 'sha256'))
 						WHERE md.CERTIFICATE_ID IS NULL
 						ORDER BY (ic.PROBLEMS IS NOT NULL), md.ISSUER_O, md.ISSUER_CN, md.SUBJECT_O, md.SUBJECT_CN
 				) LOOP
@@ -884,7 +884,7 @@ BEGIN
     <TD>' || coalesce(html_escape(l_record.ISSUER_CN), '&nbsp;') || '</TD>
     <TD>' || coalesce(html_escape(l_record.SUBJECT_O), '&nbsp;') || '</TD>
     <TD>' || coalesce(html_escape(l_record.SUBJECT_CN), '&nbsp;') || '</TD>
-    <TD style="font-family:monospace">' || upper(encode(l_record.CERT_SHA1, 'hex')) || '</TD>
+    <TD style="font-family:monospace">' || upper(encode(l_record.CERT_SHA256, 'hex')) || '</TD>
     <TD>' || coalesce(html_escape(l_record.PROBLEMS), '&nbsp;');
 			IF l_record.CERTIFICATE_ID IS NOT NULL THEN
 				t_temp := t_temp || '.<BR><A href="/?id=' || l_record.CERTIFICATE_ID::text || '">View the correct encoding of this certificate</A>';
@@ -904,7 +904,7 @@ BEGIN
     <TH>Issuer CN</TH>
     <TH>Subject O</TH>
     <TH>Subject CN</TH>
-    <TH>SHA-1(Certificate)</TH>
+    <TH>SHA-256(Certificate)</TH>
     <TH>Encoding Problems?</TH>
   </TR>
 ' || t_temp;
@@ -947,7 +947,7 @@ BEGIN
     <TD>' || coalesce(html_escape(l_record.ISSUER_CN), '&nbsp;') || '</TD>
     <TD>' || coalesce(html_escape(l_record.SUBJECT_O), '&nbsp;') || '</TD>
     <TD>' || coalesce(html_escape(l_record.SUBJECT_CN), '&nbsp;') || '</TD>
-    <TD style="font-family:monospace"><A href="/?sha1=' || encode(l_record.CERT_SHA1, 'hex') || '&opt=mozilladisclosure" target="blank">' || upper(encode(l_record.CERT_SHA1, 'hex')) || '</A></TD>
+    <TD style="font-family:monospace"><A href="/?sha256=' || encode(l_record.CERT_SHA256, 'hex') || '&opt=mozilladisclosure" target="blank">' || upper(encode(l_record.CERT_SHA256, 'hex')) || '</A></TD>
   </TR>
 ';
 		END LOOP;
@@ -962,7 +962,7 @@ BEGIN
     <TH>Issuer CN</TH>
     <TH>Subject O</TH>
     <TH>Subject CN</TH>
-    <TH>SHA-1(Certificate)</TH>
+    <TH>SHA-256(Certificate)</TH>
   </TR>
 ' || t_temp2;
 		IF t_discErrorCount = 0 THEN
@@ -1006,7 +1006,7 @@ BEGIN
     <TD>' || coalesce(html_escape(l_record.ISSUER_CN), '&nbsp;') || '</TD>
     <TD>' || coalesce(html_escape(l_record.SUBJECT_O), '&nbsp;') || '</TD>
     <TD>' || coalesce(html_escape(l_record.SUBJECT_CN), '&nbsp;') || '</TD>
-    <TD style="font-family:monospace"><A href="/?sha1=' || encode(l_record.CERT_SHA1, 'hex') || '&opt=mozilladisclosure" target="blank">' || upper(encode(l_record.CERT_SHA1, 'hex')) || '</A></TD>
+    <TD style="font-family:monospace"><A href="/?sha256=' || encode(l_record.CERT_SHA256, 'hex') || '&opt=mozilladisclosure" target="blank">' || upper(encode(l_record.CERT_SHA256, 'hex')) || '</A></TD>
   </TR>
 ';
 		END LOOP;
@@ -1021,7 +1021,7 @@ BEGIN
     <TH>Issuer CN</TH>
     <TH>Subject O</TH>
     <TH>Subject CN</TH>
-    <TH>SHA-1(Certificate)</TH>
+    <TH>SHA-256(Certificate)</TH>
   </TR>
 ' || t_temp2;
 		IF t_disclosedCount = 0 THEN
@@ -1059,7 +1059,7 @@ BEGIN
     <TD>' || coalesce(html_escape(l_record.ISSUER_CN), '&nbsp;') || '</TD>
     <TD>' || coalesce(html_escape(l_record.SUBJECT_O), '&nbsp;') || '</TD>
     <TD>' || coalesce(html_escape(l_record.SUBJECT_CN), '&nbsp;') || '</TD>
-    <TD style="font-family:monospace"><A href="/?sha1=' || encode(l_record.CERT_SHA1, 'hex') || '&opt=mozilladisclosure" target="blank">' || upper(encode(l_record.CERT_SHA1, 'hex')) || '</A></TD>
+    <TD style="font-family:monospace"><A href="/?sha1=' || encode(l_record.CERT_SHA256, 'hex') || '&opt=mozilladisclosure" target="blank">' || upper(encode(l_record.CERT_SHA256, 'hex')) || '</A></TD>
   </TR>
 ';
 		END LOOP;
@@ -1074,7 +1074,7 @@ BEGIN
     <TH>Issuer CN</TH>
     <TH>Subject O</TH>
     <TH>Subject CN</TH>
-    <TH>SHA-1(Certificate)</TH>
+    <TH>SHA-256(Certificate)</TH>
   </TR>
 ' || t_temp2;
 		IF t_revokedViaOneCRLCount = 0 THEN
@@ -1112,7 +1112,7 @@ BEGIN
     <TD>' || coalesce(html_escape(l_record.ISSUER_CN), '&nbsp;') || '</TD>
     <TD>' || coalesce(html_escape(l_record.SUBJECT_O), '&nbsp;') || '</TD>
     <TD>' || coalesce(html_escape(l_record.SUBJECT_CN), '&nbsp;') || '</TD>
-    <TD style="font-family:monospace"><A href="/?sha1=' || encode(l_record.CERT_SHA1, 'hex') || '&opt=mozilladisclosure" target="blank">' || upper(encode(l_record.CERT_SHA1, 'hex')) || '</A></TD>
+    <TD style="font-family:monospace"><A href="/?sha1=' || encode(l_record.CERT_SHA256, 'hex') || '&opt=mozilladisclosure" target="blank">' || upper(encode(l_record.CERT_SHA256, 'hex')) || '</A></TD>
   </TR>
 ';
 		END LOOP;
@@ -1127,7 +1127,7 @@ BEGIN
     <TH>Issuer CN</TH>
     <TH>Subject O</TH>
     <TH>Subject CN</TH>
-    <TH>SHA-1(Certificate)</TH>
+    <TH>SHA-256(Certificate)</TH>
   </TR>
 ' || t_temp2;
 		IF t_revokedCount = 0 THEN
@@ -1157,7 +1157,7 @@ BEGIN
     <TD>' || coalesce(html_escape(l_record.ISSUER_CN), '&nbsp;') || '</TD>
     <TD>' || coalesce(html_escape(l_record.SUBJECT_O), '&nbsp;') || '</TD>
     <TD>' || coalesce(html_escape(l_record.SUBJECT_CN), '&nbsp;') || '</TD>
-    <TD style="font-family:monospace"><A href="/?sha1=' || encode(l_record.CERT_SHA1, 'hex') || '&opt=mozilladisclosure" target="blank">' || upper(encode(l_record.CERT_SHA1, 'hex')) || '</A></TD>
+    <TD style="font-family:monospace"><A href="/?sha1=' || encode(l_record.CERT_SHA256, 'hex') || '&opt=mozilladisclosure" target="blank">' || upper(encode(l_record.CERT_SHA256, 'hex')) || '</A></TD>
   </TR>
 ';
 		END LOOP;
@@ -1172,7 +1172,7 @@ BEGIN
     <TH>Issuer CN</TH>
     <TH>Subject O</TH>
     <TH>Subject CN</TH>
-    <TH>SHA-1(Certificate)</TH>
+    <TH>SHA-256(Certificate)</TH>
   </TR>
 ' || t_temp2;
 		IF t_expiredCount = 0 THEN
@@ -1202,7 +1202,7 @@ BEGIN
     <TD>' || coalesce(html_escape(l_record.ISSUER_CN), '&nbsp;') || '</TD>
     <TD>' || coalesce(html_escape(l_record.SUBJECT_O), '&nbsp;') || '</TD>
     <TD>' || coalesce(html_escape(l_record.SUBJECT_CN), '&nbsp;') || '</TD>
-    <TD style="font-family:monospace"><A href="/?sha1=' || encode(l_record.CERT_SHA1, 'hex') || '&opt=mozilladisclosure" target="blank">' || upper(encode(l_record.CERT_SHA1, 'hex')) || '</A></TD>
+    <TD style="font-family:monospace"><A href="/?sha1=' || encode(l_record.CERT_SHA256, 'hex') || '&opt=mozilladisclosure" target="blank">' || upper(encode(l_record.CERT_SHA256, 'hex')) || '</A></TD>
   </TR>
 ';
 		END LOOP;
@@ -1217,7 +1217,7 @@ BEGIN
     <TH>Issuer CN</TH>
     <TH>Subject O</TH>
     <TH>Subject CN</TH>
-    <TH>SHA-1(Certificate)</TH>
+    <TH>SHA-256(Certificate)</TH>
   </TR>
 ' || t_temp2;
 		IF t_constrainedCount = 0 THEN
@@ -1247,7 +1247,7 @@ BEGIN
     <TD>' || coalesce(html_escape(l_record.ISSUER_CN), '&nbsp;') || '</TD>
     <TD>' || coalesce(html_escape(l_record.SUBJECT_O), '&nbsp;') || '</TD>
     <TD>' || coalesce(html_escape(l_record.SUBJECT_CN), '&nbsp;') || '</TD>
-    <TD style="font-family:monospace"><A href="/?sha1=' || encode(l_record.CERT_SHA1, 'hex') || '&opt=mozilladisclosure" target="blank">' || upper(encode(l_record.CERT_SHA1, 'hex')) || '</A></TD>
+    <TD style="font-family:monospace"><A href="/?sha1=' || encode(l_record.CERT_SHA256, 'hex') || '&opt=mozilladisclosure" target="blank">' || upper(encode(l_record.CERT_SHA256, 'hex')) || '</A></TD>
   </TR>
 ';
 		END LOOP;
@@ -1262,7 +1262,7 @@ BEGIN
     <TH>Issuer CN</TH>
     <TH>Subject O</TH>
     <TH>Subject CN</TH>
-    <TH>SHA-1(Certificate)</TH>
+    <TH>SHA-256(Certificate)</TH>
   </TR>
 ' || t_temp2;
 		IF t_notTrustedCount = 0 THEN
@@ -1292,7 +1292,7 @@ BEGIN
     <TD>' || coalesce(html_escape(l_record.ISSUER_CN), '&nbsp;') || '</TD>
     <TD>' || coalesce(html_escape(l_record.SUBJECT_O), '&nbsp;') || '</TD>
     <TD>' || coalesce(html_escape(l_record.SUBJECT_CN), '&nbsp;') || '</TD>
-    <TD style="font-family:monospace"><A href="/?sha1=' || encode(l_record.CERT_SHA1, 'hex') || '&opt=mozilladisclosure" target="blank">' || upper(encode(l_record.CERT_SHA1, 'hex')) || '</A></TD>
+    <TD style="font-family:monospace"><A href="/?sha1=' || encode(l_record.CERT_SHA256, 'hex') || '&opt=mozilladisclosure" target="blank">' || upper(encode(l_record.CERT_SHA256, 'hex')) || '</A></TD>
   </TR>
 ';
 		END LOOP;
@@ -1307,7 +1307,7 @@ BEGIN
     <TH>Issuer CN</TH>
     <TH>Subject O</TH>
     <TH>Subject CN</TH>
-    <TH>SHA-1(Certificate)</TH>
+    <TH>SHA-256(Certificate)</TH>
   </TR>
 ' || t_temp2;
 		IF t_trustRevokedCount = 0 THEN
@@ -1337,7 +1337,7 @@ BEGIN
     <TD>' || coalesce(html_escape(l_record.ISSUER_CN), '&nbsp;') || '</TD>
     <TD>' || coalesce(html_escape(l_record.SUBJECT_O), '&nbsp;') || '</TD>
     <TD>' || coalesce(html_escape(l_record.SUBJECT_CN), '&nbsp;') || '</TD>
-    <TD style="font-family:monospace"><A href="/?sha1=' || encode(l_record.CERT_SHA1, 'hex') || '&opt=mozilladisclosure" target="blank">' || upper(encode(l_record.CERT_SHA1, 'hex')) || '</A></TD>
+    <TD style="font-family:monospace"><A href="/?sha1=' || encode(l_record.CERT_SHA256, 'hex') || '&opt=mozilladisclosure" target="blank">' || upper(encode(l_record.CERT_SHA256, 'hex')) || '</A></TD>
   </TR>
 ';
 		END LOOP;
@@ -1352,7 +1352,7 @@ BEGIN
     <TH>Issuer CN</TH>
     <TH>Subject O</TH>
     <TH>Subject CN</TH>
-    <TH>SHA-1(Certificate)</TH>
+    <TH>SHA-256(Certificate)</TH>
   </TR>
 ' || t_temp2;
 		IF t_undisclosedCount = 0 THEN
@@ -1396,7 +1396,7 @@ BEGIN
     <TD>' || coalesce(html_escape(l_record.ISSUER_CN), '&nbsp;') || '</TD>
     <TD>' || coalesce(html_escape(l_record.SUBJECT_O), '&nbsp;') || '</TD>
     <TD>' || coalesce(html_escape(l_record.SUBJECT_CN), '&nbsp;') || '</TD>
-    <TD style="font-family:monospace"><A href="/?sha1=' || encode(l_record.CERT_SHA1, 'hex') || '&opt=mozilladisclosure" target="blank">' || upper(encode(l_record.CERT_SHA1, 'hex')) || '</A></TD>
+    <TD style="font-family:monospace"><A href="/?sha1=' || encode(l_record.CERT_SHA256, 'hex') || '&opt=mozilladisclosure" target="blank">' || upper(encode(l_record.CERT_SHA256, 'hex')) || '</A></TD>
   </TR>
 ';
 		END LOOP;
@@ -1411,7 +1411,7 @@ BEGIN
     <TH>Issuer CN</TH>
     <TH>Subject O</TH>
     <TH>Subject CN</TH>
-    <TH>SHA-1(Certificate)</TH>
+    <TH>SHA-256(Certificate)</TH>
   </TR>
 ' || t_temp2;
 		IF t_incompleteCount = 0 THEN
