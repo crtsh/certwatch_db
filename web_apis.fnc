@@ -3300,6 +3300,7 @@ BEGIN
 			IF t_outputType = 'atom' THEN
 				t_output :=
 '[BEGIN_HEADERS]
+Cache-Control: max-age=' || t_cacheControlMaxAge::integer || '
 Content-Type: application/atom+xml
 [END_HEADERS]
 <?xml version="1.0" encoding="utf-8"?>
@@ -3851,7 +3852,7 @@ Content-Type: application/atom+xml
 	END IF;
 
 	IF t_outputType = 'html' THEN
-        t_output :=                                                                                                                                                                                                                          
+		t_output :=                                                                                                                                                                                                                          
 '[BEGIN_HEADERS]
 Cache-Control: max-age=' || t_cacheControlMaxAge::integer || '
 Content-Type: text/html; charset=UTF-8
@@ -3877,12 +3878,22 @@ Content-Type: text/html; charset=UTF-8
 
 EXCEPTION
 	WHEN no_data_found THEN
-		RETURN coalesce(t_output, '') || '<BR><BR>' || SQLERRM ||
+		RETURN
+'[BEGIN_HEADERS]
+Cache-Control: max-age=' || t_cacheControlMaxAge::integer || '
+Content-Type: text/html; charset=UTF-8
+[END_HEADERS]
+' || coalesce(t_output, '') || '<BR><BR>' || SQLERRM ||
 '</BODY>
 </HTML>
 ';
 	WHEN others THEN
 		GET STACKED DIAGNOSTICS t_temp = PG_EXCEPTION_CONTEXT;
-		RETURN coalesce(t_output, '') || '<BR><BR>' || html_escape(SQLERRM) || '<BR><BR>' || html_escape(coalesce(t_temp, '')) || '<BR><BR>' || html_escape(coalesce(t_query, ''));
+		RETURN
+'[BEGIN_HEADERS]
+Cache-Control: max-age=' || t_cacheControlMaxAge::integer || '
+Content-Type: text/html; charset=UTF-8
+[END_HEADERS]
+' || coalesce(t_output, '') || '<BR><BR>' || html_escape(SQLERRM) || '<BR><BR>' || html_escape(coalesce(t_temp, '')) || '<BR><BR>' || html_escape(coalesce(t_query, ''));
 END;
 $$ LANGUAGE plpgsql;
