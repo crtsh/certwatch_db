@@ -2197,7 +2197,7 @@ BEGIN
 					IF NOT FOUND THEN
 						t_temp3 := t_temp3 || '888888>Not Trusted';
 						t_ctp.SHORTEST_CHAIN := NULL;
-					ELSIF NOT l_record.IS_TIME_VALID THEN
+					ELSIF NOT t_ctp.IS_TIME_VALID THEN
 						t_temp3 := t_temp3 || '888888>Expired';
 					ELSE
 						SELECT md.DISCLOSURE_STATUS
