@@ -144,7 +144,6 @@ CREATE TABLE mozilla_revoked_disclosure_import (
 	ISSUER_O					text,
 	SUBJECT_CN					text,
 	SUBJECT_O					text,
-	SERIAL_NUMBER_2				text,
 	CERT_SHA256					text,
 	LOGICAL_CERTIFICATE_ID		text,
 	VALID_FROM_GMT				text,
