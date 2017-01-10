@@ -67,6 +67,10 @@ DROP TABLE ct_log_entry;
 
 DROP TABLE ct_log;
 
+DROP TABLE crl_revoked;
+
+DROP TABLE crl;
+
 DROP TABLE ca_certificate;
 
 DROP TABLE certificate_identity;

@@ -148,6 +148,35 @@ CREATE TABLE ca_certificate (
 CREATE INDEX cac_ca_cert
 	ON ca_certificate (CA_ID, CERTIFICATE_ID);
 
+CREATE TABLE crl (
+	CA_ID					integer,
+	DISTRIBUTION_POINT_URL	text,
+	THIS_UPDATE				timestamp,
+	NEXT_UPDATE				timestamp,
+	LAST_CHECKED			timestamp,
+	NEXT_CHECK_DUE			timestamp,
+	IS_ACTIVE				boolean,
+	ERROR_MESSAGE			text,
+	CRL_SHA256				bytea,
+	CONSTRAINT crl_pk
+		PRIMARY KEY (CA_ID, DISTRIBUTION_POINT_URL),
+	CONSTRAINT crl_ca_fk
+		FOREIGN KEY (CA_ID)
+		REFERENCES ca(ID)
+);
+
+CREATE INDEX crl_ia_lc
+	ON crl (IS_ACTIVE, NEXT_CHECK_DUE, DISTRIBUTION_POINT_URL);
+
+CREATE TABLE crl_revoked (
+	CA_ID					integer,
+	SERIAL_NUMBER			bytea,
+	REASON_CODE				smallint,
+	REVOCATION_DATE			timestamp,
+	LAST_SEEN_CHECK_DATE	timestamp,
+	CONSTRAINT crlr_pk
+		PRIMARY KEY (CA_ID, SERIAL_NUMBER)
+);
 
 CREATE TABLE ct_log (
 	ID						smallint,
@@ -540,6 +569,10 @@ GRANT SELECT ON invalid_certificate TO crtsh;
 GRANT SELECT ON certificate_identity TO crtsh;
 
 GRANT SELECT ON ca_certificate TO crtsh;
+
+GRANT SELECT ON crl TO httpd;
+
+GRANT SELECT ON crl_revoked TO httpd;
 
 GRANT SELECT ON ct_log TO crtsh;
 

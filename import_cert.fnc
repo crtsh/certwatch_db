@@ -31,6 +31,7 @@ DECLARE
 	t_caID				ca.ID%TYPE;
 	t_lintingApplies	ca.LINTING_APPLIES%TYPE			:= TRUE;
 	l_ca				RECORD;
+	l_cdp				RECORD;
 BEGIN
 	IF cert_data IS NULL THEN
 		RETURN NULL;
@@ -138,6 +139,18 @@ BEGIN
 	IF t_lintingApplies THEN
 		PERFORM lint_cached(t_certificateID, 'x509lint');
 	END IF;
+
+	FOR l_cdp IN (
+				SELECT x509_crlDistributionPoints(cert_data) URL
+			) LOOP
+		INSERT INTO crl (
+				CA_ID, DISTRIBUTION_POINT_URL, NEXT_CHECK_DUE, IS_ACTIVE
+			)
+			VALUES (
+				t_issuerCAID, trim(l_cdp.URL), statement_timestamp(), TRUE
+			)
+			ON CONFLICT DO NOTHING;
+	END LOOP;
 
 	RETURN t_certificateID;
 
