@@ -218,7 +218,7 @@ BEGIN
 	IF t_outputType = '' THEN
 		t_outputType := 'html';
 	END IF;
-	IF lower(t_outputType) IN ('forum', 'mozilla-disclosures', 'redacted-precertificates') THEN
+	IF lower(t_outputType) IN ('forum', 'gen-add-chain', 'mozilla-disclosures', 'redacted-precertificates') THEN
 		t_type := lower(t_outputType);
 		t_title := t_type;
 		t_outputType := 'html';
@@ -851,6 +851,33 @@ BEGIN
   </TR>
 '  || t_temp || '
 </TABLE>';
+
+	ELSIF t_type = 'gen-add-chain' THEN
+		t_temp := get_parameter('b64cert', paramNames, paramValues);
+		IF t_temp IS NULL THEN
+			t_output := t_output ||
+'<BR><BR>1. Enter a base64 encoded certificate.
+<BR><BR>2. Press the button to generate JSON that you can then submit to a log''s /ct/v1/add-chain API.
+<BR>(crt.sh will discover the trust chain for you).
+<BR><BR><FORM>
+  <TEXTAREA name="b64cert" rows=25 cols=64></TEXTAREA>
+  <BR><BR><INPUT type="submit" class="button" value="Generate JSON">
+</FORM>
+<BR><BR><SPAN class="small">Please note: This tool currently finds chains that are trusted by the Mozilla and/or Microsoft and/or Apple root programs.
+<BR>FIXME: Look at each log''s /ct/v1/get-roots instead</SPAN>';
+		ELSE
+			t_certificate := decode(
+				replace(replace(t_temp, '-----BEGIN CERTIFICATE-----', ''), '-----END CERTIFICATE-----', ''),
+				'base64'
+			);
+
+			RETURN
+'[BEGIN_HEADERS]
+Content-Disposition: attachment; filename="add-chain-' || encode(digest(t_certificate, 'sha256'), 'hex') || '.json"
+Content-Type: application/json
+[END_HEADERS]
+' || generate_add_chain_body(t_certificate);
+		END IF;
 
 	ELSIF t_type = 'mozilla-disclosures' THEN
 		t_output := t_output ||
