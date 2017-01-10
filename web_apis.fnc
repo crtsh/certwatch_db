@@ -1965,6 +1965,7 @@ BEGIN
     <TH>BR Audit</TH>
     <TH>Documents</TH>
     <TH>CA Community</TH>
+    <TH>Root Owner / Certificate</TH>
   </TR>
   <TR>
     <TD>' || coalesce(l_record.AUDITOR, '') || '</TD>
@@ -2005,6 +2006,13 @@ BEGIN
 						t_output := t_output || '<A href="//mozillacacommunity.force.com/' || l_record.SALESFORCE_ID || '" target="_blank">' || l_record.SALESFORCE_ID || '</A>';
 					ELSE
 						t_output := t_output || '&nbsp;';
+					END IF;
+					t_output := t_output || '</TD>
+    <TD>';
+					IF l_record.INCLUDED_CERTIFICATE_ID IS NULL THEN
+						t_output := t_output || coalesce(html_escape(l_record.INCLUDED_CERTIFICATE_OWNER), '&nbsp;');
+					ELSE
+						t_output := t_output || '<A href="/?id=' || l_record.INCLUDED_CERTIFICATE_ID::text || '">' || coalesce(html_escape(l_record.INCLUDED_CERTIFICATE_OWNER), '&nbsp;') || '</A>';
 					END IF;
 					t_output := t_output || '</TD>
   </TR>
