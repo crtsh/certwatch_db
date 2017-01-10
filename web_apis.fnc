@@ -859,19 +859,35 @@ BEGIN
 
 		t_temp := '';
 		FOR l_record IN (
-					SELECT md.CA_OWNER_OR_CERT_NAME, md.ISSUER_O, md.ISSUER_CN,
-							md.SUBJECT_O, md.SUBJECT_CN, md.CERT_SHA256, md.SALESFORCE_ID,
+					SELECT md.CA_OWNER_OR_CERT_NAME, md.INCLUDED_CERTIFICATE_ID, md.INCLUDED_CERTIFICATE_OWNER,
+							md.RECORD_TYPE,
+							md.ISSUER_O, md.ISSUER_CN, md.SUBJECT_O, md.SUBJECT_CN, md.CERT_SHA256, md.SALESFORCE_ID,
 							ic.CERTIFICATE_ID, ic.PROBLEMS
 						FROM mozilla_disclosure md
 								LEFT OUTER JOIN invalid_certificate ic
 									ON (md.CERT_SHA256 = digest(ic.CERTIFICATE_AS_LOGGED, 'sha256'))
 						WHERE md.CERTIFICATE_ID IS NULL
-						ORDER BY (ic.PROBLEMS IS NOT NULL), md.ISSUER_O, md.ISSUER_CN, md.SUBJECT_O, md.SUBJECT_CN
+						ORDER BY (ic.PROBLEMS IS NOT NULL), md.INCLUDED_CERTIFICATE_OWNER,
+								md.ISSUER_O, md.ISSUER_CN NULLS FIRST, md.RECORD_TYPE DESC,
+								md.SUBJECT_O, md.SUBJECT_CN NULLS FIRST
 				) LOOP
 			t_unknownCount := t_unknownCount + 1;
 			t_temp := t_temp ||
 '  <TR>
     <TD>';
+			IF l_record.INCLUDED_CERTIFICATE_ID IS NULL THEN
+				t_temp := t_temp || coalesce(html_escape(l_record.INCLUDED_CERTIFICATE_OWNER), '&nbsp;');
+			ELSE
+				t_temp := t_temp || '<A href="/?id=' || l_record.INCLUDED_CERTIFICATE_ID::text || '">' || coalesce(html_escape(l_record.INCLUDED_CERTIFICATE_OWNER), '&nbsp;') || '</A>';
+			END IF;
+			t_temp := t_temp || '</TD>
+    <TD>' || coalesce(html_escape(l_record.ISSUER_O), '&nbsp;') || '</TD>
+    <TD>' || coalesce(html_escape(l_record.ISSUER_CN), '&nbsp;') || '</TD>
+    <TD>' || coalesce(html_escape(l_record.SUBJECT_O), '&nbsp;') || '</TD>
+    <TD>';
+			IF l_record.RECORD_TYPE = 'Root' THEN
+				t_temp := t_temp || '<B>[Root]</B> ';
+			END IF;
 			IF l_record.SALESFORCE_ID IS NOT NULL THEN
 				t_temp := t_temp || '<A href="//mozillacacommunity.force.com/' || l_record.SALESFORCE_ID || '" target="_blank">';
 			END IF;
@@ -880,11 +896,7 @@ BEGIN
 				t_temp := t_temp || '</A>';
 			END IF;
 			t_temp := t_temp || '</TD>
-    <TD>' || coalesce(html_escape(l_record.ISSUER_O), '&nbsp;') || '</TD>
-    <TD>' || coalesce(html_escape(l_record.ISSUER_CN), '&nbsp;') || '</TD>
-    <TD>' || coalesce(html_escape(l_record.SUBJECT_O), '&nbsp;') || '</TD>
-    <TD>' || coalesce(html_escape(l_record.SUBJECT_CN), '&nbsp;') || '</TD>
-    <TD style="font-family:monospace">' || upper(encode(l_record.CERT_SHA256, 'hex')) || '</TD>
+    <TD style="font-family:monospace"><A href="/?sha256=' || encode(l_record.CERT_SHA256, 'hex') || '&opt=mozilladisclosure" target="blank">' || substr(upper(encode(l_record.CERT_SHA256, 'hex')), 1, 16) || '...</A></TD>
     <TD>' || coalesce(html_escape(l_record.PROBLEMS), '&nbsp;');
 			IF l_record.CERTIFICATE_ID IS NOT NULL THEN
 				t_temp := t_temp || '.<BR><A href="/?id=' || l_record.CERTIFICATE_ID::text || '">View the correct encoding of this certificate</A>';
@@ -899,7 +911,7 @@ BEGIN
 <BR>
 <TABLE>
   <TR>
-    <TH>CA Owner or Certificate Name</TH>
+    <TH>Root Owner / Certificate</TH>
     <TH>Issuer O</TH>
     <TH>Issuer CN</TH>
     <TH>Subject O</TH>
@@ -923,17 +935,25 @@ BEGIN
 						FROM mozilla_disclosure md
 						WHERE md.DISCLOSURE_STATUS = 'DisclosedWithErrors'
 							AND md.CERTIFICATE_ID IS NOT NULL
-						ORDER BY md.ISSUER_O, md.ISSUER_CN NULLS FIRST, md.RECORD_TYPE DESC, md.SUBJECT_O, md.SUBJECT_CN
+						ORDER BY md.INCLUDED_CERTIFICATE_OWNER, md.ISSUER_O, md.ISSUER_CN NULLS FIRST, md.RECORD_TYPE DESC,
+								md.SUBJECT_O, md.SUBJECT_CN NULLS FIRST
 				) LOOP
 			t_discErrorCount := t_discErrorCount + 1;
-			IF l_record.RECORD_TYPE = 'Root' THEN
-				t_temp2 := t_temp2 ||
-'  <TR style="font-style:italic;font-weight:bold">
-    <TD>[Root] ';
-			ELSE
-				t_temp2 := t_temp2 ||
+			t_temp2 := t_temp2 ||
 '  <TR>
     <TD>';
+			IF l_record.INCLUDED_CERTIFICATE_ID IS NULL THEN
+				t_temp2 := t_temp2 || coalesce(html_escape(l_record.INCLUDED_CERTIFICATE_OWNER), '&nbsp;');
+			ELSE
+				t_temp2 := t_temp2 || '<A href="/?id=' || l_record.INCLUDED_CERTIFICATE_ID::text || '">' || coalesce(html_escape(l_record.INCLUDED_CERTIFICATE_OWNER), '&nbsp;') || '</A>';
+			END IF;
+			t_temp2 := t_temp2 || '</TD>
+    <TD>' || coalesce(html_escape(l_record.ISSUER_O), '&nbsp;') || '</TD>
+    <TD>' || coalesce(html_escape(l_record.ISSUER_CN), '&nbsp;') || '</TD>
+    <TD>' || coalesce(html_escape(l_record.SUBJECT_O), '&nbsp;') || '</TD>
+    <TD>';
+			IF l_record.RECORD_TYPE = 'Root' THEN
+				t_temp2 := t_temp2 || '<B>[Root]</B> ';
 			END IF;
 			IF l_record.SALESFORCE_ID IS NOT NULL THEN
 				t_temp2 := t_temp2 || '<A href="//mozillacacommunity.force.com/' || l_record.SALESFORCE_ID || '" target="_blank">';
@@ -943,11 +963,7 @@ BEGIN
 				t_temp2 := t_temp2 || '</A>';
 			END IF;
 			t_temp2 := t_temp2 || '</TD>
-    <TD>' || coalesce(html_escape(l_record.ISSUER_O), '&nbsp;') || '</TD>
-    <TD>' || coalesce(html_escape(l_record.ISSUER_CN), '&nbsp;') || '</TD>
-    <TD>' || coalesce(html_escape(l_record.SUBJECT_O), '&nbsp;') || '</TD>
-    <TD>' || coalesce(html_escape(l_record.SUBJECT_CN), '&nbsp;') || '</TD>
-    <TD style="font-family:monospace"><A href="/?sha256=' || encode(l_record.CERT_SHA256, 'hex') || '&opt=mozilladisclosure" target="blank">' || upper(encode(l_record.CERT_SHA256, 'hex')) || '</A></TD>
+    <TD style="font-family:monospace"><A href="/?sha256=' || encode(l_record.CERT_SHA256, 'hex') || '&opt=mozilladisclosure" target="blank">' || substr(upper(encode(l_record.CERT_SHA256, 'hex')), 1, 16) || '...</A></TD>
   </TR>
 ';
 		END LOOP;
@@ -957,7 +973,7 @@ BEGIN
 <BR>
 <TABLE style="background-color:#F2A2E8">
   <TR>
-    <TH>CA Owner or Certificate Name</TH>
+    <TH>Root Owner / Certificate</TH>
     <TH>Issuer O</TH>
     <TH>Issuer CN</TH>
     <TH>Subject O</TH>
@@ -982,17 +998,25 @@ BEGIN
 						FROM mozilla_disclosure md
 						WHERE md.DISCLOSURE_STATUS = 'Disclosed'
 							AND md.CERTIFICATE_ID IS NOT NULL
-						ORDER BY md.ISSUER_O, md.ISSUER_CN NULLS FIRST, md.RECORD_TYPE DESC, md.SUBJECT_O, md.SUBJECT_CN
+						ORDER BY md.INCLUDED_CERTIFICATE_OWNER, md.ISSUER_O, md.ISSUER_CN NULLS FIRST, md.RECORD_TYPE DESC,
+								md.SUBJECT_O, md.SUBJECT_CN NULLS FIRST
 				) LOOP
 			t_disclosedCount := t_disclosedCount + 1;
-			IF l_record.RECORD_TYPE = 'Root' THEN
-				t_temp2 := t_temp2 ||
-'  <TR style="font-style:italic;font-weight:bold">
-    <TD>[Root] ';
-			ELSE
-				t_temp2 := t_temp2 ||
+			t_temp2 := t_temp2 ||
 '  <TR>
     <TD>';
+			IF l_record.INCLUDED_CERTIFICATE_ID IS NULL THEN
+				t_temp2 := t_temp2 || coalesce(html_escape(l_record.INCLUDED_CERTIFICATE_OWNER), '&nbsp;');
+			ELSE
+				t_temp2 := t_temp2 || '<A href="/?id=' || l_record.INCLUDED_CERTIFICATE_ID::text || '">' || coalesce(html_escape(l_record.INCLUDED_CERTIFICATE_OWNER), '&nbsp;') || '</A>';
+			END IF;
+			t_temp2 := t_temp2 || '</TD>
+    <TD>' || coalesce(html_escape(l_record.ISSUER_O), '&nbsp;') || '</TD>
+    <TD>' || coalesce(html_escape(l_record.ISSUER_CN), '&nbsp;') || '</TD>
+    <TD>' || coalesce(html_escape(l_record.SUBJECT_O), '&nbsp;') || '</TD>
+    <TD>';
+			IF l_record.RECORD_TYPE = 'Root' THEN
+				t_temp2 := t_temp2 || '<B>[Root]</B> ';
 			END IF;
 			IF l_record.SALESFORCE_ID IS NOT NULL THEN
 				t_temp2 := t_temp2 || '<A href="//mozillacacommunity.force.com/' || l_record.SALESFORCE_ID || '" target="_blank">';
@@ -1002,11 +1026,7 @@ BEGIN
 				t_temp2 := t_temp2 || '</A>';
 			END IF;
 			t_temp2 := t_temp2 || '</TD>
-    <TD>' || coalesce(html_escape(l_record.ISSUER_O), '&nbsp;') || '</TD>
-    <TD>' || coalesce(html_escape(l_record.ISSUER_CN), '&nbsp;') || '</TD>
-    <TD>' || coalesce(html_escape(l_record.SUBJECT_O), '&nbsp;') || '</TD>
-    <TD>' || coalesce(html_escape(l_record.SUBJECT_CN), '&nbsp;') || '</TD>
-    <TD style="font-family:monospace"><A href="/?sha256=' || encode(l_record.CERT_SHA256, 'hex') || '&opt=mozilladisclosure" target="blank">' || upper(encode(l_record.CERT_SHA256, 'hex')) || '</A></TD>
+    <TD style="font-family:monospace"><A href="/?sha256=' || encode(l_record.CERT_SHA256, 'hex') || '&opt=mozilladisclosure" target="blank">' || substr(upper(encode(l_record.CERT_SHA256, 'hex')), 1, 16) || '...</A></TD>
   </TR>
 ';
 		END LOOP;
@@ -1016,7 +1036,7 @@ BEGIN
 <BR>
 <TABLE style="background-color:#F2A2E8">
   <TR>
-    <TH>CA Owner or Certificate Name</TH>
+    <TH>Root Owner / Certificate</TH>
     <TH>Issuer O</TH>
     <TH>Issuer CN</TH>
     <TH>Subject O</TH>
@@ -1041,12 +1061,26 @@ BEGIN
 						FROM mozilla_disclosure md
 						WHERE md.DISCLOSURE_STATUS = 'RevokedViaOneCRL'
 							AND md.CERTIFICATE_ID IS NOT NULL
-						ORDER BY md.ISSUER_O, md.ISSUER_CN, md.SUBJECT_O, md.SUBJECT_CN
+						ORDER BY md.INCLUDED_CERTIFICATE_OWNER, md.ISSUER_O, md.ISSUER_CN NULLS FIRST, md.RECORD_TYPE DESC,
+								md.SUBJECT_O, md.SUBJECT_CN NULLS FIRST
 				) LOOP
 			t_revokedViaOneCRLCount := t_revokedViaOneCRLCount + 1;
 			t_temp2 := t_temp2 ||
 '  <TR>
     <TD>';
+			IF l_record.INCLUDED_CERTIFICATE_ID IS NULL THEN
+				t_temp2 := t_temp2 || coalesce(html_escape(l_record.INCLUDED_CERTIFICATE_OWNER), '&nbsp;');
+			ELSE
+				t_temp2 := t_temp2 || '<A href="/?id=' || l_record.INCLUDED_CERTIFICATE_ID::text || '">' || coalesce(html_escape(l_record.INCLUDED_CERTIFICATE_OWNER), '&nbsp;') || '</A>';
+			END IF;
+			t_temp2 := t_temp2 || '</TD>
+    <TD>' || coalesce(html_escape(l_record.ISSUER_O), '&nbsp;') || '</TD>
+    <TD>' || coalesce(html_escape(l_record.ISSUER_CN), '&nbsp;') || '</TD>
+    <TD>' || coalesce(html_escape(l_record.SUBJECT_O), '&nbsp;') || '</TD>
+    <TD>';
+			IF l_record.RECORD_TYPE = 'Root' THEN
+				t_temp2 := t_temp2 || '<B>[Root]</B> ';
+			END IF;
 			IF l_record.SALESFORCE_ID IS NOT NULL THEN
 				t_temp2 := t_temp2 || '<A href="//mozillacacommunity.force.com/' || l_record.SALESFORCE_ID || '" target="_blank">';
 			END IF;
@@ -1055,11 +1089,7 @@ BEGIN
 				t_temp2 := t_temp2 || '</A>';
 			END IF;
 			t_temp2 := t_temp2 || '</TD>
-    <TD>' || coalesce(html_escape(l_record.ISSUER_O), '&nbsp;') || '</TD>
-    <TD>' || coalesce(html_escape(l_record.ISSUER_CN), '&nbsp;') || '</TD>
-    <TD>' || coalesce(html_escape(l_record.SUBJECT_O), '&nbsp;') || '</TD>
-    <TD>' || coalesce(html_escape(l_record.SUBJECT_CN), '&nbsp;') || '</TD>
-    <TD style="font-family:monospace"><A href="/?sha256=' || encode(l_record.CERT_SHA256, 'hex') || '&opt=mozilladisclosure" target="blank">' || upper(encode(l_record.CERT_SHA256, 'hex')) || '</A></TD>
+    <TD style="font-family:monospace"><A href="/?sha256=' || encode(l_record.CERT_SHA256, 'hex') || '&opt=mozilladisclosure" target="blank">' || substr(upper(encode(l_record.CERT_SHA256, 'hex')), 1, 16) || '...</A></TD>
   </TR>
 ';
 		END LOOP;
@@ -1069,7 +1099,7 @@ BEGIN
 <BR>
 <TABLE style="background-color:#B2CEFE">
   <TR>
-    <TH>CA Owner or Certificate Name</TH>
+    <TH>Root Owner / Certificate</TH>
     <TH>Issuer O</TH>
     <TH>Issuer CN</TH>
     <TH>Subject O</TH>
@@ -1094,12 +1124,26 @@ BEGIN
 						FROM mozilla_disclosure md
 						WHERE md.DISCLOSURE_STATUS = 'Revoked'
 							AND md.CERTIFICATE_ID IS NOT NULL
-						ORDER BY md.ISSUER_O, md.ISSUER_CN, md.SUBJECT_O, md.SUBJECT_CN
+						ORDER BY md.INCLUDED_CERTIFICATE_OWNER, md.ISSUER_O, md.ISSUER_CN NULLS FIRST, md.RECORD_TYPE DESC,
+								md.SUBJECT_O, md.SUBJECT_CN NULLS FIRST
 				) LOOP
 			t_revokedCount := t_revokedCount + 1;
 			t_temp2 := t_temp2 ||
 '  <TR>
     <TD>';
+			IF l_record.INCLUDED_CERTIFICATE_ID IS NULL THEN
+				t_temp2 := t_temp2 || coalesce(html_escape(l_record.INCLUDED_CERTIFICATE_OWNER), '&nbsp;');
+			ELSE
+				t_temp2 := t_temp2 || '<A href="/?id=' || l_record.INCLUDED_CERTIFICATE_ID::text || '">' || coalesce(html_escape(l_record.INCLUDED_CERTIFICATE_OWNER), '&nbsp;') || '</A>';
+			END IF;
+			t_temp2 := t_temp2 || '</TD>
+    <TD>' || coalesce(html_escape(l_record.ISSUER_O), '&nbsp;') || '</TD>
+    <TD>' || coalesce(html_escape(l_record.ISSUER_CN), '&nbsp;') || '</TD>
+    <TD>' || coalesce(html_escape(l_record.SUBJECT_O), '&nbsp;') || '</TD>
+    <TD>';
+			IF l_record.RECORD_TYPE = 'Root' THEN
+				t_temp2 := t_temp2 || '<B>[Root]</B> ';
+			END IF;
 			IF l_record.SALESFORCE_ID IS NOT NULL THEN
 				t_temp2 := t_temp2 || '<A href="//mozillacacommunity.force.com/' || l_record.SALESFORCE_ID || '" target="_blank">';
 			END IF;
@@ -1108,11 +1152,7 @@ BEGIN
 				t_temp2 := t_temp2 || '</A>';
 			END IF;
 			t_temp2 := t_temp2 || '</TD>
-    <TD>' || coalesce(html_escape(l_record.ISSUER_O), '&nbsp;') || '</TD>
-    <TD>' || coalesce(html_escape(l_record.ISSUER_CN), '&nbsp;') || '</TD>
-    <TD>' || coalesce(html_escape(l_record.SUBJECT_O), '&nbsp;') || '</TD>
-    <TD>' || coalesce(html_escape(l_record.SUBJECT_CN), '&nbsp;') || '</TD>
-    <TD style="font-family:monospace"><A href="/?sha256=' || encode(l_record.CERT_SHA256, 'hex') || '&opt=mozilladisclosure" target="blank">' || upper(encode(l_record.CERT_SHA256, 'hex')) || '</A></TD>
+    <TD style="font-family:monospace"><A href="/?sha256=' || encode(l_record.CERT_SHA256, 'hex') || '&opt=mozilladisclosure" target="blank">' || substr(upper(encode(l_record.CERT_SHA256, 'hex')), 1, 16) || '...</A></TD>
   </TR>
 ';
 		END LOOP;
@@ -1122,7 +1162,7 @@ BEGIN
 <BR>
 <TABLE style="background-color:#B2CEFE">
   <TR>
-    <TH>CA Owner or Certificate Name</TH>
+    <TH>Root Owner / Certificate</TH>
     <TH>Issuer O</TH>
     <TH>Issuer CN</TH>
     <TH>Subject O</TH>
@@ -1147,17 +1187,35 @@ BEGIN
 						FROM mozilla_disclosure md
 						WHERE md.DISCLOSURE_STATUS = 'Expired'
 							AND md.CERTIFICATE_ID IS NOT NULL
-						ORDER BY md.ISSUER_O, md.ISSUER_CN, md.SUBJECT_O, md.SUBJECT_CN
+						ORDER BY md.INCLUDED_CERTIFICATE_OWNER, md.ISSUER_O, md.ISSUER_CN NULLS FIRST, md.RECORD_TYPE DESC,
+								md.SUBJECT_O, md.SUBJECT_CN NULLS FIRST
 				) LOOP
 			t_expiredCount := t_expiredCount + 1;
 			t_temp2 := t_temp2 ||
 '  <TR>
-    <TD>' || coalesce(html_escape(l_record.CA_OWNER_OR_CERT_NAME), '&nbsp;') || '</TD>
+    <TD>';
+			IF l_record.INCLUDED_CERTIFICATE_ID IS NULL THEN
+				t_temp2 := t_temp2 || coalesce(html_escape(l_record.INCLUDED_CERTIFICATE_OWNER), '&nbsp;');
+			ELSE
+				t_temp2 := t_temp2 || '<A href="/?id=' || l_record.INCLUDED_CERTIFICATE_ID::text || '">' || coalesce(html_escape(l_record.INCLUDED_CERTIFICATE_OWNER), '&nbsp;') || '</A>';
+			END IF;
+			t_temp2 := t_temp2 || '</TD>
     <TD>' || coalesce(html_escape(l_record.ISSUER_O), '&nbsp;') || '</TD>
     <TD>' || coalesce(html_escape(l_record.ISSUER_CN), '&nbsp;') || '</TD>
     <TD>' || coalesce(html_escape(l_record.SUBJECT_O), '&nbsp;') || '</TD>
-    <TD>' || coalesce(html_escape(l_record.SUBJECT_CN), '&nbsp;') || '</TD>
-    <TD style="font-family:monospace"><A href="/?sha256=' || encode(l_record.CERT_SHA256, 'hex') || '&opt=mozilladisclosure" target="blank">' || upper(encode(l_record.CERT_SHA256, 'hex')) || '</A></TD>
+    <TD>';
+			IF l_record.RECORD_TYPE = 'Root' THEN
+				t_temp2 := t_temp2 || '<B>[Root]</B> ';
+			END IF;
+			IF l_record.SALESFORCE_ID IS NOT NULL THEN
+				t_temp2 := t_temp2 || '<A href="//mozillacacommunity.force.com/' || l_record.SALESFORCE_ID || '" target="_blank">';
+			END IF;
+			t_temp2 := t_temp2 || coalesce(html_escape(l_record.CA_OWNER_OR_CERT_NAME), '&nbsp;');
+			IF l_record.SALESFORCE_ID IS NOT NULL THEN
+				t_temp2 := t_temp2 || '</A>';
+			END IF;
+			t_temp2 := t_temp2 || '</TD>
+    <TD style="font-family:monospace"><A href="/?sha256=' || encode(l_record.CERT_SHA256, 'hex') || '&opt=mozilladisclosure" target="blank">' || substr(upper(encode(l_record.CERT_SHA256, 'hex')), 1, 16) || '...</A></TD>
   </TR>
 ';
 		END LOOP;
@@ -1167,7 +1225,7 @@ BEGIN
 <BR>
 <TABLE style="background-color:#BAED91">
   <TR>
-    <TH>CA Owner or Certificate Name</TH>
+    <TH>Root Owner / Certificate</TH>
     <TH>Issuer O</TH>
     <TH>Issuer CN</TH>
     <TH>Subject O</TH>
@@ -1192,17 +1250,35 @@ BEGIN
 						FROM mozilla_disclosure md
 						WHERE md.DISCLOSURE_STATUS = 'TechnicallyConstrained'
 							AND md.CERTIFICATE_ID IS NOT NULL
-						ORDER BY md.ISSUER_O, md.ISSUER_CN, md.SUBJECT_O, md.SUBJECT_CN
+						ORDER BY md.INCLUDED_CERTIFICATE_OWNER, md.ISSUER_O, md.ISSUER_CN NULLS FIRST, md.RECORD_TYPE DESC,
+								md.SUBJECT_O, md.SUBJECT_CN NULLS FIRST
 				) LOOP
 			t_constrainedCount := t_constrainedCount + 1;
 			t_temp2 := t_temp2 ||
 '  <TR>
-    <TD>' || coalesce(html_escape(l_record.CA_OWNER_OR_CERT_NAME), '&nbsp;') || '</TD>
+    <TD>';
+			IF l_record.INCLUDED_CERTIFICATE_ID IS NULL THEN
+				t_temp2 := t_temp2 || coalesce(html_escape(l_record.INCLUDED_CERTIFICATE_OWNER), '&nbsp;');
+			ELSE
+				t_temp2 := t_temp2 || '<A href="/?id=' || l_record.INCLUDED_CERTIFICATE_ID::text || '">' || coalesce(html_escape(l_record.INCLUDED_CERTIFICATE_OWNER), '&nbsp;') || '</A>';
+			END IF;
+			t_temp2 := t_temp2 || '</TD>
     <TD>' || coalesce(html_escape(l_record.ISSUER_O), '&nbsp;') || '</TD>
     <TD>' || coalesce(html_escape(l_record.ISSUER_CN), '&nbsp;') || '</TD>
     <TD>' || coalesce(html_escape(l_record.SUBJECT_O), '&nbsp;') || '</TD>
-    <TD>' || coalesce(html_escape(l_record.SUBJECT_CN), '&nbsp;') || '</TD>
-    <TD style="font-family:monospace"><A href="/?sha256=' || encode(l_record.CERT_SHA256, 'hex') || '&opt=mozilladisclosure" target="blank">' || upper(encode(l_record.CERT_SHA256, 'hex')) || '</A></TD>
+    <TD>';
+			IF l_record.RECORD_TYPE = 'Root' THEN
+				t_temp2 := t_temp2 || '<B>[Root]</B> ';
+			END IF;
+			IF l_record.SALESFORCE_ID IS NOT NULL THEN
+				t_temp2 := t_temp2 || '<A href="//mozillacacommunity.force.com/' || l_record.SALESFORCE_ID || '" target="_blank">';
+			END IF;
+			t_temp2 := t_temp2 || coalesce(html_escape(l_record.CA_OWNER_OR_CERT_NAME), '&nbsp;');
+			IF l_record.SALESFORCE_ID IS NOT NULL THEN
+				t_temp2 := t_temp2 || '</A>';
+			END IF;
+			t_temp2 := t_temp2 || '</TD>
+    <TD style="font-family:monospace"><A href="/?sha256=' || encode(l_record.CERT_SHA256, 'hex') || '&opt=mozilladisclosure" target="blank">' || substr(upper(encode(l_record.CERT_SHA256, 'hex')), 1, 16) || '...</A></TD>
   </TR>
 ';
 		END LOOP;
@@ -1212,7 +1288,7 @@ BEGIN
 <BR>
 <TABLE style="background-color:#BAED91">
   <TR>
-    <TH>CA Owner or Certificate Name</TH>
+    <TH>Root Owner / Certificate</TH>
     <TH>Issuer O</TH>
     <TH>Issuer CN</TH>
     <TH>Subject O</TH>
@@ -1237,17 +1313,35 @@ BEGIN
 						FROM mozilla_disclosure md
 						WHERE md.DISCLOSURE_STATUS = 'NoKnownServerAuthTrustPath'
 							AND md.CERTIFICATE_ID IS NOT NULL
-						ORDER BY md.ISSUER_O, md.ISSUER_CN, md.SUBJECT_O, md.SUBJECT_CN
+						ORDER BY md.INCLUDED_CERTIFICATE_OWNER, md.ISSUER_O, md.ISSUER_CN NULLS FIRST, md.RECORD_TYPE DESC,
+								md.SUBJECT_O, md.SUBJECT_CN NULLS FIRST
 				) LOOP
 			t_notTrustedCount := t_notTrustedCount + 1;
 			t_temp2 := t_temp2 ||
 '  <TR>
-    <TD>' || coalesce(html_escape(l_record.CA_OWNER_OR_CERT_NAME), '&nbsp;') || '</TD>
+    <TD>';
+			IF l_record.INCLUDED_CERTIFICATE_ID IS NULL THEN
+				t_temp2 := t_temp2 || coalesce(html_escape(l_record.INCLUDED_CERTIFICATE_OWNER), '&nbsp;');
+			ELSE
+				t_temp2 := t_temp2 || '<A href="/?id=' || l_record.INCLUDED_CERTIFICATE_ID::text || '">' || coalesce(html_escape(l_record.INCLUDED_CERTIFICATE_OWNER), '&nbsp;') || '</A>';
+			END IF;
+			t_temp2 := t_temp2 || '</TD>
     <TD>' || coalesce(html_escape(l_record.ISSUER_O), '&nbsp;') || '</TD>
     <TD>' || coalesce(html_escape(l_record.ISSUER_CN), '&nbsp;') || '</TD>
     <TD>' || coalesce(html_escape(l_record.SUBJECT_O), '&nbsp;') || '</TD>
-    <TD>' || coalesce(html_escape(l_record.SUBJECT_CN), '&nbsp;') || '</TD>
-    <TD style="font-family:monospace"><A href="/?sha256=' || encode(l_record.CERT_SHA256, 'hex') || '&opt=mozilladisclosure" target="blank">' || upper(encode(l_record.CERT_SHA256, 'hex')) || '</A></TD>
+    <TD>';
+			IF l_record.RECORD_TYPE = 'Root' THEN
+				t_temp2 := t_temp2 || '<B>[Root]</B> ';
+			END IF;
+			IF l_record.SALESFORCE_ID IS NOT NULL THEN
+				t_temp2 := t_temp2 || '<A href="//mozillacacommunity.force.com/' || l_record.SALESFORCE_ID || '" target="_blank">';
+			END IF;
+			t_temp2 := t_temp2 || coalesce(html_escape(l_record.CA_OWNER_OR_CERT_NAME), '&nbsp;');
+			IF l_record.SALESFORCE_ID IS NOT NULL THEN
+				t_temp2 := t_temp2 || '</A>';
+			END IF;
+			t_temp2 := t_temp2 || '</TD>
+    <TD style="font-family:monospace"><A href="/?sha256=' || encode(l_record.CERT_SHA256, 'hex') || '&opt=mozilladisclosure" target="blank">' || substr(upper(encode(l_record.CERT_SHA256, 'hex')), 1, 16) || '...</A></TD>
   </TR>
 ';
 		END LOOP;
@@ -1257,7 +1351,7 @@ BEGIN
 <BR>
 <TABLE style="background-color:#FAF884">
   <TR>
-    <TH>CA Owner or Certificate Name</TH>
+    <TH>Root Owner / Certificate</TH>
     <TH>Issuer O</TH>
     <TH>Issuer CN</TH>
     <TH>Subject O</TH>
@@ -1282,17 +1376,35 @@ BEGIN
 						FROM mozilla_disclosure md
 						WHERE md.DISCLOSURE_STATUS = 'AllServerAuthPathsRevoked'
 							AND md.CERTIFICATE_ID IS NOT NULL
-						ORDER BY md.ISSUER_O, md.ISSUER_CN, md.SUBJECT_O, md.SUBJECT_CN
+						ORDER BY md.INCLUDED_CERTIFICATE_OWNER, md.ISSUER_O, md.ISSUER_CN NULLS FIRST, md.RECORD_TYPE DESC,
+								md.SUBJECT_O, md.SUBJECT_CN NULLS FIRST
 				) LOOP
 			t_trustRevokedCount := t_trustRevokedCount + 1;
 			t_temp2 := t_temp2 ||
 '  <TR>
-    <TD>' || coalesce(html_escape(l_record.CA_OWNER_OR_CERT_NAME), '&nbsp;') || '</TD>
+    <TD>';
+			IF l_record.INCLUDED_CERTIFICATE_ID IS NULL THEN
+				t_temp2 := t_temp2 || coalesce(html_escape(l_record.INCLUDED_CERTIFICATE_OWNER), '&nbsp;');
+			ELSE
+				t_temp2 := t_temp2 || '<A href="/?id=' || l_record.INCLUDED_CERTIFICATE_ID::text || '">' || coalesce(html_escape(l_record.INCLUDED_CERTIFICATE_OWNER), '&nbsp;') || '</A>';
+			END IF;
+			t_temp2 := t_temp2 || '</TD>
     <TD>' || coalesce(html_escape(l_record.ISSUER_O), '&nbsp;') || '</TD>
     <TD>' || coalesce(html_escape(l_record.ISSUER_CN), '&nbsp;') || '</TD>
     <TD>' || coalesce(html_escape(l_record.SUBJECT_O), '&nbsp;') || '</TD>
-    <TD>' || coalesce(html_escape(l_record.SUBJECT_CN), '&nbsp;') || '</TD>
-    <TD style="font-family:monospace"><A href="/?sha256=' || encode(l_record.CERT_SHA256, 'hex') || '&opt=mozilladisclosure" target="blank">' || upper(encode(l_record.CERT_SHA256, 'hex')) || '</A></TD>
+    <TD>';
+			IF l_record.RECORD_TYPE = 'Root' THEN
+				t_temp2 := t_temp2 || '<B>[Root]</B> ';
+			END IF;
+			IF l_record.SALESFORCE_ID IS NOT NULL THEN
+				t_temp2 := t_temp2 || '<A href="//mozillacacommunity.force.com/' || l_record.SALESFORCE_ID || '" target="_blank">';
+			END IF;
+			t_temp2 := t_temp2 || coalesce(html_escape(l_record.CA_OWNER_OR_CERT_NAME), '&nbsp;');
+			IF l_record.SALESFORCE_ID IS NOT NULL THEN
+				t_temp2 := t_temp2 || '</A>';
+			END IF;
+			t_temp2 := t_temp2 || '</TD>
+    <TD style="font-family:monospace"><A href="/?sha256=' || encode(l_record.CERT_SHA256, 'hex') || '&opt=mozilladisclosure" target="blank">' || substr(upper(encode(l_record.CERT_SHA256, 'hex')), 1, 16) || '...</A></TD>
   </TR>
 ';
 		END LOOP;
@@ -1302,7 +1414,7 @@ BEGIN
 <BR>
 <TABLE style="background-color:#F8B88B">
   <TR>
-    <TH>CA Owner or Certificate Name</TH>
+    <TH>Root Owner / Certificate</TH>
     <TH>Issuer O</TH>
     <TH>Issuer CN</TH>
     <TH>Subject O</TH>
@@ -1327,17 +1439,35 @@ BEGIN
 						FROM mozilla_disclosure md
 						WHERE md.DISCLOSURE_STATUS = 'Undisclosed'
 							AND md.CERTIFICATE_ID IS NOT NULL
-						ORDER BY md.ISSUER_O, md.ISSUER_CN, md.SUBJECT_O, md.SUBJECT_CN
+						ORDER BY md.INCLUDED_CERTIFICATE_OWNER, md.ISSUER_O, md.ISSUER_CN NULLS FIRST, md.RECORD_TYPE DESC,
+								md.SUBJECT_O, md.SUBJECT_CN NULLS FIRST
 				) LOOP
 			t_undisclosedCount := t_undisclosedCount + 1;
 			t_temp2 := t_temp2 ||
 '  <TR>
-    <TD>' || coalesce(html_escape(l_record.CA_OWNER_OR_CERT_NAME), '&nbsp;') || '</TD>
+    <TD>';
+			IF l_record.INCLUDED_CERTIFICATE_ID IS NULL THEN
+				t_temp2 := t_temp2 || coalesce(html_escape(l_record.INCLUDED_CERTIFICATE_OWNER), '&nbsp;');
+			ELSE
+				t_temp2 := t_temp2 || '<A href="/?id=' || l_record.INCLUDED_CERTIFICATE_ID::text || '">' || coalesce(html_escape(l_record.INCLUDED_CERTIFICATE_OWNER), '&nbsp;') || '</A>';
+			END IF;
+			t_temp2 := t_temp2 || '</TD>
     <TD>' || coalesce(html_escape(l_record.ISSUER_O), '&nbsp;') || '</TD>
     <TD>' || coalesce(html_escape(l_record.ISSUER_CN), '&nbsp;') || '</TD>
     <TD>' || coalesce(html_escape(l_record.SUBJECT_O), '&nbsp;') || '</TD>
-    <TD>' || coalesce(html_escape(l_record.SUBJECT_CN), '&nbsp;') || '</TD>
-    <TD style="font-family:monospace"><A href="/?sha256=' || encode(l_record.CERT_SHA256, 'hex') || '&opt=mozilladisclosure" target="blank">' || upper(encode(l_record.CERT_SHA256, 'hex')) || '</A></TD>
+    <TD>';
+			IF l_record.RECORD_TYPE = 'Root' THEN
+				t_temp2 := t_temp2 || '<B>[Root]</B> ';
+			END IF;
+			IF l_record.SALESFORCE_ID IS NOT NULL THEN
+				t_temp2 := t_temp2 || '<A href="//mozillacacommunity.force.com/' || l_record.SALESFORCE_ID || '" target="_blank">';
+			END IF;
+			t_temp2 := t_temp2 || coalesce(html_escape(l_record.CA_OWNER_OR_CERT_NAME), '&nbsp;');
+			IF l_record.SALESFORCE_ID IS NOT NULL THEN
+				t_temp2 := t_temp2 || '</A>';
+			END IF;
+			t_temp2 := t_temp2 || '</TD>
+    <TD style="font-family:monospace"><A href="/?sha256=' || encode(l_record.CERT_SHA256, 'hex') || '&opt=mozilladisclosure" target="blank">' || substr(upper(encode(l_record.CERT_SHA256, 'hex')), 1, 16) || '...</A></TD>
   </TR>
 ';
 		END LOOP;
@@ -1347,7 +1477,7 @@ BEGIN
 <BR>
 <TABLE style="background-color:#FEA3AA">
   <TR>
-    <TH>CA Owner or Certificate Name</TH>
+    <TH>Root Owner / Certificate</TH>
     <TH>Issuer O</TH>
     <TH>Issuer CN</TH>
     <TH>Subject O</TH>
@@ -1372,17 +1502,25 @@ BEGIN
 						FROM mozilla_disclosure md
 						WHERE md.DISCLOSURE_STATUS = 'DisclosureIncomplete'
 							AND md.CERTIFICATE_ID IS NOT NULL
-						ORDER BY md.ISSUER_O, md.ISSUER_CN NULLS FIRST, md.RECORD_TYPE DESC, md.SUBJECT_O, md.SUBJECT_CN
+						ORDER BY md.INCLUDED_CERTIFICATE_OWNER, md.ISSUER_O, md.ISSUER_CN NULLS FIRST, md.RECORD_TYPE DESC,
+								md.SUBJECT_O, md.SUBJECT_CN NULLS FIRST
 				) LOOP
 			t_incompleteCount := t_incompleteCount + 1;
-			IF l_record.RECORD_TYPE = 'Root' THEN
-				t_temp2 := t_temp2 ||
-'  <TR style="font-style:italic">
-    <TD><B>[Root]</B>';
-			ELSE
-				t_temp2 := t_temp2 ||
+			t_temp2 := t_temp2 ||
 '  <TR>
     <TD>';
+			IF l_record.INCLUDED_CERTIFICATE_ID IS NULL THEN
+				t_temp2 := t_temp2 || coalesce(html_escape(l_record.INCLUDED_CERTIFICATE_OWNER), '&nbsp;');
+			ELSE
+				t_temp2 := t_temp2 || '<A href="/?id=' || l_record.INCLUDED_CERTIFICATE_ID::text || '">' || coalesce(html_escape(l_record.INCLUDED_CERTIFICATE_OWNER), '&nbsp;') || '</A>';
+			END IF;
+			t_temp2 := t_temp2 || '</TD>
+    <TD>' || coalesce(html_escape(l_record.ISSUER_O), '&nbsp;') || '</TD>
+    <TD>' || coalesce(html_escape(l_record.ISSUER_CN), '&nbsp;') || '</TD>
+    <TD>' || coalesce(html_escape(l_record.SUBJECT_O), '&nbsp;') || '</TD>
+    <TD>';
+			IF l_record.RECORD_TYPE = 'Root' THEN
+				t_temp2 := t_temp2 || '<B>[Root]</B> ';
 			END IF;
 			IF l_record.SALESFORCE_ID IS NOT NULL THEN
 				t_temp2 := t_temp2 || '<A href="//mozillacacommunity.force.com/' || l_record.SALESFORCE_ID || '" target="_blank">';
@@ -1392,11 +1530,7 @@ BEGIN
 				t_temp2 := t_temp2 || '</A>';
 			END IF;
 			t_temp2 := t_temp2 || '</TD>
-    <TD>' || coalesce(html_escape(l_record.ISSUER_O), '&nbsp;') || '</TD>
-    <TD>' || coalesce(html_escape(l_record.ISSUER_CN), '&nbsp;') || '</TD>
-    <TD>' || coalesce(html_escape(l_record.SUBJECT_O), '&nbsp;') || '</TD>
-    <TD>' || coalesce(html_escape(l_record.SUBJECT_CN), '&nbsp;') || '</TD>
-    <TD style="font-family:monospace"><A href="/?sha256=' || encode(l_record.CERT_SHA256, 'hex') || '&opt=mozilladisclosure" target="blank">' || upper(encode(l_record.CERT_SHA256, 'hex')) || '</A></TD>
+    <TD style="font-family:monospace"><A href="/?sha256=' || encode(l_record.CERT_SHA256, 'hex') || '&opt=mozilladisclosure" target="blank">' || substr(upper(encode(l_record.CERT_SHA256, 'hex')), 1, 16) || '...</A></TD>
   </TR>
 ';
 		END LOOP;
@@ -1406,11 +1540,11 @@ BEGIN
 <BR>
 <TABLE style="background-color:#FE838A">
   <TR>
-    <TH>CA Owner or Certificate Name</TH>
+    <TH>Root Owner / Certificate</TH>
     <TH>Issuer O</TH>
     <TH>Issuer CN</TH>
     <TH>Subject O</TH>
-    <TH>Subject CN</TH>
+    <TH>Certificate Name / CA Community page</TH>
     <TH>SHA-256(Certificate)</TH>
   </TR>
 ' || t_temp2;

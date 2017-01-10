@@ -61,8 +61,11 @@ CREATE TABLE mozilla_disclosure_import (
 
 CREATE TABLE mozilla_disclosure_temp AS
 SELECT	c.ID	CERTIFICATE_ID,
+		mdi.CA_OWNER,
 		NULL::integer	PARENT_CERTIFICATE_ID,
 		mdi.PARENT_NAME	PARENT_NAME,
+		NULL::integer	INCLUDED_CERTIFICATE_ID,
+		NULL::text		INCLUDED_CERTIFICATE_OWNER,
 		'Intermediate'::text	RECORD_TYPE,
 		regexp_replace(replace(mdmi.CERT_NAME, '<a href="', ''), '".*$', '')	SALESFORCE_ID,
 		CASE WHEN (mdi.CP_CPS_SAME_AS_PARENT = '') THEN FALSE
@@ -158,7 +161,7 @@ CREATE TABLE mozilla_revoked_disclosure_import (
 \COPY mozilla_revoked_disclosure_import FROM 'mozilla_revoked_disclosures.csv' CSV HEADER;
 
 INSERT INTO mozilla_disclosure_temp (
-		CERTIFICATE_ID, PARENT_CERTIFICATE_ID, RECORD_TYPE,
+		CERTIFICATE_ID, CA_OWNER, PARENT_CERTIFICATE_ID, RECORD_TYPE,
 		SALESFORCE_ID,
 		CA_OWNER_OR_CERT_NAME,
 		ISSUER_CN,
@@ -168,7 +171,7 @@ INSERT INTO mozilla_disclosure_temp (
 		CERT_SHA256,
 		DISCLOSURE_STATUS
 	)
-	SELECT c.ID, NULL, 'Revoked',
+	SELECT c.ID, mrdi.CA_OWNER, NULL, 'Revoked',
 			regexp_replace(replace(mrdmi.CERT_NAME, '<a href="', ''), '".*$', '')	SALESFORCE_ID,
 			CASE WHEN (mrdi.CA_OWNER_OR_CERT_NAME = '') THEN NULL
 				ELSE mrdi.CA_OWNER_OR_CERT_NAME
@@ -248,7 +251,7 @@ CREATE TABLE mozilla_included_import (
 \COPY mozilla_included_import FROM 'mozilla_included.csv' CSV HEADER;
 
 INSERT INTO mozilla_disclosure_temp (
-		CERTIFICATE_ID, PARENT_CERTIFICATE_ID, RECORD_TYPE,
+		CERTIFICATE_ID, CA_OWNER, PARENT_CERTIFICATE_ID, RECORD_TYPE,
 		SALESFORCE_ID,
 		CP_CPS_SAME_AS_PARENT,
 		CP_URL,
@@ -266,7 +269,7 @@ INSERT INTO mozilla_disclosure_temp (
 		CERT_SHA256,
 		DISCLOSURE_STATUS
 	)
-	SELECT c.ID, NULL, 'Root',
+	SELECT c.ID, mii.CA_OWNER, NULL, 'Root',
 			regexp_replace(replace(mimi.CERT_NAME, '<a href="', ''), '".*$', ''),
 			FALSE,
 			CASE WHEN (mii.CP_URL = '') THEN NULL
@@ -302,34 +305,104 @@ INSERT INTO mozilla_disclosure_temp (
 			LEFT OUTER JOIN mozilla_included_manual_import mimi ON (decode(replace(mimi.CERT_SHA1, ':', ''), 'hex') = digest(c.CERTIFICATE, 'sha1'));
 
 
+\echo Finding All CA Certificates
+INSERT INTO mozilla_disclosure_temp (
+		CERTIFICATE_ID, CA_OWNER_OR_CERT_NAME,
+		ISSUER_O,
+		ISSUER_CN,
+		SUBJECT_O,
+		SUBJECT_CN,
+		CERT_SHA256, DISCLOSURE_STATUS
+	)
+	SELECT c.ID, get_ca_name_attribute(cac.CA_ID),
+			get_ca_name_attribute(c.ISSUER_CA_ID, 'organizationName'),
+			get_ca_name_attribute(c.ISSUER_CA_ID, 'commonName'),
+			get_ca_name_attribute(cac.CA_ID, 'organizationName'),
+			get_ca_name_attribute(cac.CA_ID, 'commonName'),
+			digest(c.CERTIFICATE, 'sha256'), 'Undisclosed'
+		FROM ca, ca_certificate cac, certificate c
+		WHERE ca.LINTING_APPLIES
+			AND ca.ID = cac.CA_ID
+			AND cac.CERTIFICATE_ID = c.ID
+			AND NOT EXISTS (
+				SELECT 1
+					FROM mozilla_disclosure_temp mdt
+					WHERE mdt.CERTIFICATE_ID = c.ID
+			);
+
+
 \echo Determining Parent CA Certificates
 
 /* Look for the issuer, prioritizing Disclosed Root CA certs... */
 UPDATE mozilla_disclosure_temp mdt
 	SET PARENT_CERTIFICATE_ID = mdt_parent.CERTIFICATE_ID
 	FROM certificate c, ca_certificate cac_parent, certificate c_parent, mozilla_disclosure_temp mdt_parent
-	WHERE mdt.CP_CPS_SAME_AS_PARENT
-		AND mdt.CERTIFICATE_ID IS NOT NULL
+	WHERE mdt.CERTIFICATE_ID IS NOT NULL
 		AND mdt.CERTIFICATE_ID = c.ID
 		AND c.ISSUER_CA_ID = cac_parent.CA_ID
 		AND cac_parent.CERTIFICATE_ID = c_parent.ID
-		AND c_parent.ISSUER_CA_ID = c.ISSUER_CA_ID
-		AND c_parent.ID = mdt_parent.CERTIFICATE_ID;
+		AND c_parent.ID = mdt_parent.CERTIFICATE_ID
+		AND mdt_parent.RECORD_TYPE = 'Root';
 /* ...then Disclosed Intermediate CA certs... */
 UPDATE mozilla_disclosure_temp mdt
-	SET PARENT_CERTIFICATE_ID = coalesce(mdt.PARENT_CERTIFICATE_ID, cac_parent.CERTIFICATE_ID)
+	SET PARENT_CERTIFICATE_ID = mdt_parent.CERTIFICATE_ID
 	FROM certificate c, ca_certificate cac_parent, mozilla_disclosure_temp mdt_parent
 	WHERE mdt.CERTIFICATE_ID IS NOT NULL
+		AND mdt.PARENT_CERTIFICATE_ID IS NULL
 		AND mdt.CERTIFICATE_ID = c.ID
 		AND c.ISSUER_CA_ID = cac_parent.CA_ID
-		AND cac_parent.CERTIFICATE_ID = mdt_parent.CERTIFICATE_ID;
+		AND cac_parent.CERTIFICATE_ID = mdt_parent.CERTIFICATE_ID
+		AND mdt_parent.RECORD_TYPE IS NOT NULL;
+/* ...then any other CA certs trusted by Mozilla... */
+UPDATE mozilla_disclosure_temp mdt
+	SET PARENT_CERTIFICATE_ID = (
+		SELECT c_parent.ID
+			FROM certificate c, ca_certificate cac_parent, certificate c_parent, ca_trust_purpose ctp
+			WHERE mdt.CERTIFICATE_ID = c.ID
+				AND c.ISSUER_CA_ID = cac_parent.CA_ID
+				AND cac_parent.CERTIFICATE_ID = c_parent.ID
+				AND c.ID != c_parent.ID
+				AND c_parent.ISSUER_CA_ID = ctp.CA_ID
+				AND ctp.TRUST_CONTEXT_ID = 5
+			ORDER BY ctp.IS_TIME_VALID DESC,
+					ctp.SHORTEST_CHAIN,
+					ctp.TRUST_PURPOSE_ID
+			LIMIT 1
+	)
+	WHERE mdt.CERTIFICATE_ID IS NOT NULL
+		AND mdt.PARENT_CERTIFICATE_ID IS NULL;
 /* ...then any other CA certs... */
 UPDATE mozilla_disclosure_temp mdt
-	SET PARENT_CERTIFICATE_ID = coalesce(mdt.PARENT_CERTIFICATE_ID, cac_parent.CERTIFICATE_ID)
+	SET PARENT_CERTIFICATE_ID = cac_parent.CERTIFICATE_ID
 	FROM certificate c, ca_certificate cac_parent
 	WHERE mdt.CERTIFICATE_ID IS NOT NULL
+		AND mdt.PARENT_CERTIFICATE_ID IS NULL
 		AND mdt.CERTIFICATE_ID = c.ID
 		AND c.ISSUER_CA_ID = cac_parent.CA_ID;
+
+
+/* Special case for 'Root' records, because some included certificates are not self-signed */
+\echo Find Included Certificates / Owners
+UPDATE mozilla_disclosure_temp mdt
+	SET INCLUDED_CERTIFICATE_ID = mdt.CERTIFICATE_ID,
+		INCLUDED_CERTIFICATE_OWNER = mdt.CA_OWNER
+	WHERE mdt.RECORD_TYPE = 'Root';
+UPDATE mozilla_disclosure_temp mdt1
+	SET INCLUDED_CERTIFICATE_ID = mdt10.CERTIFICATE_ID,
+		INCLUDED_CERTIFICATE_OWNER = mdt10.CA_OWNER
+	FROM mozilla_disclosure_temp mdt2
+		LEFT OUTER JOIN mozilla_disclosure_temp mdt3 ON (mdt2.PARENT_CERTIFICATE_ID = mdt3.CERTIFICATE_ID)
+		LEFT OUTER JOIN mozilla_disclosure_temp mdt4 ON (mdt3.PARENT_CERTIFICATE_ID = mdt4.CERTIFICATE_ID)
+		LEFT OUTER JOIN mozilla_disclosure_temp mdt5 ON (mdt4.PARENT_CERTIFICATE_ID = mdt5.CERTIFICATE_ID)
+		LEFT OUTER JOIN mozilla_disclosure_temp mdt6 ON (mdt5.PARENT_CERTIFICATE_ID = mdt6.CERTIFICATE_ID)
+		LEFT OUTER JOIN mozilla_disclosure_temp mdt7 ON (mdt6.PARENT_CERTIFICATE_ID = mdt7.CERTIFICATE_ID)
+		LEFT OUTER JOIN mozilla_disclosure_temp mdt8 ON (mdt7.PARENT_CERTIFICATE_ID = mdt8.CERTIFICATE_ID)
+		LEFT OUTER JOIN mozilla_disclosure_temp mdt9 ON (mdt8.PARENT_CERTIFICATE_ID = mdt9.CERTIFICATE_ID)
+		LEFT OUTER JOIN mozilla_disclosure_temp mdt10 ON (mdt9.PARENT_CERTIFICATE_ID = mdt10.CERTIFICATE_ID)
+	WHERE mdt1.INCLUDED_CERTIFICATE_ID IS NULL
+		AND mdt1.PARENT_CERTIFICATE_ID = mdt2.CERTIFICATE_ID
+		AND mdt10.RECORD_TYPE IS NOT NULL;
+
 
 /* Handle CP/CPS inheritance.  Repeat several times, to populate several levels of Sub-CA */
 \echo Handling CP/CPS Inheritance
@@ -411,31 +484,6 @@ CREATE INDEX md_ds_c_temp
 	ON mozilla_disclosure_temp (DISCLOSURE_STATUS, CERTIFICATE_ID);
 
 
-\echo Finding All CA Certificates
-INSERT INTO mozilla_disclosure_temp (
-		CERTIFICATE_ID, CA_OWNER_OR_CERT_NAME,
-		ISSUER_O,
-		ISSUER_CN,
-		SUBJECT_O,
-		SUBJECT_CN,
-		CERT_SHA256, DISCLOSURE_STATUS
-	)
-	SELECT c.ID, get_ca_name_attribute(cac.CA_ID),
-			get_ca_name_attribute(c.ISSUER_CA_ID, 'organizationName'),
-			get_ca_name_attribute(c.ISSUER_CA_ID, 'commonName'),
-			get_ca_name_attribute(cac.CA_ID, 'organizationName'),
-			get_ca_name_attribute(cac.CA_ID, 'commonName'),
-			digest(c.CERTIFICATE, 'sha256'), 'Undisclosed'
-		FROM ca, ca_certificate cac, certificate c
-		WHERE ca.LINTING_APPLIES
-			AND ca.ID = cac.CA_ID
-			AND cac.CERTIFICATE_ID = c.ID
-			AND NOT EXISTS (
-				SELECT 1
-					FROM mozilla_disclosure_temp mdt
-					WHERE mdt.CERTIFICATE_ID = c.ID
-			);
-
 \echo Disclosed, Revoked -> Revoked via OneCRL
 UPDATE mozilla_disclosure_temp mdt
 	SET DISCLOSURE_STATUS = 'RevokedViaOneCRL'
@@ -515,6 +563,7 @@ UPDATE mozilla_disclosure_temp mdt
 					AND NOT ctp.ALL_CHAINS_TECHNICALLY_CONSTRAINED
 					AND NOT ctp.ALL_CHAINS_REVOKED_IN_SALESFORCE
 		);
+
 
 \echo Tidying Up
 
