@@ -896,7 +896,7 @@ BEGIN
 				t_temp := t_temp || '</A>';
 			END IF;
 			t_temp := t_temp || '</TD>
-    <TD style="font-family:monospace">' || substr(upper(encode(l_record.CERT_SHA256, 'hex')), 1, 16) || '...</TD>
+    <TD style="font-family:monospace">' || upper(encode(l_record.CERT_SHA256, 'hex')) || '</TD>
     <TD>' || coalesce(html_escape(l_record.PROBLEMS), '&nbsp;');
 			IF l_record.CERTIFICATE_ID IS NOT NULL THEN
 				t_temp := t_temp || '.<BR><A href="/?id=' || l_record.CERTIFICATE_ID::text || '">View the correct encoding of this certificate</A>';
