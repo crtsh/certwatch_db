@@ -137,6 +137,7 @@ BEGIN
 	END IF;
 
 	IF t_lintingApplies THEN
+		PERFORM lint_cached(t_certificateID, 'cablint');
 		PERFORM lint_cached(t_certificateID, 'x509lint');
 	END IF;
 
