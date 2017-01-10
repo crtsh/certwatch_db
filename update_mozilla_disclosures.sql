@@ -111,7 +111,10 @@ SELECT	c.ID	CERTIFICATE_ID,
 		'Disclosed'::disclosure_status_type	DISCLOSURE_STATUS
 	FROM mozilla_disclosure_import mdi
 		LEFT OUTER JOIN certificate c ON (decode(replace(mdi.CERT_SHA256, ':', ''), 'hex') = digest(c.CERTIFICATE, 'sha256'))
-		LEFT OUTER JOIN mozilla_disclosure_manual_import mdmi ON (decode(replace(mdmi.CERT_SHA1, ':', ''), 'hex') = digest(c.CERTIFICATE, 'sha1'));
+		LEFT OUTER JOIN mozilla_disclosure_manual_import mdmi ON (
+			decode(replace(mdmi.CERT_SHA1, ':', ''), 'hex') = digest(c.CERTIFICATE, 'sha1')
+			AND mdi.PARENT_NAME = mdmi.PARENT_CERT_NAME
+		);
 
 
 \echo Importing Revoked Intermediate Certificates
