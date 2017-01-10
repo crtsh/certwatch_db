@@ -2413,7 +2413,8 @@ BEGIN
 ';
 			END IF;
 			t_output := t_output ||
-'    <TH style="white-space:nowrap">Not Before</TH>
+'    <TH style="white-space:nowrap">crt.sh ID</TH>
+    <TH style="white-space:nowrap">Not Before</TH>
     <TH style="white-space:nowrap">Not After</TH>
     <TH>Issuer Name</TH>
   </TR>
@@ -2472,10 +2473,10 @@ BEGIN
 ';
 				END IF;
 				t_output := t_output ||
-'    <TD style="white-space:nowrap">' || to_char(l_record.NOT_BEFORE, 'YYYY-MM-DD') || '</TD>
+'    <TD><A href="?id=' || l_record.ID::text || t_temp || '">' || l_record.ID::text || '</A></TD>
+    <TD style="white-space:nowrap">' || to_char(l_record.NOT_BEFORE, 'YYYY-MM-DD') || '</TD>
     <TD style="white-space:nowrap">' || to_char(l_record.NOT_AFTER, 'YYYY-MM-DD') || '</TD>
-    <TD><A href="?id=' || l_record.ID || t_temp || '">'
-						|| html_escape(l_record.ISSUER_NAME) || '</A></TD>
+    <TD><A href="?caid=' || l_record.ISSUER_CA_ID::text || t_temp || '">' || html_escape(l_record.ISSUER_NAME) || '</A></TD>
   </TR>
 ';
 			END LOOP;
@@ -3096,7 +3097,8 @@ BEGIN
 			-- Show all of the certs for 1 identity issued by 1 CA.
 			t_query := 'SELECT c.ID, x509_subjectName(c.CERTIFICATE) SUBJECT_NAME,' || chr(10) ||
 						'		x509_notBefore(c.CERTIFICATE) NOT_BEFORE,' || chr(10) ||
-						'		x509_notAfter(c.CERTIFICATE) NOT_AFTER' || chr(10) ||
+						'		x509_notAfter(c.CERTIFICATE) NOT_AFTER,' || chr(10) ||
+						'		c.ISSUER_CA_ID' || chr(10) ||
 						'	FROM certificate c' || chr(10);
 			IF t_type IN (
 						'Serial Number', 'Subject Key Identifier',
@@ -3163,7 +3165,7 @@ BEGIN
 			END IF;
 			IF lower(t_type) LIKE '%lint' THEN
 				t_query := t_query ||
-						'	GROUP BY c.ID, SUBJECT_NAME, NOT_BEFORE, NOT_AFTER' || chr(10);
+						'	GROUP BY c.ID, c.ISSUER_CA_ID, SUBJECT_NAME, NOT_BEFORE, NOT_AFTER' || chr(10);
 			END IF;
 			t_query := t_query ||
 						'	ORDER BY NOT_BEFORE DESC';
@@ -3181,14 +3183,14 @@ BEGIN
 				t_count := t_count + 1;
 				t_text := t_text ||
 '  <TR>
-    <TD style="white-space:nowrap">' || to_char(l_record.NOT_BEFORE, 'YYYY-MM-DD') || '</TD>
-    <TD style="white-space:nowrap">' || to_char(l_record.NOT_AFTER, 'YYYY-MM-DD') || '</TD>
-    <TD><A href="?id=' || l_record.ID::text;
+    <TD style="text-align:center"><A href="?id=' || l_record.ID::text;
 				IF lower(t_type) LIKE '%lint' THEN
 					t_text := t_text || '&opt=' || t_linters;
 				END IF;
-				t_text := t_text || '">'
-					|| html_escape(l_record.SUBJECT_NAME) || '</A></TD>
+				t_text := t_text || '">' || l_record.ID::text || '</A></TD>
+    <TD style="white-space:nowrap">' || to_char(l_record.NOT_BEFORE, 'YYYY-MM-DD') || '</TD>
+    <TD style="white-space:nowrap">' || to_char(l_record.NOT_AFTER, 'YYYY-MM-DD') || '</TD>
+    <TD>' || html_escape(l_record.SUBJECT_NAME) || '</TD>
   </TR>
 ';
 			END LOOP;
@@ -3249,6 +3251,7 @@ BEGIN
 				END IF;
 				t_output := t_output ||
 '  <TR>
+    <TH style="white-space:nowrap">crt.sh ID</TH>
     <TH style="white-space:nowrap">Not Before</TH>
     <TH style="white-space:nowrap">Not After</TH>
     <TH>Subject Name</TH>
@@ -3289,7 +3292,9 @@ BEGIN
 
 				t_query :=	'    GROUP BY c.ID, __issuer_ca_id_table__.ISSUER_CA_ID, ISSUER_NAME, NAME_VALUE' || chr(10) ||
 							'    ORDER BY ';
-				IF t_sort = 1 THEN
+				IF t_sort = 0 THEN
+					t_query := t_query || 'MIN_CERT_ID ' || t_orderBy;
+				ELSIF t_sort = 1 THEN
 					t_query := t_query || 'MIN_ENTRY_TIMESTAMP ' || t_orderBy || ', NAME_VALUE, ISSUER_NAME';
 				ELSIF t_sort = 2 THEN
 					t_query := t_query || 'NOT_BEFORE ' || t_orderBy || ', NAME_VALUE, ISSUER_NAME';
@@ -3505,9 +3510,9 @@ BEGIN
 '  <TR>
     <TD style="text-align:center">';
 					IF coalesce(t_groupBy, '') = 'none' THEN
-						t_text := t_text || to_char(l_record.MIN_ENTRY_TIMESTAMP, 'YYYY-MM-DD') || '</A></TD>
-    <TD style="text-align:center"><A href="?id=' || l_record.MIN_CERT_ID::text || t_opt || '">'
-													|| to_char(l_record.NOT_BEFORE, 'YYYY-MM-DD') || '</A>';
+						t_text := t_text || '<A href="?id=' || l_record.MIN_CERT_ID::text || t_opt || '">' || l_record.MIN_CERT_ID::text || '</A></TD>
+    <TD style="text-align:center">' || to_char(l_record.MIN_ENTRY_TIMESTAMP, 'YYYY-MM-DD') || '</TD>
+    <TD style="text-align:center">' || to_char(l_record.NOT_BEFORE, 'YYYY-MM-DD');
 					ELSIF (l_record.NUM_CERTS = 1)
 							AND (l_record.MIN_CERT_ID IS NOT NULL) THEN
 						t_text := t_text || '<A href="?id=' || l_record.MIN_CERT_ID::text || t_opt || '">'
@@ -3534,8 +3539,7 @@ BEGIN
 					ELSE
 						t_text := t_text || coalesce(html_escape(l_record.ISSUER_NAME), '?');
 					END IF;
-					t_text := t_text ||
-'    </TD>
+					t_text := t_text || '</TD>
   </TR>
 ';
 				END IF;
@@ -3598,6 +3602,14 @@ Content-Type: application/atom+xml
 					IF coalesce(t_groupBy, '') = 'none' THEN
 						t_output := t_output ||
 '    <TH>
+      <A href="?' || t_temp || '&dir=' || t_oppositeDirection || '&sort=0' || t_minNotBeforeString || coalesce(t_excludeExpired, '') || coalesce(t_excludeCAsString, '') || t_groupByParameter || '">crt.sh ID</A>
+';
+						IF t_sort = 0 THEN
+							t_output := t_output || ' ' || t_dirSymbol;
+						END IF;
+						t_output := t_output ||
+'    </TH>
+    <TH>
       <A href="?' || t_temp || '&dir=' || t_oppositeDirection || '&sort=1' || t_minNotBeforeString || coalesce(t_excludeExpired, '') || coalesce(t_excludeCAsString, '') || t_groupByParameter || '">Logged At</A>
 ';
 						IF t_sort = 1 THEN
