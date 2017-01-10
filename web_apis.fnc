@@ -1435,6 +1435,34 @@ BEGIN
 
 		t_temp2 := '';
 		FOR l_record IN (
+					SELECT md.INCLUDED_CERTIFICATE_OWNER, count(*) NUM_CERTS
+						FROM mozilla_disclosure md
+						WHERE md.DISCLOSURE_STATUS = 'Undisclosed'
+							AND md.CERTIFICATE_ID IS NOT NULL
+						GROUP BY md.INCLUDED_CERTIFICATE_OWNER
+						ORDER BY md.INCLUDED_CERTIFICATE_OWNER
+				) LOOP
+			t_temp2 := t_temp2 ||
+'  <TR>
+    <TD>' || coalesce(html_escape(l_record.INCLUDED_CERTIFICATE_OWNER), '<I>Unknown</I>') || '</TD>
+    <TD>' || l_record.NUM_CERTS::text || '</TD>
+  </TR>
+';
+		END LOOP;
+		IF t_temp2 != '' THEN
+			t_temp :=
+'<A name="undisclosedsummary"><BR></A><TABLE style="background-color:#FE838A">
+  <TR>
+    <TH>Root Owner</TH>
+    <TH># of Certificates Requiring Disclosure</TH>
+  </TR>
+' || t_temp2 || '
+</TABLE>
+' || t_temp;
+		END IF;
+
+		t_temp2 := '';
+		FOR l_record IN (
 					SELECT *
 						FROM mozilla_disclosure md
 						WHERE md.DISCLOSURE_STATUS = 'Undisclosed'
@@ -1495,6 +1523,34 @@ BEGIN
 ';
 
 		t_temp := t_temp2 || t_temp;
+
+		t_temp2 := '';
+		FOR l_record IN (
+					SELECT md.INCLUDED_CERTIFICATE_OWNER, count(*) NUM_CERTS
+						FROM mozilla_disclosure md
+						WHERE md.DISCLOSURE_STATUS = 'DisclosureIncomplete'
+							AND md.CERTIFICATE_ID IS NOT NULL
+						GROUP BY md.INCLUDED_CERTIFICATE_OWNER
+						ORDER BY md.INCLUDED_CERTIFICATE_OWNER
+				) LOOP
+			t_temp2 := t_temp2 ||
+'  <TR>
+    <TD>' || coalesce(html_escape(l_record.INCLUDED_CERTIFICATE_OWNER), '<I>Unknown</I>') || '</TD>
+    <TD>' || l_record.NUM_CERTS::text || '</TD>
+  </TR>
+';
+		END LOOP;
+		IF t_temp2 != '' THEN
+			t_temp :=
+'<A name="disclosureincompletesummary"><BR></A><TABLE style="background-color:#FE838A">
+  <TR>
+    <TH>Root Owner</TH>
+    <TH># of Certificates Requiring Further Disclosure</TH>
+  </TR>
+' || t_temp2 || '
+</TABLE>
+' || t_temp;
+		END IF;
 
 		t_temp2 := '';
 		FOR l_record IN (
@@ -1569,12 +1625,15 @@ BEGIN
   <TR style="background-color:#FE838A">
     <TD>Disclosure Incomplete</TD>
     <TD><B><U>Yes!</U></B></TD>
-    <TD><A href="#disclosureincomplete">' || t_incompleteCount::text || '</A></TD>
+    <TD><A href="#disclosureincomplete">' || t_incompleteCount::text || '</A>
+      &nbsp;<A href="#disclosureincompletesummary" style="font-size:8pt">Summary</A>
+    </TD>
   </TR>
   <TR style="background-color:#FEA3AA">
     <TD>Unconstrained id-kp-serverAuth Trust</TD>
     <TD><B><U>Yes!</U></B></TD>
-    <TD><A href="#undisclosed">' || t_undisclosedCount::text || '</A></TD>
+    <TD><A href="#undisclosed">' || t_undisclosedCount::text || '</A>
+      &nbsp;<A href="#undisclosedsummary" style="font-size:8pt">Summary</A>
   </TR>
   <TR style="background-color:#F8B88B">
     <TD>Unconstrained, but all unexpired observed paths Revoked</TD>
