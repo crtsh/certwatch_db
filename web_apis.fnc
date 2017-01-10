@@ -3609,15 +3609,15 @@ Content-Type: application/atom+xml
 						END IF;
 						t_output := t_output ||
 '    </TH>
-    <TH>
-      <A href="?' || t_temp || '&dir=' || t_oppositeDirection || '&sort=1' || t_minNotBeforeString || coalesce(t_excludeExpired, '') || coalesce(t_excludeCAsString, '') || t_groupByParameter || '">Logged At</A>
+    <TH style="white-space:nowrap">
+      &nbsp;<A href="?' || t_temp || '&dir=' || t_oppositeDirection || '&sort=1' || t_minNotBeforeString || coalesce(t_excludeExpired, '') || coalesce(t_excludeCAsString, '') || t_groupByParameter || '">Logged At</A>&nbsp;
 ';
 						IF t_sort = 1 THEN
 							t_output := t_output || ' ' || t_dirSymbol;
 						END IF;
 						t_output := t_output ||
 '    </TH>
-    <TH><A href="?' || t_temp || '&dir=' || t_oppositeDirection || '&sort=2' || t_minNotBeforeString || coalesce(t_excludeExpired, '') || coalesce(t_excludeCAsString, '') || t_groupByParameter || '">Not Before</A>
+    <TH style="white-space:nowrap"><A href="?' || t_temp || '&dir=' || t_oppositeDirection || '&sort=2' || t_minNotBeforeString || coalesce(t_excludeExpired, '') || coalesce(t_excludeCAsString, '') || t_groupByParameter || '">Not Before</A>
 ';
 						IF t_sort = 2 THEN
 							t_output := t_output || ' ' || t_dirSymbol;
