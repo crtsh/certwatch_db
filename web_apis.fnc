@@ -1059,7 +1059,7 @@ BEGIN
     <TD>' || coalesce(html_escape(l_record.ISSUER_CN), '&nbsp;') || '</TD>
     <TD>' || coalesce(html_escape(l_record.SUBJECT_O), '&nbsp;') || '</TD>
     <TD>' || coalesce(html_escape(l_record.SUBJECT_CN), '&nbsp;') || '</TD>
-    <TD style="font-family:monospace"><A href="/?sha1=' || encode(l_record.CERT_SHA256, 'hex') || '&opt=mozilladisclosure" target="blank">' || upper(encode(l_record.CERT_SHA256, 'hex')) || '</A></TD>
+    <TD style="font-family:monospace"><A href="/?sha256=' || encode(l_record.CERT_SHA256, 'hex') || '&opt=mozilladisclosure" target="blank">' || upper(encode(l_record.CERT_SHA256, 'hex')) || '</A></TD>
   </TR>
 ';
 		END LOOP;
@@ -1112,7 +1112,7 @@ BEGIN
     <TD>' || coalesce(html_escape(l_record.ISSUER_CN), '&nbsp;') || '</TD>
     <TD>' || coalesce(html_escape(l_record.SUBJECT_O), '&nbsp;') || '</TD>
     <TD>' || coalesce(html_escape(l_record.SUBJECT_CN), '&nbsp;') || '</TD>
-    <TD style="font-family:monospace"><A href="/?sha1=' || encode(l_record.CERT_SHA256, 'hex') || '&opt=mozilladisclosure" target="blank">' || upper(encode(l_record.CERT_SHA256, 'hex')) || '</A></TD>
+    <TD style="font-family:monospace"><A href="/?sha256=' || encode(l_record.CERT_SHA256, 'hex') || '&opt=mozilladisclosure" target="blank">' || upper(encode(l_record.CERT_SHA256, 'hex')) || '</A></TD>
   </TR>
 ';
 		END LOOP;
@@ -1157,7 +1157,7 @@ BEGIN
     <TD>' || coalesce(html_escape(l_record.ISSUER_CN), '&nbsp;') || '</TD>
     <TD>' || coalesce(html_escape(l_record.SUBJECT_O), '&nbsp;') || '</TD>
     <TD>' || coalesce(html_escape(l_record.SUBJECT_CN), '&nbsp;') || '</TD>
-    <TD style="font-family:monospace"><A href="/?sha1=' || encode(l_record.CERT_SHA256, 'hex') || '&opt=mozilladisclosure" target="blank">' || upper(encode(l_record.CERT_SHA256, 'hex')) || '</A></TD>
+    <TD style="font-family:monospace"><A href="/?sha256=' || encode(l_record.CERT_SHA256, 'hex') || '&opt=mozilladisclosure" target="blank">' || upper(encode(l_record.CERT_SHA256, 'hex')) || '</A></TD>
   </TR>
 ';
 		END LOOP;
@@ -1202,7 +1202,7 @@ BEGIN
     <TD>' || coalesce(html_escape(l_record.ISSUER_CN), '&nbsp;') || '</TD>
     <TD>' || coalesce(html_escape(l_record.SUBJECT_O), '&nbsp;') || '</TD>
     <TD>' || coalesce(html_escape(l_record.SUBJECT_CN), '&nbsp;') || '</TD>
-    <TD style="font-family:monospace"><A href="/?sha1=' || encode(l_record.CERT_SHA256, 'hex') || '&opt=mozilladisclosure" target="blank">' || upper(encode(l_record.CERT_SHA256, 'hex')) || '</A></TD>
+    <TD style="font-family:monospace"><A href="/?sha256=' || encode(l_record.CERT_SHA256, 'hex') || '&opt=mozilladisclosure" target="blank">' || upper(encode(l_record.CERT_SHA256, 'hex')) || '</A></TD>
   </TR>
 ';
 		END LOOP;
@@ -1247,7 +1247,7 @@ BEGIN
     <TD>' || coalesce(html_escape(l_record.ISSUER_CN), '&nbsp;') || '</TD>
     <TD>' || coalesce(html_escape(l_record.SUBJECT_O), '&nbsp;') || '</TD>
     <TD>' || coalesce(html_escape(l_record.SUBJECT_CN), '&nbsp;') || '</TD>
-    <TD style="font-family:monospace"><A href="/?sha1=' || encode(l_record.CERT_SHA256, 'hex') || '&opt=mozilladisclosure" target="blank">' || upper(encode(l_record.CERT_SHA256, 'hex')) || '</A></TD>
+    <TD style="font-family:monospace"><A href="/?sha256=' || encode(l_record.CERT_SHA256, 'hex') || '&opt=mozilladisclosure" target="blank">' || upper(encode(l_record.CERT_SHA256, 'hex')) || '</A></TD>
   </TR>
 ';
 		END LOOP;
@@ -1292,7 +1292,7 @@ BEGIN
     <TD>' || coalesce(html_escape(l_record.ISSUER_CN), '&nbsp;') || '</TD>
     <TD>' || coalesce(html_escape(l_record.SUBJECT_O), '&nbsp;') || '</TD>
     <TD>' || coalesce(html_escape(l_record.SUBJECT_CN), '&nbsp;') || '</TD>
-    <TD style="font-family:monospace"><A href="/?sha1=' || encode(l_record.CERT_SHA256, 'hex') || '&opt=mozilladisclosure" target="blank">' || upper(encode(l_record.CERT_SHA256, 'hex')) || '</A></TD>
+    <TD style="font-family:monospace"><A href="/?sha256=' || encode(l_record.CERT_SHA256, 'hex') || '&opt=mozilladisclosure" target="blank">' || upper(encode(l_record.CERT_SHA256, 'hex')) || '</A></TD>
   </TR>
 ';
 		END LOOP;
@@ -1337,7 +1337,7 @@ BEGIN
     <TD>' || coalesce(html_escape(l_record.ISSUER_CN), '&nbsp;') || '</TD>
     <TD>' || coalesce(html_escape(l_record.SUBJECT_O), '&nbsp;') || '</TD>
     <TD>' || coalesce(html_escape(l_record.SUBJECT_CN), '&nbsp;') || '</TD>
-    <TD style="font-family:monospace"><A href="/?sha1=' || encode(l_record.CERT_SHA256, 'hex') || '&opt=mozilladisclosure" target="blank">' || upper(encode(l_record.CERT_SHA256, 'hex')) || '</A></TD>
+    <TD style="font-family:monospace"><A href="/?sha256=' || encode(l_record.CERT_SHA256, 'hex') || '&opt=mozilladisclosure" target="blank">' || upper(encode(l_record.CERT_SHA256, 'hex')) || '</A></TD>
   </TR>
 ';
 		END LOOP;
@@ -1396,7 +1396,7 @@ BEGIN
     <TD>' || coalesce(html_escape(l_record.ISSUER_CN), '&nbsp;') || '</TD>
     <TD>' || coalesce(html_escape(l_record.SUBJECT_O), '&nbsp;') || '</TD>
     <TD>' || coalesce(html_escape(l_record.SUBJECT_CN), '&nbsp;') || '</TD>
-    <TD style="font-family:monospace"><A href="/?sha1=' || encode(l_record.CERT_SHA256, 'hex') || '&opt=mozilladisclosure" target="blank">' || upper(encode(l_record.CERT_SHA256, 'hex')) || '</A></TD>
+    <TD style="font-family:monospace"><A href="/?sha256=' || encode(l_record.CERT_SHA256, 'hex') || '&opt=mozilladisclosure" target="blank">' || upper(encode(l_record.CERT_SHA256, 'hex')) || '</A></TD>
   </TR>
 ';
 		END LOOP;
