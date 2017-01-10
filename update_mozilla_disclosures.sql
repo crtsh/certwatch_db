@@ -157,6 +157,7 @@ CREATE TABLE mozilla_revoked_disclosure_import (
 	PUBLIC_KEY_ALGORITHM		text,
 	SIGNATURE_HASH_ALGORITHM	text,
 	CRL_URL						text,
+	ALTERNATE_CRL				text,
 	OCSP_URL					text,
 	COMMENTS					text
 );
