@@ -105,6 +105,9 @@ DECLARE
 	t_orderBy			text			:= 'ASC';
 	t_matchType			text			:= '=';
 	t_opt				text;
+	t_maxAge			timestamp;
+	t_cacheResponse		boolean			:= FALSE;
+	t_useCachedResponse	boolean			:= FALSE;
 	t_linter			linter_type;
 	t_linters			text;
 	t_showCABLint		boolean;
@@ -218,10 +221,15 @@ BEGIN
 	IF t_outputType = '' THEN
 		t_outputType := 'html';
 	END IF;
-	IF lower(t_outputType) IN ('forum', 'gen-add-chain', 'mozilla-disclosures', 'redacted-precertificates') THEN
+	IF lower(t_outputType) IN ('forum', 'gen-add-chain') THEN
 		t_type := lower(t_outputType);
 		t_title := t_type;
 		t_outputType := 'html';
+	ELSIF lower(t_outputType) IN ('mozilla-disclosures', 'redacted-precertificates') THEN
+		t_type := lower(t_outputType);
+		t_title := t_type;
+		t_outputType := 'html';
+		t_useCachedResponse := TRUE;
 	ELSIF lower(t_outputType) IN ('advanced') THEN
 		t_type := 'Advanced';
 		t_outputType := 'html';
@@ -356,6 +364,20 @@ BEGIN
 	t_excludeCAs := string_to_array(coalesce(get_parameter('excludecas', paramNames, paramValues), ''), ',');
 	IF array_length(t_excludeCAs, 1) > 0 THEN
 		t_excludeCAsString := '&excludeCAs=' || array_to_string(t_excludeCAs, ',');
+	END IF;
+
+	IF t_useCachedResponse THEN
+		t_count := coalesce(get_parameter('maxage', paramNames, paramValues), '1200')::integer;
+		t_cacheResponse := (t_count = 0);
+		t_maxAge := statement_timestamp() - (interval '1 second' * t_count);
+		SELECT cr.RESPONSE_BODY
+			INTO t_output
+			FROM cached_response cr
+			WHERE cr.PAGE_NAME = t_type
+				AND cr.GENERATED_AT > t_maxAge;
+		IF FOUND THEN
+			RETURN t_output;
+		END IF;
 	END IF;
 
 	-- Generate page header.
@@ -788,6 +810,7 @@ BEGIN
 	ELSIF t_type = 'redacted-precertificates' THEN
 		t_output := t_output ||
 '  <SPAN class="whiteongrey">Redacted Precertificates</SPAN>
+  <BR><SPAN class="small">Generated at ' || TO_CHAR(statement_timestamp() AT TIME ZONE 'UTC', 'YYYY-MM-DD HH24:MI:SS') || ' UTC</SPAN>
 <BR><BR>
 ';
 
@@ -882,6 +905,7 @@ Content-Type: application/json
 	ELSIF t_type = 'mozilla-disclosures' THEN
 		t_output := t_output ||
 '  <SPAN class="whiteongrey">Mozilla Disclosures</SPAN>
+  <BR><SPAN class="small">Generated at ' || TO_CHAR(statement_timestamp() AT TIME ZONE 'UTC', 'YYYY-MM-DD HH24:MI:SS') || ' UTC</SPAN>
 <BR><BR>
 ';
 
@@ -4161,7 +4185,20 @@ Content-Type: text/html; charset=UTF-8
 </HTML>';
 	END IF;
 
-	RETURN t_output;
+	IF t_cacheResponse THEN
+		INSERT INTO cached_response (
+				PAGE_NAME, GENERATED_AT, RESPONSE_BODY
+			)
+			VALUES (
+				t_type, statement_timestamp(), t_output
+			)
+			ON CONFLICT (PAGE_NAME) DO UPDATE
+				SET GENERATED_AT = statement_timestamp(),
+					RESPONSE_BODY = t_output;
+		RETURN 'Cached';
+	ELSE
+		RETURN t_output;
+	END IF;
 
 EXCEPTION
 	WHEN no_data_found THEN

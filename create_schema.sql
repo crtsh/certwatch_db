@@ -556,6 +556,15 @@ CREATE TABLE google_revoked (
 );
 
 
+CREATE TABLE cached_response (
+	PAGE_NAME			text,
+	GENERATED_AT		timestamp,
+	RESPONSE_BODY		text,
+	CONSTRAINT cr_pk
+		PRIMARY KEY (PAGE_NAME)
+);
+
+
 GRANT SELECT ON ca TO crtsh;
 
 GRANT USAGE ON ca_id_seq TO crtsh;
@@ -570,9 +579,9 @@ GRANT SELECT ON certificate_identity TO crtsh;
 
 GRANT SELECT ON ca_certificate TO crtsh;
 
-GRANT SELECT ON crl TO httpd;
+GRANT SELECT ON crl TO crtsh;
 
-GRANT SELECT ON crl_revoked TO httpd;
+GRANT SELECT ON crl_revoked TO crtsh;
 
 GRANT SELECT ON ct_log TO crtsh;
 
@@ -597,6 +606,8 @@ GRANT SELECT ON microsoft_disallowedcert TO crtsh;
 GRANT SELECT ON mozilla_onecrl TO crtsh;
 
 GRANT SELECT ON google_revoked TO crtsh;
+
+GRANT SELECT ON cached_response TO crtsh;
 
 \i lint_cached.fnc
 \i download_cert.fnc

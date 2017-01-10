@@ -594,3 +594,5 @@ ALTER TABLE mozilla_disclosure_temp RENAME TO mozilla_disclosure;
 ALTER INDEX md_c_temp RENAME TO md_c;
 
 ALTER INDEX md_ds_c_temp RENAME TO md_ds_c;
+
+SELECT substr(web_apis(NULL, '{output,maxage}'::text[], '{mozilla-disclosures,0}'::text[]), 1, 6);
