@@ -84,6 +84,7 @@ DECLARE
 	t_text				text;
 	t_offset			integer;
 	t_pos1				integer;
+	t_temp0				text;
 	t_temp				text;
 	t_temp2				text;
 	t_temp3				text;
@@ -2034,6 +2035,47 @@ BEGIN
 ';
 			END IF;
 
+			SELECT '<SPAN style="color:#CC0000">Revoked'
+					|| CASE coalesce(cr.REASON_CODE, 0)
+							WHEN 1 THEN ' (keyCompromise)'
+							WHEN 2 THEN ' (cACompromise)'
+							WHEN 3 THEN ' (affiliationChanged)'
+							WHEN 4 THEN ' (superseded)'
+							WHEN 5 THEN ' (cessationOfOperation)'
+							WHEN 6 THEN ' (certificateHold)'
+							WHEN 7 THEN ' (privilegeWithdrawn)'
+							WHEN 8 THEN ' (aACompromise)'
+							ELSE ''
+						END
+					|| '</SPAN></TD><TD>Serial Number'
+				INTO t_temp0
+				FROM crl_revoked cr
+				WHERE cr.CA_ID = t_issuerCAID
+					AND cr.SERIAL_NUMBER = t_serialNumber;
+			IF NOT FOUND THEN
+				SELECT count(*)
+					INTO t_count
+					FROM crl
+					WHERE crl.CA_ID = t_issuerCAID
+						AND crl.ERROR_MESSAGE IS NULL
+						AND crl.NEXT_UPDATE > statement_timestamp();
+				IF t_count > 0 THEN
+					t_temp0 := 'Not Revoked</TD><TD><SPAN style="color:#888888">n/a</SPAN>';
+				ELSE
+					SELECT min(ERROR_MESSAGE)
+						INTO t_temp0
+						FROM crl
+						WHERE crl.CA_ID = t_issuerCAID
+							AND crl.ERROR_MESSAGE IS NOT NULL;
+					IF t_temp0 IS NOT NULL THEN
+						t_temp0 := '&nbsp;<SPAN style="color:#888888;vertical-align:middle;font-size:70%">(' || html_escape(t_temp0) || ')</SPAN>&nbsp;';
+					ELSE
+						t_temp0 := 'n/a';
+					END IF;
+					t_temp0 := '<SPAN style="color:#FF9400">Unknown</SPAN></TD><TD><SPAN style="color:#888888">' || t_temp0 || '<SPAN>';
+				END IF;
+			END IF;
+
 			SELECT '<SPAN style="color:#CC0000">Revoked</SPAN></TD><TD>' || gr.ENTRY_TYPE
 				INTO t_temp
 				FROM google_revoked gr
@@ -2061,7 +2103,12 @@ BEGIN
           <TH>Mechanism</TH>
           <TH>Provider</TH>
           <TH>Status</TH>
-          <TH>Revoked by</TH>
+          <TH>Revoked by <SPAN style="color:#888888;vertical-align:middle;font-size:70%">(Error)</SPAN></TH>
+        </TR>
+        <TR>
+          <TD>CRL</TD>
+          <TD>The CA</TD>
+          <TD>' || t_temp0 || '</TD>
         </TR>
         <TR>
           <TD>CRLSet / Blacklist</TD>
