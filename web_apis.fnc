@@ -948,7 +948,7 @@ BEGIN
 <BR><BR>1. Enter a base64 encoded certificate.
 <BR><BR>2. Press the button to generate JSON that you can then submit to a log''s /ct/v1/add-chain API.
 <BR>(crt.sh will discover the trust chain for you).
-<BR><BR><FORM>
+<BR><BR><FORM method="post">
   <TEXTAREA name="b64cert" rows=25 cols=64></TEXTAREA>
   <BR><BR><INPUT type="submit" class="button" value="Generate JSON">
 </FORM>
