@@ -3775,25 +3775,25 @@ Content-Type: application/atom+xml
   <link rel="self" type="application/atom+xml" href="https://crt.sh/atom?' || t_temp || '"/>
   <link rel="via" type="text/html" href="https://crt.sh/"/>
   <title>';
-			IF lower(t_type) LIKE '%lint' THEN
-				SELECT '[' || li.LINTER || '] ' || li.ISSUE_TEXT
-					INTO t_summary
-					FROM lint_issue li
-					WHERE li.ID = t_value::integer;
-				t_output := t_output || t_summary;
-			ELSE
-				t_output := t_output || t_cmd || '=' || t_value;
-			END IF;
-			IF t_excludeExpired IS NOT NULL THEN
-				t_output := t_output || '; ' || substring(t_excludeExpired from 2);
-			END IF;
-			IF t_excludeCAsString IS NOT NULL THEN
-				t_output := t_output || '; ' || substring(t_excludeCAsString from 2);
-			END IF;
-			IF coalesce(t_minNotBeforeString, '') != '' THEN
-				t_output := t_output || '; ' || substring(t_minNotBeforeString from 2);
-			END IF;
-			t_output := t_output || '</title>
+				IF lower(t_type) LIKE '%lint' THEN
+					SELECT '[' || li.LINTER || '] ' || li.ISSUE_TEXT
+						INTO t_summary
+						FROM lint_issue li
+						WHERE li.ID = t_value::integer;
+					t_output := t_output || t_summary;
+				ELSE
+					t_output := t_output || html_escape(t_cmd) || '=' || html_escape(t_value);
+				END IF;
+				IF t_excludeExpired IS NOT NULL THEN
+					t_output := t_output || '; ' || substring(t_excludeExpired from 2);
+				END IF;
+				IF t_excludeCAsString IS NOT NULL THEN
+					t_output := t_output || '; ' || substring(t_excludeCAsString from 2);
+				END IF;
+				IF coalesce(t_minNotBeforeString, '') != '' THEN
+					t_output := t_output || '; ' || substring(t_minNotBeforeString from 2);
+				END IF;
+				t_output := t_output || '</title>
   <updated>' || to_char(coalesce(t_feedUpdated, statement_timestamp()), 'YYYY-MM-DD"T"HH24:MI:SS"Z"') || '</updated>
 ' || replace(t_text, '__entry_summary__', t_summary) ||
 '</feed>';
