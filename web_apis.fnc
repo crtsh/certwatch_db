@@ -1525,6 +1525,7 @@ Content-Type: application/json
 			t_undisclosedCount := t_undisclosedCount + 1;
 			t_temp2 := t_temp2 ||
 '  <TR>
+    <TD>' || t_undisclosedCount::text || '</TD>
     <TD>';
 			IF l_record.INCLUDED_CERTIFICATE_ID IS NULL THEN
 				t_temp2 := t_temp2 || coalesce(html_escape(l_record.INCLUDED_CERTIFICATE_OWNER), '&nbsp;');
@@ -1557,6 +1558,7 @@ Content-Type: application/json
 <BR>
 <TABLE style="background-color:#FEA3AA">
   <TR>
+    <TH>#</TH>
     <TH>Root Owner / Certificate</TH>
     <TH>Issuer O</TH>
     <TH>Issuer CN</TH>
