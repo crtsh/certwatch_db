@@ -751,7 +751,7 @@ BEGIN
     <TR>
       <TH rowspan="2">Operator</TH>
       <TH rowspan="2">URL</TH>
-      <TH rowspan="2">MMD</TH>
+      <TH rowspan="2">MMD<BR>(hrs)</TH>
       <TH rowspan="2">Latest STH<BR>(UTC)</TH>
       <TH colspan="2">Entries</TH>
       <TH rowspan="2">Last Contacted<BR>(UTC)</TH>
@@ -765,7 +765,7 @@ BEGIN
 					SELECT ctl.ID, ctl.OPERATOR, ctl.URL,
 							ctl.TREE_SIZE, ctl.LATEST_ENTRY_ID, ctl.LATEST_UPDATE,
 							ctl.LATEST_STH_TIMESTAMP, ctl.MMD_IN_SECONDS,
-							CASE WHEN ctl.LATEST_STH_TIMESTAMP + (ctl.MMD_IN_SECONDS || ' seconds')::interval < statement_timestamp()
+							CASE WHEN coalesce(ctl.LATEST_STH_TIMESTAMP + (ctl.MMD_IN_SECONDS || ' seconds')::interval, statement_timestamp()) <= statement_timestamp()
 								THEN ' style="color:#FF0000"'
 								ELSE ''
 							END FONT_STYLE,
@@ -785,11 +785,11 @@ BEGIN
     <TR>
       <TD' || l_record.FONT_STYLE || '>' || l_record.OPERATOR || '</TD>
       <TD' || l_record.FONT_STYLE || '>' || l_record.URL || '</TD>
-      <TD' || l_record.FONT_STYLE || '>' || coalesce((l_record.MMD_IN_SECONDS / 60 / 60)::text, '?') || 'hrs</TD>
-      <TD' || l_record.FONT_STYLE || '>' || to_char(l_record.LATEST_STH_TIMESTAMP, 'YYYY-MM-DD HH24:MI:SS') || '</TD>
+      <TD' || l_record.FONT_STYLE || '>' || coalesce((l_record.MMD_IN_SECONDS / 60 / 60)::text, '?') || '</TD>
+      <TD' || l_record.FONT_STYLE || '>' || coalesce(to_char(l_record.LATEST_STH_TIMESTAMP, 'YYYY-MM-DD HH24:MI:SS'), '') || '</TD>
       <TD' || l_record.FONT_STYLE || '>' || coalesce(l_record.TREE_SIZE::text, '') || '</TD>
       <TD' || l_record.FONT_STYLE || '>' || t_count::text || '</TD>
-      <TD>' || to_char(l_record.LATEST_UPDATE, 'YYYY-MM-DD HH24:MI:SS') || '</TD>
+      <TD>' || coalesce(to_char(l_record.LATEST_UPDATE, 'YYYY-MM-DD HH24:MI:SS'), '') || '</TD>
       <TD>
 ';
 			IF l_record.CHROME_ISSUE_NUMBER IS NOT NULL THEN
@@ -812,7 +812,7 @@ BEGIN
     <TR>
       <TH rowspan="2">Operator</TH>
       <TH rowspan="2">URL</TH>
-      <TH rowspan="2">MMD</TH>
+      <TH rowspan="2">MMD<BR>(hrs)</TH>
       <TH rowspan="2">Latest STH<BR>(UTC)</TH>
       <TH colspan="2">Entries</TH>
       <TH rowspan="2">Last Contacted<BR>(UTC)</TH>
@@ -826,7 +826,7 @@ BEGIN
 					SELECT ctl.ID, ctl.OPERATOR, ctl.URL,
 							ctl.TREE_SIZE, ctl.LATEST_ENTRY_ID, ctl.LATEST_UPDATE,
 							ctl.LATEST_STH_TIMESTAMP, ctl.MMD_IN_SECONDS,
-							CASE WHEN ctl.LATEST_STH_TIMESTAMP + (ctl.MMD_IN_SECONDS || ' seconds')::interval < statement_timestamp()
+							CASE WHEN coalesce(ctl.LATEST_STH_TIMESTAMP + (ctl.MMD_IN_SECONDS || ' seconds')::interval, statement_timestamp()) <= statement_timestamp()
 								THEN ' style="color:#FF0000"'
 								ELSE ''
 							END FONT_STYLE,
@@ -847,11 +847,11 @@ BEGIN
     <TR>
       <TD' || l_record.FONT_STYLE || '>' || l_record.OPERATOR || '</TD>
       <TD' || l_record.FONT_STYLE || '>' || l_record.URL || '</TD>
-      <TD' || l_record.FONT_STYLE || '>' || coalesce((l_record.MMD_IN_SECONDS / 60 / 60)::text, '?') || 'hrs</TD>
-      <TD' || l_record.FONT_STYLE || '>' || to_char(l_record.LATEST_STH_TIMESTAMP, 'YYYY-MM-DD HH24:MI:SS') || '</TD>
+      <TD' || l_record.FONT_STYLE || '>' || coalesce((l_record.MMD_IN_SECONDS / 60 / 60)::text, '?') || '</TD>
+      <TD' || l_record.FONT_STYLE || '>' || coalesce(to_char(l_record.LATEST_STH_TIMESTAMP, 'YYYY-MM-DD HH24:MI:SS'), '') || '</TD>
       <TD' || l_record.FONT_STYLE || '>' || coalesce(l_record.TREE_SIZE::text, '') || '</TD>
       <TD' || l_record.FONT_STYLE || '>' || t_count::text || '</TD>
-      <TD>' || to_char(l_record.LATEST_UPDATE, 'YYYY-MM-DD HH24:MI:SS') || '</TD>
+      <TD>' || coalesce(to_char(l_record.LATEST_UPDATE, 'YYYY-MM-DD HH24:MI:SS'), '') || '</TD>
       <TD>
 ';
 			IF l_record.CHROME_ISSUE_NUMBER IS NOT NULL THEN
