@@ -987,7 +987,7 @@ Content-Type: application/json
 						WHERE md.CERTIFICATE_ID IS NULL
 						ORDER BY (ic.PROBLEMS IS NOT NULL), md.INCLUDED_CERTIFICATE_OWNER,
 								md.ISSUER_O, md.ISSUER_CN NULLS FIRST, md.RECORD_TYPE DESC,
-								md.SUBJECT_O, md.SUBJECT_CN NULLS FIRST
+								md.SUBJECT_O, md.SUBJECT_CN NULLS FIRST, md.CA_OWNER_OR_CERT_NAME NULLS FIRST
 				) LOOP
 			t_unknownCount := t_unknownCount + 1;
 			t_temp := t_temp ||
@@ -1054,7 +1054,7 @@ Content-Type: application/json
 						WHERE md.DISCLOSURE_STATUS = 'DisclosedWithErrors'
 							AND md.CERTIFICATE_ID IS NOT NULL
 						ORDER BY md.INCLUDED_CERTIFICATE_OWNER, md.ISSUER_O, md.ISSUER_CN NULLS FIRST, md.RECORD_TYPE DESC,
-								md.SUBJECT_O, md.SUBJECT_CN NULLS FIRST
+								md.SUBJECT_O, md.SUBJECT_CN NULLS FIRST, md.CA_OWNER_OR_CERT_NAME NULLS FIRST
 				) LOOP
 			t_discErrorCount := t_discErrorCount + 1;
 			t_temp2 := t_temp2 ||
@@ -1117,7 +1117,7 @@ Content-Type: application/json
 						WHERE md.DISCLOSURE_STATUS = 'Disclosed'
 							AND md.CERTIFICATE_ID IS NOT NULL
 						ORDER BY md.INCLUDED_CERTIFICATE_OWNER, md.ISSUER_O, md.ISSUER_CN NULLS FIRST, md.RECORD_TYPE DESC,
-								md.SUBJECT_O, md.SUBJECT_CN NULLS FIRST
+								md.SUBJECT_O, md.SUBJECT_CN NULLS FIRST, md.CA_OWNER_OR_CERT_NAME NULLS FIRST
 				) LOOP
 			t_disclosedCount := t_disclosedCount + 1;
 			t_temp2 := t_temp2 ||
@@ -1180,7 +1180,7 @@ Content-Type: application/json
 						WHERE md.DISCLOSURE_STATUS = 'ParentRevoked'
 							AND md.CERTIFICATE_ID IS NOT NULL
 						ORDER BY md.INCLUDED_CERTIFICATE_OWNER, md.ISSUER_O, md.ISSUER_CN NULLS FIRST, md.RECORD_TYPE DESC,
-								md.SUBJECT_O, md.SUBJECT_CN NULLS FIRST
+								md.SUBJECT_O, md.SUBJECT_CN NULLS FIRST, md.CA_OWNER_OR_CERT_NAME NULLS FIRST
 				) LOOP
 			t_parentRevokedCount := t_parentRevokedCount + 1;
 			t_temp2 := t_temp2 ||
@@ -1243,7 +1243,7 @@ Content-Type: application/json
 						WHERE md.DISCLOSURE_STATUS = 'Revoked'
 							AND md.CERTIFICATE_ID IS NOT NULL
 						ORDER BY md.INCLUDED_CERTIFICATE_OWNER, md.ISSUER_O, md.ISSUER_CN NULLS FIRST, md.RECORD_TYPE DESC,
-								md.SUBJECT_O, md.SUBJECT_CN NULLS FIRST
+								md.SUBJECT_O, md.SUBJECT_CN NULLS FIRST, md.CA_OWNER_OR_CERT_NAME NULLS FIRST
 				) LOOP
 			t_revokedCount := t_revokedCount + 1;
 			t_temp2 := t_temp2 ||
@@ -1306,7 +1306,7 @@ Content-Type: application/json
 						WHERE md.DISCLOSURE_STATUS = 'RevokedViaOneCRL'
 							AND md.CERTIFICATE_ID IS NOT NULL
 						ORDER BY md.INCLUDED_CERTIFICATE_OWNER, md.ISSUER_O, md.ISSUER_CN NULLS FIRST, md.RECORD_TYPE DESC,
-								md.SUBJECT_O, md.SUBJECT_CN NULLS FIRST
+								md.SUBJECT_O, md.SUBJECT_CN NULLS FIRST, md.CA_OWNER_OR_CERT_NAME NULLS FIRST
 				) LOOP
 			t_revokedViaOneCRLCount := t_revokedViaOneCRLCount + 1;
 			t_temp2 := t_temp2 ||
@@ -1369,7 +1369,7 @@ Content-Type: application/json
 						WHERE md.DISCLOSURE_STATUS = 'Expired'
 							AND md.CERTIFICATE_ID IS NOT NULL
 						ORDER BY md.INCLUDED_CERTIFICATE_OWNER, md.ISSUER_O, md.ISSUER_CN NULLS FIRST, md.RECORD_TYPE DESC,
-								md.SUBJECT_O, md.SUBJECT_CN NULLS FIRST
+								md.SUBJECT_O, md.SUBJECT_CN NULLS FIRST, md.CA_OWNER_OR_CERT_NAME NULLS FIRST
 				) LOOP
 			t_expiredCount := t_expiredCount + 1;
 			t_temp2 := t_temp2 ||
@@ -1432,7 +1432,7 @@ Content-Type: application/json
 						WHERE md.DISCLOSURE_STATUS = 'TechnicallyConstrained'
 							AND md.CERTIFICATE_ID IS NOT NULL
 						ORDER BY md.INCLUDED_CERTIFICATE_OWNER, md.ISSUER_O, md.ISSUER_CN NULLS FIRST, md.RECORD_TYPE DESC,
-								md.SUBJECT_O, md.SUBJECT_CN NULLS FIRST
+								md.SUBJECT_O, md.SUBJECT_CN NULLS FIRST, md.CA_OWNER_OR_CERT_NAME NULLS FIRST
 				) LOOP
 			t_constrainedCount := t_constrainedCount + 1;
 			t_temp2 := t_temp2 ||
@@ -1495,7 +1495,7 @@ Content-Type: application/json
 						WHERE md.DISCLOSURE_STATUS = 'NoKnownServerAuthTrustPath'
 							AND md.CERTIFICATE_ID IS NOT NULL
 						ORDER BY md.INCLUDED_CERTIFICATE_OWNER, md.ISSUER_O, md.ISSUER_CN NULLS FIRST, md.RECORD_TYPE DESC,
-								md.SUBJECT_O, md.SUBJECT_CN NULLS FIRST
+								md.SUBJECT_O, md.SUBJECT_CN NULLS FIRST, md.CA_OWNER_OR_CERT_NAME NULLS FIRST
 				) LOOP
 			t_notTrustedCount := t_notTrustedCount + 1;
 			t_temp2 := t_temp2 ||
@@ -1558,7 +1558,7 @@ Content-Type: application/json
 						WHERE md.DISCLOSURE_STATUS = 'AllServerAuthPathsRevoked'
 							AND md.CERTIFICATE_ID IS NOT NULL
 						ORDER BY md.INCLUDED_CERTIFICATE_OWNER, md.ISSUER_O, md.ISSUER_CN NULLS FIRST, md.RECORD_TYPE DESC,
-								md.SUBJECT_O, md.SUBJECT_CN NULLS FIRST
+								md.SUBJECT_O, md.SUBJECT_CN NULLS FIRST, md.CA_OWNER_OR_CERT_NAME NULLS FIRST
 				) LOOP
 			t_trustRevokedCount := t_trustRevokedCount + 1;
 			t_temp2 := t_temp2 ||
@@ -1649,7 +1649,7 @@ Content-Type: application/json
 						WHERE md.DISCLOSURE_STATUS = 'Undisclosed'
 							AND md.CERTIFICATE_ID IS NOT NULL
 						ORDER BY md.INCLUDED_CERTIFICATE_OWNER, md.ISSUER_O, md.ISSUER_CN NULLS FIRST, md.RECORD_TYPE DESC,
-								md.SUBJECT_O, md.SUBJECT_CN NULLS FIRST
+								md.SUBJECT_O, md.SUBJECT_CN NULLS FIRST, md.CA_OWNER_OR_CERT_NAME NULLS FIRST
 				) LOOP
 			t_undisclosedCount := t_undisclosedCount + 1;
 			t_temp2 := t_temp2 ||
@@ -1742,7 +1742,7 @@ Content-Type: application/json
 						WHERE md.DISCLOSURE_STATUS = 'DisclosureIncomplete'
 							AND md.CERTIFICATE_ID IS NOT NULL
 						ORDER BY md.INCLUDED_CERTIFICATE_OWNER, md.ISSUER_O, md.ISSUER_CN NULLS FIRST, md.RECORD_TYPE DESC,
-								md.SUBJECT_O, md.SUBJECT_CN NULLS FIRST
+								md.SUBJECT_O, md.SUBJECT_CN NULLS FIRST, md.CA_OWNER_OR_CERT_NAME NULLS FIRST
 				) LOOP
 			t_incompleteCount := t_incompleteCount + 1;
 			t_temp2 := t_temp2 ||
