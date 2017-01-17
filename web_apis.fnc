@@ -3584,11 +3584,23 @@ Content-Type: application/json
     <TD>';
 					END IF;
 					IF l_record.ISSUER_CA_ID IS NOT NULL THEN
-						t_text := t_text || '<A href="?caid=' || l_record.ISSUER_CA_ID::text || t_opt || '">'
+						t_text := t_text || '<A style="white-space:normal" href="?caid=' || l_record.ISSUER_CA_ID::text || t_opt || '">'
 									|| coalesce(html_escape(l_record.ISSUER_NAME), '&nbsp;')
 									|| '</A>';
 					ELSE
 						t_text := t_text || coalesce(html_escape(l_record.ISSUER_NAME), '?');
+					END IF;
+					IF lower(t_type) LIKE '%lint' THEN
+						SELECT md.INCLUDED_CERTIFICATE_OWNER
+							INTO t_temp
+							FROM ca_certificate cac, mozilla_disclosure md
+							WHERE cac.CA_ID = l_record.ISSUER_CA_ID
+								AND cac.CERTIFICATE_ID = md.CERTIFICATE_ID
+							GROUP BY md.INCLUDED_CERTIFICATE_OWNER
+							ORDER BY count(*) DESC
+							LIMIT 1;
+						t_text := t_text || '</TD>
+    <TD>' || coalesce(t_temp, '&nbsp;');
 					END IF;
 					t_text := t_text || '</TD>
   </TR>
@@ -3708,7 +3720,14 @@ Content-Type: application/atom+xml
 					END IF;
 					t_output := t_output ||
 '    </TH>
-  </TR>
+';
+					IF lower(t_type) LIKE '%lint' THEN
+						t_output := t_output ||
+'    <TH>Root Owner (Mozilla)</TH>
+';
+					END IF;
+					t_output := t_output ||
+'  </TR>
 ' || t_text ||
 '</TABLE>
 ';
