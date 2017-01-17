@@ -2285,7 +2285,9 @@ Content-Type: application/json
 							WHEN 8 THEN ' (aACompromise)'
 							ELSE ''
 						END
-					|| '</SPAN></TD><TD>Serial Number'
+					|| '</SPAN></TD><TD>Serial Number</TD><TD>'
+					|| to_char(cr.REVOCATION_DATE, 'YYYY-MM-DD') || '&nbsp; <FONT class="small">'
+					|| to_char(cr.REVOCATION_DATE, 'HH24:MI:SS GMT') || '</FONT>'
 				INTO t_temp0
 				FROM crl_revoked cr
 				WHERE cr.CA_ID = t_issuerCAID
@@ -2298,7 +2300,7 @@ Content-Type: application/json
 						AND crl.ERROR_MESSAGE IS NULL
 						AND crl.NEXT_UPDATE > statement_timestamp();
 				IF t_count > 0 THEN
-					t_temp0 := 'Not Revoked</TD><TD><SPAN style="color:#888888">n/a</SPAN>';
+					t_temp0 := 'Not Revoked</TD><TD><SPAN style="color:#888888">n/a</SPAN></TD><TD><SPAN style="color:#888888">n/a</SPAN>';
 				ELSE
 					SELECT min(ERROR_MESSAGE)
 						INTO t_temp0
@@ -2326,11 +2328,13 @@ Content-Type: application/json
 				WHERE mdc.CERTIFICATE_ID = t_certificateID;
 			t_temp2 := coalesce(t_temp2, 'Not Revoked</TD><TD><SPAN style="color:#888888">n/a</SPAN>');
 
-			SELECT '<SPAN style="color:#CC0000">Revoked</SPAN></TD><TD>Issuer Name, Serial Number'
+			SELECT '<SPAN style="color:#CC0000">Revoked</SPAN></TD><TD>Issuer Name, Serial Number</TD><TD>'
+					|| to_char(mo.CREATED, 'YYYY-MM-DD') || '&nbsp; <FONT class="small">'
+					|| to_char(mo.CREATED, 'HH24:MI:SS GMT') || '</FONT>'
 				INTO t_temp3
 				FROM mozilla_onecrl mo
 				WHERE mo.CERTIFICATE_ID = t_certificateID;
-			t_temp3 := coalesce(t_temp3, 'Not Revoked</TD><TD><SPAN style="color:#888888">n/a</SPAN>');
+			t_temp3 := coalesce(t_temp3, 'Not Revoked</TD><TD><SPAN style="color:#888888">n/a</SPAN></TD><TD><SPAN style="color:#888888">n/a</SPAN>');
 
 			t_output := t_output ||
 '  <TR>
@@ -2342,6 +2346,7 @@ Content-Type: application/json
           <TH>Provider</TH>
           <TH>Status</TH>
           <TH>Revoked by <SPAN style="color:#888888;vertical-align:middle;font-size:70%">(Error)</SPAN></TH>
+          <TH>Revocation Date</TH>
         </TR>
         <TR>
           <TD>CRL</TD>
@@ -2352,11 +2357,13 @@ Content-Type: application/json
           <TD>CRLSet / Blacklist</TD>
           <TD>Google</TD>
           <TD>' || t_temp || '</TD>
+          <TD><SPAN style="color:#888888">n/a</SPAN></TD>
         </TR>
         <TR>
           <TD>disallowedcert.stl</TD>
           <TD>Microsoft</TD>
           <TD>' || t_temp2 || '</TD>
+          <TD><SPAN style="color:#888888">n/a</SPAN></TD>
         </TR>
         <TR>
           <TD><A href="/mozilla-onecrl" target="_blank">OneCRL</A></TD>
