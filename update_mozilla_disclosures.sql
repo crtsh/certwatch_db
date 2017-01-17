@@ -67,7 +67,7 @@ SELECT	c.ID	CERTIFICATE_ID,
 		NULL::integer	INCLUDED_CERTIFICATE_ID,
 		NULL::text		INCLUDED_CERTIFICATE_OWNER,
 		'Intermediate'::text	RECORD_TYPE,
-		regexp_replace(replace(mdmi.CERT_NAME, '<a href="', ''), '".*$', '')	SALESFORCE_ID,
+		NULL::text		SALESFORCE_ID,
 		CASE WHEN (mdi.CP_CPS_SAME_AS_PARENT = '') THEN FALSE
 			ELSE (mdi.CP_CPS_SAME_AS_PARENT = 'TRUE')
 		END CP_CPS_SAME_AS_PARENT,
@@ -110,11 +110,14 @@ SELECT	c.ID	CERTIFICATE_ID,
 		decode(replace(mdi.CERT_SHA256, ':', ''), 'hex') CERT_SHA256,
 		'Disclosed'::disclosure_status_type	DISCLOSURE_STATUS
 	FROM mozilla_disclosure_import mdi
-		LEFT OUTER JOIN certificate c ON (decode(replace(mdi.CERT_SHA256, ':', ''), 'hex') = digest(c.CERTIFICATE, 'sha256'))
-		LEFT OUTER JOIN mozilla_disclosure_manual_import mdmi ON (
-			decode(replace(mdmi.CERT_SHA1, ':', ''), 'hex') = digest(c.CERTIFICATE, 'sha1')
-			AND mdi.PARENT_NAME = mdmi.PARENT_CERT_NAME
-		);
+		LEFT OUTER JOIN certificate c ON (decode(replace(mdi.CERT_SHA256, ':', ''), 'hex') = digest(c.CERTIFICATE, 'sha256'));
+
+UPDATE mozilla_disclosure_temp mdt
+	SET SALESFORCE_ID = regexp_replace(replace(mdmi.CERT_NAME, '<a href="', ''), '".*$', '')
+	FROM certificate c, mozilla_disclosure_manual_import mdmi
+	WHERE mdt.CERTIFICATE_ID = c.ID
+		AND digest(c.CERTIFICATE, 'sha1') = decode(replace(mdmi.CERT_SHA1, ':', ''), 'hex')
+		AND mdt.PARENT_NAME = mdmi.PARENT_CERT_NAME;
 
 
 \echo Importing Revoked Intermediate Certificates
@@ -166,7 +169,6 @@ CREATE TABLE mozilla_revoked_disclosure_import (
 
 INSERT INTO mozilla_disclosure_temp (
 		CERTIFICATE_ID, CA_OWNER, PARENT_CERTIFICATE_ID, RECORD_TYPE,
-		SALESFORCE_ID,
 		CA_OWNER_OR_CERT_NAME,
 		ISSUER_CN,
 		ISSUER_O,
@@ -176,7 +178,6 @@ INSERT INTO mozilla_disclosure_temp (
 		DISCLOSURE_STATUS
 	)
 	SELECT c.ID, mrdi.CA_OWNER, NULL, 'Revoked',
-			regexp_replace(replace(mrdmi.CERT_NAME, '<a href="', ''), '".*$', '')	SALESFORCE_ID,
 			CASE WHEN (mrdi.CA_OWNER_OR_CERT_NAME = '') THEN NULL
 				ELSE mrdi.CA_OWNER_OR_CERT_NAME
 			END,
@@ -197,8 +198,13 @@ INSERT INTO mozilla_disclosure_temp (
 				ELSE 'Revoked'::disclosure_status_type
 			END
 		FROM mozilla_revoked_disclosure_import mrdi
-			LEFT OUTER JOIN certificate c ON (decode(replace(mrdi.CERT_SHA256, ':', ''), 'hex') = digest(c.CERTIFICATE, 'sha256'))
-			LEFT OUTER JOIN mozilla_revoked_disclosure_manual_import mrdmi ON (decode(replace(mrdmi.CERT_SHA1, ':', ''), 'hex') = digest(c.CERTIFICATE, 'sha1'));
+			LEFT OUTER JOIN certificate c ON (decode(replace(mrdi.CERT_SHA256, ':', ''), 'hex') = digest(c.CERTIFICATE, 'sha256'));
+
+UPDATE mozilla_disclosure_temp mdt
+	SET SALESFORCE_ID = regexp_replace(replace(mrdmi.CERT_NAME, '<a href="', ''), '".*$', '')
+	FROM certificate c, mozilla_revoked_disclosure_manual_import mrdmi
+	WHERE mdt.CERTIFICATE_ID = c.ID
+		AND digest(c.CERTIFICATE, 'sha1') = decode(replace(mrdmi.CERT_SHA1, ':', ''), 'hex');
 
 
 \echo Importing Included CA Certificates
@@ -258,7 +264,6 @@ CREATE TABLE mozilla_included_import (
 
 INSERT INTO mozilla_disclosure_temp (
 		CERTIFICATE_ID, CA_OWNER, PARENT_CERTIFICATE_ID, RECORD_TYPE,
-		SALESFORCE_ID,
 		CP_CPS_SAME_AS_PARENT,
 		CP_URL,
 		CPS_URL,
@@ -276,7 +281,6 @@ INSERT INTO mozilla_disclosure_temp (
 		DISCLOSURE_STATUS
 	)
 	SELECT c.ID, mii.CA_OWNER, NULL, 'Root',
-			regexp_replace(replace(mimi.CERT_NAME, '<a href="', ''), '".*$', ''),
 			FALSE,
 			CASE WHEN (mii.CP_URL = '') THEN NULL
 				ELSE mii.CP_URL
@@ -307,8 +311,13 @@ INSERT INTO mozilla_disclosure_temp (
 			decode(replace(mii.CERT_SHA256, ':', ''), 'hex'),
 			'Disclosed'
 		FROM mozilla_included_import mii
-			LEFT OUTER JOIN certificate c ON (decode(replace(mii.CERT_SHA256, ':', ''), 'hex') = digest(c.CERTIFICATE, 'sha256'))
-			LEFT OUTER JOIN mozilla_included_manual_import mimi ON (decode(replace(mimi.CERT_SHA1, ':', ''), 'hex') = digest(c.CERTIFICATE, 'sha1'));
+			LEFT OUTER JOIN certificate c ON (decode(replace(mii.CERT_SHA256, ':', ''), 'hex') = digest(c.CERTIFICATE, 'sha256'));
+
+UPDATE mozilla_disclosure_temp mdt
+	SET SALESFORCE_ID = regexp_replace(replace(mimi.CERT_NAME, '<a href="', ''), '".*$', '')
+	FROM certificate c, mozilla_included_manual_import mimi
+	WHERE mdt.CERTIFICATE_ID = c.ID
+		AND digest(c.CERTIFICATE, 'sha1') = decode(replace(mimi.CERT_SHA1, ':', ''), 'hex');
 
 
 \echo Finding All CA Certificates
