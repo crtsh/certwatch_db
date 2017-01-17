@@ -225,7 +225,7 @@ BEGIN
 		t_type := lower(t_outputType);
 		t_title := t_type;
 		t_outputType := 'html';
-	ELSIF lower(t_outputType) IN ('mozilla-disclosures', 'redacted-precertificates') THEN
+	ELSIF lower(t_outputType) IN ('mozilla-disclosures', 'mozilla-onecrl', 'redacted-precertificates') THEN
 		t_type := lower(t_outputType);
 		t_title := t_type;
 		t_outputType := 'html';
@@ -367,7 +367,7 @@ BEGIN
 	END IF;
 
 	IF t_useCachedResponse THEN
-		t_count := coalesce(get_parameter('maxage', paramNames, paramValues), '1200')::integer;
+		t_count := coalesce(get_parameter('maxage', paramNames, paramValues), '14400')::integer;
 		t_cacheResponse := (t_count = 0);
 		t_maxAge := statement_timestamp() - (interval '1 second' * t_count);
 		SELECT cr.RESPONSE_BODY
@@ -1710,12 +1710,12 @@ Content-Type: application/json
     <TD><A href="#expired">' || t_expiredCount::text || '</A></TD>
   </TR>
   <TR style="background-color:#B2CEFE">
-    <TD>Disclosed as Revoked (but not in OneCRL)</TD>
+    <TD>Disclosed as Revoked (but not in <A href="/mozilla-onecrl" target="_blank">OneCRL</A>)</TD>
     <TD>Already disclosed</TD>
     <TD><A href="#revoked">' || t_revokedCount::text || '</A></TD>
   </TR>
   <TR style="background-color:#B2CEFE">
-    <TD>Disclosed and Revoked via OneCRL</TD>
+    <TD>Disclosed and Revoked via <A href="/mozilla-onecrl" target="_blank">OneCRL</A></TD>
     <TD>Already disclosed</TD>
     <TD><A href="#revokedviaonecrl">' || t_revokedViaOneCRLCount::text || '</A></TD>
   </TR>
@@ -1736,6 +1736,56 @@ Content-Type: application/json
   </TR>
 </TABLE>
 ' || t_temp;
+
+	ELSIF t_type = 'mozilla-onecrl' THEN
+		t_output := t_output ||
+'  <SPAN class="whiteongrey">Mozilla OneCRL</SPAN>
+<BR><SPAN class="small">Generated at ' || TO_CHAR(statement_timestamp() AT TIME ZONE 'UTC', 'YYYY-MM-DD HH24:MI:SS') || ' UTC</SPAN>
+<BR><BR>
+<TABLE>
+  <TR>
+    <TH style="white-space:nowrap">crt.sh ID</TH>
+    <TH>Created</TH>
+    <TH>Summary</TH>
+    <TH>Bug</TH>
+    <TH>Serial Number</TH>
+    <TH>Issuer Name</TH>
+  </TR>
+';
+	FOR l_record IN (
+				SELECT mo.CERTIFICATE_ID, mo.CREATED, mo.SUMMARY, mo.BUG_URL, mo.SERIAL_NUMBER,
+						mo.ISSUER_CA_ID, x509_name_print(mo.ISSUER_NAME) ISSUER_NAME_TEXT
+					FROM mozilla_onecrl mo
+					ORDER BY mo.CREATED DESC, mo.SUMMARY, mo.BUG_URL, ISSUER_NAME_TEXT, mo.SERIAL_NUMBER
+			) LOOP
+		t_output := t_output ||
+'  <TR>
+    <TD>';
+		IF l_record.CERTIFICATE_ID IS NOT NULL THEN
+			t_output := t_output || '<A href="/?id=' || l_record.CERTIFICATE_ID::text || '" target="_blank">' || coalesce(l_record.CERTIFICATE_ID::text, '') || '</A>';
+		ELSE
+			t_output := t_output || '&nbsp;';
+		END IF;
+		t_output := t_output || '</TD>
+    <TD style="white-space:nowrap">' || TO_CHAR(l_record.CREATED, 'YYYY-MM-DD') || '</TD>
+    <TD>' || l_record.SUMMARY || '</TD>
+    <TD><A href="' || l_record.BUG_URL || '" target="_blank">' || substring(l_record.BUG_URL from '[0-9]*$') || '</A></TD>
+    <TD>' || encode(l_record.SERIAL_NUMBER, 'hex') || '</TD>
+    <TD>';
+		IF l_record.ISSUER_CA_ID IS NOT NULL THEN
+			t_output := t_output || '<A href="/?caID=' || l_record.ISSUER_CA_ID::text || '" style="white-space:normal" target="_blank">';
+		END IF;
+		t_output := t_output || l_record.ISSUER_NAME_TEXT;
+		IF l_record.ISSUER_CA_ID IS NOT NULL THEN
+			t_output := t_output || '</A>';
+		END IF;
+		t_output := t_output || '</TD>
+  </TR>
+';
+	END LOOP;
+	t_output := t_output ||
+'</TABLE>
+';
 
 	ELSIF t_type IN (
 				'ID',
@@ -2174,7 +2224,7 @@ Content-Type: application/json
           <TD>' || t_temp2 || '</TD>
         </TR>
         <TR>
-          <TD>OneCRL</TD>
+          <TD><A href="/mozilla-onecrl" target="_blank">OneCRL</A></TD>
           <TD>Mozilla</TD>
           <TD>' || t_temp3 || '</TD>
         </TR>
