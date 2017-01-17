@@ -691,17 +691,21 @@ BEGIN
   <TABLE>
     <TR><TD colspan="8" class="heading">CT Logs currently monitored:</TD></TR>
     <TR>
-      <TH>Operator</TH>
-      <TH>URL</TH>
-      <TH>Latest Entry #</TH>
-      <TH>Latest STH</TH>
-      <TH>MMD</TH>
-      <TH>Last Contacted</TH>
-      <TH>In Chrome?</TH>
+      <TH rowspan="2">Operator</TH>
+      <TH rowspan="2">URL</TH>
+      <TH rowspan="2">MMD</TH>
+      <TH rowspan="2">Latest STH<BR>(UTC)</TH>
+      <TH colspan="2">Entries</TH>
+      <TH rowspan="2">Last Contacted<BR>(UTC)</TH>
+      <TH rowspan="2">In Chrome?</TH>
+    </TR>
+    <TR>
+      <TH>Tree Size</TH>
+      <TH>Backlog</TH>
     </TR>';
 		FOR l_record IN (
-					SELECT ctl.OPERATOR, ctl.URL,
-							ctl.LATEST_ENTRY_ID, ctl.LATEST_UPDATE,
+					SELECT ctl.ID, ctl.OPERATOR, ctl.URL,
+							ctl.TREE_SIZE, ctl.LATEST_ENTRY_ID, ctl.LATEST_UPDATE,
 							ctl.LATEST_STH_TIMESTAMP, ctl.MMD_IN_SECONDS,
 							CASE WHEN ctl.LATEST_STH_TIMESTAMP + (ctl.MMD_IN_SECONDS || ' seconds')::interval < statement_timestamp()
 								THEN ' style="color:#FF0000"'
@@ -712,13 +716,21 @@ BEGIN
 						WHERE ctl.IS_ACTIVE = 't'
 						ORDER BY ctl.LATEST_ENTRY_ID DESC NULLS LAST
 				) LOOP
+			SELECT coalesce(l_record.TREE_SIZE, 0) - coalesce(max(ENTRY_ID), -1) - 1
+				INTO t_count
+				FROM ct_log_entry ctle
+				WHERE ctle.CT_LOG_ID = l_record.ID;
+			IF t_count < 0 THEN
+				t_count := 0;
+			END IF;
 			t_output := t_output || '
     <TR>
       <TD' || l_record.FONT_STYLE || '>' || l_record.OPERATOR || '</TD>
       <TD' || l_record.FONT_STYLE || '>' || l_record.URL || '</TD>
-      <TD' || l_record.FONT_STYLE || '>' || coalesce(l_record.LATEST_ENTRY_ID::text, '') || '</TD>
-      <TD' || l_record.FONT_STYLE || '>' || to_char(l_record.LATEST_STH_TIMESTAMP, 'YYYY-MM-DD HH24:MI:SS') || '</TD>
       <TD' || l_record.FONT_STYLE || '>' || coalesce((l_record.MMD_IN_SECONDS / 60 / 60)::text, '?') || 'hrs</TD>
+      <TD' || l_record.FONT_STYLE || '>' || to_char(l_record.LATEST_STH_TIMESTAMP, 'YYYY-MM-DD HH24:MI:SS') || '</TD>
+      <TD' || l_record.FONT_STYLE || '>' || coalesce(l_record.TREE_SIZE::text, '') || '</TD>
+      <TD' || l_record.FONT_STYLE || '>' || t_count::text || '</TD>
       <TD>' || to_char(l_record.LATEST_UPDATE, 'YYYY-MM-DD HH24:MI:SS') || '</TD>
       <TD>
 ';
@@ -740,17 +752,21 @@ BEGIN
 		t_output := t_output || '
     <TR><TD colspan="8" class="heading">CT Logs no longer monitored:</TD></TR>
     <TR>
-      <TH>Operator</TH>
-      <TH>URL</TH>
-      <TH>Latest Entry #</TH>
-      <TH>Latest STH</TH>
-      <TH>MMD</TH>
-      <TH>Last Contacted</TH>
-      <TH>In Chrome?</TH>
+      <TH rowspan="2">Operator</TH>
+      <TH rowspan="2">URL</TH>
+      <TH rowspan="2">MMD</TH>
+      <TH rowspan="2">Latest STH<BR>(UTC)</TH>
+      <TH colspan="2">Entries</TH>
+      <TH rowspan="2">Last Contacted<BR>(UTC)</TH>
+      <TH rowspan="2">In Chrome?</TH>
+    </TR>
+    <TR>
+      <TH>Tree Size</TH>
+      <TH>Backlog</TH>
     </TR>';
 		FOR l_record IN (
-					SELECT ctl.OPERATOR, ctl.URL,
-							ctl.LATEST_ENTRY_ID, ctl.LATEST_UPDATE,
+					SELECT ctl.ID, ctl.OPERATOR, ctl.URL,
+							ctl.TREE_SIZE, ctl.LATEST_ENTRY_ID, ctl.LATEST_UPDATE,
 							ctl.LATEST_STH_TIMESTAMP, ctl.MMD_IN_SECONDS,
 							CASE WHEN ctl.LATEST_STH_TIMESTAMP + (ctl.MMD_IN_SECONDS || ' seconds')::interval < statement_timestamp()
 								THEN ' style="color:#FF0000"'
@@ -762,13 +778,21 @@ BEGIN
 							AND ctl.LATEST_ENTRY_ID IS NOT NULL
 						ORDER BY ctl.LATEST_ENTRY_ID DESC NULLS LAST
 				) LOOP
+			SELECT coalesce(l_record.TREE_SIZE, 0) - coalesce(max(ENTRY_ID), -1) - 1
+				INTO t_count
+				FROM ct_log_entry ctle
+				WHERE ctle.CT_LOG_ID = l_record.ID;
+			IF t_count < 0 THEN
+				t_count := 0;
+			END IF;
 			t_output := t_output || '
     <TR>
       <TD' || l_record.FONT_STYLE || '>' || l_record.OPERATOR || '</TD>
       <TD' || l_record.FONT_STYLE || '>' || l_record.URL || '</TD>
-      <TD' || l_record.FONT_STYLE || '>' || coalesce(l_record.LATEST_ENTRY_ID::text, '') || '</TD>
-      <TD' || l_record.FONT_STYLE || '>' || to_char(l_record.LATEST_STH_TIMESTAMP, 'YYYY-MM-DD HH24:MI:SS') || '</TD>
       <TD' || l_record.FONT_STYLE || '>' || coalesce((l_record.MMD_IN_SECONDS / 60 / 60)::text, '?') || 'hrs</TD>
+      <TD' || l_record.FONT_STYLE || '>' || to_char(l_record.LATEST_STH_TIMESTAMP, 'YYYY-MM-DD HH24:MI:SS') || '</TD>
+      <TD' || l_record.FONT_STYLE || '>' || coalesce(l_record.TREE_SIZE::text, '') || '</TD>
+      <TD' || l_record.FONT_STYLE || '>' || t_count::text || '</TD>
       <TD>' || to_char(l_record.LATEST_UPDATE, 'YYYY-MM-DD HH24:MI:SS') || '</TD>
       <TD>
 ';
