@@ -222,7 +222,7 @@ BEGIN
 	IF t_outputType = '' THEN
 		t_outputType := 'html';
 	END IF;
-	IF lower(t_outputType) IN ('forum', 'gen-add-chain') THEN
+	IF lower(t_outputType) IN ('forum', 'gen-add-chain', 'monitored-logs') THEN
 		t_type := lower(t_outputType);
 		t_title := t_type;
 		t_outputType := 'html';
@@ -518,7 +518,7 @@ BEGIN
   </STYLE>
 </HEAD>
 <BODY>
-  <A href="?"><SPAN class="title">crt.sh</SPAN></A>';
+  <A href="/"><SPAN class="title">crt.sh</SPAN></A>';
 	END IF;
 
 	IF t_type = 'Invalid value' THEN
@@ -682,12 +682,70 @@ BEGIN
                  onClick="doSearch(document.search_form.linter.value,document.search_form.linttype.value)">
         </TD>
       </TR>
+      <TR>
+        <TD colspan="3" style="border:none">
+          <BR><BR><HR><SPAN class="heading">Other crt.sh pages:</SPAN><BR><BR>
+        </TD>
+      </TR>
+      <TR>
+        <TD style="border:none">
+          <TABLE>
+            <TR>
+              <TD>crt.sh</TD>
+              <TD><A href="/forum">Forum</A></TD>
+              </TD>
+            </TR>
+            <TR>
+              <TD>Mozilla</TD>
+              <TD>
+                <A href="/mozilla-disclosures">CA Certificate Disclosures</A>
+                <BR><A href="/mozilla-onecrl">OneCRL</A>
+              </TD>
+            </TR>
+          </TABLE>
+        </TD>
+        <TD style="border:none">&nbsp;</TD>
+        <TD style="border:none">
+          <TABLE>
+            <TR>
+              <TD>CT</TD>
+              <TD>
+                <A href="/monitored-logs">Monitored Logs</A>
+                <BR><A href="/gen-add-chain">Certificate Submission Assistant</A>
+                <BR><A href="/redacted-precertificates">"Redacted" Precertificates</A>
+              </TD>
+            </TR>
+          </TABLE>
+        </TD>
+      <TR>
     </TABLE>
   </FORM>
   <SCRIPT type="text/javascript">
     document.search_form.q.focus();
-  </SCRIPT>
-  <BR>
+  </SCRIPT>';
+
+	ELSIF t_type = 'forum' THEN
+		t_output := t_output ||
+' <SPAN class="whiteongrey">Forum</SPAN>
+<BR><BR>
+<IFRAME id="forum_embed"
+  src="javascript:void(0)"
+  scrolling="no"
+  frameborder="0"
+  width="900"
+  height="600">
+</IFRAME>
+<SCRIPT type="text/javascript">
+  document.getElementById(''forum_embed'').src =
+     ''https://groups.google.com/forum/embed/?place=forum/crtsh''
+     + ''&showsearch=true&showpopout=true&showtabs=false''
+     + ''&parenturl='' + encodeURIComponent(window.location.href);
+</SCRIPT>';
+
+	ELSIF t_type = 'monitored-logs' THEN
+		t_output := t_output ||
+'  <SPAN class="whiteongrey">Monitored Logs</SPAN>
+  <BR><BR>
   <TABLE>
     <TR><TD colspan="8" class="heading">CT Logs currently monitored:</TD></TR>
     <TR>
@@ -814,27 +872,9 @@ BEGIN
 		t_output := t_output || '
 </TABLE>';
 
-	ELSIF t_type = 'forum' THEN
-		t_output := t_output ||
-' <SPAN class="whiteongrey">Forum</SPAN>
-<BR><BR>
-<IFRAME id="forum_embed"
-  src="javascript:void(0)"
-  scrolling="no"
-  frameborder="0"
-  width="900"
-  height="600">
-</IFRAME>
-<SCRIPT type="text/javascript">
-  document.getElementById(''forum_embed'').src =
-     ''https://groups.google.com/forum/embed/?place=forum/crtsh''
-     + ''&showsearch=true&showpopout=true&showtabs=false''
-     + ''&parenturl='' + encodeURIComponent(window.location.href);
-</SCRIPT>';
-
 	ELSIF t_type = 'redacted-precertificates' THEN
 		t_output := t_output ||
-'  <SPAN class="whiteongrey">Redacted Precertificates</SPAN>
+'  <SPAN class="whiteongrey">"Redacted" Precertificates</SPAN>
   <BR><SPAN class="small">Generated at ' || TO_CHAR(statement_timestamp() AT TIME ZONE 'UTC', 'YYYY-MM-DD HH24:MI:SS') || ' UTC</SPAN>
 <BR><BR>
 ';
@@ -904,7 +944,8 @@ BEGIN
 		t_temp := get_parameter('b64cert', paramNames, paramValues);
 		IF t_temp IS NULL THEN
 			t_output := t_output ||
-'<BR><BR>1. Enter a base64 encoded certificate.
+'  <SPAN class="whiteongrey">Certificate Submission Assistant</SPAN>
+<BR><BR>1. Enter a base64 encoded certificate.
 <BR><BR>2. Press the button to generate JSON that you can then submit to a log''s /ct/v1/add-chain API.
 <BR>(crt.sh will discover the trust chain for you).
 <BR><BR><FORM>
@@ -929,7 +970,7 @@ Content-Type: application/json
 
 	ELSIF t_type = 'mozilla-disclosures' THEN
 		t_output := t_output ||
-'  <SPAN class="whiteongrey">Mozilla Disclosures</SPAN>
+'  <SPAN class="whiteongrey">Mozilla CA Certificate Disclosures</SPAN>
   <BR><SPAN class="small">Generated at ' || TO_CHAR(statement_timestamp() AT TIME ZONE 'UTC', 'YYYY-MM-DD HH24:MI:SS') || ' UTC</SPAN>
 <BR><BR>
 ';
