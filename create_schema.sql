@@ -62,6 +62,9 @@ CREATE INDEX c_ica_notbefore
 CREATE INDEX c_notafter_ica
 	ON certificate (x509_notAfter(CERTIFICATE), ISSUER_CA_ID);
 
+CREATE INDEX c_notbefore_ica
+	ON certificate (x509_notBefore(CERTIFICATE), ISSUER_CA_ID);
+
 CREATE INDEX c_serial_ica
 	ON certificate (x509_serialNumber(CERTIFICATE), ISSUER_CA_ID);
 
