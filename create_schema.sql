@@ -405,6 +405,7 @@ INSERT INTO trust_purpose ( ID, PURPOSE, PURPOSE_OID, DISPLAY_ORDER ) VALUES ( 1
 INSERT INTO trust_purpose ( ID, PURPOSE, PURPOSE_OID, DISPLAY_ORDER ) VALUES ( 169, 'EV Server Authentication', '1.3.6.1.4.1.38064.1.1.1.0', 1 );
 INSERT INTO trust_purpose ( ID, PURPOSE, PURPOSE_OID, DISPLAY_ORDER ) VALUES ( 170, 'EV Server Authentication', '1.3.6.1.4.1.22234.2.14.3.11', 1 );
 INSERT INTO trust_purpose ( ID, PURPOSE, PURPOSE_OID, DISPLAY_ORDER ) VALUES ( 171, 'EV Server Authentication', '1.3.6.1.4.1.22234.3.5.3.2', 1 );
+INSERT INTO trust_purpose ( ID, PURPOSE, PURPOSE_OID, DISPLAY_ORDER ) VALUES ( 172, 'EV Server Authentication', '1.2.156.112570.1.1.3.0', 1 );
 
 CREATE TABLE applicable_purpose(
 	TRUST_CONTEXT_ID	integer,
