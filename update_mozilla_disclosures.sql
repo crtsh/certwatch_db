@@ -193,7 +193,9 @@ INSERT INTO mozilla_disclosure_temp (
 				ELSE mrdi.SUBJECT_O
 			END,
 			decode(replace(mrdi.CERT_SHA256, ':', ''), 'hex'),
-			'Revoked'
+			CASE WHEN (mrdi.REVOCATION_STATUS = 'Parent Cert Revoked') THEN 'ParentRevoked'::disclosure_status_type
+				ELSE 'Revoked'::disclosure_status_type
+			END
 		FROM mozilla_revoked_disclosure_import mrdi
 			LEFT OUTER JOIN certificate c ON (decode(replace(mrdi.CERT_SHA256, ':', ''), 'hex') = digest(c.CERTIFICATE, 'sha256'))
 			LEFT OUTER JOIN mozilla_revoked_disclosure_manual_import mrdmi ON (decode(replace(mrdmi.CERT_SHA1, ':', ''), 'hex') = digest(c.CERTIFICATE, 'sha1'));
@@ -488,11 +490,11 @@ CREATE INDEX md_ds_c_temp
 	ON mozilla_disclosure_temp (DISCLOSURE_STATUS, CERTIFICATE_ID);
 
 
-\echo Disclosed, Revoked -> Revoked via OneCRL
+\echo Disclosed, Revoked, Parent Revoked -> Revoked via OneCRL
 UPDATE mozilla_disclosure_temp mdt
 	SET DISCLOSURE_STATUS = 'RevokedViaOneCRL'
 	FROM mozilla_onecrl m
-	WHERE mdt.DISCLOSURE_STATUS IN ('Disclosed', 'Revoked')
+	WHERE mdt.DISCLOSURE_STATUS IN ('Disclosed', 'Revoked', 'ParentRevoked')
 		AND mdt.CERTIFICATE_ID = m.CERTIFICATE_ID;
 
 \echo Disclosed -> DisclosureIncomplete
