@@ -3428,7 +3428,7 @@ Content-Type: application/json
 '  <TR><TD colspan="3" style="text-align:center;padding:4px">';
 					IF t_pageNo > 1 THEN
 						t_output := t_output || '<A style="font-size:8pt" href="?' ||
-									urlEncode(t_type) || '=' || urlEncode(t_value) ||
+									urlEncode(t_cmd) || '=' || urlEncode(t_value) ||
 									'&iCAID=' || t_caID::text || coalesce(t_excludeExpired, '') ||
 									'&p=' || (t_pageNo - 1)::text ||
 									'&n=' || t_resultsPerPage::text || '">Previous</A> &nbsp; ';
@@ -3438,7 +3438,7 @@ Content-Type: application/json
 								least(t_pageNo * t_resultsPerPage, t_count)::integer || '</B>';
 					IF (t_pageNo * t_resultsPerPage) < t_count THEN
 						t_output := t_output || ' &nbsp; <A style="font-size:8pt" href="?' ||
-									urlEncode(t_type) || '=' || urlEncode(t_value) ||
+									urlEncode(t_cmd) || '=' || urlEncode(t_value) ||
 									'&iCAID=' || t_caID::text || coalesce(t_excludeExpired, '') ||
 									'&p=' || (t_pageNo + 1)::text ||
 									'&n=' || t_resultsPerPage::text || '">Next</A>';
@@ -3716,7 +3716,7 @@ Content-Type: application/json
 															|| l_record.NUM_CERTS::text || '</A>';
 					ELSIF (l_record.ISSUER_CA_ID IS NOT NULL)
 							AND (l_record.MIN_CERT_ID IS NOT NULL) THEN
-						t_text := t_text || '<A href="?' || t_paramName || '=' || urlEncode(l_record.NAME_VALUE)
+						t_text := t_text || '<A href="?' || urlEncode(t_cmd) || '=' || urlEncode(l_record.NAME_VALUE)
 												|| '&iCAID=' || l_record.ISSUER_CA_ID::text || t_minNotBeforeString
 												|| coalesce(t_excludeExpired, '') || t_opt || '">'
 											|| l_record.NUM_CERTS::text || '</A>';
@@ -3918,7 +3918,7 @@ Content-Type: application/atom+xml
 			IF t_outputType = 'html' THEN
 				t_output := t_output ||
 '  <SPAN style="position:absolute">
-    &nbsp; &nbsp; &nbsp; <A style="font-size:8pt;vertical-align:sub" href="?' || t_cmd || '=' || urlEncode(t_value) || '&dir=' || t_direction || '&sort=' || t_sort::text || t_issuerOParameter;
+    &nbsp; &nbsp; &nbsp; <A style="font-size:8pt;vertical-align:sub" href="?' || urlEncode(t_cmd) || '=' || urlEncode(t_value) || '&dir=' || t_direction || '&sort=' || t_sort::text || t_issuerOParameter;
 				IF t_groupBy != 'IssuerO' THEN
 					t_output := t_output || '&group=IssuerO">Group';
 				ELSE
@@ -3927,7 +3927,7 @@ Content-Type: application/atom+xml
 				t_output := t_output || ' by "Issuer O"</A>
 ';
 				IF t_issuerO IS NOT NULL THEN
-					t_output := t_output || ' &nbsp; &nbsp; <A style="font-size:8pt;vertical-align:sub" href="?' || t_cmd || '=' || urlEncode(t_value)
+					t_output := t_output || ' &nbsp; &nbsp; <A style="font-size:8pt;vertical-align:sub" href="?' || urlEncode(t_cmd) || '=' || urlEncode(t_value)
 										|| '&dir=' || t_direction || '&sort=' || t_sort::text || t_groupByParameter || '">Show all "Issuer O"s</A>
 ';
 				END IF;
@@ -3942,19 +3942,19 @@ Content-Type: application/atom+xml
   <BR><BR>
   <TABLE class="lint">
     <TR>
-      <TH rowspan="2"><A href="?' || t_cmd || '=' || urlEncode(t_value) || '&dir=' || t_oppositeDirection || '&sort=1' || t_groupByParameter || t_issuerOParameter || '">Issuer O</A>';
+      <TH rowspan="2"><A href="?' || urlEncode(t_cmd) || '=' || urlEncode(t_value) || '&dir=' || t_oppositeDirection || '&sort=1' || t_groupByParameter || t_issuerOParameter || '">Issuer O</A>';
 				IF t_sort = 1 THEN
 					t_output := t_output || ' ' || t_dirSymbol;
 				END IF;
 				IF t_groupBy != 'IssuerO' THEN
 					t_output := t_output || '</TH>
-      <TH rowspan="2"><A href="?' || t_cmd || '=' || urlEncode(t_value) || '&dir=' || t_oppositeDirection || '&sort=2' || t_groupByParameter || t_issuerOParameter || '">Issuer CN, OU or O</A>';
+      <TH rowspan="2"><A href="?' || urlEncode(t_cmd) || '=' || urlEncode(t_value) || '&dir=' || t_oppositeDirection || '&sort=2' || t_groupByParameter || t_issuerOParameter || '">Issuer CN, OU or O</A>';
 					IF t_sort = 2 THEN
 						t_output := t_output || ' ' || t_dirSymbol;
 					END IF;
 				END IF;
 				t_output := t_output || '</TH>
-      <TH rowspan="2"><A href="?' || t_cmd || '=' || urlEncode(t_value) || '&dir=' || t_oppositeDirection || '&sort=3' || t_groupByParameter || t_issuerOParameter || '"># Certs<BR>Issued</A>';
+      <TH rowspan="2"><A href="?' || urlEncode(t_cmd) || '=' || urlEncode(t_value) || '&dir=' || t_oppositeDirection || '&sort=3' || t_groupByParameter || t_issuerOParameter || '"># Certs<BR>Issued</A>';
 				IF t_sort = 3 THEN
 					t_output := t_output || ' ' || t_dirSymbol;
 				END IF;
@@ -3966,77 +3966,77 @@ Content-Type: application/atom+xml
       <TH colspan="3"><A title="FATAL + ERROR + WARNING + NOTICE">ALL</A></TH>
     </TR>
     <TR>
-      <TH><A href="?' || t_cmd || '=' || urlEncode(t_value) || '&dir=' || t_oppositeDirection || '&sort=4' || t_groupByParameter || t_issuerOParameter || '"># Certs</A>';
+      <TH><A href="?' || urlEncode(t_cmd) || '=' || urlEncode(t_value) || '&dir=' || t_oppositeDirection || '&sort=4' || t_groupByParameter || t_issuerOParameter || '"># Certs</A>';
 				IF t_sort = 4 THEN
 					t_output := t_output || ' ' || t_dirSymbol;
 				END IF;
 				t_output := t_output || '</TH>
-      <TH><A href="?' || t_cmd || '=' || urlEncode(t_value) || '&dir=' || t_oppositeDirection || '&sort=5' || t_groupByParameter || t_issuerOParameter || '">%</A>';
+      <TH><A href="?' || urlEncode(t_cmd) || '=' || urlEncode(t_value) || '&dir=' || t_oppositeDirection || '&sort=5' || t_groupByParameter || t_issuerOParameter || '">%</A>';
 				IF t_sort = 5 THEN
 					t_output := t_output || ' ' || t_dirSymbol;
 				END IF;
 				t_output := t_output || '</TH>
-      <TH><A href="?' || t_cmd || '=' || urlEncode(t_value) || '&dir=' || t_oppositeDirection || '&sort=6' || t_groupByParameter || t_issuerOParameter || '"># Issues</A>';
+      <TH><A href="?' || urlEncode(t_cmd) || '=' || urlEncode(t_value) || '&dir=' || t_oppositeDirection || '&sort=6' || t_groupByParameter || t_issuerOParameter || '"># Issues</A>';
 				IF t_sort = 6 THEN
 					t_output := t_output || ' ' || t_dirSymbol;
 				END IF;
 				t_output := t_output || '</TH>
-      <TH><A href="?' || t_cmd || '=' || urlEncode(t_value) || '&dir=' || t_oppositeDirection || '&sort=7' || t_groupByParameter || t_issuerOParameter || '"># Certs</A>';
+      <TH><A href="?' || urlEncode(t_cmd) || '=' || urlEncode(t_value) || '&dir=' || t_oppositeDirection || '&sort=7' || t_groupByParameter || t_issuerOParameter || '"># Certs</A>';
 				IF t_sort = 7 THEN
 					t_output := t_output || ' ' || t_dirSymbol;
 				END IF;
 				t_output := t_output || '</TH>
-      <TH><A href="?' || t_cmd || '=' || urlEncode(t_value) || '&dir=' || t_oppositeDirection || '&sort=8' || t_groupByParameter || t_issuerOParameter || '">%</A>';
+      <TH><A href="?' || urlEncode(t_cmd) || '=' || urlEncode(t_value) || '&dir=' || t_oppositeDirection || '&sort=8' || t_groupByParameter || t_issuerOParameter || '">%</A>';
 				IF t_sort = 8 THEN
 					t_output := t_output || ' ' || t_dirSymbol;
 				END IF;
 				t_output := t_output || '</TH>
-      <TH><A href="?' || t_cmd || '=' || urlEncode(t_value) || '&dir=' || t_oppositeDirection || '&sort=9' || t_groupByParameter || t_issuerOParameter || '"># Issues</A>';
+      <TH><A href="?' || urlEncode(t_cmd) || '=' || urlEncode(t_value) || '&dir=' || t_oppositeDirection || '&sort=9' || t_groupByParameter || t_issuerOParameter || '"># Issues</A>';
 				IF t_sort = 9 THEN
 					t_output := t_output || ' ' || t_dirSymbol;
 				END IF;
 				t_output := t_output || '</TH>
-      <TH><A href="?' || t_cmd || '=' || urlEncode(t_value) || '&dir=' || t_oppositeDirection || '&sort=10' || t_groupByParameter || t_issuerOParameter || '"># Certs</A>';
+      <TH><A href="?' || urlEncode(t_cmd) || '=' || urlEncode(t_value) || '&dir=' || t_oppositeDirection || '&sort=10' || t_groupByParameter || t_issuerOParameter || '"># Certs</A>';
 				IF t_sort = 10 THEN
 					t_output := t_output || ' ' || t_dirSymbol;
 				END IF;
 				t_output := t_output || '</TH>
-      <TH><A href="?' || t_cmd || '=' || urlEncode(t_value) || '&dir=' || t_oppositeDirection || '&sort=11' || t_groupByParameter || t_issuerOParameter || '">%</A>';
+      <TH><A href="?' || urlEncode(t_cmd) || '=' || urlEncode(t_value) || '&dir=' || t_oppositeDirection || '&sort=11' || t_groupByParameter || t_issuerOParameter || '">%</A>';
 				IF t_sort = 11 THEN
 					t_output := t_output || ' ' || t_dirSymbol;
 				END IF;
 				t_output := t_output || '</TH>
-      <TH><A href="?' || t_cmd || '=' || urlEncode(t_value) || '&dir=' || t_oppositeDirection || '&sort=12' || t_groupByParameter || t_issuerOParameter || '"># Issues</A>';
+      <TH><A href="?' || urlEncode(t_cmd) || '=' || urlEncode(t_value) || '&dir=' || t_oppositeDirection || '&sort=12' || t_groupByParameter || t_issuerOParameter || '"># Issues</A>';
 				IF t_sort = 12 THEN
 					t_output := t_output || ' ' || t_dirSymbol;
 				END IF;
 				t_output := t_output || '</TH>
-      <TH><A href="?' || t_cmd || '=' || urlEncode(t_value) || '&dir=' || t_oppositeDirection || '&sort=13' || t_groupByParameter || t_issuerOParameter || '"># Certs</A>';
+      <TH><A href="?' || urlEncode(t_cmd) || '=' || urlEncode(t_value) || '&dir=' || t_oppositeDirection || '&sort=13' || t_groupByParameter || t_issuerOParameter || '"># Certs</A>';
 				IF t_sort = 13 THEN
 					t_output := t_output || ' ' || t_dirSymbol;
 				END IF;
 				t_output := t_output || '</TH>
-      <TH><A href="?' || t_cmd || '=' || urlEncode(t_value) || '&dir=' || t_oppositeDirection || '&sort=14' || t_groupByParameter || t_issuerOParameter || '">%</A>';
+      <TH><A href="?' || urlEncode(t_cmd) || '=' || urlEncode(t_value) || '&dir=' || t_oppositeDirection || '&sort=14' || t_groupByParameter || t_issuerOParameter || '">%</A>';
 				IF t_sort = 14 THEN
 					t_output := t_output || ' ' || t_dirSymbol;
 				END IF;
 				t_output := t_output || '</TH>
-      <TH><A href="?' || t_cmd || '=' || urlEncode(t_value) || '&dir=' || t_oppositeDirection || '&sort=15' || t_groupByParameter || t_issuerOParameter || '"># Issues</A>';
+      <TH><A href="?' || urlEncode(t_cmd) || '=' || urlEncode(t_value) || '&dir=' || t_oppositeDirection || '&sort=15' || t_groupByParameter || t_issuerOParameter || '"># Issues</A>';
 				IF t_sort = 15 THEN
 					t_output := t_output || ' ' || t_dirSymbol;
 				END IF;
 				t_output := t_output || '</TH>
-      <TH><A href="?' || t_cmd || '=' || urlEncode(t_value) || '&dir=' || t_oppositeDirection || '&sort=16' || t_groupByParameter || t_issuerOParameter || '"># Certs</A>';
+      <TH><A href="?' || urlEncode(t_cmd) || '=' || urlEncode(t_value) || '&dir=' || t_oppositeDirection || '&sort=16' || t_groupByParameter || t_issuerOParameter || '"># Certs</A>';
 				IF t_sort = 16 THEN
 					t_output := t_output || ' ' || t_dirSymbol;
 				END IF;
 				t_output := t_output || '</TH>
-      <TH><A href="?' || t_cmd || '=' || urlEncode(t_value) || '&dir=' || t_oppositeDirection || '&sort=17' || t_groupByParameter || t_issuerOParameter || '">%</A>';
+      <TH><A href="?' || urlEncode(t_cmd) || '=' || urlEncode(t_value) || '&dir=' || t_oppositeDirection || '&sort=17' || t_groupByParameter || t_issuerOParameter || '">%</A>';
 				IF t_sort = 17 THEN
 					t_output := t_output || ' ' || t_dirSymbol;
 				END IF;
 				t_output := t_output || '</TH>
-      <TH><A href="?' || t_cmd || '=' || urlEncode(t_value) || '&dir=' || t_oppositeDirection || '&sort=18' || t_groupByParameter || t_issuerOParameter || '"># Issues</A>';
+      <TH><A href="?' || urlEncode(t_cmd) || '=' || urlEncode(t_value) || '&dir=' || t_oppositeDirection || '&sort=18' || t_groupByParameter || t_issuerOParameter || '"># Issues</A>';
 				IF t_sort = 18 THEN
 					t_output := t_output || ' ' || t_dirSymbol;
 				END IF;
@@ -4150,7 +4150,7 @@ Content-Type: application/atom+xml
     <TR>
       <TD>';
 					IF l_record.ISSUER_ORGANIZATION_NAME IS NOT NULL THEN
-						t_output := t_output || '<A href="?' || t_cmd || '=' || urlEncode(t_value) || '&dir=' || t_direction
+						t_output := t_output || '<A href="?' || urlEncode(t_cmd) || '=' || urlEncode(t_value) || '&dir=' || t_direction
 											|| '&sort=' || t_sort::text || t_groupByParameter
 											|| '&issuerO=' || urlEncode(l_record.ISSUER_ORGANIZATION_NAME) || '">'
 											|| l_record.ISSUER_ORGANIZATION_NAME || '</A>';
@@ -4211,17 +4211,17 @@ Content-Type: application/atom+xml
   <BR><BR>
   <TABLE class="lint">
     <TR>
-      <TH><A href="?' || t_cmd || '=' || urlEncode(t_value) || '&dir=' || t_oppositeDirection || '&sort=1' || t_groupByParameter || coalesce(t_excludeAffectedCerts, '') || '">Severity</A>';
+      <TH><A href="?' || urlEncode(t_cmd) || '=' || urlEncode(t_value) || '&dir=' || t_oppositeDirection || '&sort=1' || t_groupByParameter || coalesce(t_excludeAffectedCerts, '') || '">Severity</A>';
 			IF t_sort = 1 THEN
 				t_output := t_output || ' ' || t_dirSymbol;
 			END IF;
 			t_output := t_output || '</TH>
-      <TH><A href="?' || t_cmd || '=' || urlEncode(t_value) || '&dir=' || t_oppositeDirection || '&sort=2' || t_groupByParameter || coalesce(t_excludeAffectedCerts, '') || '">Issue</A>';
+      <TH><A href="?' || urlEncode(t_cmd) || '=' || urlEncode(t_value) || '&dir=' || t_oppositeDirection || '&sort=2' || t_groupByParameter || coalesce(t_excludeAffectedCerts, '') || '">Issue</A>';
 			IF t_sort = 2 THEN
 				t_output := t_output || ' ' || t_dirSymbol;
 			END IF;
 			t_output := t_output || '</TH>
-      <TH><A href="?' || t_cmd || '=' || urlEncode(t_value) || '&dir=' || t_oppositeDirection || '&sort=3' || t_groupByParameter || coalesce(t_excludeAffectedCerts, '') || '"># Affected Certs</A>';
+      <TH><A href="?' || urlEncode(t_cmd) || '=' || urlEncode(t_value) || '&dir=' || t_oppositeDirection || '&sort=3' || t_groupByParameter || coalesce(t_excludeAffectedCerts, '') || '"># Affected Certs</A>';
 			IF t_sort = 3 THEN
 				t_output := t_output || ' ' || t_dirSymbol;
 			END IF;
@@ -4302,7 +4302,7 @@ Content-Type: application/atom+xml
 '    <TR>
       <TD ' || l_record.ISSUE_CLASS || '>' || l_record.ISSUE_HEADING || '</TD>
       <TD ' || l_record.ISSUE_CLASS || '>' || l_record.ISSUE_TEXT || '</TD>
-      <TD><A href="?' || t_cmd || '=' || l_record.ID::text || t_minNotBeforeString || '">';
+      <TD><A href="?' || urlEncode(t_cmd) || '=' || l_record.ID::text || t_minNotBeforeString || '">';
 				IF l_record.NUM_CERTS = -1 THEN
 					t_output := t_output || '?';
 				ELSE
