@@ -499,12 +499,43 @@ CREATE INDEX md_ds_c_temp
 	ON mozilla_disclosure_temp (DISCLOSURE_STATUS, CERTIFICATE_ID);
 
 
-\echo Disclosed, Revoked, Parent Revoked -> Revoked via OneCRL
+\echo Revoked -> Revoked, but Expired
+UPDATE mozilla_disclosure_temp mdt
+	SET DISCLOSURE_STATUS = 'RevokedButExpired'
+	FROM certificate c
+	WHERE mdt.DISCLOSURE_STATUS = 'Revoked'
+		AND mdt.CERTIFICATE_ID = c.ID
+		AND x509_notAfter(c.CERTIFICATE) < statement_timestamp();
+
+\echo Revoked, Parent Revoked -> Revoked via OneCRL
 UPDATE mozilla_disclosure_temp mdt
 	SET DISCLOSURE_STATUS = 'RevokedViaOneCRL'
 	FROM mozilla_onecrl m
-	WHERE mdt.DISCLOSURE_STATUS IN ('Disclosed', 'Revoked', 'ParentRevoked')
+	WHERE mdt.DISCLOSURE_STATUS IN ('Revoked', 'ParentRevoked')
 		AND mdt.CERTIFICATE_ID = m.CERTIFICATE_ID;
+
+\echo Disclosed -> Disclosed, but Expired
+UPDATE mozilla_disclosure_temp mdt
+	SET DISCLOSURE_STATUS = 'DisclosedButExpired'
+	FROM certificate c
+	WHERE mdt.DISCLOSURE_STATUS = 'Disclosed'
+		AND mdt.CERTIFICATE_ID = c.ID
+		AND x509_notAfter(c.CERTIFICATE) < statement_timestamp();
+
+\echo Disclosed -> Disclosed, but in OneCRL
+UPDATE mozilla_disclosure_temp mdt
+	SET DISCLOSURE_STATUS = 'DisclosedButInOneCRL'
+	FROM mozilla_onecrl m
+	WHERE mdt.DISCLOSURE_STATUS = 'Disclosed'
+		AND mdt.CERTIFICATE_ID = m.CERTIFICATE_ID;
+
+\echo Disclosed -> Disclosed, but Technically Constrained
+UPDATE mozilla_disclosure_temp mdt
+	SET DISCLOSURE_STATUS = 'DisclosedButConstrained'
+	FROM certificate c
+	WHERE mdt.DISCLOSURE_STATUS = 'Disclosed'
+		AND mdt.CERTIFICATE_ID = c.ID
+		AND is_technically_constrained(c.CERTIFICATE);
 
 \echo Disclosed -> DisclosureIncomplete
 UPDATE mozilla_disclosure_temp mdt

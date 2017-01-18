@@ -506,8 +506,12 @@ CREATE TYPE disclosure_status_type AS ENUM (
 	'Expired',
 	'Revoked',
 	'ParentRevoked',
+	'RevokedButExpired',
 	'RevokedViaOneCRL',
 	'Disclosed',
+	'DisclosedButExpired',
+	'DisclosedButInOneCRL',
+	'DisclosedButConstrained',
 	'DisclosedWithErrors'
 );
 
