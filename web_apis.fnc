@@ -2160,11 +2160,14 @@ Content-Type: application/json
     <TH>Bug</TH>
     <TH>Serial Number</TH>
     <TH>Issuer Name</TH>
+    <TH>Subject Name</TH>
+    <TH>Not After</TH>
   </TR>
 ';
 	FOR l_record IN (
 				SELECT mo.CERTIFICATE_ID, mo.CREATED, mo.SUMMARY, mo.BUG_URL, mo.SERIAL_NUMBER,
-						mo.ISSUER_CA_ID, x509_name_print(mo.ISSUER_NAME) ISSUER_NAME_TEXT
+						mo.ISSUER_CA_ID, x509_name_print(mo.ISSUER_NAME) ISSUER_NAME_TEXT,
+						x509_name_print(mo.SUBJECT_NAME) SUBJECT_NAME_TEXT, mo.NOT_AFTER
 					FROM mozilla_onecrl mo
 					ORDER BY mo.CREATED DESC, mo.SUMMARY, mo.BUG_URL, ISSUER_NAME_TEXT, mo.SERIAL_NUMBER
 			) LOOP
@@ -2190,6 +2193,8 @@ Content-Type: application/json
 			t_output := t_output || '</A>';
 		END IF;
 		t_output := t_output || '</TD>
+    <TD>' || coalesce(l_record.SUBJECT_NAME_TEXT, '&nbsp;') || '</TD>
+    <TD style="white-space:nowrap">' || coalesce(TO_CHAR(l_record.NOT_AFTER, 'YYYY-MM-DD'), '&nbsp;') || '</TD>
   </TR>
 ';
 	END LOOP;
