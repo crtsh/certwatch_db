@@ -4828,7 +4828,7 @@ Content-Type: text/html; charset=UTF-8
 			END IF;
 		END IF;
 		t_output := t_output || '
-  <P class="copyright">&copy; COMODO CA Limited 2015-2016. All rights reserved.</P>
+  <P class="copyright">&copy; COMODO CA Limited 2015-2017. All rights reserved.</P>
   <DIV>
     <A href="https://github.com/crtsh"><IMG src="/GitHub-Mark-32px.png"></A>
   </DIV>
