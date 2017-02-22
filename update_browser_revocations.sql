@@ -56,6 +56,8 @@ COMMIT WORK;
 
 SELECT substr(web_apis(NULL, '{output,maxage}'::text[], '{mozilla-onecrl,0}'::text[]), 1, 6);
 
+SELECT substr(web_apis(NULL, '{output,maxage}'::text[], '{revoked-intermediates,0}'::text[]), 1, 6);
+
 BEGIN WORK;
 
 LOCK microsoft_disallowedcert;
