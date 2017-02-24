@@ -561,6 +561,15 @@ UPDATE mozilla_disclosure_temp mdt
 		AND (mdt.PARENT_NAME NOT LIKE get_ca_name_attribute(c.ISSUER_CA_ID, 'commonName') || '%')
 		AND (mdt.PARENT_NAME NOT LIKE get_ca_name_attribute(c.ISSUER_CA_ID, 'organizationName') || '%');
 
+\echo Disclosed -> DisclosedButInCRL
+UPDATE mozilla_disclosure_temp mdt
+	SET DISCLOSURE_STATUS = 'DisclosedButInCRL'
+	FROM certificate c, crl_revoked cr
+	WHERE mdt.DISCLOSURE_STATUS = 'Disclosed'
+		AND mdt.CERTIFICATE_ID = c.ID
+		AND x509_serialNumber(c.CERTIFICATE) = cr.SERIAL_NUMBER
+		AND c.ISSUER_CA_ID = cr.CA_ID;
+
 \echo Undisclosed -> Expired
 UPDATE mozilla_disclosure_temp mdt
 	SET DISCLOSURE_STATUS = 'Expired'

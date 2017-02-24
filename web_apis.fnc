@@ -146,6 +146,7 @@ DECLARE
 	t_discConstrainedCount	integer		:= 0;
 	t_discRevokedCount	integer			:= 0;
 	t_discErrorCount	integer			:= 0;
+	t_discCRLCount		integer			:= 0;
 	t_disclosedCount	integer			:= 0;
 	t_unknownCount		integer			:= 0;
 	t_caPublicKey		ca.PUBLIC_KEY%TYPE;
@@ -1003,6 +1004,7 @@ Content-Type: application/json
 
 		FOR l_record IN (
 					SELECT c.ID, c.ISSUER_CA_ID, x509_notAfter(c.CERTIFICATE) NOT_AFTER,
+							is_technically_constrained(c.CERTIFICATE) IS_TECHNICALLY_CONSTRAINED,
 							get_ca_name_attribute(cac.CA_ID) SUBJECT_FRIENDLY_NAME,
 							get_ca_name_attribute(c.ISSUER_CA_ID) ISSUER_FRIENDLY_NAME,
 							md.CERTIFICATE_ID MS_CERTIFICATE_ID,
@@ -1053,7 +1055,7 @@ Content-Type: application/json
 			ELSIF l_record.NOT_AFTER < statement_timestamp() THEN
 				t_temp := t_temp || '888888">Expired';
 			ELSE
-				t_temp := t_temp || 'CC0000">Unrevoked';
+				t_temp := t_temp || 'CC0000">Valid';
 			END IF;
 			t_temp := t_temp || '</TD>
     <TD style="color:';
@@ -1067,6 +1069,8 @@ Content-Type: application/json
 				t_temp := t_temp || '888888">Expired';
 			ELSIF t_ctp.ALL_CHAINS_REVOKED_VIA_DISALLOWEDSTL THEN
 				t_temp := t_temp || '00CC00">ParentRevoked';
+			ELSIF t_ctp.ALL_CHAINS_TECHNICALLY_CONSTRAINED OR l_record.IS_TECHNICALLY_CONSTRAINED THEN
+				t_temp := t_temp || '888888">Constrained';
 			ELSE
 				t_temp := t_temp || 'CC0000">Valid';
 			END IF;
@@ -1082,6 +1086,8 @@ Content-Type: application/json
 				t_temp := t_temp || '888888">Expired';
 			ELSIF t_ctp2.ALL_CHAINS_REVOKED_VIA_ONECRL THEN
 				t_temp := t_temp || '00CC00">ParentRevoked';
+			ELSIF t_ctp2.ALL_CHAINS_TECHNICALLY_CONSTRAINED OR l_record.IS_TECHNICALLY_CONSTRAINED THEN
+				t_temp := t_temp || '888888">Constrained';
 			ELSE
 				t_temp := t_temp || 'CC0000">Valid';
 			END IF;
@@ -1100,6 +1106,8 @@ Content-Type: application/json
 				t_count := t_count - 1;
 			ELSIF (l_record.NOT_AFTER < statement_timestamp()) OR (NOT t_ctp2.IS_TIME_VALID) THEN
 				t_temp := t_temp || '888888">Expired';
+			ELSIF t_ctp2.ALL_CHAINS_TECHNICALLY_CONSTRAINED OR l_record.IS_TECHNICALLY_CONSTRAINED THEN
+				t_temp := t_temp || '888888">Constrained';
 			ELSE
 				t_temp := t_temp || 'CC0000">Undisclosed';
 			END IF;
@@ -1115,6 +1123,8 @@ Content-Type: application/json
 				t_temp := t_temp || '888888">Expired';
 			ELSIF t_ctp.ALL_CHAINS_REVOKED_VIA_CRLSET AND t_ctp2.ALL_CHAINS_REVOKED_VIA_CRLSET AND t_ctp3.ALL_CHAINS_REVOKED_VIA_CRLSET THEN
 				t_temp := t_temp || '00CC00">ParentRevoked';
+			ELSIF (t_ctp.ALL_CHAINS_TECHNICALLY_CONSTRAINED AND t_ctp2.ALL_CHAINS_TECHNICALLY_CONSTRAINED AND t_ctp3.ALL_CHAINS_TECHNICALLY_CONSTRAINED) OR l_record.IS_TECHNICALLY_CONSTRAINED THEN
+				t_temp := t_temp || '888888">Constrained';
 			ELSE
 				t_temp := t_temp || 'CC0000">Valid';
 			END IF;
@@ -1261,6 +1271,69 @@ Content-Type: application/json
   </TR>
 ' || t_temp2;
 		IF t_disclosedCount = 0 THEN
+			t_temp2 := t_temp2 ||
+'  <TR><TD colspan="6">None found</TD></TR>
+';
+		END IF;
+		t_temp2 := t_temp2 ||
+'</TABLE>
+';
+
+		t_temp := t_temp2 || t_temp;
+
+		t_temp2 := '';
+		FOR l_record IN (
+					SELECT *
+						FROM mozilla_disclosure md
+						WHERE md.DISCLOSURE_STATUS = 'DisclosedButInCRL'
+							AND md.CERTIFICATE_ID IS NOT NULL
+						ORDER BY md.INCLUDED_CERTIFICATE_OWNER, md.ISSUER_O, md.ISSUER_CN NULLS FIRST, md.RECORD_TYPE DESC,
+								md.SUBJECT_O, md.SUBJECT_CN NULLS FIRST, md.CA_OWNER_OR_CERT_NAME NULLS FIRST
+				) LOOP
+			t_discCRLCount := t_discCRLCount + 1;
+			t_temp2 := t_temp2 ||
+'  <TR>
+    <TD>';
+			IF l_record.INCLUDED_CERTIFICATE_ID IS NULL THEN
+				t_temp2 := t_temp2 || coalesce(html_escape(l_record.INCLUDED_CERTIFICATE_OWNER), '&nbsp;');
+			ELSE
+				t_temp2 := t_temp2 || '<A href="/?id=' || l_record.INCLUDED_CERTIFICATE_ID::text || '">' || coalesce(html_escape(l_record.INCLUDED_CERTIFICATE_OWNER), '&nbsp;') || '</A>';
+			END IF;
+			t_temp2 := t_temp2 || '</TD>
+    <TD>' || coalesce(html_escape(l_record.ISSUER_O), '&nbsp;') || '</TD>
+    <TD>' || coalesce(html_escape(l_record.ISSUER_CN), '&nbsp;') || '</TD>
+    <TD>' || coalesce(html_escape(l_record.SUBJECT_O), '&nbsp;') || '</TD>
+    <TD>';
+			IF l_record.RECORD_TYPE = 'Root' THEN
+				t_temp2 := t_temp2 || '<B>[Root]</B> ';
+			END IF;
+			IF l_record.SALESFORCE_ID IS NOT NULL THEN
+				t_temp2 := t_temp2 || '<A href="//mozillacacommunity.force.com/' || l_record.SALESFORCE_ID || '" target="_blank">';
+			END IF;
+			t_temp2 := t_temp2 || coalesce(html_escape(l_record.CA_OWNER_OR_CERT_NAME), '&nbsp;');
+			IF l_record.SALESFORCE_ID IS NOT NULL THEN
+				t_temp2 := t_temp2 || '</A>';
+			END IF;
+			t_temp2 := t_temp2 || '</TD>
+    <TD style="font-family:monospace"><A href="/?sha256=' || encode(l_record.CERT_SHA256, 'hex') || '&opt=mozilladisclosure" target="blank">' || substr(upper(encode(l_record.CERT_SHA256, 'hex')), 1, 16) || '...</A></TD>
+  </TR>
+';
+		END LOOP;
+		t_temp2 :=
+'<BR><BR><SPAN class="title" style="background-color:#F2A2E8"><A name="disclosedbutincrl">Disclosed (as Not Revoked), but revoked via CRL</A></SPAN>
+<SPAN class="whiteongrey">' || t_discCRLCount::text || ' CA certificates</SPAN>
+<BR>
+<TABLE style="background-color:#F2A2E8">
+  <TR>
+    <TH>Root Owner / Certificate</TH>
+    <TH>Issuer O</TH>
+    <TH>Issuer CN</TH>
+    <TH>Subject O</TH>
+    <TH>Subject CN</TH>
+    <TH>SHA-256(Certificate)</TH>
+  </TR>
+' || t_temp2;
+		IF t_discCRLCount = 0 THEN
 			t_temp2 := t_temp2 ||
 '  <TR><TD colspan="6">None found</TD></TR>
 ';
@@ -2229,7 +2302,7 @@ Content-Type: application/json
     <TD>Unconstrained id-kp-serverAuth Trust</TD>
     <TD><B><U>Yes!</U></B></TD>
     <TD><A href="#undisclosed">' || t_undisclosedCount::text || '</A>
-      &nbsp;<A href="#undisclosedsummary" style="font-size:8pt">Summary</A>
+      &nbsp;<A href="#undisclosedsummary" style="font-size:8pt">Summary</A></TD>
   </TR>
   <TR style="background-color:#F8B88B">
     <TD>Unconstrained, but all unexpired observed paths Revoked</TD>
@@ -2277,7 +2350,7 @@ Content-Type: application/json
     <TD><A href="#disclosedbutexpired">' || t_discExpiredCount::text || '</A></TD>
   </TR>
   <TR style="background-color:#F2A2E8">
-    <TD>Disclosed, but in <A href="/mozilla-onecrl" target="_blank">OneCRL</A>
+    <TD>Disclosed (as Not Revoked), but in <A href="/mozilla-onecrl" target="_blank">OneCRL</A></TD>
     <TD>Already disclosed</TD>
     <TD><A href="#disclosedbutinonecrl">' || t_discRevokedCount::text || '</A></TD>
   </TR>
@@ -2290,6 +2363,11 @@ Content-Type: application/json
     <TD>Disclosed, but with Errors</TD>
     <TD>Already disclosed</TD>
     <TD><A href="#disclosedwitherrors">' || t_discErrorCount::text || '</A></TD>
+  </TR>
+  <TR style="background-color:#F2A2E8">
+    <TD>Disclosed (as Not Revoked), but Revoked via CRL</TD>
+    <TD>Already disclosed</TD>
+    <TD><A href="#disclosedbutincrl">' || t_discCRLCount::text || '</A></TD>
   </TR>
   <TR style="background-color:#F2A2E8">
     <TD>Disclosed</TD>
@@ -2629,7 +2707,7 @@ Content-Type: application/json
 				FOR l_record IN (
 							SELECT *
 								FROM mozilla_disclosure md
-								WHERE md.DISCLOSURE_STATUS IN ('Disclosed', 'DisclosedButExpired', 'DisclosedWithErrors')
+								WHERE md.DISCLOSURE_STATUS::text LIKE 'Disclosed%'
 									AND md.CERTIFICATE_ID = t_certificateID
 						) LOOP
 					t_temp := '';

@@ -516,7 +516,8 @@ CREATE TYPE disclosure_status_type AS ENUM (
 	'DisclosedButExpired',
 	'DisclosedButInOneCRL',
 	'DisclosedButConstrained',
-	'DisclosedWithErrors'
+	'DisclosedWithErrors',
+	'DisclosedButInCRL'
 );
 
 
