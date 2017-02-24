@@ -161,6 +161,7 @@ CREATE TABLE crl (
 	IS_ACTIVE				boolean,
 	ERROR_MESSAGE			text,
 	CRL_SHA256				bytea,
+	CRL_SIZE				integer
 	CONSTRAINT crl_pk
 		PRIMARY KEY (CA_ID, DISTRIBUTION_POINT_URL),
 	CONSTRAINT crl_ca_fk
@@ -170,6 +171,9 @@ CREATE TABLE crl (
 
 CREATE INDEX crl_ia_lc
 	ON crl (IS_ACTIVE, NEXT_CHECK_DUE, DISTRIBUTION_POINT_URL);
+
+CREATE INDEX crl_sz
+	ON crl (CRL_SIZE);
 
 CREATE TABLE crl_revoked (
 	CA_ID					integer,
