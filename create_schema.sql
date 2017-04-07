@@ -569,6 +569,45 @@ CREATE TABLE google_revoked (
 		REFERENCES certificate(ID)
 );
 
+CREATE TABLE mozilla_cert_validation_success_import (
+	SUBMISSION_DATE		date,
+	RELEASE				text,
+	VERSION				text,
+	BIN_NUMBER			smallint,
+	COUNT				bigint,
+	CONSTRAINT mcvsi_pk
+		PRIMARY KEY (SUBMISSION_DATE, BIN_NUMBER, RELEASE, VERSION)
+);
+
+CREATE INDEX mcvsi_bin_date_rel_ver
+	ON mozilla_cert_validation_success_import (BIN_NUMBER, SUBMISSION_DATE, RELEASE, VERSION);
+
+CREATE TABLE mozilla_cert_validation_success (
+	SUBMISSION_DATE		date,
+	BIN_NUMBER			smallint,
+	COUNT				bigint,
+	CERTIFICATE_ID		integer,
+	CONSTRAINT mcvs_pk
+		PRIMARY KEY (SUBMISSION_DATE, BIN_NUMBER),
+	CONSTRAINT mcvs_c_fk
+		FOREIGN KEY (CERTIFICATE_ID)
+		REFERENCES certificate(ID)
+);
+
+CREATE INDEX mcvs_bin_date
+	ON mozilla_cert_validation_success (BIN_NUMBER, SUBMISSION_DATE);
+
+CREATE TABLE mozilla_root_hashes (
+	CERTIFICATE_ID		integer,
+	CERTIFICATE_SHA256	bytea,
+	BIN_NUMBER			smallint,
+	DISPLAY_ORDER		smallint,
+	CONSTRAINT mrh_pk
+		PRIMARY KEY (BIN_NUMBER, CERTIFICATE_SHA256)
+);
+
+CREATE INDEX mrh_c
+	ON mozilla_root_hashes (CERTIFICATE_ID);
 
 CREATE TABLE cached_response (
 	PAGE_NAME			text,
@@ -620,6 +659,12 @@ GRANT SELECT ON microsoft_disallowedcert TO crtsh;
 GRANT SELECT ON mozilla_onecrl TO crtsh;
 
 GRANT SELECT ON google_revoked TO crtsh;
+
+GRANT SELECT ON mozilla_cert_validation_success_import TO crtsh;
+
+GRANT SELECT ON mozilla_cert_validation_success TO crtsh;
+
+GRANT SELECT ON mozilla_root_hashes TO crtsh;
 
 GRANT SELECT ON cached_response TO crtsh;
 

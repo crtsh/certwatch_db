@@ -45,11 +45,33 @@ DROP FUNCTION lint_cached(
 );
 
 
+DROP TABLE cached_response;
+
+DROP TABLE mozilla_root_hashes;
+
+DROP TABLE mozilla_cert_validation_success;
+
+DROP TABLE mozilla_cert_validation_success_import;
+
+DROP TABLE google_revoked;
+
+DROP TABLE google_crlset_import;
+
+DROP TABLE google_blacklist_import;
+
+DROP TYPE revocation_entry_type;
+
+DROP TABLE microsoft_disallowedcert;
+
+DROP TABLE microsoft_disallowedcert_import;
+
 DROP TYPE disclosure_status_type;
 
 DROP TABLE ca_trust_purpose;
 
 DROP TABLE root_trust_purpose;
+
+DROP TABLE applicable_purpose;
 
 DROP TABLE trust_purpose;
 

@@ -158,6 +158,8 @@ DECLARE
 	l_record2			RECORD;
 	t_purposeOID		text;
 	t_cacheControlMaxAge	integer		:= 300;
+	t_versions			text[];
+	t_date				date;
 BEGIN
 	FOR t_paramNo IN 1..array_length(c_params, 1) LOOP
 		IF t_cmd IS NULL THEN
@@ -234,7 +236,8 @@ BEGIN
 		t_type := lower(t_outputType);
 		t_title := t_type;
 		t_outputType := 'html';
-	ELSIF lower(t_outputType) IN ('revoked-intermediates', 'mozilla-disclosures', 'mozilla-onecrl', 'redacted-precertificates') THEN
+	ELSIF lower(t_outputType) IN ('revoked-intermediates', 'mozilla-certvalidations', 'mozilla-certvalidations-by-root', 'mozilla-certvalidations-by-owner', 'mozilla-certvalidations-by-version',
+									'mozilla-disclosures', 'mozilla-onecrl', 'redacted-precertificates') THEN
 		t_type := lower(t_outputType);
 		t_title := t_type;
 		t_outputType := 'html';
@@ -403,7 +406,19 @@ BEGIN
 ';
 		IF t_type = 'Certificate ASN.1' THEN
 			t_output := t_output ||
-'<LINK rel="stylesheet" href="/asn1js/index.css" type="text/css">
+'  <LINK rel="stylesheet" href="/asn1js/index.css" type="text/css">
+';
+		ELSIF t_type = 'mozilla-certvalidations' THEN
+			t_output := t_output ||
+'  <SCRIPT src="//cdnjs.cloudflare.com/ajax/libs/dygraph/2.0.0/dygraph.min.js"></SCRIPT>
+  <LINK rel="stylesheet" src="//cdnjs.cloudflare.com/ajax/libs/dygraph/2.0.0/dygraph.min.css" />
+  <STYLE type="text/css">
+    #graph { width: 800px; height: 400px; }
+    #graph, #graph_toggles, #graph_labels { float: left; margin: 0 1em 1em 0; }
+    #graph_toggles label { display: block; font-weight: bold; }
+    .many .dygraph-legend > span { display: none; }
+    .many .dygraph-legend > span.highlight { display: inline }
+  </STYLE>
 ';
 		END IF;
 		t_output := t_output ||
@@ -711,6 +726,7 @@ BEGIN
               <TD>
                 <A href="/mozilla-disclosures">CA Certificate Disclosures</A>
                 <BR><A href="/mozilla-onecrl">OneCRL</A>
+                <BR><A href="/mozilla-certvalidations">Certificate Validations</A>
               </TD>
             </TR>
           </TABLE>
@@ -1137,6 +1153,234 @@ Content-Type: application/json
 		END LOOP;
 		t_output := t_output ||
 '</TABLE>
+';
+
+	ELSIF t_type = 'mozilla-certvalidations-by-root' THEN
+		t_outputType := 'csv';
+		t_output := 'Date';
+		FOR l_record IN (
+					SELECT mrh.CERTIFICATE_ID, get_ca_name_attribute(cac.CA_ID) FRIENDLY_NAME, get_ca_name_attribute(cac.CA_ID, 'organizationalUnitName') OU, replace(md.CA_OWNER, chr(10), ', ') CA_OWNER
+						FROM mozilla_root_hashes mrh
+							LEFT OUTER JOIN ca_certificate cac ON (mrh.CERTIFICATE_ID = cac.CERTIFICATE_ID)
+							LEFT OUTER JOIN mozilla_disclosure md ON (mrh.CERTIFICATE_ID = md.CERTIFICATE_ID)
+						WHERE mrh.DISPLAY_ORDER IS NOT NULL
+						GROUP BY mrh.DISPLAY_ORDER, mrh.CERTIFICATE_ID, cac.CA_ID, md.CA_OWNER
+						ORDER BY mrh.DISPLAY_ORDER
+				) LOOP
+			IF l_record.FRIENDLY_NAME IN ('GlobalSign') THEN
+				l_record.FRIENDLY_NAME := l_record.OU;
+			END IF;
+			t_output := t_output || '|[' || coalesce(l_record.CA_OWNER, 'UNKNOWN') || '] ' || replace(l_record.FRIENDLY_NAME, '|', '\|');
+		END LOOP;
+
+		FOR l_record IN (
+					SELECT mrh.DISPLAY_ORDER, mcvs.SUBMISSION_DATE, mcvs.COUNT
+						FROM mozilla_cert_validation_success mcvs, mozilla_root_hashes mrh
+						WHERE mcvs.BIN_NUMBER = mrh.BIN_NUMBER
+							AND mrh.DISPLAY_ORDER IS NOT NULL
+						ORDER BY mcvs.SUBMISSION_DATE, mrh.DISPLAY_ORDER
+				) LOOP
+			IF l_record.DISPLAY_ORDER = 1 THEN
+				t_output := t_output || chr(10) || l_record.SUBMISSION_DATE::text;
+			END IF;
+
+			t_output := t_output || '|' || coalesce(l_record.COUNT, 0);
+		END LOOP;
+
+	ELSIF t_type = 'mozilla-certvalidations-by-owner' THEN
+		t_outputType := 'csv';
+		t_output := 'Date';
+		FOR l_record IN (
+					SELECT coalesce(replace(md.CA_OWNER, chr(10), ', '), 'UNKNOWN') CA_OWNER
+						FROM mozilla_root_hashes mrh
+							LEFT OUTER JOIN mozilla_disclosure md ON (mrh.CERTIFICATE_ID = md.CERTIFICATE_ID)
+						WHERE mrh.DISPLAY_ORDER IS NOT NULL
+						GROUP BY md.CA_OWNER
+						ORDER BY min(mrh.DISPLAY_ORDER)
+				) LOOP
+			t_output := t_output || '|' || coalesce(l_record.CA_OWNER, 'UNKNOWN');
+		END LOOP;
+
+		t_temp := '';
+		FOR l_record IN (
+					SELECT coalesce(replace(md.CA_OWNER, chr(10), ', '), 'UNKNOWN') CA_OWNER, min(mrh.DISPLAY_ORDER) DISPLAY_ORDER, mcvs.SUBMISSION_DATE, sum(mcvs.COUNT) COUNT
+						FROM mozilla_cert_validation_success mcvs, mozilla_root_hashes mrh
+							LEFT OUTER JOIN mozilla_disclosure md ON (mrh.CERTIFICATE_ID = md.CERTIFICATE_ID)
+						WHERE mcvs.BIN_NUMBER = mrh.BIN_NUMBER
+							AND mrh.DISPLAY_ORDER IS NOT NULL
+						GROUP BY md.CA_OWNER, mcvs.SUBMISSION_DATE
+						ORDER BY mcvs.SUBMISSION_DATE, min(mrh.DISPLAY_ORDER)
+				) LOOP
+			IF l_record.DISPLAY_ORDER = 1 THEN
+				t_output := t_output || chr(10) || l_record.SUBMISSION_DATE::text;
+			END IF;
+
+			t_output := t_output || '|' || coalesce(l_record.COUNT, 0);
+		END LOOP;
+
+	ELSIF t_type = 'mozilla-certvalidations-by-version' THEN
+		t_certificateID := coalesce(get_parameter('id', paramNames, paramValues), '0')::integer;
+		t_outputType := 'csv';
+		t_output := 'Date';
+
+		SELECT array_agg(sub.RELEASE_VERSION)
+			INTO t_versions
+			FROM (
+				SELECT (mcvsi.RELEASE || '/' || mcvsi.VERSION) RELEASE_VERSION
+					FROM mozilla_root_hashes mrh, mozilla_cert_validation_success_import mcvsi
+					WHERE mrh.CERTIFICATE_ID = t_certificateID
+						AND mrh.BIN_NUMBER = mcvsi.BIN_NUMBER
+					GROUP BY mcvsi.RELEASE, mcvsi.VERSION
+					ORDER BY mcvsi.RELEASE, mcvsi.VERSION::integer
+			) sub;
+		FOR i IN 1..array_length(t_versions, 1) LOOP
+			t_output := t_output || '|' || t_versions[i];
+		END LOOP;
+
+		t_date := '2000-01-01'::date;
+		t_pos1 := array_length(t_versions, 1);
+		FOR l_record IN (
+					SELECT mcvsi.SUBMISSION_DATE, mcvsi.COUNT, (mcvsi.RELEASE || '/' || mcvsi.VERSION) RELEASE_VERSION
+						FROM mozilla_root_hashes mrh, mozilla_cert_validation_success_import mcvsi
+						WHERE mrh.CERTIFICATE_ID = t_certificateID
+							AND mrh.BIN_NUMBER = mcvsi.BIN_NUMBER
+						ORDER BY mcvsi.SUBMISSION_DATE, mcvsi.RELEASE, mcvsi.VERSION::integer
+				) LOOP
+			IF l_record.SUBMISSION_DATE > t_date THEN
+				WHILE t_pos1 < array_length(t_versions, 1) LOOP
+					t_output := t_output || '|0';
+					t_pos1 := t_pos1 + 1;
+				END LOOP;
+				t_date := l_record.SUBMISSION_DATE;
+				t_output := t_output || chr(10) || l_record.SUBMISSION_DATE::text;
+				t_pos1 := 1;
+			END IF;
+
+			WHILE l_record.RELEASE_VERSION != t_versions[t_pos1] LOOP
+				t_output := t_output || '|0';
+				t_pos1 := t_pos1 + 1;
+			END LOOP;
+			t_pos1 := t_pos1 + 1;
+
+			t_output := t_output || '|' || coalesce(l_record.COUNT, 0);
+		END LOOP;
+		WHILE t_pos1 < array_length(t_versions, 1) LOOP
+			t_output := t_output || '|X';
+			t_pos1 := t_pos1 + 1;
+		END LOOP;
+
+	ELSIF t_type = 'mozilla-certvalidations' THEN
+		t_certificateID := get_parameter('id', paramNames, paramValues)::integer;
+		t_temp := '';
+		IF t_certificateID IS NOT NULL THEN
+			t_temp := 'id=' || t_certificateID::text;
+		END IF;
+		IF coalesce(t_groupBy, 'root') NOT IN ('owner', 'version') THEN
+			t_groupBy := 'root';
+		END IF;
+		t_output := t_output ||
+'  <SPAN class="whiteongrey">Mozilla Certificate Validations</SPAN>';
+		IF t_groupBy IN ('owner', 'version') THEN
+			t_output := t_output || '
+&nbsp; &nbsp; &nbsp; <A style="font-size:8pt" href="?group=root">Group by Root</A>';
+		END IF;
+		IF t_groupBy IN ('root', 'version') THEN
+			t_output := t_output || '
+&nbsp; &nbsp; &nbsp; <A style="font-size:8pt" href="?group=owner">Group by Owner</A>';
+		END IF;
+		t_output := t_output || '
+  <BR><SPAN class="small"><A href="//mzl.la/2nvPgJs" target="_blank">CERT_VALIDATION_SUCCESS_BY_CA telemetry</A> for ';
+		IF t_groupBy IN ('owner', 'root') THEN
+			t_output := t_output || 'all Firefox Release versions';
+		ELSE
+			SELECT get_ca_name_attribute(cac.CA_ID)
+				INTO t_temp2
+				FROM ca_certificate cac
+				WHERE cac.CERTIFICATE_ID = t_certificateID;
+			t_output := t_output || '<B>' || t_temp2 || '</B>';
+		END IF;
+		t_output := t_output || '</SPAN>
+<BR><BR>
+<DIV id="root" style="text-align:left;font:8pt Arial;font-weight:normal">
+  <DIV id="graph" class="many" style="width:100%"></DIV>
+  <DIV id="options">
+    <BUTTON onclick="toggleAll(true)">Select All</BUTTON>
+    <BUTTON onclick="toggleAll(false)">Deselect All</BUTTON>
+  </DIV>
+  <DIV style="height:400px;width:500px;overflow:auto"><FORM id="graph_toggles"></FORM></DIV>
+  <DIV id="graph_labels" style="text-align:left"></DIV>
+</DIV>
+<SCRIPT type="text/javascript">
+  var graph = new Dygraph(
+    document.getElementById("graph"),
+    "/mozilla-certvalidations-by-' || t_groupBy || '?' || t_temp || '", {
+    axes: {
+      x: {
+        drawGrid: false
+      },
+      y: {
+        drawAxis: true,
+        drawGrid: true
+      }
+    },
+    connectSeparatedPoints: true,
+    delimiter: ''|'',
+    highlightCircleSize: 2,
+    highlightSeriesOpts: {
+      strokeWidth: 2,
+      strokeBorderWidth: 1,
+      highlightCircleSize: 3
+    },
+    includeZero: true,
+    panEdgeFraction: 0.1,
+    strokeBorderWidth: 1,
+    strokeWidth: 1,
+    labelsKMB: true,
+    xRangePad: 50
+  });
+
+  var onclick = function(ev) {
+    if (graph.isSeriesLocked()) {
+      graph.clearSelection();
+    } else {
+      graph.setSelection(graph.getSelection(), graph.getHighlightSeries(), true);
+    }
+  };
+  graph.updateOptions({clickCallback: onclick}, true);
+
+  graph.ready(function() {
+    var toggles_form = document.getElementById("graph_toggles");
+    var labels = graph.getLabels();
+    var colors = graph.getColors();
+    for (var i = 1; i < labels.length; ++i) {
+      (function(series) {
+        var label_elt = document.createElement("label");
+        label_elt.style.color = colors[series];
+        var checkbox = document.createElement("input");
+        checkbox.type = "checkbox";
+        checkbox.onclick = function () {
+          graph.setVisibility(series, this.checked);
+        };
+        checkbox.checked = true;
+        label_elt.appendChild(checkbox);
+        var label_span = document.createElement("span");
+        label_span.innerHTML = " " + labels[series + 1];
+        label_elt.appendChild(label_span);
+
+        toggles_form.appendChild(label_elt);
+      })(i - 1);
+    }
+  });
+
+  function toggleAll(clicked) {
+    var w = document.getElementsByTagName(''input'');
+    for(var i = 0; i < w.length; i++) {
+      if ((w[i].type == ''checkbox'') && (w[i].checked != clicked)) {
+        w[i].click();
+      }
+    }
+  }
+</SCRIPT>
 ';
 
 	ELSIF t_type = 'mozilla-disclosures' THEN
@@ -2771,6 +3015,17 @@ Content-Type: application/json
 					t_output := t_output || '</TD>
   </TR>
 </TABLE>';
+					IF l_record.RECORD_TYPE = 'Root' THEN
+						t_output := t_output ||
+'  <TR>
+    <TH class="outer">Telemetry<BR>
+      <DIV class="small" style="padding-top:3px">Collected by
+        <A href="//mzl.la/2nvPgJs" target="_blank">Mozilla</A></DIV>
+    </TH>
+    <TD class="outer"><A href="mozilla-certvalidations?group=version&id=' || t_certificateID::text || '" target="_blank">CERT_VALIDATION_SUCCESS_BY_CA</A></TD>
+  </TR>
+';
+					END IF;
 					EXIT;
 				END LOOP;
 				IF t_temp IS NULL THEN
