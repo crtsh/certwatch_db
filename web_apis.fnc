@@ -76,6 +76,7 @@ DECLARE
 	t_certificateSHA1	bytea;
 	t_certificateSHA256	bytea;
 	t_certificate		certificate.CERTIFICATE%TYPE;
+	t_certSummary		text;
 	t_caID				ca.ID%TYPE;
 	t_caName			ca.NAME%TYPE;
 	t_serialNumber		bytea;
@@ -2696,6 +2697,8 @@ Content-Type: application/json
 <BR><BR>
 ';
 
+		t_certSummary := 'Leaf certificate';
+
 		-- Search for a specific Certificate.
 		IF t_type IN ('ID', 'Certificate ASN.1') THEN
 			SELECT c.ID, x509_print(c.CERTIFICATE, NULL, 196608), ca.ID, cac.CA_ID,
@@ -2828,6 +2831,11 @@ Content-Type: application/json
 						|| t_caID::text
 						|| t_temp || '">Subject:</A><BR>'
 			);
+			IF t_caID = coalesce(t_issuerCAID, -1) THEN
+				t_certSummary := 'Root certificate';
+			ELSE
+				t_certSummary := 'Intermediate certificate';
+			END IF;
 		END IF;
 		IF t_spkiSHA256 IS NOT NULL THEN
 			t_text := replace(
@@ -2854,6 +2862,7 @@ Content-Type: application/json
 					AND c.ID != t_certificateID;
 			IF t_temp IS NOT NULL THEN
 				IF substr(t_text, t_offset, 34) = 'CT&nbsp;Precertificate&nbsp;Poison' THEN
+					t_certSummary := 'Precertificate';
 					t_text := substr(t_text, 1, t_offset - 1)
 								|| 'CT Pre<A href="?id=' || t_temp
 										|| '">certificate</A>'
@@ -2892,6 +2901,10 @@ Content-Type: application/json
 		IF t_showMetadata THEN
 			t_output := t_output ||
 '  <TR>
+    <TH class="outer">Summary</TH>
+    <TD class="outer">' || t_certSummary || '</TD>
+  </TR>
+  <TR>
     <TH class="outer">Certificate<BR>Transparency</TH>
     <TD class="outer">
 ';
