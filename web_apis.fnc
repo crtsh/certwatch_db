@@ -725,8 +725,8 @@ BEGIN
               <TD>Mozilla</TD>
               <TD>
                 <A href="/mozilla-disclosures">CA Certificate Disclosures</A>
-                <BR><A href="/mozilla-onecrl">OneCRL</A>
                 <BR><A href="/mozilla-certvalidations">Certificate Validations</A>
+                <BR><A href="/mozilla-onecrl">OneCRL</A>
               </TD>
             </TR>
           </TABLE>
@@ -1159,12 +1159,12 @@ Content-Type: application/json
 		t_outputType := 'csv';
 		t_output := 'Date';
 		FOR l_record IN (
-					SELECT mrh.CERTIFICATE_ID, get_ca_name_attribute(cac.CA_ID) FRIENDLY_NAME, get_ca_name_attribute(cac.CA_ID, 'organizationalUnitName') OU, replace(md.CA_OWNER, chr(10), ', ') CA_OWNER
+					SELECT mrh.CERTIFICATE_ID, get_ca_name_attribute(cac.CA_ID) FRIENDLY_NAME, get_ca_name_attribute(cac.CA_ID, 'organizationalUnitName') OU, replace(mrh.CA_OWNER, chr(10), ', ') CA_OWNER
 						FROM mozilla_root_hashes mrh
 							LEFT OUTER JOIN ca_certificate cac ON (mrh.CERTIFICATE_ID = cac.CERTIFICATE_ID)
 							LEFT OUTER JOIN mozilla_disclosure md ON (mrh.CERTIFICATE_ID = md.CERTIFICATE_ID)
 						WHERE mrh.DISPLAY_ORDER IS NOT NULL
-						GROUP BY mrh.DISPLAY_ORDER, mrh.CERTIFICATE_ID, cac.CA_ID, md.CA_OWNER
+						GROUP BY mrh.DISPLAY_ORDER, mrh.CERTIFICATE_ID, cac.CA_ID, mrh.CA_OWNER
 						ORDER BY mrh.DISPLAY_ORDER
 				) LOOP
 			IF l_record.FRIENDLY_NAME IN ('GlobalSign') THEN
@@ -1191,11 +1191,11 @@ Content-Type: application/json
 		t_outputType := 'csv';
 		t_output := 'Date';
 		FOR l_record IN (
-					SELECT coalesce(replace(md.CA_OWNER, chr(10), ', '), 'UNKNOWN') CA_OWNER
+					SELECT coalesce(replace(mrh.CA_OWNER, chr(10), ', '), 'UNKNOWN') CA_OWNER
 						FROM mozilla_root_hashes mrh
 							LEFT OUTER JOIN mozilla_disclosure md ON (mrh.CERTIFICATE_ID = md.CERTIFICATE_ID)
 						WHERE mrh.DISPLAY_ORDER IS NOT NULL
-						GROUP BY md.CA_OWNER
+						GROUP BY mrh.CA_OWNER
 						ORDER BY min(mrh.DISPLAY_ORDER)
 				) LOOP
 			t_output := t_output || '|' || coalesce(l_record.CA_OWNER, 'UNKNOWN');
@@ -1203,12 +1203,12 @@ Content-Type: application/json
 
 		t_temp := '';
 		FOR l_record IN (
-					SELECT coalesce(replace(md.CA_OWNER, chr(10), ', '), 'UNKNOWN') CA_OWNER, min(mrh.DISPLAY_ORDER) DISPLAY_ORDER, mcvs.SUBMISSION_DATE, sum(mcvs.COUNT) COUNT
+					SELECT coalesce(replace(mrh.CA_OWNER, chr(10), ', '), 'UNKNOWN') CA_OWNER, min(mrh.DISPLAY_ORDER) DISPLAY_ORDER, mcvs.SUBMISSION_DATE, sum(mcvs.COUNT) COUNT
 						FROM mozilla_cert_validation_success mcvs, mozilla_root_hashes mrh
 							LEFT OUTER JOIN mozilla_disclosure md ON (mrh.CERTIFICATE_ID = md.CERTIFICATE_ID)
 						WHERE mcvs.BIN_NUMBER = mrh.BIN_NUMBER
 							AND mrh.DISPLAY_ORDER IS NOT NULL
-						GROUP BY md.CA_OWNER, mcvs.SUBMISSION_DATE
+						GROUP BY mrh.CA_OWNER, mcvs.SUBMISSION_DATE
 						ORDER BY mcvs.SUBMISSION_DATE, min(mrh.DISPLAY_ORDER)
 				) LOOP
 			IF l_record.DISPLAY_ORDER = 1 THEN

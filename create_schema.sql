@@ -602,6 +602,7 @@ CREATE TABLE mozilla_root_hashes (
 	CERTIFICATE_SHA256	bytea,
 	BIN_NUMBER			smallint,
 	DISPLAY_ORDER		smallint,
+	CA_OWNER			text,
 	CONSTRAINT mrh_pk
 		PRIMARY KEY (BIN_NUMBER, CERTIFICATE_SHA256)
 );
