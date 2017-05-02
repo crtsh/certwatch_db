@@ -4483,6 +4483,7 @@ Content-Type: application/json
 			t_summary := '';
 			FOR l_record IN EXECUTE t_query
 							USING t_value, t_minNotBefore LOOP
+				t_temp2 := '';
 				IF t_outputType = 'atom' THEN
 					IF coalesce(t_certificateID, -l_record.MIN_CERT_ID) != l_record.MIN_CERT_ID THEN
 						IF lower(t_type) NOT LIKE '%lint' THEN
@@ -4504,27 +4505,27 @@ Content-Type: application/json
 						WHERE c.ID = l_record.MIN_CERT_ID;
 					t_b64Certificate := replace(encode(t_certificate, 'base64'), chr(10), '');
 					t_feedUpdated := greatest(t_feedUpdated, l_record.MIN_ENTRY_TIMESTAMP);
-					t_text := t_text ||
+					t_temp2 := t_temp2 ||
 '  <entry>
     <id>https://crt.sh/?id=' || l_record.MIN_CERT_ID || '#' || t_cmd || ';' || t_value || '</id>
     <link rel="alternate" type="text/html" href="https://crt.sh/?id=' || l_record.MIN_CERT_ID || '"/>
     <summary type="html">__entry_summary__&lt;br&gt;&lt;br&gt;&lt;div style="font:8pt monospace"&gt;-----BEGIN CERTIFICATE-----';
 					WHILE length(t_b64Certificate) > 0 LOOP
-						t_text := t_text || '&lt;br&gt;' || substring(
+						t_temp2 := t_temp2 || '&lt;br&gt;' || substring(
 							t_b64Certificate from 1 for 64
 						);
 						t_b64Certificate := substring(t_b64Certificate from 65);
 					END LOOP;
-					t_text := t_text ||
+					t_temp2 := t_temp2 ||
 '&lt;br&gt;-----END CERTIFICATE-----&lt;/div&gt;
     </summary>
     <title>[';
 					IF x509_print(t_certificate) LIKE '%CT Precertificate Poison%' THEN
-						t_text := t_text || 'Precertificate';
+						t_temp2 := t_temp2 || 'Precertificate';
 					ELSE
-						t_text := t_text || 'Certificate';
+						t_temp2 := t_temp2 || 'Certificate';
 					END IF;
-					t_text := t_text ||
+					t_temp2 := t_temp2 ||
 '] Issued by ' || get_ca_name_attribute(l_record.ISSUER_CA_ID)
 			|| '; Valid from ' || to_char(l_record.NOT_BEFORE, 'YYYY-MM-DD') || ' to '
 			|| t_temp || '</title>
@@ -4535,38 +4536,38 @@ Content-Type: application/json
 				ELSIF t_outputType = 'json' THEN
 					t_output := t_output || row_to_json(l_record, FALSE);
 				ELSIF t_outputType = 'html' THEN
-					t_text := t_text ||
+					t_temp2 := t_temp2 ||
 '  <TR>
     <TD style="text-align:center">';
 					IF coalesce(t_groupBy, '') = 'none' THEN
-						t_text := t_text || '<A href="?id=' || l_record.MIN_CERT_ID::text || t_opt || '">' || l_record.MIN_CERT_ID::text || '</A></TD>
+						t_temp2 := t_temp2 || '<A href="?id=' || l_record.MIN_CERT_ID::text || t_opt || '">' || l_record.MIN_CERT_ID::text || '</A></TD>
     <TD style="text-align:center">' || to_char(l_record.MIN_ENTRY_TIMESTAMP, 'YYYY-MM-DD') || '</TD>
     <TD style="text-align:center">' || to_char(l_record.NOT_BEFORE, 'YYYY-MM-DD');
 					ELSIF (l_record.NUM_CERTS = 1)
 							AND (l_record.MIN_CERT_ID IS NOT NULL) THEN
-						t_text := t_text || '<A href="?id=' || l_record.MIN_CERT_ID::text || t_opt || '">'
+						t_temp2 := t_temp2 || '<A href="?id=' || l_record.MIN_CERT_ID::text || t_opt || '">'
 															|| l_record.NUM_CERTS::text || '</A>';
 					ELSIF (l_record.ISSUER_CA_ID IS NOT NULL)
 							AND (l_record.MIN_CERT_ID IS NOT NULL) THEN
-						t_text := t_text || '<A href="?' || urlEncode(t_cmd) || '=' || urlEncode(l_record.NAME_VALUE)
+						t_temp2 := t_temp2 || '<A href="?' || urlEncode(t_cmd) || '=' || urlEncode(l_record.NAME_VALUE)
 												|| '&iCAID=' || l_record.ISSUER_CA_ID::text || t_minNotBeforeString
 												|| coalesce(t_excludeExpired, '') || t_opt || '">'
 											|| l_record.NUM_CERTS::text || '</A>';
 					ELSE
-						t_text := t_text || l_record.NUM_CERTS::text;
+						t_temp2 := t_temp2 || l_record.NUM_CERTS::text;
 					END IF;
-					t_text := t_text || '</TD>
+					t_temp2 := t_temp2 || '</TD>
     <TD>';
 					IF t_showIdentity THEN
-						t_text := t_text || html_escape(l_record.NAME_VALUE) || '</TD>
+						t_temp2 := t_temp2 || html_escape(l_record.NAME_VALUE) || '</TD>
     <TD>';
 					END IF;
 					IF l_record.ISSUER_CA_ID IS NOT NULL THEN
-						t_text := t_text || '<A style="white-space:normal" href="?caid=' || l_record.ISSUER_CA_ID::text || t_opt || '">'
+						t_temp2 := t_temp2 || '<A style="white-space:normal" href="?caid=' || l_record.ISSUER_CA_ID::text || t_opt || '">'
 									|| coalesce(html_escape(l_record.ISSUER_NAME), '&nbsp;')
 									|| '</A>';
 					ELSE
-						t_text := t_text || coalesce(html_escape(l_record.ISSUER_NAME), '?');
+						t_temp2 := t_temp2 || coalesce(html_escape(l_record.ISSUER_NAME), '?');
 					END IF;
 					IF lower(t_type) LIKE '%lint' THEN
 						SELECT md.INCLUDED_CERTIFICATE_OWNER
@@ -4577,13 +4578,14 @@ Content-Type: application/json
 							GROUP BY md.INCLUDED_CERTIFICATE_OWNER
 							ORDER BY count(*) DESC
 							LIMIT 1;
-						t_text := t_text || '</TD>
+						t_temp2 := t_temp2 || '</TD>
     <TD>' || coalesce(t_temp, '&nbsp;');
 					END IF;
-					t_text := t_text || '</TD>
+					t_temp2 := t_temp2 || '</TD>
   </TR>
 ';
 				END IF;
+				t_text := t_text || t_temp2;
 			END LOOP;
 
 			t_temp := replace(
