@@ -2921,7 +2921,7 @@ Content-Type: application/json
 '  <TR>
     <TD>' || to_char(l_record.ENTRY_TIMESTAMP, 'YYYY-MM-DD')
 						|| '&nbsp; <FONT class="small">'
-						|| to_char(l_record.ENTRY_TIMESTAMP, 'HH24:MI:SS GMT')
+						|| to_char(l_record.ENTRY_TIMESTAMP, 'HH24:MI:SS UTC')
 						|| '</FONT></TD>
     <TD>' || l_record.ENTRY_ID::text || '</TD>
     <TD>' || html_escape(l_record.OPERATOR) || '</TD>
@@ -3071,7 +3071,7 @@ Content-Type: application/json
 						END
 					|| '</SPAN></TD><TD>Serial Number</TD><TD>'
 					|| to_char(cr.REVOCATION_DATE, 'YYYY-MM-DD') || '&nbsp; <FONT class="small">'
-					|| to_char(cr.REVOCATION_DATE, 'HH24:MI:SS GMT') || '</FONT>'
+					|| to_char(cr.REVOCATION_DATE, 'HH24:MI:SS UTC') || '</FONT>'
 				INTO t_temp0
 				FROM crl_revoked cr
 				WHERE cr.CA_ID = t_issuerCAID
@@ -3114,7 +3114,7 @@ Content-Type: application/json
 
 			SELECT '<SPAN style="color:#CC0000">Revoked</SPAN></TD><TD>Issuer Name, Serial Number</TD><TD>'
 					|| to_char(mo.CREATED, 'YYYY-MM-DD') || '&nbsp; <FONT class="small">'
-					|| to_char(mo.CREATED, 'HH24:MI:SS GMT') || '</FONT>'
+					|| to_char(mo.CREATED, 'HH24:MI:SS UTC') || '</FONT>'
 				INTO t_temp3
 				FROM mozilla_onecrl mo
 				WHERE mo.CERTIFICATE_ID = t_certificateID;
