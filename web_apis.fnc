@@ -800,7 +800,7 @@ BEGIN
 							ctl.INCLUDED_IN_CHROME, ctl.CHROME_ISSUE_NUMBER, ctl.NON_INCLUSION_STATUS
 						FROM ct_log ctl
 						WHERE ctl.IS_ACTIVE = 't'
-						ORDER BY ctl.LATEST_ENTRY_ID DESC NULLS LAST
+						ORDER BY ctl.TREE_SIZE DESC NULLS LAST
 				) LOOP
 			SELECT coalesce(l_record.TREE_SIZE, 0) - coalesce(max(ENTRY_ID), -1) - 1
 				INTO t_count
@@ -862,7 +862,7 @@ BEGIN
 						FROM ct_log ctl
 						WHERE ctl.IS_ACTIVE = 'f'
 							AND ctl.LATEST_ENTRY_ID IS NOT NULL
-						ORDER BY ctl.LATEST_ENTRY_ID DESC NULLS LAST
+						ORDER BY ctl.TREE_SIZE DESC NULLS LAST
 				) LOOP
 			SELECT coalesce(l_record.TREE_SIZE, 0) - coalesce(max(ENTRY_ID), -1) - 1
 				INTO t_count
