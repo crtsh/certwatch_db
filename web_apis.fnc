@@ -2649,7 +2649,7 @@ Content-Type: application/json
 						mo.ISSUER_CA_ID, x509_name_print(mo.ISSUER_NAME) ISSUER_NAME_TEXT,
 						x509_name_print(mo.SUBJECT_NAME) SUBJECT_NAME_TEXT, mo.NOT_AFTER
 					FROM mozilla_onecrl mo
-					ORDER BY mo.CREATED DESC, mo.SUMMARY, mo.BUG_URL, ISSUER_NAME_TEXT, mo.SERIAL_NUMBER
+					ORDER BY mo.CREATED DESC NULLS FIRST, mo.SUMMARY, mo.BUG_URL, ISSUER_NAME_TEXT, mo.SERIAL_NUMBER
 			) LOOP
 		t_output := t_output ||
 '  <TR>
@@ -2660,7 +2660,7 @@ Content-Type: application/json
 			t_output := t_output || '&nbsp;';
 		END IF;
 		t_output := t_output || '</TD>
-    <TD style="white-space:nowrap">' || TO_CHAR(l_record.CREATED, 'YYYY-MM-DD') || '</TD>
+    <TD style="white-space:nowrap">' || coalesce(TO_CHAR(l_record.CREATED, 'YYYY-MM-DD'), 'Unspecified') || '</TD>
     <TD>' || l_record.SUMMARY || '</TD>
     <TD><A href="' || l_record.BUG_URL || '" target="_blank">' || substring(l_record.BUG_URL from '[0-9]*$') || '</A></TD>
     <TD>' || encode(l_record.SERIAL_NUMBER, 'hex') || '</TD>

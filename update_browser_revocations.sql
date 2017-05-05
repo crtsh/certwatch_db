@@ -13,10 +13,26 @@ SELECT json_array_elements((o.onecrl_data->>'data')::json) CERT_ITEM
 DROP TABLE onecrl_import1;
 
 CREATE TABLE onecrl_import3 AS
-SELECT decode(o.CERT_ITEM->>'issuerName', 'base64') ISSUER_NAME,
+SELECT decode(
+			o.CERT_ITEM->>'issuerName'
+				|| CASE length(o.CERT_ITEM->>'issuerName') % 4
+					WHEN 2 THEN '=='
+					WHEN 3 THEN '='
+					ELSE ''
+				END,
+			'base64'
+		) ISSUER_NAME,
 		timestamp without time zone 'epoch'
 			+ ((o.CERT_ITEM->>'last_modified')::bigint * interval '1 millisecond') LAST_MODIFIED,
-		decode(o.CERT_ITEM->>'serialNumber', 'base64') SERIAL_NUMBER,
+		decode(
+			o.CERT_ITEM->>'serialNumber'
+				|| CASE length(o.CERT_ITEM->>'serialNumber') % 4
+					WHEN 2 THEN '=='
+					WHEN 3 THEN '='
+					ELSE ''
+				END,
+			'base64'
+		) SERIAL_NUMBER,
 		(((o.CERT_ITEM->>'details')::json)->>'created')::timestamp CREATED,
 		((o.CERT_ITEM->>'details')::json)->>'bug' BUG_URL,
 		((o.CERT_ITEM->>'details')::json)->>'name' SUMMARY
