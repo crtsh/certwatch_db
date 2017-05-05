@@ -821,7 +821,7 @@ BEGIN
       <TD>
 ';
 			IF l_record.CHROME_ISSUE_NUMBER IS NOT NULL THEN
-				t_output := t_output || '<A href="https://code.google.com/p/chromium/issues/detail?id='
+				t_output := t_output || '<A href="https://bugs.chromium.org/p/chromium/issues/detail?id='
 									|| l_record.CHROME_ISSUE_NUMBER::text || '" target="_blank">';
 				IF l_record.INCLUDED_IN_CHROME IS NOT NULL THEN
 					t_output := t_output || coalesce(l_record.NON_INCLUSION_STATUS, 'M' || l_record.INCLUDED_IN_CHROME::text);
