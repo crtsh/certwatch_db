@@ -196,7 +196,7 @@ BEGIN
 			END;
 
 			IF t_type = 'Download Certificate' THEN
-				RETURN download_cert(t_value::integer);
+				RETURN download_cert(t_value);
 			ELSIF t_type IN ('ID', 'Certificate ASN.1', 'CA ID', 'CT Entry ID') THEN
 				BEGIN
 					EXIT WHEN t_value::integer IS NOT NULL;

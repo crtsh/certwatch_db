@@ -17,24 +17,31 @@
  */
 
 CREATE OR REPLACE FUNCTION download_cert(
-	cert_id					certificate.ID%TYPE
+	cert_identifier			text
 ) RETURNS text
 AS $$
 DECLARE
 	t_b64Certificate	text;
 	t_output			text;
 BEGIN
-	SELECT replace(encode(c.CERTIFICATE, 'base64'), chr(10), '')
-		INTO t_b64Certificate
-		FROM certificate c
-		WHERE c.ID = cert_id;
+	IF length(cert_identifier) = 64 THEN
+		SELECT replace(encode(c.CERTIFICATE, 'base64'), chr(10), '')
+			INTO t_b64Certificate
+			FROM certificate c
+			WHERE digest(c.CERTIFICATE, 'sha256') = decode(cert_identifier, 'hex');
+	ELSE
+		SELECT replace(encode(c.CERTIFICATE, 'base64'), chr(10), '')
+			INTO t_b64Certificate
+			FROM certificate c
+			WHERE c.ID = cert_identifier::integer;
+	END IF;
 	IF t_b64Certificate IS NULL THEN
 		RETURN NULL;
 	END IF;
 
 	t_output :=
 '[BEGIN_HEADERS]
-Content-Disposition: attachment; filename="' || cert_id::text || '.crt"
+Content-Disposition: attachment; filename="' || cert_identifier || '.crt"
 Content-Type: application/pkix-cert
 [END_HEADERS]
 ';

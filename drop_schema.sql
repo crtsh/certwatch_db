@@ -36,7 +36,7 @@ DROP FUNCTION extract_cert_names(
 );
 
 DROP FUNCTION download_cert(
-	cert_id					certificate.ID%TYPE
+	cert_id					text
 );
 
 DROP FUNCTION lint_cached(
