@@ -988,9 +988,14 @@ BEGIN
 				'base64'
 			);
 
+			SELECT c.ID
+				INTO t_certificateID
+				FROM certificate c
+				WHERE digest(c.CERTIFICATE, 'sha256') = digest(t_certificate, 'sha256');
+
 			RETURN
 '[BEGIN_HEADERS]
-Content-Disposition: attachment; filename="add-chain-' || encode(digest(t_certificate, 'sha256'), 'hex') || '.json"
+Content-Disposition: attachment; filename="' || upper(encode(digest(t_certificate, 'sha256'), 'hex')) || '_' || coalesce(t_certificateID::text, 'UNKNOWN') || '.add-chain.json"
 Content-Type: application/json
 [END_HEADERS]
 ' || generate_add_chain_body(t_certificate);
