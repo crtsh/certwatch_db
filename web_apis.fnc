@@ -1428,7 +1428,7 @@ Content-Type: application/json
 				t_temp := t_temp || '<B>[Root]</B> ';
 			END IF;
 			IF l_record.SALESFORCE_ID IS NOT NULL THEN
-				t_temp := t_temp || '<A href="//mozillacacommunity.force.com/' || l_record.SALESFORCE_ID || '" target="_blank">';
+				t_temp := t_temp || '<A href="//ccadb.force.com/' || l_record.SALESFORCE_ID || '" target="_blank">';
 			END IF;
 			t_temp := t_temp || coalesce(html_escape(l_record.CA_OWNER_OR_CERT_NAME), '&nbsp;');
 			IF l_record.SALESFORCE_ID IS NOT NULL THEN
@@ -1495,7 +1495,7 @@ Content-Type: application/json
 				t_temp2 := t_temp2 || '<B>[Root]</B> ';
 			END IF;
 			IF l_record.SALESFORCE_ID IS NOT NULL THEN
-				t_temp2 := t_temp2 || '<A href="//mozillacacommunity.force.com/' || l_record.SALESFORCE_ID || '" target="_blank">';
+				t_temp2 := t_temp2 || '<A href="//ccadb.force.com/' || l_record.SALESFORCE_ID || '" target="_blank">';
 			END IF;
 			t_temp2 := t_temp2 || coalesce(html_escape(l_record.CA_OWNER_OR_CERT_NAME), '&nbsp;');
 			IF l_record.SALESFORCE_ID IS NOT NULL THEN
@@ -1558,7 +1558,7 @@ Content-Type: application/json
 				t_temp2 := t_temp2 || '<B>[Root]</B> ';
 			END IF;
 			IF l_record.SALESFORCE_ID IS NOT NULL THEN
-				t_temp2 := t_temp2 || '<A href="//mozillacacommunity.force.com/' || l_record.SALESFORCE_ID || '" target="_blank">';
+				t_temp2 := t_temp2 || '<A href="//ccadb.force.com/' || l_record.SALESFORCE_ID || '" target="_blank">';
 			END IF;
 			t_temp2 := t_temp2 || coalesce(html_escape(l_record.CA_OWNER_OR_CERT_NAME), '&nbsp;');
 			IF l_record.SALESFORCE_ID IS NOT NULL THEN
@@ -1621,7 +1621,7 @@ Content-Type: application/json
 				t_temp2 := t_temp2 || '<B>[Root]</B> ';
 			END IF;
 			IF l_record.SALESFORCE_ID IS NOT NULL THEN
-				t_temp2 := t_temp2 || '<A href="//mozillacacommunity.force.com/' || l_record.SALESFORCE_ID || '" target="_blank">';
+				t_temp2 := t_temp2 || '<A href="//ccadb.force.com/' || l_record.SALESFORCE_ID || '" target="_blank">';
 			END IF;
 			t_temp2 := t_temp2 || coalesce(html_escape(l_record.CA_OWNER_OR_CERT_NAME), '&nbsp;');
 			IF l_record.SALESFORCE_ID IS NOT NULL THEN
@@ -1684,7 +1684,7 @@ Content-Type: application/json
 				t_temp2 := t_temp2 || '<B>[Root]</B> ';
 			END IF;
 			IF l_record.SALESFORCE_ID IS NOT NULL THEN
-				t_temp2 := t_temp2 || '<A href="//mozillacacommunity.force.com/' || l_record.SALESFORCE_ID || '" target="_blank">';
+				t_temp2 := t_temp2 || '<A href="//ccadb.force.com/' || l_record.SALESFORCE_ID || '" target="_blank">';
 			END IF;
 			t_temp2 := t_temp2 || coalesce(html_escape(l_record.CA_OWNER_OR_CERT_NAME), '&nbsp;');
 			IF l_record.SALESFORCE_ID IS NOT NULL THEN
@@ -1747,7 +1747,7 @@ Content-Type: application/json
 				t_temp2 := t_temp2 || '<B>[Root]</B> ';
 			END IF;
 			IF l_record.SALESFORCE_ID IS NOT NULL THEN
-				t_temp2 := t_temp2 || '<A href="//mozillacacommunity.force.com/' || l_record.SALESFORCE_ID || '" target="_blank">';
+				t_temp2 := t_temp2 || '<A href="//ccadb.force.com/' || l_record.SALESFORCE_ID || '" target="_blank">';
 			END IF;
 			t_temp2 := t_temp2 || coalesce(html_escape(l_record.CA_OWNER_OR_CERT_NAME), '&nbsp;');
 			IF l_record.SALESFORCE_ID IS NOT NULL THEN
@@ -1810,7 +1810,7 @@ Content-Type: application/json
 				t_temp2 := t_temp2 || '<B>[Root]</B> ';
 			END IF;
 			IF l_record.SALESFORCE_ID IS NOT NULL THEN
-				t_temp2 := t_temp2 || '<A href="//mozillacacommunity.force.com/' || l_record.SALESFORCE_ID || '" target="_blank">';
+				t_temp2 := t_temp2 || '<A href="//ccadb.force.com/' || l_record.SALESFORCE_ID || '" target="_blank">';
 			END IF;
 			t_temp2 := t_temp2 || coalesce(html_escape(l_record.CA_OWNER_OR_CERT_NAME), '&nbsp;');
 			IF l_record.SALESFORCE_ID IS NOT NULL THEN
@@ -1873,7 +1873,7 @@ Content-Type: application/json
 				t_temp2 := t_temp2 || '<B>[Root]</B> ';
 			END IF;
 			IF l_record.SALESFORCE_ID IS NOT NULL THEN
-				t_temp2 := t_temp2 || '<A href="//mozillacacommunity.force.com/' || l_record.SALESFORCE_ID || '" target="_blank">';
+				t_temp2 := t_temp2 || '<A href="//ccadb.force.com/' || l_record.SALESFORCE_ID || '" target="_blank">';
 			END IF;
 			t_temp2 := t_temp2 || coalesce(html_escape(l_record.CA_OWNER_OR_CERT_NAME), '&nbsp;');
 			IF l_record.SALESFORCE_ID IS NOT NULL THEN
@@ -1936,7 +1936,7 @@ Content-Type: application/json
 				t_temp2 := t_temp2 || '<B>[Root]</B> ';
 			END IF;
 			IF l_record.SALESFORCE_ID IS NOT NULL THEN
-				t_temp2 := t_temp2 || '<A href="//mozillacacommunity.force.com/' || l_record.SALESFORCE_ID || '" target="_blank">';
+				t_temp2 := t_temp2 || '<A href="//ccadb.force.com/' || l_record.SALESFORCE_ID || '" target="_blank">';
 			END IF;
 			t_temp2 := t_temp2 || coalesce(html_escape(l_record.CA_OWNER_OR_CERT_NAME), '&nbsp;');
 			IF l_record.SALESFORCE_ID IS NOT NULL THEN
@@ -1999,7 +1999,7 @@ Content-Type: application/json
 				t_temp2 := t_temp2 || '<B>[Root]</B> ';
 			END IF;
 			IF l_record.SALESFORCE_ID IS NOT NULL THEN
-				t_temp2 := t_temp2 || '<A href="//mozillacacommunity.force.com/' || l_record.SALESFORCE_ID || '" target="_blank">';
+				t_temp2 := t_temp2 || '<A href="//ccadb.force.com/' || l_record.SALESFORCE_ID || '" target="_blank">';
 			END IF;
 			t_temp2 := t_temp2 || coalesce(html_escape(l_record.CA_OWNER_OR_CERT_NAME), '&nbsp;');
 			IF l_record.SALESFORCE_ID IS NOT NULL THEN
@@ -2062,7 +2062,7 @@ Content-Type: application/json
 				t_temp2 := t_temp2 || '<B>[Root]</B> ';
 			END IF;
 			IF l_record.SALESFORCE_ID IS NOT NULL THEN
-				t_temp2 := t_temp2 || '<A href="//mozillacacommunity.force.com/' || l_record.SALESFORCE_ID || '" target="_blank">';
+				t_temp2 := t_temp2 || '<A href="//ccadb.force.com/' || l_record.SALESFORCE_ID || '" target="_blank">';
 			END IF;
 			t_temp2 := t_temp2 || coalesce(html_escape(l_record.CA_OWNER_OR_CERT_NAME), '&nbsp;');
 			IF l_record.SALESFORCE_ID IS NOT NULL THEN
@@ -2125,7 +2125,7 @@ Content-Type: application/json
 				t_temp2 := t_temp2 || '<B>[Root]</B> ';
 			END IF;
 			IF l_record.SALESFORCE_ID IS NOT NULL THEN
-				t_temp2 := t_temp2 || '<A href="//mozillacacommunity.force.com/' || l_record.SALESFORCE_ID || '" target="_blank">';
+				t_temp2 := t_temp2 || '<A href="//ccadb.force.com/' || l_record.SALESFORCE_ID || '" target="_blank">';
 			END IF;
 			t_temp2 := t_temp2 || coalesce(html_escape(l_record.CA_OWNER_OR_CERT_NAME), '&nbsp;');
 			IF l_record.SALESFORCE_ID IS NOT NULL THEN
@@ -2188,7 +2188,7 @@ Content-Type: application/json
 				t_temp2 := t_temp2 || '<B>[Root]</B> ';
 			END IF;
 			IF l_record.SALESFORCE_ID IS NOT NULL THEN
-				t_temp2 := t_temp2 || '<A href="//mozillacacommunity.force.com/' || l_record.SALESFORCE_ID || '" target="_blank">';
+				t_temp2 := t_temp2 || '<A href="//ccadb.force.com/' || l_record.SALESFORCE_ID || '" target="_blank">';
 			END IF;
 			t_temp2 := t_temp2 || coalesce(html_escape(l_record.CA_OWNER_OR_CERT_NAME), '&nbsp;');
 			IF l_record.SALESFORCE_ID IS NOT NULL THEN
@@ -2251,7 +2251,7 @@ Content-Type: application/json
 				t_temp2 := t_temp2 || '<B>[Root]</B> ';
 			END IF;
 			IF l_record.SALESFORCE_ID IS NOT NULL THEN
-				t_temp2 := t_temp2 || '<A href="//mozillacacommunity.force.com/' || l_record.SALESFORCE_ID || '" target="_blank">';
+				t_temp2 := t_temp2 || '<A href="//ccadb.force.com/' || l_record.SALESFORCE_ID || '" target="_blank">';
 			END IF;
 			t_temp2 := t_temp2 || coalesce(html_escape(l_record.CA_OWNER_OR_CERT_NAME), '&nbsp;');
 			IF l_record.SALESFORCE_ID IS NOT NULL THEN
@@ -2314,7 +2314,7 @@ Content-Type: application/json
 				t_temp2 := t_temp2 || '<B>[Root]</B> ';
 			END IF;
 			IF l_record.SALESFORCE_ID IS NOT NULL THEN
-				t_temp2 := t_temp2 || '<A href="//mozillacacommunity.force.com/' || l_record.SALESFORCE_ID || '" target="_blank">';
+				t_temp2 := t_temp2 || '<A href="//ccadb.force.com/' || l_record.SALESFORCE_ID || '" target="_blank">';
 			END IF;
 			t_temp2 := t_temp2 || coalesce(html_escape(l_record.CA_OWNER_OR_CERT_NAME), '&nbsp;');
 			IF l_record.SALESFORCE_ID IS NOT NULL THEN
@@ -2406,7 +2406,7 @@ Content-Type: application/json
 				t_temp2 := t_temp2 || '<B>[Root]</B> ';
 			END IF;
 			IF l_record.SALESFORCE_ID IS NOT NULL THEN
-				t_temp2 := t_temp2 || '<A href="//mozillacacommunity.force.com/' || l_record.SALESFORCE_ID || '" target="_blank">';
+				t_temp2 := t_temp2 || '<A href="//ccadb.force.com/' || l_record.SALESFORCE_ID || '" target="_blank">';
 			END IF;
 			t_temp2 := t_temp2 || coalesce(html_escape(l_record.CA_OWNER_OR_CERT_NAME), '&nbsp;');
 			IF l_record.SALESFORCE_ID IS NOT NULL THEN
@@ -2498,7 +2498,7 @@ Content-Type: application/json
 				t_temp2 := t_temp2 || '<B>[Root]</B> ';
 			END IF;
 			IF l_record.SALESFORCE_ID IS NOT NULL THEN
-				t_temp2 := t_temp2 || '<A href="//mozillacacommunity.force.com/' || l_record.SALESFORCE_ID || '" target="_blank">';
+				t_temp2 := t_temp2 || '<A href="//ccadb.force.com/' || l_record.SALESFORCE_ID || '" target="_blank">';
 			END IF;
 			t_temp2 := t_temp2 || coalesce(html_escape(l_record.CA_OWNER_OR_CERT_NAME), '&nbsp;');
 			IF l_record.SALESFORCE_ID IS NOT NULL THEN
@@ -2961,7 +2961,7 @@ Content-Type: application/json
 '  <TR>
     <TH class="outer">Audit details<BR>
       <DIV class="small" style="padding-top:3px">Disclosed via
-        <A href="//mozillacaprogram.secure.force.com/CA/PublicAllIntermediateCerts" target="_blank">Mozilla</A></DIV>
+        <A href="//ccadb-public.secure.force.com/mozilla/PublicAllIntermediateCerts" target="_blank">Mozilla</A></DIV>
     </TH>
     <TD class="outer">
 ';
@@ -3019,7 +3019,7 @@ Content-Type: application/json
 '    </TD>
     <TD>';
 					IF l_record.SALESFORCE_ID IS NOT NULL THEN
-						t_output := t_output || '<A href="//mozillacacommunity.force.com/' || l_record.SALESFORCE_ID || '" target="_blank">' || l_record.SALESFORCE_ID || '</A>';
+						t_output := t_output || '<A href="//ccadb.force.com/' || l_record.SALESFORCE_ID || '" target="_blank">' || l_record.SALESFORCE_ID || '</A>';
 					ELSE
 						t_output := t_output || '&nbsp;';
 					END IF;
