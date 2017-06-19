@@ -541,6 +541,7 @@ UPDATE mozilla_disclosure_temp mdt
 	SET DISCLOSURE_STATUS = 'DisclosedButConstrained'
 	FROM certificate c
 	WHERE mdt.DISCLOSURE_STATUS = 'Disclosed'
+		AND mdt.RECORD_TYPE != 'Root'
 		AND mdt.CERTIFICATE_ID = c.ID
 		AND is_technically_constrained(c.CERTIFICATE);
 
