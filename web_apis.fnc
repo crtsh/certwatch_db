@@ -5352,7 +5352,7 @@ Content-Type: text/html; charset=UTF-8
 ' || t_output || '
   <BR><BR><BR>
 ';
-		IF coalesce(get_parameter('showSQL', paramNames, paramValues), 'N') = 'Y' THEN
+		IF upper(coalesce(get_parameter('showSQL', paramNames, paramValues), 'N')) = 'Y' THEN
 			IF t_query IS NOT NULL THEN
 				t_output := t_output || '<BR><BR><TEXTAREA cols="80" rows="25">' || t_query || ';</TEXTAREA>';
 			END IF;
