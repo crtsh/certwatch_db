@@ -577,6 +577,17 @@ UPDATE mozilla_disclosure_temp mdt
 		AND x509_serialNumber(c.CERTIFICATE) = cr.SERIAL_NUMBER
 		AND c.ISSUER_CA_ID = cr.CA_ID;
 
+\echo DisclosedButInCRL -> DisclosedButRemovedFromCRL
+UPDATE mozilla_disclosure_temp mdt
+	SET DISCLOSURE_STATUS = 'DisclosedButRemovedFromCRL'
+	FROM certificate c, crl_revoked cr, crl
+	WHERE mdt.DISCLOSURE_STATUS = 'DisclosedButInCRL'
+		AND mdt.CERTIFICATE_ID = c.ID
+		AND x509_serialNumber(c.CERTIFICATE) = cr.SERIAL_NUMBER
+		AND c.ISSUER_CA_ID = cr.CA_ID
+		AND cr.CA_ID = crl.CA_ID
+		AND crl.THIS_UPDATE > cr.LAST_SEEN_CHECK_DATE;
+
 \echo Undisclosed -> Expired
 UPDATE mozilla_disclosure_temp mdt
 	SET DISCLOSURE_STATUS = 'Expired'
@@ -585,13 +596,35 @@ UPDATE mozilla_disclosure_temp mdt
 		AND mdt.CERTIFICATE_ID = c.ID
 		AND x509_notAfter(c.CERTIFICATE) < statement_timestamp();
 
-\echo Undisclosed -> TechnicallyConstrained
+\echo Undisclosed -> TechnicallyConstrainedOther
 UPDATE mozilla_disclosure_temp mdt
-	SET DISCLOSURE_STATUS = 'TechnicallyConstrained'
+	SET DISCLOSURE_STATUS = 'TechnicallyConstrainedOther'
 	FROM certificate c
 	WHERE mdt.DISCLOSURE_STATUS = 'Undisclosed'
 		AND mdt.CERTIFICATE_ID = c.ID
 		AND is_technically_constrained(c.CERTIFICATE);
+
+\echo TechnicallyConstrainedOther -> TechnicallyConstrained
+UPDATE mozilla_disclosure_temp mdt
+	SET DISCLOSURE_STATUS = 'TechnicallyConstrained'
+	FROM certificate c
+	WHERE mdt.DISCLOSURE_STATUS = 'TechnicallyConstrainedOther'
+		AND mdt.CERTIFICATE_ID = c.ID
+		AND (
+			x509_isEKUPermitted(c.CERTIFICATE, '1.3.6.1.5.5.7.3.1')
+			OR x509_isEKUPermitted(c.CERTIFICATE, '1.3.6.1.4.1.311.10.3.3')	-- MS SGC.
+			OR x509_isEKUPermitted(c.CERTIFICATE, '2.16.840.1.113730.4.1')	-- NS Step-Up.
+		)
+		AND EXISTS (
+			SELECT 1
+				FROM ca_trust_purpose ctp
+				WHERE ctp.CA_ID = c.ISSUER_CA_ID
+					AND ctp.TRUST_CONTEXT_ID = 5
+					AND ctp.TRUST_PURPOSE_ID = 1
+					AND ctp.IS_TIME_VALID
+					AND NOT ctp.ALL_CHAINS_TECHNICALLY_CONSTRAINED
+					AND NOT ctp.ALL_CHAINS_REVOKED_IN_SALESFORCE
+		);
 
 \echo Undisclosed -> NoKnownServerAuthTrustPath
 UPDATE mozilla_disclosure_temp mdt

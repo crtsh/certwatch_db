@@ -138,6 +138,7 @@ DECLARE
 	t_trustRevokedCount	integer			:= 0;
 	t_notTrustedCount	integer			:= 0;
 	t_expiredCount		integer			:= 0;
+	t_constrainedOtherCount	integer			:= 0;
 	t_constrainedCount	integer			:= 0;
 	t_revokedExpiredCount	integer		:= 0;
 	t_revokedViaOneCRLCount	integer		:= 0;
@@ -148,6 +149,7 @@ DECLARE
 	t_discRevokedCount	integer			:= 0;
 	t_discErrorCount	integer			:= 0;
 	t_discCRLCount		integer			:= 0;
+	t_discCRLRemovedCount	integer		:= 0;
 	t_disclosedCount	integer			:= 0;
 	t_unknownCount		integer			:= 0;
 	t_caPublicKey		ca.PUBLIC_KEY%TYPE;
@@ -1535,6 +1537,69 @@ Content-Type: application/json
 		FOR l_record IN (
 					SELECT *
 						FROM mozilla_disclosure md
+						WHERE md.DISCLOSURE_STATUS = 'DisclosedButRemovedFromCRL'
+							AND md.CERTIFICATE_ID IS NOT NULL
+						ORDER BY md.INCLUDED_CERTIFICATE_OWNER, md.ISSUER_O, md.ISSUER_CN NULLS FIRST, md.RECORD_TYPE DESC,
+								md.SUBJECT_O, md.SUBJECT_CN NULLS FIRST, md.CA_OWNER_OR_CERT_NAME NULLS FIRST
+				) LOOP
+			t_discCRLRemovedCount := t_discCRLRemovedCount + 1;
+			t_temp2 := t_temp2 ||
+'  <TR>
+    <TD>';
+			IF l_record.INCLUDED_CERTIFICATE_ID IS NULL THEN
+				t_temp2 := t_temp2 || coalesce(html_escape(l_record.INCLUDED_CERTIFICATE_OWNER), '&nbsp;');
+			ELSE
+				t_temp2 := t_temp2 || '<A href="/?id=' || l_record.INCLUDED_CERTIFICATE_ID::text || '">' || coalesce(html_escape(l_record.INCLUDED_CERTIFICATE_OWNER), '&nbsp;') || '</A>';
+			END IF;
+			t_temp2 := t_temp2 || '</TD>
+    <TD>' || coalesce(html_escape(l_record.ISSUER_O), '&nbsp;') || '</TD>
+    <TD>' || coalesce(html_escape(l_record.ISSUER_CN), '&nbsp;') || '</TD>
+    <TD>' || coalesce(html_escape(l_record.SUBJECT_O), '&nbsp;') || '</TD>
+    <TD>';
+			IF l_record.RECORD_TYPE = 'Root' THEN
+				t_temp2 := t_temp2 || '<B>[Root]</B> ';
+			END IF;
+			IF l_record.SALESFORCE_ID IS NOT NULL THEN
+				t_temp2 := t_temp2 || '<A href="//ccadb.force.com/' || l_record.SALESFORCE_ID || '" target="_blank">';
+			END IF;
+			t_temp2 := t_temp2 || coalesce(html_escape(l_record.CA_OWNER_OR_CERT_NAME), '&nbsp;');
+			IF l_record.SALESFORCE_ID IS NOT NULL THEN
+				t_temp2 := t_temp2 || '</A>';
+			END IF;
+			t_temp2 := t_temp2 || '</TD>
+    <TD style="font-family:monospace"><A href="/?sha256=' || encode(l_record.CERT_SHA256, 'hex') || '&opt=mozilladisclosure" target="blank">' || substr(upper(encode(l_record.CERT_SHA256, 'hex')), 1, 16) || '...</A></TD>
+  </TR>
+';
+		END LOOP;
+		t_temp2 :=
+'<BR><BR><SPAN class="title" style="background-color:#F2A2E8"><A name="disclosedandunrevokedfromcrl">Disclosed (as Not Revoked) and "Unrevoked" from CRL</A></SPAN>
+<SPAN class="whiteongrey">' || t_discCRLRemovedCount::text || ' CA certificates</SPAN>
+<BR>
+<TABLE style="background-color:#F2A2E8">
+  <TR>
+    <TH>Root Owner / Certificate</TH>
+    <TH>Issuer O</TH>
+    <TH>Issuer CN</TH>
+    <TH>Subject O</TH>
+    <TH>Subject CN</TH>
+    <TH>SHA-256(Certificate)</TH>
+  </TR>
+' || t_temp2;
+		IF t_discCRLRemovedCount = 0 THEN
+			t_temp2 := t_temp2 ||
+'  <TR><TD colspan="6">None found</TD></TR>
+';
+		END IF;
+		t_temp2 := t_temp2 ||
+'</TABLE>
+';
+
+		t_temp := t_temp2 || t_temp;
+
+		t_temp2 := '';
+		FOR l_record IN (
+					SELECT *
+						FROM mozilla_disclosure md
 						WHERE md.DISCLOSURE_STATUS = 'DisclosedButInCRL'
 							AND md.CERTIFICATE_ID IS NOT NULL
 						ORDER BY md.INCLUDED_CERTIFICATE_OWNER, md.ISSUER_O, md.ISSUER_CN NULLS FIRST, md.RECORD_TYPE DESC,
@@ -2102,6 +2167,69 @@ Content-Type: application/json
 		FOR l_record IN (
 					SELECT *
 						FROM mozilla_disclosure md
+						WHERE md.DISCLOSURE_STATUS = 'TechnicallyConstrainedOther'
+							AND md.CERTIFICATE_ID IS NOT NULL
+						ORDER BY md.INCLUDED_CERTIFICATE_OWNER, md.ISSUER_O, md.ISSUER_CN NULLS FIRST, md.RECORD_TYPE DESC,
+								md.SUBJECT_O, md.SUBJECT_CN NULLS FIRST, md.CA_OWNER_OR_CERT_NAME NULLS FIRST
+				) LOOP
+			t_constrainedOtherCount := t_constrainedOtherCount + 1;
+			t_temp2 := t_temp2 ||
+'  <TR>
+    <TD>';
+			IF l_record.INCLUDED_CERTIFICATE_ID IS NULL THEN
+				t_temp2 := t_temp2 || coalesce(html_escape(l_record.INCLUDED_CERTIFICATE_OWNER), '&nbsp;');
+			ELSE
+				t_temp2 := t_temp2 || '<A href="/?id=' || l_record.INCLUDED_CERTIFICATE_ID::text || '">' || coalesce(html_escape(l_record.INCLUDED_CERTIFICATE_OWNER), '&nbsp;') || '</A>';
+			END IF;
+			t_temp2 := t_temp2 || '</TD>
+    <TD>' || coalesce(html_escape(l_record.ISSUER_O), '&nbsp;') || '</TD>
+    <TD>' || coalesce(html_escape(l_record.ISSUER_CN), '&nbsp;') || '</TD>
+    <TD>' || coalesce(html_escape(l_record.SUBJECT_O), '&nbsp;') || '</TD>
+    <TD>';
+			IF l_record.RECORD_TYPE = 'Root' THEN
+				t_temp2 := t_temp2 || '<B>[Root]</B> ';
+			END IF;
+			IF l_record.SALESFORCE_ID IS NOT NULL THEN
+				t_temp2 := t_temp2 || '<A href="//ccadb.force.com/' || l_record.SALESFORCE_ID || '" target="_blank">';
+			END IF;
+			t_temp2 := t_temp2 || coalesce(html_escape(l_record.CA_OWNER_OR_CERT_NAME), '&nbsp;');
+			IF l_record.SALESFORCE_ID IS NOT NULL THEN
+				t_temp2 := t_temp2 || '</A>';
+			END IF;
+			t_temp2 := t_temp2 || '</TD>
+    <TD style="font-family:monospace"><A href="/?sha256=' || encode(l_record.CERT_SHA256, 'hex') || '&opt=mozilladisclosure" target="blank">' || substr(upper(encode(l_record.CERT_SHA256, 'hex')), 1, 16) || '...</A></TD>
+  </TR>
+';
+		END LOOP;
+		t_temp2 :=
+'<BR><BR><SPAN class="title" style="background-color:#BAED91"><A name="constrainedother">Technically Constrained (Other): Disclosure is not required</A></SPAN>
+<SPAN class="whiteongrey">' || t_constrainedOtherCount::text || ' CA certificates</SPAN>
+<BR>
+<TABLE style="background-color:#BAED91">
+  <TR>
+    <TH>Root Owner / Certificate</TH>
+    <TH>Issuer O</TH>
+    <TH>Issuer CN</TH>
+    <TH>Subject O</TH>
+    <TH>Subject CN</TH>
+    <TH>SHA-256(Certificate)</TH>
+  </TR>
+' || t_temp2;
+		IF t_constrainedOtherCount = 0 THEN
+			t_temp2 := t_temp2 ||
+'  <TR><TD colspan="6">None found</TD></TR>
+';
+		END IF;
+		t_temp2 := t_temp2 ||
+'</TABLE>
+';
+
+		t_temp := t_temp2 || t_temp;
+
+		t_temp2 := '';
+		FOR l_record IN (
+					SELECT *
+						FROM mozilla_disclosure md
 						WHERE md.DISCLOSURE_STATUS = 'TechnicallyConstrained'
 							AND md.CERTIFICATE_ID IS NOT NULL
 						ORDER BY md.INCLUDED_CERTIFICATE_OWNER, md.ISSUER_O, md.ISSUER_CN NULLS FIRST, md.RECORD_TYPE DESC,
@@ -2137,7 +2265,7 @@ Content-Type: application/json
 ';
 		END LOOP;
 		t_temp2 :=
-'<BR><BR><SPAN class="title" style="background-color:#BAED91"><A name="constrained">Technically Constrained: Disclosure is not required</A></SPAN>
+'<BR><BR><SPAN class="title" style="background-color:#BAED91"><A name="constrained">Technically Constrained id-kp-serverAuth Trust: Disclosure is not currently required</A></SPAN>
 <SPAN class="whiteongrey">' || t_constrainedCount::text || ' CA certificates</SPAN>
 <BR>
 <TABLE style="background-color:#BAED91">
@@ -2592,9 +2720,14 @@ Content-Type: application/json
     <TD><A href="#expired">' || t_expiredCount::text || '</A></TD>
   </TR>
   <TR style="background-color:#BAED91">
-    <TD>Technically Constrained</TD>
-    <TD>No</TD>
+    <TD>Technically Constrained id-kp-serverAuth Trust</TD>
+    <TD><A href="//www.mail-archive.com/dev-security-policy@lists.mozilla.org/msg06905.html" target="_blank">Maybe soon?</A></TD>
     <TD><A href="#constrained">' || t_constrainedCount::text || '</A></TD>
+  </TR>
+  <TR style="background-color:#BAED91">
+    <TD>Technically Constrained (Other)</TD>
+    <TD>No</TD>
+    <TD><A href="#constrainedother">' || t_constrainedOtherCount::text || '</A></TD>
   </TR>
   <TR style="background-color:#B2CEFE">
     <TD>Disclosed as Revoked, but Expired</TD>
@@ -2640,6 +2773,11 @@ Content-Type: application/json
     <TD>Disclosed (as Not Revoked), but Revoked via CRL</TD>
     <TD>Already disclosed</TD>
     <TD><A href="#disclosedbutincrl">' || t_discCRLCount::text || '</A></TD>
+  </TR>
+  <TR style="background-color:#F2A2E8">
+    <TD>Disclosed (as Not Revoked) and "Unrevoked" from CRL</TD>
+    <TD>Already disclosed</TD>
+    <TD><A href="#disclosedandunrevokedfromcrl">' || t_discCRLRemovedCount::text || '</A></TD>
   </TR>
   <TR style="background-color:#F2A2E8">
     <TD>Disclosed</TD>
