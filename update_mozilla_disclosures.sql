@@ -686,6 +686,8 @@ UPDATE mozilla_disclosure_temp mdt
 		AND mdt.DISCLOSURE_STATUS = md.DISCLOSURE_STATUS
 		AND md.LAST_DISCLOSURE_STATUS_CHANGE IS NOT NULL;
 
+GRANT SELECT ON mozilla_disclosure_temp TO guest;
+
 DROP TABLE mozilla_disclosure;
 
 ALTER TABLE mozilla_disclosure_temp RENAME TO mozilla_disclosure;

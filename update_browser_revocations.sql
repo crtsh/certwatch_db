@@ -62,6 +62,8 @@ UPDATE mozilla_onecrl_new mon
 
 GRANT SELECT ON mozilla_onecrl_new TO httpd;
 
+GRANT SELECT ON mozilla_onecrl_new TO guest;
+
 BEGIN WORK;
 
 DROP TABLE mozilla_onecrl;

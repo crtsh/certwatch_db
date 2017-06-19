@@ -182,6 +182,8 @@ ANALYZE lint_1week_summary_temp;
 
 GRANT SELECT ON lint_1week_summary_temp TO httpd;
 
+GRANT SELECT ON lint_1week_summary_temp TO guest;
+
 DROP TABLE lint_1week_summary;
 
 ALTER TABLE lint_1week_summary_temp RENAME TO lint_1week_summary;
