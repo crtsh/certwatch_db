@@ -108,7 +108,8 @@ SELECT	c.ID	CERTIFICATE_ID,
 			ELSE mdi.SUBJECT_O
 		END SUBJECT_O,
 		decode(replace(mdi.CERT_SHA256, ':', ''), 'hex') CERT_SHA256,
-		'Disclosed'::disclosure_status_type	DISCLOSURE_STATUS
+		'Disclosed'::disclosure_status_type	DISCLOSURE_STATUS,
+		statement_timestamp()	LAST_DISCLOSURE_STATUS_CHANGE
 	FROM mozilla_disclosure_import mdi
 		LEFT OUTER JOIN certificate c ON (decode(replace(mdi.CERT_SHA256, ':', ''), 'hex') = digest(c.CERTIFICATE, 'sha256'));
 
@@ -175,7 +176,8 @@ INSERT INTO mozilla_disclosure_temp (
 		SUBJECT_CN,
 		SUBJECT_O,
 		CERT_SHA256,
-		DISCLOSURE_STATUS
+		DISCLOSURE_STATUS,
+		LAST_DISCLOSURE_STATUS_CHANGE
 	)
 	SELECT c.ID, mrdi.CA_OWNER, NULL, 'Revoked',
 			CASE WHEN (mrdi.CA_OWNER_OR_CERT_NAME = '') THEN NULL
@@ -196,7 +198,8 @@ INSERT INTO mozilla_disclosure_temp (
 			decode(replace(mrdi.CERT_SHA256, ':', ''), 'hex'),
 			CASE WHEN (mrdi.REVOCATION_STATUS = 'Parent Cert Revoked') THEN 'ParentRevoked'::disclosure_status_type
 				ELSE 'Revoked'::disclosure_status_type
-			END
+			END,
+			statement_timestamp()
 		FROM mozilla_revoked_disclosure_import mrdi
 			LEFT OUTER JOIN certificate c ON (decode(replace(mrdi.CERT_SHA256, ':', ''), 'hex') = digest(c.CERTIFICATE, 'sha256'));
 
@@ -278,7 +281,8 @@ INSERT INTO mozilla_disclosure_temp (
 		SUBJECT_CN,
 		SUBJECT_O,
 		CERT_SHA256,
-		DISCLOSURE_STATUS
+		DISCLOSURE_STATUS,
+		LAST_DISCLOSURE_STATUS_CHANGE
 	)
 	SELECT c.ID, mii.CA_OWNER, NULL, 'Root',
 			FALSE,
@@ -309,7 +313,8 @@ INSERT INTO mozilla_disclosure_temp (
 			(SELECT x509_nameAttributes(c.CERTIFICATE, 'commonName', TRUE) LIMIT 1),
 			(SELECT x509_nameAttributes(c.CERTIFICATE, 'organizationName', TRUE) LIMIT 1),
 			decode(replace(mii.CERT_SHA256, ':', ''), 'hex'),
-			'Disclosed'
+			'Disclosed',
+			statement_timestamp()
 		FROM mozilla_included_import mii
 			LEFT OUTER JOIN certificate c ON (decode(replace(mii.CERT_SHA256, ':', ''), 'hex') = digest(c.CERTIFICATE, 'sha256'));
 
@@ -327,14 +332,16 @@ INSERT INTO mozilla_disclosure_temp (
 		ISSUER_CN,
 		SUBJECT_O,
 		SUBJECT_CN,
-		CERT_SHA256, DISCLOSURE_STATUS
+		CERT_SHA256, DISCLOSURE_STATUS,
+		LAST_DISCLOSURE_STATUS_CHANGE
 	)
 	SELECT c.ID, get_ca_name_attribute(cac.CA_ID),
 			get_ca_name_attribute(c.ISSUER_CA_ID, 'organizationName'),
 			get_ca_name_attribute(c.ISSUER_CA_ID, 'commonName'),
 			get_ca_name_attribute(cac.CA_ID, 'organizationName'),
 			get_ca_name_attribute(cac.CA_ID, 'commonName'),
-			digest(c.CERTIFICATE, 'sha256'), 'Undisclosed'
+			digest(c.CERTIFICATE, 'sha256'), 'Undisclosed',
+			statement_timestamp()
 		FROM ca, ca_certificate cac, certificate c
 		WHERE ca.LINTING_APPLIES
 			AND ca.ID = cac.CA_ID
@@ -637,6 +644,13 @@ DROP TABLE mozilla_revoked_disclosure_manual_import;
 DROP TABLE mozilla_included_import;
 
 DROP TABLE mozilla_included_manual_import;
+
+UPDATE mozilla_disclosure_temp mdt
+	SET LAST_DISCLOSURE_STATUS_CHANGE = md.LAST_DISCLOSURE_STATUS_CHANGE
+	FROM mozilla_disclosure md
+	WHERE mdt.CERT_SHA256 = md.CERT_SHA256
+		AND mdt.DISCLOSURE_STATUS = md.DISCLOSURE_STATUS
+		AND md.LAST_DISCLOSURE_STATUS_CHANGE IS NOT NULL;
 
 DROP TABLE mozilla_disclosure;
 

@@ -2387,10 +2387,18 @@ Content-Type: application/json
 						ORDER BY md.INCLUDED_CERTIFICATE_OWNER, md.ISSUER_O, md.ISSUER_CN NULLS FIRST, md.RECORD_TYPE DESC,
 								md.SUBJECT_O, md.SUBJECT_CN NULLS FIRST, md.CA_OWNER_OR_CERT_NAME NULLS FIRST
 				) LOOP
+			SELECT to_char(ctle.ENTRY_TIMESTAMP, 'YYYY-MM-DD')
+						|| '&nbsp; <FONT class="small">'
+						|| to_char(ctle.ENTRY_TIMESTAMP, 'HH24:MI:SS UTC')
+				INTO t_temp3
+				FROM ct_log_entry ctle
+				WHERE ctle.CERTIFICATE_ID = l_record.CERTIFICATE_ID;
 			t_undisclosedCount := t_undisclosedCount + 1;
 			t_temp2 := t_temp2 ||
 '  <TR>
     <TD>' || t_undisclosedCount::text || '</TD>
+    <TD>' || coalesce(t_temp3, '') || '</TD>
+    <TD>' || coalesce(to_char(l_record.LAST_DISCLOSURE_STATUS_CHANGE, 'YYYY-MM-DD') || '&nbsp; <FONT class="small">' || to_char(l_record.LAST_DISCLOSURE_STATUS_CHANGE, 'HH24:MI:SS UTC'), '') || '</TD>
     <TD>';
 			IF l_record.INCLUDED_CERTIFICATE_ID IS NULL THEN
 				t_temp2 := t_temp2 || coalesce(html_escape(l_record.INCLUDED_CERTIFICATE_OWNER), '&nbsp;');
@@ -2424,6 +2432,8 @@ Content-Type: application/json
 <TABLE style="background-color:#FEA3AA">
   <TR>
     <TH>#</TH>
+    <TH>Earliest SCT</TH>
+    <TH>Listed Here Since</TH>
     <TH>Root Owner / Certificate</TH>
     <TH>Issuer O</TH>
     <TH>Issuer CN</TH>
@@ -2434,7 +2444,7 @@ Content-Type: application/json
 ' || t_temp2;
 		IF t_undisclosedCount = 0 THEN
 			t_temp2 := t_temp2 ||
-'  <TR><TD colspan="6">None found</TD></TR>
+'  <TR><TD colspan="9">None found</TD></TR>
 ';
 		END IF;
 		t_temp2 := t_temp2 ||
@@ -2480,9 +2490,18 @@ Content-Type: application/json
 						ORDER BY md.INCLUDED_CERTIFICATE_OWNER, md.ISSUER_O, md.ISSUER_CN NULLS FIRST, md.RECORD_TYPE DESC,
 								md.SUBJECT_O, md.SUBJECT_CN NULLS FIRST, md.CA_OWNER_OR_CERT_NAME NULLS FIRST
 				) LOOP
+			SELECT to_char(ctle.ENTRY_TIMESTAMP, 'YYYY-MM-DD')
+						|| '&nbsp; <FONT class="small">'
+						|| to_char(ctle.ENTRY_TIMESTAMP, 'HH24:MI:SS UTC')
+				INTO t_temp3
+				FROM ct_log_entry ctle
+				WHERE ctle.CERTIFICATE_ID = l_record.CERTIFICATE_ID;
 			t_incompleteCount := t_incompleteCount + 1;
 			t_temp2 := t_temp2 ||
 '  <TR>
+    <TD>' || t_incompleteCount::text || '</TD>
+    <TD>' || coalesce(t_temp3, '') || '</TD>
+    <TD>' || coalesce(to_char(l_record.LAST_DISCLOSURE_STATUS_CHANGE, 'YYYY-MM-DD') || '&nbsp; <FONT class="small">' || to_char(l_record.LAST_DISCLOSURE_STATUS_CHANGE, 'HH24:MI:SS UTC'), '') || '</TD>
     <TD>';
 			IF l_record.INCLUDED_CERTIFICATE_ID IS NULL THEN
 				t_temp2 := t_temp2 || coalesce(html_escape(l_record.INCLUDED_CERTIFICATE_OWNER), '&nbsp;');
@@ -2515,6 +2534,9 @@ Content-Type: application/json
 <BR>
 <TABLE style="background-color:#FE838A">
   <TR>
+    <TH>#</TH>
+    <TH>Earliest SCT</TH>
+    <TH>Listed Here Since</TH>
     <TH>Root Owner / Certificate</TH>
     <TH>Issuer O</TH>
     <TH>Issuer CN</TH>
@@ -2525,7 +2547,7 @@ Content-Type: application/json
 ' || t_temp2;
 		IF t_incompleteCount = 0 THEN
 			t_temp2 := t_temp2 ||
-'  <TR><TD colspan="6">None found</TD></TR>
+'  <TR><TD colspan="9">None found</TD></TR>
 ';
 		END IF;
 		t_temp2 := t_temp2 ||
