@@ -3096,13 +3096,16 @@ Content-Type: application/json
 							WHEN 8 THEN ' (aACompromise)'
 							ELSE ''
 						END
-					|| '</SPAN></TD><TD>Serial Number</TD><TD>'
+					|| '</SPAN></TD><TD>'
 					|| to_char(cr.REVOCATION_DATE, 'YYYY-MM-DD') || '&nbsp; <FONT class="small">'
-					|| to_char(cr.REVOCATION_DATE, 'HH24:MI:SS UTC') || '</FONT>'
+					|| to_char(cr.REVOCATION_DATE, 'HH24:MI:SS UTC') || '</FONT></TD><TD>'
+					|| to_char(cr.LAST_SEEN_CHECK_DATE, 'YYYY-MM-DD') || '&nbsp; <FONT class="small">'
+					|| to_char(cr.LAST_SEEN_CHECK_DATE, 'HH24:MI:SS UTC') || '</FONT>'
 				INTO t_temp0
 				FROM crl_revoked cr
 				WHERE cr.CA_ID = t_issuerCAID
 					AND cr.SERIAL_NUMBER = t_serialNumber;
+			t_count := 1;
 			IF NOT FOUND THEN
 				SELECT count(*)
 					INTO t_count
@@ -3113,39 +3116,46 @@ Content-Type: application/json
 				IF t_count > 0 THEN
 					t_temp0 := 'Not Revoked</TD><TD><SPAN style="color:#888888">n/a</SPAN></TD><TD><SPAN style="color:#888888">n/a</SPAN>';
 				ELSE
-					SELECT min(ERROR_MESSAGE)
-						INTO t_temp0
-						FROM crl
-						WHERE crl.CA_ID = t_issuerCAID
-							AND crl.ERROR_MESSAGE IS NOT NULL;
-					IF t_temp0 IS NOT NULL THEN
-						t_temp0 := '&nbsp;<SPAN style="color:#888888;vertical-align:middle;font-size:70%">(' || html_escape(t_temp0) || ')</SPAN>&nbsp;';
-					ELSE
-						t_temp0 := 'n/a';
-					END IF;
-					t_temp0 := '<SPAN style="color:#FF9400">Unknown</SPAN></TD><TD><SPAN style="color:#888888">' || t_temp0 || '<SPAN>';
+					t_temp0 := '<SPAN style="color:#FF9400">Unknown</SPAN></TD><TD><SPAN style="color:#888888">n/a<SPAN></TD><TD><SPAN style="color:#888888">n/a<SPAN>';
 				END IF;
 			END IF;
 
-			SELECT '<SPAN style="color:#CC0000">Revoked</SPAN></TD><TD>' || gr.ENTRY_TYPE
+			SELECT to_char(max(crl.LAST_CHECKED), 'YYYY-MM-DD') || '&nbsp; <FONT class="small">'
+					|| to_char(max(crl.LAST_CHECKED), 'HH24:MI:SS UTC') || '</FONT>'
+				INTO t_temp
+				FROM crl
+				WHERE crl.CA_ID = t_issuerCAID;
+			t_temp0 := t_temp0 || '</TD><TD>' || coalesce(t_temp, '');
+			IF t_count = 0 THEN
+				SELECT array_to_string(array_agg('<FONT color="#CC0000">' || html_escape(crl.ERROR_MESSAGE) || '</FONT> [' || html_escape(crl.DISTRIBUTION_POINT_URL || ']')), '<BR>')
+					INTO t_temp
+					FROM crl
+					WHERE crl.CA_ID = t_issuerCAID
+						AND crl.ERROR_MESSAGE IS NOT NULL;
+				IF t_temp IS NOT NULL THEN
+					t_temp0 := t_temp0 || '<BR><SPAN style="vertical-align:middle;font-size:70%">' || coalesce(t_temp, '') || '</SPAN>';
+				END IF;
+			END IF;
+
+			SELECT '<SPAN style="color:#CC0000">Revoked [by ' || gr.ENTRY_TYPE || ']</SPAN>'
 				INTO t_temp
 				FROM google_revoked gr
 				WHERE gr.CERTIFICATE_ID = t_certificateID;
-			t_temp := coalesce(t_temp, 'Not Revoked</TD><TD><SPAN style="color:#888888">n/a</SPAN>');
+			t_temp := coalesce(t_temp, 'Not Revoked');
 
-			SELECT '<SPAN style="color:#CC0000">Revoked</SPAN></TD><TD>MD5(PublicKey)'
+			SELECT '<SPAN style="color:#CC0000">Revoked [by MD5(PublicKey)]</SPAN>'
 				INTO t_temp2
 				FROM microsoft_disallowedcert mdc
 				WHERE mdc.CERTIFICATE_ID = t_certificateID;
-			t_temp2 := coalesce(t_temp2, 'Not Revoked</TD><TD><SPAN style="color:#888888">n/a</SPAN>');
+			t_temp2 := coalesce(t_temp2, 'Not Revoked');
 
-			SELECT '<SPAN style="color:#CC0000">Revoked</SPAN></TD><TD>Issuer Name, Serial Number</TD><TD>'
+			SELECT '<SPAN style="color:#CC0000">Revoked [by Issuer Name, Serial Number]</SPAN></TD><TD>'
 					|| to_char(mo.CREATED, 'YYYY-MM-DD') || '&nbsp; <FONT class="small">'
 					|| to_char(mo.CREATED, 'HH24:MI:SS UTC') || '</FONT>'
 				INTO t_temp3
 				FROM mozilla_onecrl mo
 				WHERE mo.CERTIFICATE_ID = t_certificateID;
-			t_temp3 := coalesce(t_temp3, 'Not Revoked</TD><TD><SPAN style="color:#888888">n/a</SPAN></TD><TD><SPAN style="color:#888888">n/a</SPAN>');
+			t_temp3 := coalesce(t_temp3, 'Not Revoked</TD><TD><SPAN style="color:#888888">n/a</SPAN>');
 
 			t_output := t_output ||
 '  <TR>
@@ -3156,8 +3166,9 @@ Content-Type: application/json
           <TH>Mechanism</TH>
           <TH>Provider</TH>
           <TH>Status</TH>
-          <TH>Revoked by <SPAN style="color:#888888;vertical-align:middle;font-size:70%">(Error)</SPAN></TH>
           <TH>Revocation Date</TH>
+          <TH>Last Observed in CRL</TH>
+          <TH>Last Checked <SPAN style="color:#CC0000;vertical-align:middle;font-size:70%;font-weight:normal">(Error)</SPAN></TH>
         </TR>
         <TR>
           <TD>CRL</TD>
@@ -3165,9 +3176,11 @@ Content-Type: application/json
           <TD>' || t_temp0 || '</TD>
         </TR>
         <TR>
-          <TD>CRLSet / Blacklist</TD>
+          <TD>CRLSet/Blacklist</TD>
           <TD>Google</TD>
           <TD>' || t_temp || '</TD>
+          <TD><SPAN style="color:#888888">n/a</SPAN></TD>
+          <TD><SPAN style="color:#888888">n/a</SPAN></TD>
           <TD><SPAN style="color:#888888">n/a</SPAN></TD>
         </TR>
         <TR>
@@ -3175,11 +3188,15 @@ Content-Type: application/json
           <TD>Microsoft</TD>
           <TD>' || t_temp2 || '</TD>
           <TD><SPAN style="color:#888888">n/a</SPAN></TD>
+          <TD><SPAN style="color:#888888">n/a</SPAN></TD>
+          <TD><SPAN style="color:#888888">n/a</SPAN></TD>
         </TR>
         <TR>
           <TD><A href="/mozilla-onecrl" target="_blank">OneCRL</A></TD>
           <TD>Mozilla</TD>
           <TD>' || t_temp3 || '</TD>
+          <TD><SPAN style="color:#888888">n/a</SPAN></TD>
+          <TD><SPAN style="color:#888888">n/a</SPAN></TD>
         </TR>
       </TABLE>
     </TD>
