@@ -27,7 +27,7 @@ DECLARE
 	t_text				text;
 	t_temp				text;
 	t_offset1			integer;
-	t_index				integer		:= 1;
+	t_index				integer		:= 2;
 	t_line				text[];
 	t_isPermitted		boolean;
 	t_permittedDNS		boolean		:= FALSE;
@@ -61,7 +61,7 @@ BEGIN
 	t_codeSigning := FALSE;	-- x509_isEKUPermitted(cert_data, '1.3.6.1.5.5.7.3.3');
 	IF t_serverAuth OR t_codeSigning THEN
 		t_text := x509_print(cert_data);
-		t_temp := '            X509v3 Name Constraints: ' || chr(10);
+		t_temp := '            X509v3 Name Constraints:';
 		t_offset1 := position(t_temp in t_text);
 		IF t_offset1 = 0 THEN
 			RETURN FALSE;
