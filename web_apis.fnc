@@ -163,6 +163,7 @@ DECLARE
 	t_cacheControlMaxAge	integer		:= 300;
 	t_versions			text[];
 	t_date				date;
+	t_onlyOneChain		boolean;
 BEGIN
 	FOR t_paramNo IN 1..array_length(c_params, 1) LOOP
 		IF t_cmd IS NULL THEN
@@ -972,6 +973,7 @@ BEGIN
 
 	ELSIF t_type = 'gen-add-chain' THEN
 		t_temp := get_parameter('b64cert', paramNames, paramValues);
+		t_onlyOneChain := lower(coalesce(get_parameter('onlyonechain', paramNames, paramValues), 'n')) = 'y';
 		IF t_temp IS NULL THEN
 			t_output := t_output ||
 '  <SPAN class="whiteongrey">Certificate Submission Assistant</SPAN>
@@ -1000,7 +1002,7 @@ BEGIN
 Content-Disposition: attachment; filename="' || upper(encode(digest(t_certificate, 'sha256'), 'hex')) || '_' || coalesce(t_certificateID::text, 'UNKNOWN') || '.add-chain.json"
 Content-Type: application/json
 [END_HEADERS]
-' || generate_add_chain_body(t_certificate);
+' || generate_add_chain_body(t_certificate, t_onlyOneChain);
 		END IF;
 
 	ELSIF t_type = 'revoked-intermediates' THEN

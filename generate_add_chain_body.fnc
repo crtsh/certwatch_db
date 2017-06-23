@@ -17,7 +17,8 @@
  */
 
 CREATE OR REPLACE FUNCTION generate_add_chain_body(
-	cert_data				certificate.CERTIFICATE%TYPE
+	cert_data				certificate.CERTIFICATE%TYPE,
+	only_one_chain			boolean
 ) RETURNS text
 AS $$
 DECLARE
@@ -51,22 +52,22 @@ BEGIN
 					ORDER BY cac.CERTIFICATE_ID
 					LIMIT 1
 			) LOOP
-		SELECT enumerate_chains(l_caCert.CERTIFICATE_ID, TRUE, 5, NULL)
+		SELECT enumerate_chains(l_caCert.CERTIFICATE_ID, TRUE, 5, NULL, only_one_chain)
 			INTO t_certChain;
 		EXIT WHEN FOUND;
-		SELECT enumerate_chains(l_caCert.CERTIFICATE_ID, TRUE, 1, NULL)
+		SELECT enumerate_chains(l_caCert.CERTIFICATE_ID, TRUE, 1, NULL, only_one_chain)
 			INTO t_certChain;
 		EXIT WHEN FOUND;
-		SELECT enumerate_chains(l_caCert.CERTIFICATE_ID, TRUE, 12, NULL)
+		SELECT enumerate_chains(l_caCert.CERTIFICATE_ID, TRUE, 12, NULL, only_one_chain)
 			INTO t_certChain;
 		EXIT WHEN FOUND;
-		SELECT enumerate_chains(l_caCert.CERTIFICATE_ID, FALSE, 5, NULL)
+		SELECT enumerate_chains(l_caCert.CERTIFICATE_ID, FALSE, 5, NULL, only_one_chain)
 			INTO t_certChain;
 		EXIT WHEN FOUND;
-		SELECT enumerate_chains(l_caCert.CERTIFICATE_ID, FALSE, 1, NULL)
+		SELECT enumerate_chains(l_caCert.CERTIFICATE_ID, FALSE, 1, NULL, only_one_chain)
 			INTO t_certChain;
 		EXIT WHEN FOUND;
-		SELECT enumerate_chains(l_caCert.CERTIFICATE_ID, FALSE, 12, NULL)
+		SELECT enumerate_chains(l_caCert.CERTIFICATE_ID, FALSE, 12, NULL, only_one_chain)
 			INTO t_certChain;
 		EXIT WHEN FOUND;
 	END LOOP;
