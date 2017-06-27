@@ -145,6 +145,7 @@ DECLARE
 	t_revokedCount		integer			:= 0;
 	t_parentRevokedCount	integer		:= 0;
 	t_discExpiredCount	integer			:= 0;
+	t_discUntrustedCount	integer		:= 0;
 	t_discConstrainedCount	integer		:= 0;
 	t_discRevokedCount	integer			:= 0;
 	t_discErrorCount	integer			:= 0;
@@ -427,10 +428,16 @@ BEGIN
 		END IF;
 		t_output := t_output ||
 '  <STYLE type="text/css">
-    a {
+';
+		IF t_type != 'mozilla-disclosures' THEN
+			t_output := t_output ||
+'    a {
       white-space: nowrap;
     }
-    body {
+';
+		END IF;
+		t_output := t_output ||
+'    body {
       color: #888888;
       font: 12pt Arial, sans-serif;
       padding-top: 10px;
@@ -1402,17 +1409,17 @@ Content-Type: application/json
 
 		t_temp := '';
 		FOR l_record IN (
-					SELECT md.CA_OWNER_OR_CERT_NAME, md.INCLUDED_CERTIFICATE_ID, md.INCLUDED_CERTIFICATE_OWNER,
-							md.RECORD_TYPE,
-							md.ISSUER_O, md.ISSUER_CN, md.SUBJECT_O, md.SUBJECT_CN, md.CERT_SHA256, md.SALESFORCE_ID,
+					SELECT cc.CERT_NAME, cc.INCLUDED_CERTIFICATE_ID, cc.INCLUDED_CERTIFICATE_OWNER,
+							cc.CERT_RECORD_TYPE,
+							cc.ISSUER_O, cc.ISSUER_CN, cc.SUBJECT_O, cc.SUBJECT_CN, cc.CERT_SHA256, cc.SALESFORCE_ID,
 							ic.CERTIFICATE_ID, ic.PROBLEMS
-						FROM mozilla_disclosure md
+						FROM ccadb_certificate cc
 								LEFT OUTER JOIN invalid_certificate ic
-									ON (md.CERT_SHA256 = digest(ic.CERTIFICATE_AS_LOGGED, 'sha256'))
-						WHERE md.CERTIFICATE_ID IS NULL
-						ORDER BY (ic.PROBLEMS IS NOT NULL), md.INCLUDED_CERTIFICATE_OWNER,
-								md.ISSUER_O, md.ISSUER_CN NULLS FIRST, md.RECORD_TYPE DESC,
-								md.SUBJECT_O, md.SUBJECT_CN NULLS FIRST, md.CA_OWNER_OR_CERT_NAME NULLS FIRST
+									ON (cc.CERT_SHA256 = digest(ic.CERTIFICATE_AS_LOGGED, 'sha256'))
+						WHERE cc.CERTIFICATE_ID IS NULL
+						ORDER BY (ic.PROBLEMS IS NOT NULL), cc.INCLUDED_CERTIFICATE_OWNER,
+								cc.ISSUER_O, cc.ISSUER_CN NULLS FIRST, cc.CERT_RECORD_TYPE DESC,
+								cc.SUBJECT_O, cc.SUBJECT_CN NULLS FIRST, cc.CERT_NAME NULLS FIRST
 				) LOOP
 			t_unknownCount := t_unknownCount + 1;
 			t_temp := t_temp ||
@@ -1428,13 +1435,13 @@ Content-Type: application/json
     <TD>' || coalesce(html_escape(l_record.ISSUER_CN), '&nbsp;') || '</TD>
     <TD>' || coalesce(html_escape(l_record.SUBJECT_O), '&nbsp;') || '</TD>
     <TD>';
-			IF l_record.RECORD_TYPE = 'Root' THEN
+			IF l_record.CERT_RECORD_TYPE = 'Root' THEN
 				t_temp := t_temp || '<B>[Root]</B> ';
 			END IF;
 			IF l_record.SALESFORCE_ID IS NOT NULL THEN
 				t_temp := t_temp || '<A href="//ccadb.force.com/' || l_record.SALESFORCE_ID || '" target="_blank">';
 			END IF;
-			t_temp := t_temp || coalesce(html_escape(l_record.CA_OWNER_OR_CERT_NAME), '&nbsp;');
+			t_temp := t_temp || coalesce(html_escape(l_record.CERT_NAME), '&nbsp;');
 			IF l_record.SALESFORCE_ID IS NOT NULL THEN
 				t_temp := t_temp || '</A>';
 			END IF;
@@ -1475,11 +1482,11 @@ Content-Type: application/json
 		t_temp2 := '';
 		FOR l_record IN (
 					SELECT *
-						FROM mozilla_disclosure md
-						WHERE md.DISCLOSURE_STATUS = 'Disclosed'
-							AND md.CERTIFICATE_ID IS NOT NULL
-						ORDER BY md.INCLUDED_CERTIFICATE_OWNER, md.ISSUER_O, md.ISSUER_CN NULLS FIRST, md.RECORD_TYPE DESC,
-								md.SUBJECT_O, md.SUBJECT_CN NULLS FIRST, md.CA_OWNER_OR_CERT_NAME NULLS FIRST
+						FROM ccadb_certificate cc
+						WHERE cc.DISCLOSURE_STATUS = 'Disclosed'
+							AND cc.CERTIFICATE_ID IS NOT NULL
+						ORDER BY cc.INCLUDED_CERTIFICATE_OWNER, cc.ISSUER_O, cc.ISSUER_CN NULLS FIRST, cc.CERT_RECORD_TYPE DESC,
+								cc.SUBJECT_O, cc.SUBJECT_CN NULLS FIRST, cc.CERT_NAME NULLS FIRST
 				) LOOP
 			t_disclosedCount := t_disclosedCount + 1;
 			t_temp2 := t_temp2 ||
@@ -1495,13 +1502,13 @@ Content-Type: application/json
     <TD>' || coalesce(html_escape(l_record.ISSUER_CN), '&nbsp;') || '</TD>
     <TD>' || coalesce(html_escape(l_record.SUBJECT_O), '&nbsp;') || '</TD>
     <TD>';
-			IF l_record.RECORD_TYPE = 'Root' THEN
+			IF l_record.CERT_RECORD_TYPE = 'Root' THEN
 				t_temp2 := t_temp2 || '<B>[Root]</B> ';
 			END IF;
 			IF l_record.SALESFORCE_ID IS NOT NULL THEN
 				t_temp2 := t_temp2 || '<A href="//ccadb.force.com/' || l_record.SALESFORCE_ID || '" target="_blank">';
 			END IF;
-			t_temp2 := t_temp2 || coalesce(html_escape(l_record.CA_OWNER_OR_CERT_NAME), '&nbsp;');
+			t_temp2 := t_temp2 || coalesce(html_escape(l_record.CERT_NAME), '&nbsp;');
 			IF l_record.SALESFORCE_ID IS NOT NULL THEN
 				t_temp2 := t_temp2 || '</A>';
 			END IF;
@@ -1538,11 +1545,11 @@ Content-Type: application/json
 		t_temp2 := '';
 		FOR l_record IN (
 					SELECT *
-						FROM mozilla_disclosure md
-						WHERE md.DISCLOSURE_STATUS = 'DisclosedButRemovedFromCRL'
-							AND md.CERTIFICATE_ID IS NOT NULL
-						ORDER BY md.INCLUDED_CERTIFICATE_OWNER, md.ISSUER_O, md.ISSUER_CN NULLS FIRST, md.RECORD_TYPE DESC,
-								md.SUBJECT_O, md.SUBJECT_CN NULLS FIRST, md.CA_OWNER_OR_CERT_NAME NULLS FIRST
+						FROM ccadb_certificate cc
+						WHERE cc.DISCLOSURE_STATUS = 'DisclosedButRemovedFromCRL'
+							AND cc.CERTIFICATE_ID IS NOT NULL
+						ORDER BY cc.INCLUDED_CERTIFICATE_OWNER, cc.ISSUER_O, cc.ISSUER_CN NULLS FIRST, cc.CERT_RECORD_TYPE DESC,
+								cc.SUBJECT_O, cc.SUBJECT_CN NULLS FIRST, cc.CERT_NAME NULLS FIRST
 				) LOOP
 			t_discCRLRemovedCount := t_discCRLRemovedCount + 1;
 			t_temp2 := t_temp2 ||
@@ -1558,13 +1565,13 @@ Content-Type: application/json
     <TD>' || coalesce(html_escape(l_record.ISSUER_CN), '&nbsp;') || '</TD>
     <TD>' || coalesce(html_escape(l_record.SUBJECT_O), '&nbsp;') || '</TD>
     <TD>';
-			IF l_record.RECORD_TYPE = 'Root' THEN
+			IF l_record.CERT_RECORD_TYPE = 'Root' THEN
 				t_temp2 := t_temp2 || '<B>[Root]</B> ';
 			END IF;
 			IF l_record.SALESFORCE_ID IS NOT NULL THEN
 				t_temp2 := t_temp2 || '<A href="//ccadb.force.com/' || l_record.SALESFORCE_ID || '" target="_blank">';
 			END IF;
-			t_temp2 := t_temp2 || coalesce(html_escape(l_record.CA_OWNER_OR_CERT_NAME), '&nbsp;');
+			t_temp2 := t_temp2 || coalesce(html_escape(l_record.CERT_NAME), '&nbsp;');
 			IF l_record.SALESFORCE_ID IS NOT NULL THEN
 				t_temp2 := t_temp2 || '</A>';
 			END IF;
@@ -1601,11 +1608,11 @@ Content-Type: application/json
 		t_temp2 := '';
 		FOR l_record IN (
 					SELECT *
-						FROM mozilla_disclosure md
-						WHERE md.DISCLOSURE_STATUS = 'DisclosedButInCRL'
-							AND md.CERTIFICATE_ID IS NOT NULL
-						ORDER BY md.INCLUDED_CERTIFICATE_OWNER, md.ISSUER_O, md.ISSUER_CN NULLS FIRST, md.RECORD_TYPE DESC,
-								md.SUBJECT_O, md.SUBJECT_CN NULLS FIRST, md.CA_OWNER_OR_CERT_NAME NULLS FIRST
+						FROM ccadb_certificate cc
+						WHERE cc.DISCLOSURE_STATUS = 'DisclosedButInCRL'
+							AND cc.CERTIFICATE_ID IS NOT NULL
+						ORDER BY cc.INCLUDED_CERTIFICATE_OWNER, cc.ISSUER_O, cc.ISSUER_CN NULLS FIRST, cc.CERT_RECORD_TYPE DESC,
+								cc.SUBJECT_O, cc.SUBJECT_CN NULLS FIRST, cc.CERT_NAME NULLS FIRST
 				) LOOP
 			t_discCRLCount := t_discCRLCount + 1;
 			t_temp2 := t_temp2 ||
@@ -1621,13 +1628,13 @@ Content-Type: application/json
     <TD>' || coalesce(html_escape(l_record.ISSUER_CN), '&nbsp;') || '</TD>
     <TD>' || coalesce(html_escape(l_record.SUBJECT_O), '&nbsp;') || '</TD>
     <TD>';
-			IF l_record.RECORD_TYPE = 'Root' THEN
+			IF l_record.CERT_RECORD_TYPE = 'Root' THEN
 				t_temp2 := t_temp2 || '<B>[Root]</B> ';
 			END IF;
 			IF l_record.SALESFORCE_ID IS NOT NULL THEN
 				t_temp2 := t_temp2 || '<A href="//ccadb.force.com/' || l_record.SALESFORCE_ID || '" target="_blank">';
 			END IF;
-			t_temp2 := t_temp2 || coalesce(html_escape(l_record.CA_OWNER_OR_CERT_NAME), '&nbsp;');
+			t_temp2 := t_temp2 || coalesce(html_escape(l_record.CERT_NAME), '&nbsp;');
 			IF l_record.SALESFORCE_ID IS NOT NULL THEN
 				t_temp2 := t_temp2 || '</A>';
 			END IF;
@@ -1664,11 +1671,11 @@ Content-Type: application/json
 		t_temp2 := '';
 		FOR l_record IN (
 					SELECT *
-						FROM mozilla_disclosure md
-						WHERE md.DISCLOSURE_STATUS = 'DisclosedWithErrors'
-							AND md.CERTIFICATE_ID IS NOT NULL
-						ORDER BY md.INCLUDED_CERTIFICATE_OWNER, md.ISSUER_O, md.ISSUER_CN NULLS FIRST, md.RECORD_TYPE DESC,
-								md.SUBJECT_O, md.SUBJECT_CN NULLS FIRST, md.CA_OWNER_OR_CERT_NAME NULLS FIRST
+						FROM ccadb_certificate cc
+						WHERE cc.DISCLOSURE_STATUS = 'DisclosedWithErrors'
+							AND cc.CERTIFICATE_ID IS NOT NULL
+						ORDER BY cc.INCLUDED_CERTIFICATE_OWNER, cc.ISSUER_O, cc.ISSUER_CN NULLS FIRST, cc.CERT_RECORD_TYPE DESC,
+								cc.SUBJECT_O, cc.SUBJECT_CN NULLS FIRST, cc.CERT_NAME NULLS FIRST
 				) LOOP
 			t_discErrorCount := t_discErrorCount + 1;
 			t_temp2 := t_temp2 ||
@@ -1684,13 +1691,13 @@ Content-Type: application/json
     <TD>' || coalesce(html_escape(l_record.ISSUER_CN), '&nbsp;') || '</TD>
     <TD>' || coalesce(html_escape(l_record.SUBJECT_O), '&nbsp;') || '</TD>
     <TD>';
-			IF l_record.RECORD_TYPE = 'Root' THEN
+			IF l_record.CERT_RECORD_TYPE = 'Root' THEN
 				t_temp2 := t_temp2 || '<B>[Root]</B> ';
 			END IF;
 			IF l_record.SALESFORCE_ID IS NOT NULL THEN
 				t_temp2 := t_temp2 || '<A href="//ccadb.force.com/' || l_record.SALESFORCE_ID || '" target="_blank">';
 			END IF;
-			t_temp2 := t_temp2 || coalesce(html_escape(l_record.CA_OWNER_OR_CERT_NAME), '&nbsp;');
+			t_temp2 := t_temp2 || coalesce(html_escape(l_record.CERT_NAME), '&nbsp;');
 			IF l_record.SALESFORCE_ID IS NOT NULL THEN
 				t_temp2 := t_temp2 || '</A>';
 			END IF;
@@ -1727,11 +1734,11 @@ Content-Type: application/json
 		t_temp2 := '';
 		FOR l_record IN (
 					SELECT *
-						FROM mozilla_disclosure md
-						WHERE md.DISCLOSURE_STATUS = 'DisclosedButConstrained'
-							AND md.CERTIFICATE_ID IS NOT NULL
-						ORDER BY md.INCLUDED_CERTIFICATE_OWNER, md.ISSUER_O, md.ISSUER_CN NULLS FIRST, md.RECORD_TYPE DESC,
-								md.SUBJECT_O, md.SUBJECT_CN NULLS FIRST, md.CA_OWNER_OR_CERT_NAME NULLS FIRST
+						FROM ccadb_certificate cc
+						WHERE cc.DISCLOSURE_STATUS = 'DisclosedButConstrained'
+							AND cc.CERTIFICATE_ID IS NOT NULL
+						ORDER BY cc.INCLUDED_CERTIFICATE_OWNER, cc.ISSUER_O, cc.ISSUER_CN NULLS FIRST, cc.CERT_RECORD_TYPE DESC,
+								cc.SUBJECT_O, cc.SUBJECT_CN NULLS FIRST, cc.CERT_NAME NULLS FIRST
 				) LOOP
 			t_discConstrainedCount := t_discConstrainedCount + 1;
 			t_temp2 := t_temp2 ||
@@ -1747,13 +1754,13 @@ Content-Type: application/json
     <TD>' || coalesce(html_escape(l_record.ISSUER_CN), '&nbsp;') || '</TD>
     <TD>' || coalesce(html_escape(l_record.SUBJECT_O), '&nbsp;') || '</TD>
     <TD>';
-			IF l_record.RECORD_TYPE = 'Root' THEN
+			IF l_record.CERT_RECORD_TYPE = 'Root' THEN
 				t_temp2 := t_temp2 || '<B>[Root]</B> ';
 			END IF;
 			IF l_record.SALESFORCE_ID IS NOT NULL THEN
 				t_temp2 := t_temp2 || '<A href="//ccadb.force.com/' || l_record.SALESFORCE_ID || '" target="_blank">';
 			END IF;
-			t_temp2 := t_temp2 || coalesce(html_escape(l_record.CA_OWNER_OR_CERT_NAME), '&nbsp;');
+			t_temp2 := t_temp2 || coalesce(html_escape(l_record.CERT_NAME), '&nbsp;');
 			IF l_record.SALESFORCE_ID IS NOT NULL THEN
 				t_temp2 := t_temp2 || '</A>';
 			END IF;
@@ -1790,11 +1797,11 @@ Content-Type: application/json
 		t_temp2 := '';
 		FOR l_record IN (
 					SELECT *
-						FROM mozilla_disclosure md
-						WHERE md.DISCLOSURE_STATUS = 'DisclosedButInOneCRL'
-							AND md.CERTIFICATE_ID IS NOT NULL
-						ORDER BY md.INCLUDED_CERTIFICATE_OWNER, md.ISSUER_O, md.ISSUER_CN NULLS FIRST, md.RECORD_TYPE DESC,
-								md.SUBJECT_O, md.SUBJECT_CN NULLS FIRST, md.CA_OWNER_OR_CERT_NAME NULLS FIRST
+						FROM ccadb_certificate cc
+						WHERE cc.DISCLOSURE_STATUS = 'DisclosedButInOneCRL'
+							AND cc.CERTIFICATE_ID IS NOT NULL
+						ORDER BY cc.INCLUDED_CERTIFICATE_OWNER, cc.ISSUER_O, cc.ISSUER_CN NULLS FIRST, cc.CERT_RECORD_TYPE DESC,
+								cc.SUBJECT_O, cc.SUBJECT_CN NULLS FIRST, cc.CERT_NAME NULLS FIRST
 				) LOOP
 			t_discRevokedCount := t_discRevokedCount + 1;
 			t_temp2 := t_temp2 ||
@@ -1810,13 +1817,13 @@ Content-Type: application/json
     <TD>' || coalesce(html_escape(l_record.ISSUER_CN), '&nbsp;') || '</TD>
     <TD>' || coalesce(html_escape(l_record.SUBJECT_O), '&nbsp;') || '</TD>
     <TD>';
-			IF l_record.RECORD_TYPE = 'Root' THEN
+			IF l_record.CERT_RECORD_TYPE = 'Root' THEN
 				t_temp2 := t_temp2 || '<B>[Root]</B> ';
 			END IF;
 			IF l_record.SALESFORCE_ID IS NOT NULL THEN
 				t_temp2 := t_temp2 || '<A href="//ccadb.force.com/' || l_record.SALESFORCE_ID || '" target="_blank">';
 			END IF;
-			t_temp2 := t_temp2 || coalesce(html_escape(l_record.CA_OWNER_OR_CERT_NAME), '&nbsp;');
+			t_temp2 := t_temp2 || coalesce(html_escape(l_record.CERT_NAME), '&nbsp;');
 			IF l_record.SALESFORCE_ID IS NOT NULL THEN
 				t_temp2 := t_temp2 || '</A>';
 			END IF;
@@ -1853,11 +1860,74 @@ Content-Type: application/json
 		t_temp2 := '';
 		FOR l_record IN (
 					SELECT *
-						FROM mozilla_disclosure md
-						WHERE md.DISCLOSURE_STATUS = 'DisclosedButExpired'
-							AND md.CERTIFICATE_ID IS NOT NULL
-						ORDER BY md.INCLUDED_CERTIFICATE_OWNER, md.ISSUER_O, md.ISSUER_CN NULLS FIRST, md.RECORD_TYPE DESC,
-								md.SUBJECT_O, md.SUBJECT_CN NULLS FIRST, md.CA_OWNER_OR_CERT_NAME NULLS FIRST
+						FROM ccadb_certificate cc
+						WHERE cc.DISCLOSURE_STATUS = 'DisclosedButNoKnownServerAuthTrustPath'
+							AND cc.CERTIFICATE_ID IS NOT NULL
+						ORDER BY cc.INCLUDED_CERTIFICATE_OWNER, cc.ISSUER_O, cc.ISSUER_CN NULLS FIRST, cc.CERT_RECORD_TYPE DESC,
+								cc.SUBJECT_O, cc.SUBJECT_CN NULLS FIRST, cc.CERT_NAME NULLS FIRST
+				) LOOP
+			t_discUntrustedCount := t_discUntrustedCount + 1;
+			t_temp2 := t_temp2 ||
+'  <TR>
+    <TD>';
+			IF l_record.INCLUDED_CERTIFICATE_ID IS NULL THEN
+				t_temp2 := t_temp2 || coalesce(html_escape(l_record.INCLUDED_CERTIFICATE_OWNER), '&nbsp;');
+			ELSE
+				t_temp2 := t_temp2 || '<A href="/?id=' || l_record.INCLUDED_CERTIFICATE_ID::text || '">' || coalesce(html_escape(l_record.INCLUDED_CERTIFICATE_OWNER), '&nbsp;') || '</A>';
+			END IF;
+			t_temp2 := t_temp2 || '</TD>
+    <TD>' || coalesce(html_escape(l_record.ISSUER_O), '&nbsp;') || '</TD>
+    <TD>' || coalesce(html_escape(l_record.ISSUER_CN), '&nbsp;') || '</TD>
+    <TD>' || coalesce(html_escape(l_record.SUBJECT_O), '&nbsp;') || '</TD>
+    <TD>';
+			IF l_record.CERT_RECORD_TYPE = 'Root' THEN
+				t_temp2 := t_temp2 || '<B>[Root]</B> ';
+			END IF;
+			IF l_record.SALESFORCE_ID IS NOT NULL THEN
+				t_temp2 := t_temp2 || '<A href="//ccadb.force.com/' || l_record.SALESFORCE_ID || '" target="_blank">';
+			END IF;
+			t_temp2 := t_temp2 || coalesce(html_escape(l_record.CERT_NAME), '&nbsp;');
+			IF l_record.SALESFORCE_ID IS NOT NULL THEN
+				t_temp2 := t_temp2 || '</A>';
+			END IF;
+			t_temp2 := t_temp2 || '</TD>
+    <TD style="font-family:monospace"><A href="/?sha256=' || encode(l_record.CERT_SHA256, 'hex') || '&opt=mozilladisclosure" target="blank">' || substr(upper(encode(l_record.CERT_SHA256, 'hex')), 1, 16) || '...</A></TD>
+  </TR>
+';
+		END LOOP;
+		t_temp2 :=
+'<BR><BR><SPAN class="title" style="background-color:#F2A2E8"><A name="disclosedbutnottrusted">Disclosed, but no unexpired id-kp-serverAuth trust paths have been observed</A></SPAN>
+<SPAN class="whiteongrey">' || t_discUntrustedCount::text || ' CA certificates</SPAN>
+<BR>
+<TABLE style="background-color:#F2A2E8">
+  <TR>
+    <TH>Root Owner / Certificate</TH>
+    <TH>Issuer O</TH>
+    <TH>Issuer CN</TH>
+    <TH>Subject O</TH>
+    <TH>Subject CN</TH>
+    <TH>SHA-256(Certificate)</TH>
+  </TR>
+' || t_temp2;
+		IF t_discUntrustedCount = 0 THEN
+			t_temp2 := t_temp2 ||
+'  <TR><TD colspan="6">None found</TD></TR>
+';
+		END IF;
+		t_temp2 := t_temp2 ||
+'</TABLE>
+';
+
+		t_temp := t_temp2 || t_temp;
+
+		t_temp2 := '';
+		FOR l_record IN (
+					SELECT *
+						FROM ccadb_certificate cc
+						WHERE cc.DISCLOSURE_STATUS = 'DisclosedButExpired'
+							AND cc.CERTIFICATE_ID IS NOT NULL
+						ORDER BY cc.INCLUDED_CERTIFICATE_OWNER, cc.ISSUER_O, cc.ISSUER_CN NULLS FIRST, cc.CERT_RECORD_TYPE DESC,
+								cc.SUBJECT_O, cc.SUBJECT_CN NULLS FIRST, cc.CERT_NAME NULLS FIRST
 				) LOOP
 			t_discExpiredCount := t_discExpiredCount + 1;
 			t_temp2 := t_temp2 ||
@@ -1873,13 +1943,13 @@ Content-Type: application/json
     <TD>' || coalesce(html_escape(l_record.ISSUER_CN), '&nbsp;') || '</TD>
     <TD>' || coalesce(html_escape(l_record.SUBJECT_O), '&nbsp;') || '</TD>
     <TD>';
-			IF l_record.RECORD_TYPE = 'Root' THEN
+			IF l_record.CERT_RECORD_TYPE = 'Root' THEN
 				t_temp2 := t_temp2 || '<B>[Root]</B> ';
 			END IF;
 			IF l_record.SALESFORCE_ID IS NOT NULL THEN
 				t_temp2 := t_temp2 || '<A href="//ccadb.force.com/' || l_record.SALESFORCE_ID || '" target="_blank">';
 			END IF;
-			t_temp2 := t_temp2 || coalesce(html_escape(l_record.CA_OWNER_OR_CERT_NAME), '&nbsp;');
+			t_temp2 := t_temp2 || coalesce(html_escape(l_record.CERT_NAME), '&nbsp;');
 			IF l_record.SALESFORCE_ID IS NOT NULL THEN
 				t_temp2 := t_temp2 || '</A>';
 			END IF;
@@ -1916,11 +1986,11 @@ Content-Type: application/json
 		t_temp2 := '';
 		FOR l_record IN (
 					SELECT *
-						FROM mozilla_disclosure md
-						WHERE md.DISCLOSURE_STATUS = 'ParentRevoked'
-							AND md.CERTIFICATE_ID IS NOT NULL
-						ORDER BY md.INCLUDED_CERTIFICATE_OWNER, md.ISSUER_O, md.ISSUER_CN NULLS FIRST, md.RECORD_TYPE DESC,
-								md.SUBJECT_O, md.SUBJECT_CN NULLS FIRST, md.CA_OWNER_OR_CERT_NAME NULLS FIRST
+						FROM ccadb_certificate cc
+						WHERE cc.DISCLOSURE_STATUS = 'ParentRevoked'
+							AND cc.CERTIFICATE_ID IS NOT NULL
+						ORDER BY cc.INCLUDED_CERTIFICATE_OWNER, cc.ISSUER_O, cc.ISSUER_CN NULLS FIRST, cc.CERT_RECORD_TYPE DESC,
+								cc.SUBJECT_O, cc.SUBJECT_CN NULLS FIRST, cc.CERT_NAME NULLS FIRST
 				) LOOP
 			t_parentRevokedCount := t_parentRevokedCount + 1;
 			t_temp2 := t_temp2 ||
@@ -1936,13 +2006,13 @@ Content-Type: application/json
     <TD>' || coalesce(html_escape(l_record.ISSUER_CN), '&nbsp;') || '</TD>
     <TD>' || coalesce(html_escape(l_record.SUBJECT_O), '&nbsp;') || '</TD>
     <TD>';
-			IF l_record.RECORD_TYPE = 'Root' THEN
+			IF l_record.CERT_RECORD_TYPE = 'Root' THEN
 				t_temp2 := t_temp2 || '<B>[Root]</B> ';
 			END IF;
 			IF l_record.SALESFORCE_ID IS NOT NULL THEN
 				t_temp2 := t_temp2 || '<A href="//ccadb.force.com/' || l_record.SALESFORCE_ID || '" target="_blank">';
 			END IF;
-			t_temp2 := t_temp2 || coalesce(html_escape(l_record.CA_OWNER_OR_CERT_NAME), '&nbsp;');
+			t_temp2 := t_temp2 || coalesce(html_escape(l_record.CERT_NAME), '&nbsp;');
 			IF l_record.SALESFORCE_ID IS NOT NULL THEN
 				t_temp2 := t_temp2 || '</A>';
 			END IF;
@@ -1979,11 +2049,11 @@ Content-Type: application/json
 		t_temp2 := '';
 		FOR l_record IN (
 					SELECT *
-						FROM mozilla_disclosure md
-						WHERE md.DISCLOSURE_STATUS = 'Revoked'
-							AND md.CERTIFICATE_ID IS NOT NULL
-						ORDER BY md.INCLUDED_CERTIFICATE_OWNER, md.ISSUER_O, md.ISSUER_CN NULLS FIRST, md.RECORD_TYPE DESC,
-								md.SUBJECT_O, md.SUBJECT_CN NULLS FIRST, md.CA_OWNER_OR_CERT_NAME NULLS FIRST
+						FROM ccadb_certificate cc
+						WHERE cc.DISCLOSURE_STATUS = 'Revoked'
+							AND cc.CERTIFICATE_ID IS NOT NULL
+						ORDER BY cc.INCLUDED_CERTIFICATE_OWNER, cc.ISSUER_O, cc.ISSUER_CN NULLS FIRST, cc.CERT_RECORD_TYPE DESC,
+								cc.SUBJECT_O, cc.SUBJECT_CN NULLS FIRST, cc.CERT_NAME NULLS FIRST
 				) LOOP
 			t_revokedCount := t_revokedCount + 1;
 			t_temp2 := t_temp2 ||
@@ -1999,13 +2069,13 @@ Content-Type: application/json
     <TD>' || coalesce(html_escape(l_record.ISSUER_CN), '&nbsp;') || '</TD>
     <TD>' || coalesce(html_escape(l_record.SUBJECT_O), '&nbsp;') || '</TD>
     <TD>';
-			IF l_record.RECORD_TYPE = 'Root' THEN
+			IF l_record.CERT_RECORD_TYPE = 'Root' THEN
 				t_temp2 := t_temp2 || '<B>[Root]</B> ';
 			END IF;
 			IF l_record.SALESFORCE_ID IS NOT NULL THEN
 				t_temp2 := t_temp2 || '<A href="//ccadb.force.com/' || l_record.SALESFORCE_ID || '" target="_blank">';
 			END IF;
-			t_temp2 := t_temp2 || coalesce(html_escape(l_record.CA_OWNER_OR_CERT_NAME), '&nbsp;');
+			t_temp2 := t_temp2 || coalesce(html_escape(l_record.CERT_NAME), '&nbsp;');
 			IF l_record.SALESFORCE_ID IS NOT NULL THEN
 				t_temp2 := t_temp2 || '</A>';
 			END IF;
@@ -2042,11 +2112,11 @@ Content-Type: application/json
 		t_temp2 := '';
 		FOR l_record IN (
 					SELECT *
-						FROM mozilla_disclosure md
-						WHERE md.DISCLOSURE_STATUS = 'RevokedViaOneCRL'
-							AND md.CERTIFICATE_ID IS NOT NULL
-						ORDER BY md.INCLUDED_CERTIFICATE_OWNER, md.ISSUER_O, md.ISSUER_CN NULLS FIRST, md.RECORD_TYPE DESC,
-								md.SUBJECT_O, md.SUBJECT_CN NULLS FIRST, md.CA_OWNER_OR_CERT_NAME NULLS FIRST
+						FROM ccadb_certificate cc
+						WHERE cc.DISCLOSURE_STATUS = 'RevokedViaOneCRL'
+							AND cc.CERTIFICATE_ID IS NOT NULL
+						ORDER BY cc.INCLUDED_CERTIFICATE_OWNER, cc.ISSUER_O, cc.ISSUER_CN NULLS FIRST, cc.CERT_RECORD_TYPE DESC,
+								cc.SUBJECT_O, cc.SUBJECT_CN NULLS FIRST, cc.CERT_NAME NULLS FIRST
 				) LOOP
 			t_revokedViaOneCRLCount := t_revokedViaOneCRLCount + 1;
 			t_temp2 := t_temp2 ||
@@ -2062,13 +2132,13 @@ Content-Type: application/json
     <TD>' || coalesce(html_escape(l_record.ISSUER_CN), '&nbsp;') || '</TD>
     <TD>' || coalesce(html_escape(l_record.SUBJECT_O), '&nbsp;') || '</TD>
     <TD>';
-			IF l_record.RECORD_TYPE = 'Root' THEN
+			IF l_record.CERT_RECORD_TYPE = 'Root' THEN
 				t_temp2 := t_temp2 || '<B>[Root]</B> ';
 			END IF;
 			IF l_record.SALESFORCE_ID IS NOT NULL THEN
 				t_temp2 := t_temp2 || '<A href="//ccadb.force.com/' || l_record.SALESFORCE_ID || '" target="_blank">';
 			END IF;
-			t_temp2 := t_temp2 || coalesce(html_escape(l_record.CA_OWNER_OR_CERT_NAME), '&nbsp;');
+			t_temp2 := t_temp2 || coalesce(html_escape(l_record.CERT_NAME), '&nbsp;');
 			IF l_record.SALESFORCE_ID IS NOT NULL THEN
 				t_temp2 := t_temp2 || '</A>';
 			END IF;
@@ -2105,11 +2175,11 @@ Content-Type: application/json
 		t_temp2 := '';
 		FOR l_record IN (
 					SELECT *
-						FROM mozilla_disclosure md
-						WHERE md.DISCLOSURE_STATUS = 'RevokedButExpired'
-							AND md.CERTIFICATE_ID IS NOT NULL
-						ORDER BY md.INCLUDED_CERTIFICATE_OWNER, md.ISSUER_O, md.ISSUER_CN NULLS FIRST, md.RECORD_TYPE DESC,
-								md.SUBJECT_O, md.SUBJECT_CN NULLS FIRST, md.CA_OWNER_OR_CERT_NAME NULLS FIRST
+						FROM ccadb_certificate cc
+						WHERE cc.DISCLOSURE_STATUS = 'RevokedButExpired'
+							AND cc.CERTIFICATE_ID IS NOT NULL
+						ORDER BY cc.INCLUDED_CERTIFICATE_OWNER, cc.ISSUER_O, cc.ISSUER_CN NULLS FIRST, cc.CERT_RECORD_TYPE DESC,
+								cc.SUBJECT_O, cc.SUBJECT_CN NULLS FIRST, cc.CERT_NAME NULLS FIRST
 				) LOOP
 			t_revokedExpiredCount := t_revokedExpiredCount + 1;
 			t_temp2 := t_temp2 ||
@@ -2125,13 +2195,13 @@ Content-Type: application/json
     <TD>' || coalesce(html_escape(l_record.ISSUER_CN), '&nbsp;') || '</TD>
     <TD>' || coalesce(html_escape(l_record.SUBJECT_O), '&nbsp;') || '</TD>
     <TD>';
-			IF l_record.RECORD_TYPE = 'Root' THEN
+			IF l_record.CERT_RECORD_TYPE = 'Root' THEN
 				t_temp2 := t_temp2 || '<B>[Root]</B> ';
 			END IF;
 			IF l_record.SALESFORCE_ID IS NOT NULL THEN
 				t_temp2 := t_temp2 || '<A href="//ccadb.force.com/' || l_record.SALESFORCE_ID || '" target="_blank">';
 			END IF;
-			t_temp2 := t_temp2 || coalesce(html_escape(l_record.CA_OWNER_OR_CERT_NAME), '&nbsp;');
+			t_temp2 := t_temp2 || coalesce(html_escape(l_record.CERT_NAME), '&nbsp;');
 			IF l_record.SALESFORCE_ID IS NOT NULL THEN
 				t_temp2 := t_temp2 || '</A>';
 			END IF;
@@ -2141,7 +2211,7 @@ Content-Type: application/json
 ';
 		END LOOP;
 		t_temp2 :=
-'<BR><BR><SPAN class="title" style="background-color:#B2CEFE"><A name="revokedbutexpired">Disclosed as Revoked, but Expired</A></SPAN>
+'<BR><BR><SPAN class="title" style="background-color:#B2CEFE"><A name="revokedbutexpired">Disclosed as Revoked or Parent Revoked, but Expired</A></SPAN>
 <SPAN class="whiteongrey">' || t_revokedExpiredCount::text || ' CA certificates</SPAN>
 <BR>
 <TABLE style="background-color:#B2CEFE">
@@ -2168,11 +2238,11 @@ Content-Type: application/json
 		t_temp2 := '';
 		FOR l_record IN (
 					SELECT *
-						FROM mozilla_disclosure md
-						WHERE md.DISCLOSURE_STATUS = 'TechnicallyConstrainedOther'
-							AND md.CERTIFICATE_ID IS NOT NULL
-						ORDER BY md.INCLUDED_CERTIFICATE_OWNER, md.ISSUER_O, md.ISSUER_CN NULLS FIRST, md.RECORD_TYPE DESC,
-								md.SUBJECT_O, md.SUBJECT_CN NULLS FIRST, md.CA_OWNER_OR_CERT_NAME NULLS FIRST
+						FROM ccadb_certificate cc
+						WHERE cc.DISCLOSURE_STATUS = 'TechnicallyConstrainedOther'
+							AND cc.CERTIFICATE_ID IS NOT NULL
+						ORDER BY cc.INCLUDED_CERTIFICATE_OWNER, cc.ISSUER_O, cc.ISSUER_CN NULLS FIRST, cc.CERT_RECORD_TYPE DESC,
+								cc.SUBJECT_O, cc.SUBJECT_CN NULLS FIRST, cc.CERT_NAME NULLS FIRST
 				) LOOP
 			t_constrainedOtherCount := t_constrainedOtherCount + 1;
 			t_temp2 := t_temp2 ||
@@ -2188,13 +2258,13 @@ Content-Type: application/json
     <TD>' || coalesce(html_escape(l_record.ISSUER_CN), '&nbsp;') || '</TD>
     <TD>' || coalesce(html_escape(l_record.SUBJECT_O), '&nbsp;') || '</TD>
     <TD>';
-			IF l_record.RECORD_TYPE = 'Root' THEN
+			IF l_record.CERT_RECORD_TYPE = 'Root' THEN
 				t_temp2 := t_temp2 || '<B>[Root]</B> ';
 			END IF;
 			IF l_record.SALESFORCE_ID IS NOT NULL THEN
 				t_temp2 := t_temp2 || '<A href="//ccadb.force.com/' || l_record.SALESFORCE_ID || '" target="_blank">';
 			END IF;
-			t_temp2 := t_temp2 || coalesce(html_escape(l_record.CA_OWNER_OR_CERT_NAME), '&nbsp;');
+			t_temp2 := t_temp2 || coalesce(html_escape(l_record.CERT_NAME), '&nbsp;');
 			IF l_record.SALESFORCE_ID IS NOT NULL THEN
 				t_temp2 := t_temp2 || '</A>';
 			END IF;
@@ -2231,11 +2301,11 @@ Content-Type: application/json
 		t_temp2 := '';
 		FOR l_record IN (
 					SELECT *
-						FROM mozilla_disclosure md
-						WHERE md.DISCLOSURE_STATUS = 'TechnicallyConstrained'
-							AND md.CERTIFICATE_ID IS NOT NULL
-						ORDER BY md.INCLUDED_CERTIFICATE_OWNER, md.ISSUER_O, md.ISSUER_CN NULLS FIRST, md.RECORD_TYPE DESC,
-								md.SUBJECT_O, md.SUBJECT_CN NULLS FIRST, md.CA_OWNER_OR_CERT_NAME NULLS FIRST
+						FROM ccadb_certificate cc
+						WHERE cc.DISCLOSURE_STATUS = 'TechnicallyConstrained'
+							AND cc.CERTIFICATE_ID IS NOT NULL
+						ORDER BY cc.INCLUDED_CERTIFICATE_OWNER, cc.ISSUER_O, cc.ISSUER_CN NULLS FIRST, cc.CERT_RECORD_TYPE DESC,
+								cc.SUBJECT_O, cc.SUBJECT_CN NULLS FIRST, cc.CERT_NAME NULLS FIRST
 				) LOOP
 			t_constrainedCount := t_constrainedCount + 1;
 			t_temp2 := t_temp2 ||
@@ -2251,13 +2321,13 @@ Content-Type: application/json
     <TD>' || coalesce(html_escape(l_record.ISSUER_CN), '&nbsp;') || '</TD>
     <TD>' || coalesce(html_escape(l_record.SUBJECT_O), '&nbsp;') || '</TD>
     <TD>';
-			IF l_record.RECORD_TYPE = 'Root' THEN
+			IF l_record.CERT_RECORD_TYPE = 'Root' THEN
 				t_temp2 := t_temp2 || '<B>[Root]</B> ';
 			END IF;
 			IF l_record.SALESFORCE_ID IS NOT NULL THEN
 				t_temp2 := t_temp2 || '<A href="//ccadb.force.com/' || l_record.SALESFORCE_ID || '" target="_blank">';
 			END IF;
-			t_temp2 := t_temp2 || coalesce(html_escape(l_record.CA_OWNER_OR_CERT_NAME), '&nbsp;');
+			t_temp2 := t_temp2 || coalesce(html_escape(l_record.CERT_NAME), '&nbsp;');
 			IF l_record.SALESFORCE_ID IS NOT NULL THEN
 				t_temp2 := t_temp2 || '</A>';
 			END IF;
@@ -2294,11 +2364,11 @@ Content-Type: application/json
 		t_temp2 := '';
 		FOR l_record IN (
 					SELECT *
-						FROM mozilla_disclosure md
-						WHERE md.DISCLOSURE_STATUS = 'Expired'
-							AND md.CERTIFICATE_ID IS NOT NULL
-						ORDER BY md.INCLUDED_CERTIFICATE_OWNER, md.ISSUER_O, md.ISSUER_CN NULLS FIRST, md.RECORD_TYPE DESC,
-								md.SUBJECT_O, md.SUBJECT_CN NULLS FIRST, md.CA_OWNER_OR_CERT_NAME NULLS FIRST
+						FROM ccadb_certificate cc
+						WHERE cc.DISCLOSURE_STATUS = 'Expired'
+							AND cc.CERTIFICATE_ID IS NOT NULL
+						ORDER BY cc.INCLUDED_CERTIFICATE_OWNER, cc.ISSUER_O, cc.ISSUER_CN NULLS FIRST, cc.CERT_RECORD_TYPE DESC,
+								cc.SUBJECT_O, cc.SUBJECT_CN NULLS FIRST, cc.CERT_NAME NULLS FIRST
 				) LOOP
 			t_expiredCount := t_expiredCount + 1;
 			t_temp2 := t_temp2 ||
@@ -2314,13 +2384,13 @@ Content-Type: application/json
     <TD>' || coalesce(html_escape(l_record.ISSUER_CN), '&nbsp;') || '</TD>
     <TD>' || coalesce(html_escape(l_record.SUBJECT_O), '&nbsp;') || '</TD>
     <TD>';
-			IF l_record.RECORD_TYPE = 'Root' THEN
+			IF l_record.CERT_RECORD_TYPE = 'Root' THEN
 				t_temp2 := t_temp2 || '<B>[Root]</B> ';
 			END IF;
 			IF l_record.SALESFORCE_ID IS NOT NULL THEN
 				t_temp2 := t_temp2 || '<A href="//ccadb.force.com/' || l_record.SALESFORCE_ID || '" target="_blank">';
 			END IF;
-			t_temp2 := t_temp2 || coalesce(html_escape(l_record.CA_OWNER_OR_CERT_NAME), '&nbsp;');
+			t_temp2 := t_temp2 || coalesce(html_escape(l_record.CERT_NAME), '&nbsp;');
 			IF l_record.SALESFORCE_ID IS NOT NULL THEN
 				t_temp2 := t_temp2 || '</A>';
 			END IF;
@@ -2357,11 +2427,11 @@ Content-Type: application/json
 		t_temp2 := '';
 		FOR l_record IN (
 					SELECT *
-						FROM mozilla_disclosure md
-						WHERE md.DISCLOSURE_STATUS = 'NoKnownServerAuthTrustPath'
-							AND md.CERTIFICATE_ID IS NOT NULL
-						ORDER BY md.INCLUDED_CERTIFICATE_OWNER, md.ISSUER_O, md.ISSUER_CN NULLS FIRST, md.RECORD_TYPE DESC,
-								md.SUBJECT_O, md.SUBJECT_CN NULLS FIRST, md.CA_OWNER_OR_CERT_NAME NULLS FIRST
+						FROM ccadb_certificate cc
+						WHERE cc.DISCLOSURE_STATUS = 'NoKnownServerAuthTrustPath'
+							AND cc.CERTIFICATE_ID IS NOT NULL
+						ORDER BY cc.INCLUDED_CERTIFICATE_OWNER, cc.ISSUER_O, cc.ISSUER_CN NULLS FIRST, cc.CERT_RECORD_TYPE DESC,
+								cc.SUBJECT_O, cc.SUBJECT_CN NULLS FIRST, cc.CERT_NAME NULLS FIRST
 				) LOOP
 			t_notTrustedCount := t_notTrustedCount + 1;
 			t_temp2 := t_temp2 ||
@@ -2377,13 +2447,13 @@ Content-Type: application/json
     <TD>' || coalesce(html_escape(l_record.ISSUER_CN), '&nbsp;') || '</TD>
     <TD>' || coalesce(html_escape(l_record.SUBJECT_O), '&nbsp;') || '</TD>
     <TD>';
-			IF l_record.RECORD_TYPE = 'Root' THEN
+			IF l_record.CERT_RECORD_TYPE = 'Root' THEN
 				t_temp2 := t_temp2 || '<B>[Root]</B> ';
 			END IF;
 			IF l_record.SALESFORCE_ID IS NOT NULL THEN
 				t_temp2 := t_temp2 || '<A href="//ccadb.force.com/' || l_record.SALESFORCE_ID || '" target="_blank">';
 			END IF;
-			t_temp2 := t_temp2 || coalesce(html_escape(l_record.CA_OWNER_OR_CERT_NAME), '&nbsp;');
+			t_temp2 := t_temp2 || coalesce(html_escape(l_record.CERT_NAME), '&nbsp;');
 			IF l_record.SALESFORCE_ID IS NOT NULL THEN
 				t_temp2 := t_temp2 || '</A>';
 			END IF;
@@ -2420,11 +2490,11 @@ Content-Type: application/json
 		t_temp2 := '';
 		FOR l_record IN (
 					SELECT *
-						FROM mozilla_disclosure md
-						WHERE md.DISCLOSURE_STATUS = 'AllServerAuthPathsRevoked'
-							AND md.CERTIFICATE_ID IS NOT NULL
-						ORDER BY md.INCLUDED_CERTIFICATE_OWNER, md.ISSUER_O, md.ISSUER_CN NULLS FIRST, md.RECORD_TYPE DESC,
-								md.SUBJECT_O, md.SUBJECT_CN NULLS FIRST, md.CA_OWNER_OR_CERT_NAME NULLS FIRST
+						FROM ccadb_certificate cc
+						WHERE cc.DISCLOSURE_STATUS = 'AllServerAuthPathsRevoked'
+							AND cc.CERTIFICATE_ID IS NOT NULL
+						ORDER BY cc.INCLUDED_CERTIFICATE_OWNER, cc.ISSUER_O, cc.ISSUER_CN NULLS FIRST, cc.CERT_RECORD_TYPE DESC,
+								cc.SUBJECT_O, cc.SUBJECT_CN NULLS FIRST, cc.CERT_NAME NULLS FIRST
 				) LOOP
 			t_trustRevokedCount := t_trustRevokedCount + 1;
 			t_temp2 := t_temp2 ||
@@ -2440,13 +2510,13 @@ Content-Type: application/json
     <TD>' || coalesce(html_escape(l_record.ISSUER_CN), '&nbsp;') || '</TD>
     <TD>' || coalesce(html_escape(l_record.SUBJECT_O), '&nbsp;') || '</TD>
     <TD>';
-			IF l_record.RECORD_TYPE = 'Root' THEN
+			IF l_record.CERT_RECORD_TYPE = 'Root' THEN
 				t_temp2 := t_temp2 || '<B>[Root]</B> ';
 			END IF;
 			IF l_record.SALESFORCE_ID IS NOT NULL THEN
 				t_temp2 := t_temp2 || '<A href="//ccadb.force.com/' || l_record.SALESFORCE_ID || '" target="_blank">';
 			END IF;
-			t_temp2 := t_temp2 || coalesce(html_escape(l_record.CA_OWNER_OR_CERT_NAME), '&nbsp;');
+			t_temp2 := t_temp2 || coalesce(html_escape(l_record.CERT_NAME), '&nbsp;');
 			IF l_record.SALESFORCE_ID IS NOT NULL THEN
 				t_temp2 := t_temp2 || '</A>';
 			END IF;
@@ -2482,12 +2552,12 @@ Content-Type: application/json
 
 		t_temp2 := '';
 		FOR l_record IN (
-					SELECT md.INCLUDED_CERTIFICATE_OWNER, count(*) NUM_CERTS
-						FROM mozilla_disclosure md
-						WHERE md.DISCLOSURE_STATUS = 'Undisclosed'
-							AND md.CERTIFICATE_ID IS NOT NULL
-						GROUP BY md.INCLUDED_CERTIFICATE_OWNER
-						ORDER BY md.INCLUDED_CERTIFICATE_OWNER
+					SELECT cc.INCLUDED_CERTIFICATE_OWNER, count(*) NUM_CERTS
+						FROM ccadb_certificate cc
+						WHERE cc.DISCLOSURE_STATUS = 'Undisclosed'
+							AND cc.CERTIFICATE_ID IS NOT NULL
+						GROUP BY cc.INCLUDED_CERTIFICATE_OWNER
+						ORDER BY cc.INCLUDED_CERTIFICATE_OWNER
 				) LOOP
 			t_temp2 := t_temp2 ||
 '  <TR>
@@ -2511,11 +2581,11 @@ Content-Type: application/json
 		t_temp2 := '';
 		FOR l_record IN (
 					SELECT *
-						FROM mozilla_disclosure md
-						WHERE md.DISCLOSURE_STATUS = 'Undisclosed'
-							AND md.CERTIFICATE_ID IS NOT NULL
-						ORDER BY md.INCLUDED_CERTIFICATE_OWNER, md.ISSUER_O, md.ISSUER_CN NULLS FIRST, md.RECORD_TYPE DESC,
-								md.SUBJECT_O, md.SUBJECT_CN NULLS FIRST, md.CA_OWNER_OR_CERT_NAME NULLS FIRST
+						FROM ccadb_certificate cc
+						WHERE cc.DISCLOSURE_STATUS = 'Undisclosed'
+							AND cc.CERTIFICATE_ID IS NOT NULL
+						ORDER BY cc.INCLUDED_CERTIFICATE_OWNER, cc.ISSUER_O, cc.ISSUER_CN NULLS FIRST, cc.CERT_RECORD_TYPE DESC,
+								cc.SUBJECT_O, cc.SUBJECT_CN NULLS FIRST, cc.CERT_NAME NULLS FIRST
 				) LOOP
 			SELECT to_char(ctle.ENTRY_TIMESTAMP, 'YYYY-MM-DD')
 						|| '&nbsp; <FONT class="small">'
@@ -2540,13 +2610,13 @@ Content-Type: application/json
     <TD>' || coalesce(html_escape(l_record.ISSUER_CN), '&nbsp;') || '</TD>
     <TD>' || coalesce(html_escape(l_record.SUBJECT_O), '&nbsp;') || '</TD>
     <TD>';
-			IF l_record.RECORD_TYPE = 'Root' THEN
+			IF l_record.CERT_RECORD_TYPE = 'Root' THEN
 				t_temp2 := t_temp2 || '<B>[Root]</B> ';
 			END IF;
 			IF l_record.SALESFORCE_ID IS NOT NULL THEN
 				t_temp2 := t_temp2 || '<A href="//ccadb.force.com/' || l_record.SALESFORCE_ID || '" target="_blank">';
 			END IF;
-			t_temp2 := t_temp2 || coalesce(html_escape(l_record.CA_OWNER_OR_CERT_NAME), '&nbsp;');
+			t_temp2 := t_temp2 || coalesce(html_escape(l_record.CERT_NAME), '&nbsp;');
 			IF l_record.SALESFORCE_ID IS NOT NULL THEN
 				t_temp2 := t_temp2 || '</A>';
 			END IF;
@@ -2585,12 +2655,12 @@ Content-Type: application/json
 
 		t_temp2 := '';
 		FOR l_record IN (
-					SELECT md.INCLUDED_CERTIFICATE_OWNER, count(*) NUM_CERTS
-						FROM mozilla_disclosure md
-						WHERE md.DISCLOSURE_STATUS = 'DisclosureIncomplete'
-							AND md.CERTIFICATE_ID IS NOT NULL
-						GROUP BY md.INCLUDED_CERTIFICATE_OWNER
-						ORDER BY md.INCLUDED_CERTIFICATE_OWNER
+					SELECT cc.INCLUDED_CERTIFICATE_OWNER, count(*) NUM_CERTS
+						FROM ccadb_certificate cc
+						WHERE cc.DISCLOSURE_STATUS = 'DisclosureIncomplete'
+							AND cc.CERTIFICATE_ID IS NOT NULL
+						GROUP BY cc.INCLUDED_CERTIFICATE_OWNER
+						ORDER BY cc.INCLUDED_CERTIFICATE_OWNER
 				) LOOP
 			t_temp2 := t_temp2 ||
 '  <TR>
@@ -2614,11 +2684,11 @@ Content-Type: application/json
 		t_temp2 := '';
 		FOR l_record IN (
 					SELECT *
-						FROM mozilla_disclosure md
-						WHERE md.DISCLOSURE_STATUS = 'DisclosureIncomplete'
-							AND md.CERTIFICATE_ID IS NOT NULL
-						ORDER BY md.INCLUDED_CERTIFICATE_OWNER, md.ISSUER_O, md.ISSUER_CN NULLS FIRST, md.RECORD_TYPE DESC,
-								md.SUBJECT_O, md.SUBJECT_CN NULLS FIRST, md.CA_OWNER_OR_CERT_NAME NULLS FIRST
+						FROM ccadb_certificate cc
+						WHERE cc.DISCLOSURE_STATUS = 'DisclosureIncomplete'
+							AND cc.CERTIFICATE_ID IS NOT NULL
+						ORDER BY cc.INCLUDED_CERTIFICATE_OWNER, cc.ISSUER_O, cc.ISSUER_CN NULLS FIRST, cc.CERT_RECORD_TYPE DESC,
+								cc.SUBJECT_O, cc.SUBJECT_CN NULLS FIRST, cc.CERT_NAME NULLS FIRST
 				) LOOP
 			SELECT to_char(ctle.ENTRY_TIMESTAMP, 'YYYY-MM-DD')
 						|| '&nbsp; <FONT class="small">'
@@ -2643,13 +2713,13 @@ Content-Type: application/json
     <TD>' || coalesce(html_escape(l_record.ISSUER_CN), '&nbsp;') || '</TD>
     <TD>' || coalesce(html_escape(l_record.SUBJECT_O), '&nbsp;') || '</TD>
     <TD>';
-			IF l_record.RECORD_TYPE = 'Root' THEN
+			IF l_record.CERT_RECORD_TYPE = 'Root' THEN
 				t_temp2 := t_temp2 || '<B>[Root]</B> ';
 			END IF;
 			IF l_record.SALESFORCE_ID IS NOT NULL THEN
 				t_temp2 := t_temp2 || '<A href="//ccadb.force.com/' || l_record.SALESFORCE_ID || '" target="_blank">';
 			END IF;
-			t_temp2 := t_temp2 || coalesce(html_escape(l_record.CA_OWNER_OR_CERT_NAME), '&nbsp;');
+			t_temp2 := t_temp2 || coalesce(html_escape(l_record.CERT_NAME), '&nbsp;');
 			IF l_record.SALESFORCE_ID IS NOT NULL THEN
 				t_temp2 := t_temp2 || '</A>';
 			END IF;
@@ -2755,6 +2825,11 @@ Content-Type: application/json
     <TD>Disclosed, but Expired</TD>
     <TD>Already disclosed</TD>
     <TD><A href="#disclosedbutexpired">' || t_discExpiredCount::text || '</A></TD>
+  </TR>
+  <TR style="background-color:#F2A2E8">
+    <TD>Disclosed, but zero unexpired observed paths</TD>
+    <TD>Already disclosed</TD>
+    <TD><A href="#disclosedbutnottrusted">' || t_discUntrustedCount::text || '</A></TD>
   </TR>
   <TR style="background-color:#F2A2E8">
     <TD>Disclosed (as Not Revoked), but in <A href="/mozilla-onecrl" target="_blank">OneCRL</A></TD>
@@ -3195,7 +3270,7 @@ Content-Type: application/json
 					t_output := t_output || '</TD>
   </TR>
 </TABLE>';
-					IF l_record.RECORD_TYPE = 'Root' THEN
+					IF l_record.CERT_RECORD_TYPE = 'Root' THEN
 						t_output := t_output ||
 '  <TR>
     <TH class="outer">Telemetry<BR>

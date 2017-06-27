@@ -517,6 +517,7 @@ CREATE TYPE disclosure_status_type AS ENUM (
 	'RevokedViaOneCRL',
 	'Disclosed',
 	'DisclosedButExpired',
+	'DisclosedButNoKnownServerAuthTrustPath',
 	'DisclosedButInOneCRL',
 	'DisclosedButRemovedFromCRL',
 	'DisclosedButConstrained',
