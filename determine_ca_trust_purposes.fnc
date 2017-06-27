@@ -143,9 +143,9 @@ BEGIN
 
 				SELECT count(*)
 					INTO t_count
-					FROM mozilla_disclosure md
-					WHERE md.CERTIFICATE_ID = l_record.ID
-						AND md.DISCLOSURE_STATUS IN ('Revoked', 'RevokedViaOneCRL');
+					FROM ccadb_certificate cc
+					WHERE cc.CERTIFICATE_ID = l_record.ID
+						AND cc.DISCLOSURE_STATUS IN ('Revoked', 'RevokedViaOneCRL');
 				t_ctp_new.ALL_CHAINS_REVOKED_IN_SALESFORCE := least(
 					t_ctp_new.ALL_CHAINS_REVOKED_IN_SALESFORCE,
 					greatest(
