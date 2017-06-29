@@ -199,6 +199,7 @@ CREATE TABLE ct_log (
 	MMD_IN_SECONDS			integer,
 	CHROME_ISSUE_NUMBER		integer,
 	NON_INCLUSION_STATUS	text,
+	BATCH_SIZE				integer,
 	CONSTRAINT ctl_pk
 		PRIMARY KEY (ID),
 	CONSTRAINT crl_url_unq
