@@ -414,6 +414,32 @@ INSERT INTO trust_purpose ( ID, PURPOSE, PURPOSE_OID, DISPLAY_ORDER ) VALUES ( 1
 INSERT INTO trust_purpose ( ID, PURPOSE, PURPOSE_OID, DISPLAY_ORDER ) VALUES ( 170, 'EV Server Authentication', '1.3.6.1.4.1.22234.2.14.3.11', 1 );
 INSERT INTO trust_purpose ( ID, PURPOSE, PURPOSE_OID, DISPLAY_ORDER ) VALUES ( 171, 'EV Server Authentication', '1.3.6.1.4.1.22234.3.5.3.2', 1 );
 INSERT INTO trust_purpose ( ID, PURPOSE, PURPOSE_OID, DISPLAY_ORDER ) VALUES ( 172, 'EV Server Authentication', '1.2.156.112570.1.1.3.0', 1 );
+INSERT INTO trust_purpose ( ID, PURPOSE, PURPOSE_OID, DISPLAY_ORDER ) VALUES ( 173, 'EV Server Authentication', '1.3.6.1.4.1.17326.10.8.12.1.1', 1 );
+INSERT INTO trust_purpose ( ID, PURPOSE, PURPOSE_OID, DISPLAY_ORDER ) VALUES ( 174, 'EV Server Authentication', '1.3.6.1.4.1.17326.10.14.2.1.1', 1 );
+INSERT INTO trust_purpose ( ID, PURPOSE, PURPOSE_OID, DISPLAY_ORDER ) VALUES ( 175, 'EV Server Authentication', '1.3.6.1.4.1.17326.10.16.3.5.1', 1 );
+INSERT INTO trust_purpose ( ID, PURPOSE, PURPOSE_OID, DISPLAY_ORDER ) VALUES ( 176, 'EV Server Authentication', '1.3.6.1.4.1.17326.10.16.3.5.2', 1 );
+INSERT INTO trust_purpose ( ID, PURPOSE, PURPOSE_OID, DISPLAY_ORDER ) VALUES ( 177, 'EV Server Authentication', '1.3.6.1.4.1.17326.10.16.3.6.1.3.2.1', 1 );
+INSERT INTO trust_purpose ( ID, PURPOSE, PURPOSE_OID, DISPLAY_ORDER ) VALUES ( 178, 'EV Server Authentication', '1.3.6.1.4.1.17326.10.16.3.6.1.3.2.2', 1 );
+INSERT INTO trust_purpose ( ID, PURPOSE, PURPOSE_OID, DISPLAY_ORDER ) VALUES ( 179, 'EV Server Authentication', '1.3.6.1.4.1.15096.1.3.1.51.2', 1 );
+INSERT INTO trust_purpose ( ID, PURPOSE, PURPOSE_OID, DISPLAY_ORDER ) VALUES ( 180, 'EV Server Authentication', '1.3.6.1.4.1.15096.1.3.1.51.4', 1 );
+INSERT INTO trust_purpose ( ID, PURPOSE, PURPOSE_OID, DISPLAY_ORDER ) VALUES ( 181, 'EV Server Authentication', '1.3.6.1.4.1.15096.1.3.2.5.2', 1 );
+INSERT INTO trust_purpose ( ID, PURPOSE, PURPOSE_OID, DISPLAY_ORDER ) VALUES ( 182, 'EV Server Authentication', '1.3.6.1.4.1.15096.1.3.2.51.2', 1 );
+INSERT INTO trust_purpose ( ID, PURPOSE, PURPOSE_OID, DISPLAY_ORDER ) VALUES ( 183, 'EV Server Authentication', '1.2.156.112570.1.1.3', 1 );
+INSERT INTO trust_purpose ( ID, PURPOSE, PURPOSE_OID, DISPLAY_ORDER ) VALUES ( 184, 'EV Server Authentication', '1.3.6.1.4.1.23459.100.9', 1 );
+INSERT INTO trust_purpose ( ID, PURPOSE, PURPOSE_OID, DISPLAY_ORDER ) VALUES ( 185, 'EV Server Authentication', '2.23.140.1.2.2', 1 );
+INSERT INTO trust_purpose ( ID, PURPOSE, PURPOSE_OID, DISPLAY_ORDER ) VALUES ( 186, 'EV Server Authentication', '2.23.140.1.3', 1 );
+INSERT INTO trust_purpose ( ID, PURPOSE, PURPOSE_OID, DISPLAY_ORDER ) VALUES ( 187, 'EV Server Authentication', '1.3.6.1.4.1.311.94.1.1', 1 );
+INSERT INTO trust_purpose ( ID, PURPOSE, PURPOSE_OID, DISPLAY_ORDER ) VALUES ( 188, 'EV Server Authentication', '1.3.6.1.4.1.311.60.1.1', 1 );
+INSERT INTO trust_purpose ( ID, PURPOSE, PURPOSE_OID, DISPLAY_ORDER ) VALUES ( 189, 'EV Server Authentication', '1.3.171.1.1.1.10.5', 1 );
+INSERT INTO trust_purpose ( ID, PURPOSE, PURPOSE_OID, DISPLAY_ORDER ) VALUES ( 190, 'EV Server Authentication', '1.3.171.1.1.10.5.1', 1 );
+INSERT INTO trust_purpose ( ID, PURPOSE, PURPOSE_OID, DISPLAY_ORDER ) VALUES ( 191, 'EV Server Authentication', '1.3.171.1.1.1.10.3', 1 );
+INSERT INTO trust_purpose ( ID, PURPOSE, PURPOSE_OID, DISPLAY_ORDER ) VALUES ( 192, 'EV Server Authentication', '2.16.840.1.113839.0.6.9', 1 );
+INSERT INTO trust_purpose ( ID, PURPOSE, PURPOSE_OID, DISPLAY_ORDER ) VALUES ( 193, 'EV Server Authentication', '2.16.756.1.17.3.22.32', 1 );
+INSERT INTO trust_purpose ( ID, PURPOSE, PURPOSE_OID, DISPLAY_ORDER ) VALUES ( 194, 'EV Server Authentication', '2.16.756.1.17.3.22.34', 1 );
+INSERT INTO trust_purpose ( ID, PURPOSE, PURPOSE_OID, DISPLAY_ORDER ) VALUES ( 195, 'EV Server Authentication', '2.16.756.1.17.3.22.51', 1 );
+INSERT INTO trust_purpose ( ID, PURPOSE, PURPOSE_OID, DISPLAY_ORDER ) VALUES ( 196, 'EV Server Authentication', '1.3.171.1.1.1.10.8', 1 );
+INSERT INTO trust_purpose ( ID, PURPOSE, PURPOSE_OID, DISPLAY_ORDER ) VALUES ( 197, 'EV Server Authentication', '1.2.616.1.113527.2.5.1.7', 1 );
+
 
 CREATE TABLE applicable_purpose(
 	TRUST_CONTEXT_ID	integer,
