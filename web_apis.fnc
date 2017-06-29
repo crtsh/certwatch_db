@@ -161,6 +161,7 @@ DECLARE
 	l_record			RECORD;
 	l_record2			RECORD;
 	t_purposeOID		text;
+	t_purpose			text;
 	t_cacheControlMaxAge	integer		:= 300;
 	t_versions			text[];
 	t_date				date;
@@ -4073,8 +4074,9 @@ Content-Type: application/json
 								)
 							ORDER BY trustsrc.DISPLAY_ORDER, trustsrc.PURPOSE_OID, trustsrc.CTX_DISPLAY_ORDER
 					) LOOP
-				IF t_purposeOID != l_record.PURPOSE_OID THEN
+				IF (t_purposeOID != l_record.PURPOSE_OID) OR (t_purpose != l_record.PURPOSE) THEN
 					t_purposeOID := l_record.PURPOSE_OID;
+					t_purpose := l_record.PURPOSE;
 					t_text := t_text ||
 '        </TR>
         <TR>
