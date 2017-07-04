@@ -3526,7 +3526,7 @@ Content-Type: application/json
 		IF t_type = 'Certificate ASN.1' THEN
 			t_output := t_output ||
 '    <TH class="outer"><A href="?id=' || t_certificateID::text || '">Certificate</A> | ASN.1
-      <BR><BR><SPAN class="small">Powered by <A href="//lapo.it/asn1js/" target="_blank">asn1js</A>
+      <BR><BR><SPAN class="small">Powered by <A href="//lapo.it/asn1js/" target="_blank">asn1js</A><BR>
 ';
 			IF t_showMetadata THEN
 				t_output := t_output ||
@@ -3553,7 +3553,8 @@ Content-Type: application/json
 ';
 			END IF;
 			t_output := t_output ||
-'      </SPAN>
+'      <BR><BR><BR>Download Certificate: <A href="?d=' || t_certificateID::text || '">PEM</A>
+      </SPAN>
     </TH>
     <TD class="text">
       <DIV id="dump" style="position:absolute;right:20px;"></DIV>
@@ -3585,7 +3586,7 @@ Content-Type: application/json
 		ELSE
 			t_output := t_output ||
 '    <TH class="outer">Certificate | <A href="?asn1=' || t_certificateID::text || '">ASN.1</A>
-      <SPAN class="small">
+      <SPAN class="small"><BR>
 ';
 			IF t_showMetadata THEN
 				t_output := t_output ||
@@ -3612,7 +3613,8 @@ Content-Type: application/json
 ';
 			END IF;
 			t_output := t_output ||
-'      </SPAN>
+'      <BR><BR><BR>Download Certificate: <A href="?d=' || t_certificateID::text || '">PEM</A>
+      </SPAN>
     </TH>
     <TD class="text">' || coalesce(t_text, '<I>Not found</I>');
 		END IF;
