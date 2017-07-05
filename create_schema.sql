@@ -304,14 +304,15 @@ CREATE TABLE trust_context (
 CREATE UNIQUE INDEX tc_ctx_uniq
 	ON trust_context (CTX text_pattern_ops);
 
-INSERT INTO trust_context ( ID, CTX, URL ) VALUES ( 1, 'Microsoft', 'https://aka.ms/rootcert' );
-INSERT INTO trust_context ( ID, CTX, URL ) VALUES ( 5, 'Mozilla', 'https://www.mozilla.org/en-US/about/governance/policies/security-group/certs/policy/' );
-INSERT INTO trust_context ( ID, CTX, URL ) VALUES ( 6, 'Chrome', 'https://www.chromium.org/Home/chromium-security/root-ca-policy' );
-INSERT INTO trust_context ( ID, CTX, URL ) VALUES ( 9, 'Adobe AATL', 'https://helpx.adobe.com/acrobat/kb/approved-trust-list2.html' );
-INSERT INTO trust_context ( ID, CTX, URL ) VALUES ( 12, 'Apple', 'https://www.apple.com/certificateauthority/ca_program.html' );
-INSERT INTO trust_context ( ID, CTX, URL ) VALUES ( 17, 'Android', 'https://android.googlesource.com/platform/system/ca-certificates/' );
-INSERT INTO trust_context ( ID, CTX, URL ) VALUES ( 23, 'Java', 'http://www.oracle.com/technetwork/java/javase/javasecarootcertsprogram-1876540.html' );
-INSERT INTO trust_context ( ID, CTX, URL ) VALUES ( 24, 'Adobe EUTL', 'https://blogs.adobe.com/documentcloud/eu-trusted-list-now-available-in-adobe-acrobat/' );
+INSERT INTO trust_context ( ID, CTX, URL, DISPLAY_ORDER ) VALUES ( 1, 'Microsoft', 'https://aka.ms/rootcert', 2 );
+INSERT INTO trust_context ( ID, CTX, URL, DISPLAY_ORDER ) VALUES ( 5, 'Mozilla', 'https://www.mozilla.org/en-US/about/governance/policies/security-group/certs/policy/', 3 );
+INSERT INTO trust_context ( ID, CTX, URL, DISPLAY_ORDER ) VALUES ( 6, 'Chrome', 'https://www.chromium.org/Home/chromium-security/root-ca-policy', 4 );
+INSERT INTO trust_context ( ID, CTX, URL, DISPLAY_ORDER ) VALUES ( 9, 'Adobe AATL', 'https://helpx.adobe.com/acrobat/kb/approved-trust-list2.html', 8 );
+INSERT INTO trust_context ( ID, CTX, URL, DISPLAY_ORDER ) VALUES ( 10, 'Adobe CDS', 'https://helpx.adobe.com/acrobat/kb/certified-document-services.html', 7 );
+INSERT INTO trust_context ( ID, CTX, URL, DISPLAY_ORDER ) VALUES ( 12, 'Apple', 'https://www.apple.com/certificateauthority/ca_program.html', 1 );
+INSERT INTO trust_context ( ID, CTX, URL, DISPLAY_ORDER ) VALUES ( 17, 'Android', 'https://android.googlesource.com/platform/system/ca-certificates/', 5 );
+INSERT INTO trust_context ( ID, CTX, URL, DISPLAY_ORDER ) VALUES ( 23, 'Java', 'http://www.oracle.com/technetwork/java/javase/javasecarootcertsprogram-1876540.html', 6 );
+INSERT INTO trust_context ( ID, CTX, URL, DISPLAY_ORDER ) VALUES ( 24, 'Adobe EUTL', 'https://blogs.adobe.com/documentcloud/eu-trusted-list-now-available-in-adobe-acrobat/', 9 );
 
 
 CREATE TABLE trust_purpose (
@@ -473,6 +474,7 @@ INSERT INTO applicable_purpose ( TRUST_CONTEXT_ID, PURPOSE ) VALUES ( 9, 'Code S
 INSERT INTO applicable_purpose ( TRUST_CONTEXT_ID, PURPOSE ) VALUES ( 9, 'Document Signing' );
 INSERT INTO applicable_purpose ( TRUST_CONTEXT_ID, PURPOSE ) VALUES ( 9, 'Secure Email' );
 INSERT INTO applicable_purpose ( TRUST_CONTEXT_ID, PURPOSE ) VALUES ( 9, 'Adobe Authentic Document' );
+INSERT INTO applicable_purpose ( TRUST_CONTEXT_ID, PURPOSE ) VALUES ( 10, 'Adobe Authentic Document' );
 INSERT INTO applicable_purpose ( TRUST_CONTEXT_ID, PURPOSE ) VALUES ( 12, 'Code Signing' );
 INSERT INTO applicable_purpose ( TRUST_CONTEXT_ID, PURPOSE ) VALUES ( 12, 'EV Server Authentication' );
 INSERT INTO applicable_purpose ( TRUST_CONTEXT_ID, PURPOSE ) VALUES ( 12, 'IP security user' );
