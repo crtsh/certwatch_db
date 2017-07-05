@@ -1,5 +1,9 @@
 \timing
 
+DROP TABLE ca_trust_purpose_temp;
+
+\set ON_ERROR_STOP on
+
 CREATE TABLE ca_trust_purpose_temp ( LIKE ca_trust_purpose INCLUDING INDEXES);
 
 CREATE INDEX ctpt_lc
