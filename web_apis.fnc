@@ -426,6 +426,14 @@ BEGIN
     .many .dygraph-legend > span.highlight { display: inline }
   </STYLE>
 ';
+		ELSIF t_type = 'monitored-logs' THEN
+			t_output := t_output ||
+'  <STYLE type="text/css">
+    table tr:nth-child(2n+5) {
+      background: #EFEFEF
+    }
+  </STYLE>
+';
 		END IF;
 		t_output := t_output ||
 '  <STYLE type="text/css">
@@ -847,6 +855,8 @@ BEGIN
 '    </TR>';
 		END LOOP;
 		t_output := t_output || '
+  </TABLE>
+  <TABLE>
     <TR><TD colspan="8" class="heading">CT Logs no longer monitored:</TD></TR>
     <TR>
       <TH rowspan="2">Operator</TH>
