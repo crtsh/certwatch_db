@@ -3304,7 +3304,7 @@ Content-Type: application/json
 						t_output := t_output || coalesce(l_record.STANDARD_AUDIT_URL, 'Not disclosed');
 					ELSE
 						t_output := t_output || '
-      <A href="' || l_record.STANDARD_AUDIT_URL || '" target="_blank">' || l_record.STANDARD_AUDIT_DATE::text || '</A>
+      <A href="' || l_record.STANDARD_AUDIT_URL || '" target="_blank">' || coalesce(l_record.STANDARD_AUDIT_DATE::text, 'Yes') || '</A>
     ';
 					END IF;
 					t_output := t_output || '</TD>
