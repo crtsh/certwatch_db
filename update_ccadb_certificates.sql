@@ -457,7 +457,7 @@ UPDATE ccadb_certificate_temp cct
 UPDATE ccadb_certificate_temp cct
 	SET DISCLOSURE_STATUS = 'DisclosedButNoKnownServerAuthTrustPath'
 	FROM certificate c
-	WHERE cct.DISCLOSURE_STATUS = 'Disclosed'
+	WHERE cct.DISCLOSURE_STATUS IN ('Disclosed', 'Revoked', 'ParentRevoked')
 		AND cct.CERTIFICATE_ID = c.ID
 		AND NOT EXISTS (
 			SELECT 1
