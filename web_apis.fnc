@@ -135,7 +135,8 @@ DECLARE
 	t_issuerCAID		certificate.ISSUER_CA_ID%TYPE;
 	t_issuerCAID_table	text;
 	t_feedUpdated		timestamp;
-	t_incompleteCount	integer			:= 0;
+	t_incompleteServerCount	integer		:= 0;
+	t_incompleteNonServerCount	integer	:= 0;
 	t_undisclosedServerCount	integer	:= 0;
 	t_undisclosedNonServerCount	integer	:= 0;
 	t_trustRevokedCount	integer			:= 0;
@@ -2811,6 +2812,7 @@ Content-Type: ' || t_outputType || '
 		END IF;
 
 		t_temp2 := '';
+		t_temp4 := '';
 		FOR l_record IN (
 					SELECT *
 						FROM ccadb_certificate cc
@@ -2825,47 +2827,106 @@ Content-Type: ' || t_outputType || '
 				INTO t_temp3
 				FROM ct_log_entry ctle
 				WHERE ctle.CERTIFICATE_ID = l_record.CERTIFICATE_ID;
-			t_incompleteCount := t_incompleteCount + 1;
-			t_temp2 := t_temp2 ||
+
+			t_temp0 :=
 '  <TR>
-    <TD>' || t_incompleteCount::text || '</TD>
+    <TD>';
+
+			SELECT count(*)
+				INTO t_count
+				FROM certificate c
+				WHERE c.ID = l_record.CERTIFICATE_ID
+					AND (
+						x509_isEKUPermitted(c.CERTIFICATE, '1.3.6.1.5.5.7.3.1')
+						OR x509_isEKUPermitted(c.CERTIFICATE, '1.3.6.1.4.1.311.10.3.3')	-- MS SGC.
+						OR x509_isEKUPermitted(c.CERTIFICATE, '2.16.840.1.113730.4.1')	-- NS Step-Up.
+					)
+					AND EXISTS (
+						SELECT 1
+							FROM ca_trust_purpose ctp
+							WHERE ctp.CA_ID = c.ISSUER_CA_ID
+								AND ctp.TRUST_CONTEXT_ID = 5
+								AND ctp.TRUST_PURPOSE_ID = 1
+								AND ctp.IS_TIME_VALID
+								AND NOT ctp.ALL_CHAINS_TECHNICALLY_CONSTRAINED
+								AND NOT ctp.ALL_CHAINS_REVOKED_IN_SALESFORCE
+					);
+			IF t_count > 0 THEN
+				t_incompleteServerCount := t_incompleteServerCount + 1;
+				t_temp0 := t_temp0 || t_incompleteServerCount::text || '</TD>
+    <TD>' || coalesce(t_temp3, '') || '</TD>
+    <TD>' || coalesce(to_char(l_record.LAST_DISCLOSURE_STATUS_CHANGE, 'YYYY-MM-DD') || '&nbsp; <FONT class="small">' || to_char(l_record.LAST_DISCLOSURE_STATUS_CHANGE, 'HH24:MI:SS UTC'), '') || '</TD>
+    <TD>Server';
+			ELSE
+				t_incompleteNonServerCount := t_incompleteNonServerCount + 1;
+				t_temp0 := t_temp0 || t_incompleteNonServerCount::text || '</TD>
     <TD>' || coalesce(t_temp3, '') || '</TD>
     <TD>' || coalesce(to_char(l_record.LAST_DISCLOSURE_STATUS_CHANGE, 'YYYY-MM-DD') || '&nbsp; <FONT class="small">' || to_char(l_record.LAST_DISCLOSURE_STATUS_CHANGE, 'HH24:MI:SS UTC'), '') || '</TD>
     <TD>';
-			IF l_record.INCLUDED_CERTIFICATE_ID IS NULL THEN
-				t_temp2 := t_temp2 || coalesce(html_escape(l_record.INCLUDED_CERTIFICATE_OWNER), '&nbsp;');
-			ELSE
-				t_temp2 := t_temp2 || '<A href="/?id=' || l_record.INCLUDED_CERTIFICATE_ID::text || '">' || coalesce(html_escape(l_record.INCLUDED_CERTIFICATE_OWNER), '&nbsp;') || '</A>';
 			END IF;
-			t_temp2 := t_temp2 || '</TD>
+
+			SELECT count(*)
+				INTO t_count2
+				FROM certificate c
+				WHERE c.ID = l_record.CERTIFICATE_ID
+					AND x509_isEKUPermitted(c.CERTIFICATE, '1.3.6.1.5.5.7.3.4')
+					AND EXISTS (
+						SELECT 1
+							FROM ca_trust_purpose ctp
+							WHERE ctp.CA_ID = c.ISSUER_CA_ID
+								AND ctp.TRUST_CONTEXT_ID = 5
+								AND ctp.TRUST_PURPOSE_ID = 3
+								AND NOT ctp.ALL_CHAINS_TECHNICALLY_CONSTRAINED
+								AND NOT ctp.ALL_CHAINS_REVOKED_IN_SALESFORCE
+					);
+			IF t_count2 > 0 THEN
+				t_temp0 := t_temp0 || ' Email';
+			END IF;
+
+			t_temp0 := t_temp0 || '</TD>
+    <TD>';
+
+			IF l_record.INCLUDED_CERTIFICATE_ID IS NULL THEN
+				t_temp0 := t_temp0 || coalesce(html_escape(l_record.INCLUDED_CERTIFICATE_OWNER), '&nbsp;');
+			ELSE
+				t_temp0 := t_temp0 || '<A href="/?id=' || l_record.INCLUDED_CERTIFICATE_ID::text || '">' || coalesce(html_escape(l_record.INCLUDED_CERTIFICATE_OWNER), '&nbsp;') || '</A>';
+			END IF;
+			t_temp0 := t_temp0 || '</TD>
     <TD>' || coalesce(html_escape(l_record.ISSUER_O), '&nbsp;') || '</TD>
     <TD>' || coalesce(html_escape(l_record.ISSUER_CN), '&nbsp;') || '</TD>
     <TD>' || coalesce(html_escape(l_record.SUBJECT_O), '&nbsp;') || '</TD>
     <TD>';
 			IF l_record.CERT_RECORD_TYPE = 'Root Certificate' THEN
-				t_temp2 := t_temp2 || '<B>[Root]</B> ';
+				t_temp0 := t_temp0 || '<B>[Root]</B> ';
 			END IF;
 			IF l_record.SALESFORCE_ID IS NOT NULL THEN
-				t_temp2 := t_temp2 || '<A href="//ccadb.force.com/' || l_record.SALESFORCE_ID || '" target="_blank">';
+				t_temp0 := t_temp0 || '<A href="//ccadb.force.com/' || l_record.SALESFORCE_ID || '" target="_blank">';
 			END IF;
-			t_temp2 := t_temp2 || coalesce(html_escape(l_record.CERT_NAME), '&nbsp;');
+			t_temp0 := t_temp0 || coalesce(html_escape(l_record.CERT_NAME), '&nbsp;');
 			IF l_record.SALESFORCE_ID IS NOT NULL THEN
-				t_temp2 := t_temp2 || '</A>';
+				t_temp0 := t_temp0 || '</A>';
 			END IF;
-			t_temp2 := t_temp2 || '</TD>
+			t_temp0 := t_temp0 || '</TD>
     <TD style="font-family:monospace"><A href="/?sha256=' || encode(l_record.CERT_SHA256, 'hex') || '&opt=mozilladisclosure" target="blank">' || substr(upper(encode(l_record.CERT_SHA256, 'hex')), 1, 16) || '...</A></TD>
   </TR>
 ';
+
+			IF t_count > 0 THEN
+				t_temp2 := t_temp2 || t_temp0;
+			ELSE
+				t_temp4 := t_temp4 || t_temp0;
+			END IF;
 		END LOOP;
 		t_temp2 :=
 '<BR><BR><SPAN class="title" style="background-color:#FE838A"><A name="disclosureincomplete">Certificate disclosed, but CP/CPS or Audit details missing: Further Disclosure is required!</A></SPAN>
-<SPAN class="whiteongrey">' || t_incompleteCount::text || ' CA certificates</SPAN>
+<SPAN class="whiteongrey">' || t_incompleteServerCount::text || ' Server + ' || t_incompleteNonServerCount || ' Non-Server CA certificates</SPAN>
 <BR>
 <TABLE style="background-color:#FE838A">
   <TR>
     <TH>#</TH>
     <TH>Earliest SCT</TH>
     <TH>Listed Here Since</TH>
+    <TH>Trusted For</TH>
     <TH>Root Owner / Certificate</TH>
     <TH>Issuer O</TH>
     <TH>Issuer CN</TH>
@@ -2874,12 +2935,16 @@ Content-Type: ' || t_outputType || '
     <TH>SHA-256(Certificate)</TH>
   </TR>
 ' || t_temp2;
-		IF t_incompleteCount = 0 THEN
+		IF (t_incompleteServerCount + t_incompleteNonServerCount) = 0 THEN
 			t_temp2 := t_temp2 ||
 '  <TR><TD colspan="9">None found</TD></TR>
 ';
+		ELSIF t_incompleteNonServerCount > 0 THEN
+			t_temp4 :=
+'  <TR><TD colspan="10" style="background-color:#FFFFFF">&nbsp;</TD></TR>
+' || t_temp4;
 		END IF;
-		t_temp2 := t_temp2 ||
+		t_temp2 := t_temp2 || t_temp4 ||
 '</TABLE>
 ';
 
@@ -2895,7 +2960,7 @@ Content-Type: ' || t_outputType || '
   <TR style="background-color:#FE838A">
     <TD>Disclosure Incomplete</TD>
     <TD><B><U>Yes!</U></B></TD>
-    <TD><A href="#disclosureincomplete">' || t_incompleteCount::text || '</A>
+    <TD><A href="#disclosureincomplete">' || t_incompleteServerCount::text || ' + ' || t_incompleteNonServerCount::text || '</A>
       &nbsp;<A href="#disclosureincompletesummary" style="font-size:8pt">Summary</A>
     </TD>
   </TR>
