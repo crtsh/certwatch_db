@@ -89,6 +89,7 @@ DECLARE
 	t_temp				text;
 	t_temp2				text;
 	t_temp3				text;
+	t_temp4				text;
 	t_select			text;
 	t_from				text;
 	t_where				text;
@@ -134,11 +135,12 @@ DECLARE
 	t_issuerCAID_table	text;
 	t_feedUpdated		timestamp;
 	t_incompleteCount	integer			:= 0;
-	t_undisclosedCount	integer			:= 0;
+	t_undisclosedServerCount	integer	:= 0;
+	t_undisclosedNonServerCount	integer	:= 0;
 	t_trustRevokedCount	integer			:= 0;
 	t_notTrustedCount	integer			:= 0;
 	t_expiredCount		integer			:= 0;
-	t_constrainedOtherCount	integer			:= 0;
+	t_constrainedOtherCount	integer		:= 0;
 	t_constrainedCount	integer			:= 0;
 	t_revokedExpiredCount	integer		:= 0;
 	t_revokedViaOneCRLCount	integer		:= 0;
@@ -1907,7 +1909,7 @@ Content-Type: application/json
 ';
 		END LOOP;
 		t_temp2 :=
-'<BR><BR><SPAN class="title" style="background-color:#F2A2E8"><A name="disclosedbutnottrusted">Disclosed, but no unexpired id-kp-serverAuth trust paths have been observed</A></SPAN>
+'<BR><BR><SPAN class="title" style="background-color:#F2A2E8"><A name="disclosedbutnottrusted">Disclosed, but no unexpired trust paths have been observed</A></SPAN>
 <SPAN class="whiteongrey">' || t_discUntrustedCount::text || ' CA certificates</SPAN>
 <BR>
 <TABLE style="background-color:#F2A2E8">
@@ -2348,7 +2350,7 @@ Content-Type: application/json
 ';
 		END LOOP;
 		t_temp2 :=
-'<BR><BR><SPAN class="title" style="background-color:#BAED91"><A name="constrained">Technically Constrained id-kp-serverAuth Trust: Disclosure is not currently required</A></SPAN>
+'<BR><BR><SPAN class="title" style="background-color:#BAED91"><A name="constrained">Technically Constrained (Trusted): Disclosure is not currently required</A></SPAN>
 <SPAN class="whiteongrey">' || t_constrainedCount::text || ' CA certificates</SPAN>
 <BR>
 <TABLE style="background-color:#BAED91">
@@ -2474,7 +2476,7 @@ Content-Type: application/json
 ';
 		END LOOP;
 		t_temp2 :=
-'<BR><BR><SPAN class="title" style="background-color:#FAF884"><A name="nottrusted">Unconstrained for id-kp-serverAuth, but no unexpired trust paths have been observed: Disclosure is not known to be required</A></SPAN>
+'<BR><BR><SPAN class="title" style="background-color:#FAF884"><A name="nottrusted">Unconstrained, but no unexpired trust paths have been observed: Disclosure is not known to be required</A></SPAN>
 <SPAN class="whiteongrey">' || t_notTrustedCount::text || ' CA certificates</SPAN>
 <BR>
 <TABLE style="background-color:#FAF884">
@@ -2537,7 +2539,7 @@ Content-Type: application/json
 ';
 		END LOOP;
 		t_temp2 :=
-'<BR><BR><SPAN class="title" style="background-color:#F8B88B"><A name="trustrevoked">Unconstrained id-kp-serverAuth Trust, although all unexpired paths contain at least one revoked intermediate: Disclosure is not known to be required</A></SPAN>
+'<BR><BR><SPAN class="title" style="background-color:#F8B88B"><A name="trustrevoked">Unconstrained, although all unexpired paths contain at least one revoked intermediate: Disclosure is not known to be required</A></SPAN>
 <SPAN class="whiteongrey">' || t_trustRevokedCount::text || ' CA certificates</SPAN>
 <BR>
 <TABLE style="background-color:#F8B88B">
@@ -2590,6 +2592,7 @@ Content-Type: application/json
 		END IF;
 
 		t_temp2 := '';
+		t_temp4 := '';
 		FOR l_record IN (
 					SELECT *
 						FROM ccadb_certificate cc
@@ -2604,47 +2607,106 @@ Content-Type: application/json
 				INTO t_temp3
 				FROM ct_log_entry ctle
 				WHERE ctle.CERTIFICATE_ID = l_record.CERTIFICATE_ID;
-			t_undisclosedCount := t_undisclosedCount + 1;
-			t_temp2 := t_temp2 ||
+
+			t_temp0 :=
 '  <TR>
-    <TD>' || t_undisclosedCount::text || '</TD>
+    <TD>';
+
+			SELECT count(*)
+				INTO t_count
+				FROM certificate c
+				WHERE c.ID = l_record.CERTIFICATE_ID
+					AND (
+						x509_isEKUPermitted(c.CERTIFICATE, '1.3.6.1.5.5.7.3.1')
+						OR x509_isEKUPermitted(c.CERTIFICATE, '1.3.6.1.4.1.311.10.3.3')	-- MS SGC.
+						OR x509_isEKUPermitted(c.CERTIFICATE, '2.16.840.1.113730.4.1')	-- NS Step-Up.
+					)
+					AND EXISTS (
+						SELECT 1
+							FROM ca_trust_purpose ctp
+							WHERE ctp.CA_ID = c.ISSUER_CA_ID
+								AND ctp.TRUST_CONTEXT_ID = 5
+								AND ctp.TRUST_PURPOSE_ID = 1
+								AND ctp.IS_TIME_VALID
+								AND NOT ctp.ALL_CHAINS_TECHNICALLY_CONSTRAINED
+								AND NOT ctp.ALL_CHAINS_REVOKED_IN_SALESFORCE
+					);
+			IF t_count > 0 THEN
+				t_undisclosedServerCount := t_undisclosedServerCount + 1;
+				t_temp0 := t_temp0 || t_undisclosedServerCount::text || '</TD>
+    <TD>' || coalesce(t_temp3, '') || '</TD>
+    <TD>' || coalesce(to_char(l_record.LAST_DISCLOSURE_STATUS_CHANGE, 'YYYY-MM-DD') || '&nbsp; <FONT class="small">' || to_char(l_record.LAST_DISCLOSURE_STATUS_CHANGE, 'HH24:MI:SS UTC'), '') || '</TD>
+    <TD>Server';
+			ELSE
+				t_undisclosedNonServerCount := t_undisclosedNonServerCount + 1;
+				t_temp0 := t_temp0 || t_undisclosedNonServerCount::text || '</TD>
     <TD>' || coalesce(t_temp3, '') || '</TD>
     <TD>' || coalesce(to_char(l_record.LAST_DISCLOSURE_STATUS_CHANGE, 'YYYY-MM-DD') || '&nbsp; <FONT class="small">' || to_char(l_record.LAST_DISCLOSURE_STATUS_CHANGE, 'HH24:MI:SS UTC'), '') || '</TD>
     <TD>';
-			IF l_record.INCLUDED_CERTIFICATE_ID IS NULL THEN
-				t_temp2 := t_temp2 || coalesce(html_escape(l_record.INCLUDED_CERTIFICATE_OWNER), '&nbsp;');
-			ELSE
-				t_temp2 := t_temp2 || '<A href="/?id=' || l_record.INCLUDED_CERTIFICATE_ID::text || '">' || coalesce(html_escape(l_record.INCLUDED_CERTIFICATE_OWNER), '&nbsp;') || '</A>';
 			END IF;
-			t_temp2 := t_temp2 || '</TD>
+
+			SELECT count(*)
+				INTO t_count2
+				FROM certificate c
+				WHERE c.ID = l_record.CERTIFICATE_ID
+					AND x509_isEKUPermitted(c.CERTIFICATE, '1.3.6.1.5.5.7.3.4')
+					AND EXISTS (
+						SELECT 1
+							FROM ca_trust_purpose ctp
+							WHERE ctp.CA_ID = c.ISSUER_CA_ID
+								AND ctp.TRUST_CONTEXT_ID = 5
+								AND ctp.TRUST_PURPOSE_ID = 3
+								AND NOT ctp.ALL_CHAINS_TECHNICALLY_CONSTRAINED
+								AND NOT ctp.ALL_CHAINS_REVOKED_IN_SALESFORCE
+					);
+			IF t_count2 > 0 THEN
+				t_temp0 := t_temp0 || ' Email';
+			END IF;
+
+			t_temp0 := t_temp0 || '</TD>
+    <TD>';
+
+			IF l_record.INCLUDED_CERTIFICATE_ID IS NULL THEN
+				t_temp0 := t_temp0 || coalesce(html_escape(l_record.INCLUDED_CERTIFICATE_OWNER), '&nbsp;');
+			ELSE
+				t_temp0 := t_temp0 || '<A href="/?id=' || l_record.INCLUDED_CERTIFICATE_ID::text || '">' || coalesce(html_escape(l_record.INCLUDED_CERTIFICATE_OWNER), '&nbsp;') || '</A>';
+			END IF;
+			t_temp0 := t_temp0 || '</TD>
     <TD>' || coalesce(html_escape(l_record.ISSUER_O), '&nbsp;') || '</TD>
     <TD>' || coalesce(html_escape(l_record.ISSUER_CN), '&nbsp;') || '</TD>
     <TD>' || coalesce(html_escape(l_record.SUBJECT_O), '&nbsp;') || '</TD>
     <TD>';
 			IF l_record.CERT_RECORD_TYPE = 'Root Certificate' THEN
-				t_temp2 := t_temp2 || '<B>[Root]</B> ';
+				t_temp0 := t_temp0 || '<B>[Root]</B> ';
 			END IF;
 			IF l_record.SALESFORCE_ID IS NOT NULL THEN
-				t_temp2 := t_temp2 || '<A href="//ccadb.force.com/' || l_record.SALESFORCE_ID || '" target="_blank">';
+				t_temp0 := t_temp0 || '<A href="//ccadb.force.com/' || l_record.SALESFORCE_ID || '" target="_blank">';
 			END IF;
-			t_temp2 := t_temp2 || coalesce(html_escape(l_record.CERT_NAME), '&nbsp;');
+			t_temp0 := t_temp0 || coalesce(html_escape(l_record.CERT_NAME), '&nbsp;');
 			IF l_record.SALESFORCE_ID IS NOT NULL THEN
-				t_temp2 := t_temp2 || '</A>';
+				t_temp0 := t_temp0 || '</A>';
 			END IF;
-			t_temp2 := t_temp2 || '</TD>
+			t_temp0 := t_temp0 || '</TD>
     <TD style="font-family:monospace"><A href="/?sha256=' || encode(l_record.CERT_SHA256, 'hex') || '&opt=mozilladisclosure" target="blank">' || substr(upper(encode(l_record.CERT_SHA256, 'hex')), 1, 16) || '...</A></TD>
   </TR>
 ';
+
+			IF t_count > 0 THEN
+				t_temp2 := t_temp2 || t_temp0;
+			ELSE
+				t_temp4 := t_temp4 || t_temp0;
+			END IF;
 		END LOOP;
 		t_temp2 :=
-'<BR><BR><SPAN class="title" style="background-color:#FEA3AA"><A name="undisclosed">Unconstrained id-kp-serverAuth Trust: Disclosure is required!</A></SPAN>
-<SPAN class="whiteongrey">' || t_undisclosedCount::text || ' CA certificates</SPAN>
+'<BR><BR><SPAN class="title" style="background-color:#FEA3AA"><A name="undisclosed">Unconstrained Trust: Disclosure is required!</A></SPAN>
+<SPAN class="whiteongrey">' || t_undisclosedServerCount::text || ' Server + ' || t_undisclosedNonServerCount || ' Non-Server CA certificates</SPAN>
 <BR>
 <TABLE style="background-color:#FEA3AA">
   <TR>
     <TH>#</TH>
     <TH>Earliest SCT</TH>
     <TH>Listed Here Since</TH>
+    <TH>Trusted For</TH>
     <TH>Root Owner / Certificate</TH>
     <TH>Issuer O</TH>
     <TH>Issuer CN</TH>
@@ -2653,12 +2715,16 @@ Content-Type: application/json
     <TH>SHA-256(Certificate)</TH>
   </TR>
 ' || t_temp2;
-		IF t_undisclosedCount = 0 THEN
+		IF (t_undisclosedServerCount + t_undisclosedNonServerCount) = 0 THEN
 			t_temp2 := t_temp2 ||
-'  <TR><TD colspan="9">None found</TD></TR>
+'  <TR><TD colspan="10">None found</TD></TR>
 ';
+		ELSIF t_undisclosedNonServerCount > 0 THEN
+			t_temp4 :=
+'  <TR><TD colspan="10" style="background-color:#FFFFFF">&nbsp;</TD></TR>
+' || t_temp4;
 		END IF;
-		t_temp2 := t_temp2 ||
+		t_temp2 := t_temp2 || t_temp4 ||
 '</TABLE>
 ';
 
@@ -2782,9 +2848,9 @@ Content-Type: application/json
     </TD>
   </TR>
   <TR style="background-color:#FEA3AA">
-    <TD>Unconstrained id-kp-serverAuth Trust</TD>
+    <TD>Unconstrained Trust</TD>
     <TD><B><U>Yes!</U></B></TD>
-    <TD><A href="#undisclosed">' || t_undisclosedCount::text || '</A>
+    <TD><A href="#undisclosed">' || t_undisclosedServerCount::text || ' + ' || t_undisclosedNonServerCount::text || '</A>
       &nbsp;<A href="#undisclosedsummary" style="font-size:8pt">Summary</A></TD>
   </TR>
   <TR style="background-color:#F8B88B">
@@ -2803,7 +2869,7 @@ Content-Type: application/json
     <TD><A href="#expired">' || t_expiredCount::text || '</A></TD>
   </TR>
   <TR style="background-color:#BAED91">
-    <TD>Technically Constrained id-kp-serverAuth Trust</TD>
+    <TD>Technically Constrained (Trusted)</TD>
     <TD><A href="//www.mail-archive.com/dev-security-policy@lists.mozilla.org/msg06905.html" target="_blank">Maybe soon?</A></TD>
     <TD><A href="#constrained">' || t_constrainedCount::text || '</A></TD>
   </TR>

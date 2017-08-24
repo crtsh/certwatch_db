@@ -378,7 +378,7 @@ UPDATE ccadb_certificate_temp cct
 				FROM ca_trust_purpose ctp
 				WHERE ctp.CA_ID = c.ISSUER_CA_ID
 					AND ctp.TRUST_CONTEXT_ID = 5
-					AND ctp.TRUST_PURPOSE_ID = 1
+					AND ctp.TRUST_PURPOSE_ID IN (1, 3)
 					AND ctp.IS_TIME_VALID
 					AND NOT ctp.ALL_CHAINS_TECHNICALLY_CONSTRAINED
 		);
@@ -394,7 +394,7 @@ UPDATE ccadb_certificate_temp cct
 				FROM ca_trust_purpose ctp
 				WHERE ctp.CA_ID = c.ISSUER_CA_ID
 					AND ctp.TRUST_CONTEXT_ID = 5
-					AND ctp.TRUST_PURPOSE_ID = 1
+					AND ctp.TRUST_PURPOSE_ID IN (1, 3)
 					AND NOT ctp.ALL_CHAINS_REVOKED_IN_SALESFORCE
 		);
 
@@ -439,6 +439,20 @@ UPDATE ccadb_certificate_temp cct
 					AND ctp.TRUST_PURPOSE_ID = 1
 		);
 
+UPDATE ccadb_certificate_temp cct
+	SET DISCLOSURE_STATUS = 'TechnicallyConstrained'
+	FROM certificate c
+	WHERE cct.DISCLOSURE_STATUS = 'TechnicallyConstrainedOther'
+		AND cct.CERTIFICATE_ID = c.ID
+		AND x509_isEKUPermitted(c.CERTIFICATE, '1.3.6.1.5.5.7.3.4')
+		AND EXISTS (
+			SELECT 1
+				FROM ca_trust_purpose ctp
+				WHERE ctp.CA_ID = c.ISSUER_CA_ID
+					AND ctp.TRUST_CONTEXT_ID = 5
+					AND ctp.TRUST_PURPOSE_ID = 3
+		);
+
 \echo Disclosed -> DisclosedButNoKnownServerAuthTrustPath
 UPDATE ccadb_certificate_temp cct
 	SET DISCLOSURE_STATUS = 'DisclosedButNoKnownServerAuthTrustPath'
@@ -450,7 +464,7 @@ UPDATE ccadb_certificate_temp cct
 				FROM ca_trust_purpose ctp
 				WHERE ctp.CA_ID = c.ISSUER_CA_ID
 					AND ctp.TRUST_CONTEXT_ID = 5
-					AND ctp.TRUST_PURPOSE_ID = 1
+					AND ctp.TRUST_PURPOSE_ID IN (1, 3)
 					AND ctp.IS_TIME_VALID
 		);
 

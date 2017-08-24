@@ -24,6 +24,7 @@ DECLARE
 	t_count				integer;
 	t_serverAuth		boolean;
 	t_codeSigning		boolean;
+	t_emailProtection	boolean;
 	t_text				text;
 	t_temp				text;
 	t_offset1			integer;
@@ -33,6 +34,7 @@ DECLARE
 	t_permittedDNS		boolean		:= FALSE;
 	t_permittedIP		boolean		:= FALSE;
 	t_permittedDirName	boolean		:= FALSE;
+	t_permittedEmail	boolean		:= FALSE;
 	t_excludedAllDNS	boolean		:= FALSE;
 	t_excludedAllIPv4	boolean		:= FALSE;
 	t_excludedAllIPv6	boolean		:= FALSE;
@@ -59,7 +61,8 @@ BEGIN
 					OR x509_isEKUPermitted(cert_data, '2.16.840.1.113730.4.1');	-- NS Step-Up.
 	-- Don't consider Code Signing, because this is no longer of interest to Mozilla.
 	t_codeSigning := FALSE;	-- x509_isEKUPermitted(cert_data, '1.3.6.1.5.5.7.3.3');
-	IF t_serverAuth OR t_codeSigning THEN
+	t_emailProtection := x509_isEKUPermitted(cert_data, '1.3.6.1.5.5.7.3.4');
+	IF t_serverAuth OR t_codeSigning OR t_emailProtection THEN
 		t_text := x509_print(cert_data);
 		t_temp := '            X509v3 Name Constraints:';
 		t_offset1 := position(t_temp in t_text);
@@ -85,6 +88,8 @@ BEGIN
 					t_permittedIP := TRUE;
 				ELSIF trim(t_line[t_index]) LIKE 'DirName:%' THEN
 					t_permittedDirName := TRUE;
+				ELSIF trim(t_line[t_index]) LIKE 'email:%' THEN
+					t_permittedEmail := TRUE;
 				END IF;
 			ELSE
 				IF trim(t_line[t_index]) = 'DNS:' THEN
@@ -108,6 +113,11 @@ BEGIN
 		END IF;
 		IF t_codeSigning THEN
 			IF NOT t_permittedDirName THEN
+				RETURN FALSE;
+			END IF;
+		END IF;
+		IF t_emailProtection THEN
+			IF NOT t_permittedEmail THEN
 				RETURN FALSE;
 			END IF;
 		END IF;
