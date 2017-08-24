@@ -76,6 +76,7 @@ DECLARE
 	t_certificateSHA1	bytea;
 	t_certificateSHA256	bytea;
 	t_certificate		certificate.CERTIFICATE%TYPE;
+	t_tbsCertificate	bytea;
 	t_certSummary		text;
 	t_caID				ca.ID%TYPE;
 	t_caName			ca.NAME%TYPE;
@@ -250,6 +251,9 @@ BEGIN
 		t_title := t_type;
 		t_outputType := 'html';
 		t_useCachedResponse := TRUE;
+	ELSIF lower(t_outputType) IN ('linttbscert', 'lintcert') THEN
+		t_type := lower(t_outputType);
+		t_outputType := 'html';
 	ELSIF lower(t_outputType) IN ('advanced') THEN
 		t_type := 'Advanced';
 		t_outputType := 'html';
@@ -1023,6 +1027,54 @@ Content-Disposition: attachment; filename="' || upper(encode(digest(t_certificat
 Content-Type: application/json
 [END_HEADERS]
 ' || generate_add_chain_body(t_certificate, t_onlyOneChain);
+		END IF;
+
+	ELSIF t_type = 'linttbscert' THEN
+		t_temp := get_parameter('b64tbscert', paramNames, paramValues);
+		IF t_temp IS NULL THEN
+			t_output := t_output ||
+'  <SPAN class="whiteongrey">TBSCertificate Linter</SPAN>
+<BR><BR>1. Enter a base64 encoded TBSCertificate.
+<BR><BR>2. Press the "Lint TBSCertificate" button.
+<BR><BR><FORM method="post">
+  <TEXTAREA name="b64tbscert" rows=25 cols=64></TEXTAREA>
+  <BR><BR><INPUT type="submit" class="button" value="Lint TBSCertificate">
+</FORM>';
+		ELSE
+			t_tbsCertificate := decode(
+				replace(replace(t_temp, '-----BEGIN CERTIFICATE-----', ''), '-----END CERTIFICATE-----', ''),
+				'base64'
+			);
+
+			RETURN
+'[BEGIN_HEADERS]
+Content-Type: ' || t_outputType || '
+[END_HEADERS]
+' || lint_tbscertificate(t_tbsCertificate);
+		END IF;
+
+	ELSIF t_type = 'lintcert' THEN
+		t_temp := get_parameter('b64cert', paramNames, paramValues);
+		IF t_temp IS NULL THEN
+			t_output := t_output ||
+'  <SPAN class="whiteongrey">Certificate Linter</SPAN>
+<BR><BR>1. Enter a base64 encoded Certificate.
+<BR><BR>2. Press the "Lint Certificate" button.
+<BR><BR><FORM method="post">
+  <TEXTAREA name="b64cert" rows=25 cols=64></TEXTAREA>
+  <BR><BR><INPUT type="submit" class="button" value="Lint Certificate">
+</FORM>';
+		ELSE
+			t_certificate := decode(
+				replace(replace(t_temp, '-----BEGIN CERTIFICATE-----', ''), '-----END CERTIFICATE-----', ''),
+				'base64'
+			);
+
+			RETURN
+'[BEGIN_HEADERS]
+Content-Type: ' || t_outputType || '
+[END_HEADERS]
+' || lint_certificate(t_certificate);
 		END IF;
 
 	ELSIF t_type = 'revoked-intermediates' THEN
