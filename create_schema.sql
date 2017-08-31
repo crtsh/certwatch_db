@@ -230,6 +230,9 @@ CREATE INDEX ctle_le
 CREATE INDEX ctle_el
 	ON ct_log_entry (ENTRY_ID, CT_LOG_ID);
 
+CREATE INDEX ctle_et
+	ON ct_log_entry (ENTRY_TIMESTAMP);
+
 CREATE TYPE linter_type AS ENUM (
 	'cablint', 'x509lint', 'zlint'
 );
