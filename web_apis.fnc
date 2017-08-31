@@ -4590,7 +4590,7 @@ Content-Type: text/plain; charset=UTF-8
 				'IP Address',
 				'CA/B Forum lint',
 				'X.509 lint',
-				'ZLint'
+				'ZLint',
 				'Lint'
 			) THEN
 		-- Determine whether to use a reverse index (if available).
