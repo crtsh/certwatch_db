@@ -1,5 +1,6 @@
 CREATE OR REPLACE FUNCTION lint_certificate(
-	cert					bytea
+	cert					bytea,
+	has_dummy_signature		boolean
 ) RETURNS text
 AS $$
 DECLARE
@@ -22,13 +23,13 @@ BEGIN
 						substr(CABLINT, 1, 2) ISSUE_SEVERITY,
 						substr(CABLINT, 4) ISSUE_TEXT,
 						CASE substr(CABLINT, 1, 2)
-							WHEN 'B:' THEN 1
-							WHEN 'I:' THEN 2
-							WHEN 'N:' THEN 3
-							WHEN 'F:' THEN 4
-							WHEN 'E:' THEN 5
-							WHEN 'W:' THEN 6
-							ELSE 5
+							WHEN 'F:' THEN 1
+							WHEN 'E:' THEN 2
+							WHEN 'W:' THEN 3
+							WHEN 'N:' THEN 4
+							WHEN 'I:' THEN 5
+							WHEN 'B:' THEN 6
+							ELSE 7
 						END ISSUE_TYPE
 					FROM cablint_embedded(cert) CABLINT
 				UNION
@@ -36,29 +37,51 @@ BEGIN
 						substr(X509LINT, 1, 2) ISSUE_SEVERITY,
 						substr(X509LINT, 4) ISSUE_TEXT,
 						CASE substr(X509LINT, 1, 2)
-							WHEN 'B:' THEN 1
-							WHEN 'I:' THEN 2
-							WHEN 'N:' THEN 3
-							WHEN 'F:' THEN 4
-							WHEN 'E:' THEN 5
-							WHEN 'W:' THEN 6
-							ELSE 5
+							WHEN 'F:' THEN 1
+							WHEN 'E:' THEN 2
+							WHEN 'W:' THEN 3
+							WHEN 'N:' THEN 4
+							WHEN 'I:' THEN 5
+							WHEN 'B:' THEN 6
+							ELSE 7
 						END ISSUE_TYPE
 					FROM x509lint_embedded(cert, t_certType) X509LINT
+				UNION
+				SELECT 'zlint' LINTER,
+						substr(ZLINT, 1, 2) ISSUE_SEVERITY,
+						substr(ZLINT, 4) ISSUE_TEXT,
+						CASE substr(ZLINT, 1, 2)
+							WHEN 'F:' THEN 1
+							WHEN 'E:' THEN 2
+							WHEN 'W:' THEN 3
+							WHEN 'N:' THEN 4
+							WHEN 'I:' THEN 5
+							WHEN 'B:' THEN 6
+							ELSE 7
+						END ISSUE_TYPE
+					FROM zlint_embedded(cert) ZLINT
 				ORDER BY LINTER, ISSUE_TYPE, ISSUE_TEXT
 			) LOOP
-		t_output := t_output ||
-					l_linter.LINTER::text || chr(9) ||
-					CASE l_linter.ISSUE_TYPE
-						WHEN 1 THEN 'BUG'
-						WHEN 2 THEN 'INFO'
-						WHEN 3 THEN 'NOTICE'
-						WHEN 4 THEN 'FATAL'
-						WHEN 5 THEN 'ERROR'
-						WHEN 6 THEN 'WARNING'
-						ELSE l_linter.ISSUE_SEVERITY
-					END || chr(9) ||
-					l_linter.ISSUE_TEXT || chr(10);
+		IF has_dummy_signature AND (l_linter.LINTER = 'cablint')
+				AND (
+					(l_linter.ISSUE_TEXT = 'Certificate signature algorithm does not match TBS signature algorithm')
+					 OR (l_linter.ISSUE_TEXT LIKE 'Certificate signature algorithm type is unknown:%')
+				) THEN
+			NULL;
+		ELSE
+			t_output := t_output ||
+						l_linter.LINTER::text || chr(9) ||
+						CASE l_linter.ISSUE_TYPE
+							WHEN 1 THEN 'FATAL'
+							WHEN 2 THEN 'ERROR'
+							WHEN 3 THEN 'WARNING'
+							WHEN 4 THEN 'NOTICE'
+							WHEN 5 THEN 'INFO'
+							WHEN 6 THEN 'BUG'
+							ELSE l_linter.ISSUE_SEVERITY
+						END || chr(9) ||
+						l_linter.ISSUE_TEXT || chr(10);
+		END IF;
 	END LOOP;
 
 	RETURN t_output;

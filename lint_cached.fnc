@@ -34,8 +34,9 @@ DECLARE
 BEGIN
 	SELECT c.CERTIFICATE, c.ISSUER_CA_ID,
 			CASE v_linter
-				WHEN 'cablint' THEN c.CABLINT_CACHED_AT
-				WHEN 'x509lint' THEN c.X509LINT_CACHED_AT
+				WHEN 'cablint' THEN c.CABLINT_CACHED_AT AT TIME ZONE 'UTC'
+				WHEN 'x509lint' THEN c.X509LINT_CACHED_AT AT TIME ZONE 'UTC'
+				WHEN 'zlint' THEN c.ZLINT_CACHED_AT AT TIME ZONE 'UTC'
 			END
 		INTO t_certificate, t_issuerCAID,
 			t_lintCachedAt
@@ -45,7 +46,7 @@ BEGIN
 		RETURN;
 	END IF;
 
-	SELECT max(lv.DEPLOYED_AT)
+	SELECT max(lv.DEPLOYED_AT AT TIME ZONE 'UTC')
 		INTO t_linterDeployedAt
 		FROM linter_version lv
 		WHERE lv.LINTER = v_linter;
@@ -82,6 +83,8 @@ BEGIN
 					t_certType := 2;
 				END IF;
 			END IF;
+		ELSIF v_linter = 'zlint' THEN
+			t_query := 'SELECT zlint_embedded($1) LINT';
 		END IF;
 
 		FOR l_record IN EXECUTE t_query USING t_certificate, t_certType LOOP
@@ -112,11 +115,15 @@ BEGIN
 
 		IF v_linter = 'cablint' THEN
 			UPDATE certificate
-				SET CABLINT_CACHED_AT = statement_timestamp()
+				SET CABLINT_CACHED_AT = statement_timestamp() AT TIME ZONE 'UTC'
 				WHERE ID = cert_id;
 		ELSIF v_linter = 'x509lint' THEN
 			UPDATE certificate
-				SET X509LINT_CACHED_AT = statement_timestamp()
+				SET X509LINT_CACHED_AT = statement_timestamp() AT TIME ZONE 'UTC'
+				WHERE ID = cert_id;
+		ELSIF v_linter = 'zlint' THEN
+			UPDATE certificate
+				SET ZLINT_CACHED_AT = statement_timestamp() AT TIME ZONE 'UTC'
 				WHERE ID = cert_id;
 		END IF;
 	END IF;

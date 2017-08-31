@@ -59,6 +59,7 @@ DECLARE
 		's', 'Simple', NULL,
 		'cablint', 'CA/B Forum lint', NULL,
 		'x509lint', 'X.509 lint', NULL,
+		'zlint', 'ZLint', NULL,
 		'lint', 'Lint', NULL
 	];
 	t_paramNo			integer;
@@ -115,6 +116,7 @@ DECLARE
 	t_linters			text;
 	t_showCABLint		boolean;
 	t_showX509Lint		boolean;
+	t_showZLint			boolean;
 	t_showMetadata		boolean;
 	t_certType			integer;
 	t_showMozillaDisclosure	boolean;
@@ -214,7 +216,7 @@ BEGIN
 						NULL;
 				END;
 			ELSIF t_type IN (
-						'Simple', 'Advanced', 'CA/B Forum lint', 'X.509 lint', 'Lint', 'CA Name',
+						'Simple', 'Advanced', 'CA/B Forum lint', 'X.509 lint', 'ZLint', 'Lint', 'CA Name',
 						'Identity', 'Common Name', 'Email Address',
 						'Organizational Unit Name', 'Organization Name',
 						'Domain Name', 'Email Address (SAN)', 'IP Address'
@@ -306,7 +308,7 @@ BEGIN
 		t_nameType := 'iPAddress';
 	ELSIF lower(t_type) LIKE '%lint' THEN
 		IF t_type = 'Lint' THEN
-			t_linters := 'cablint,x509lint';
+			t_linters := 'cablint,x509lint,zlint';
 		ELSE
 			t_linters := t_cmd;
 			t_linter := t_linters::linter_type;
@@ -721,7 +723,8 @@ BEGIN
           <BR><SELECT name="linter" size="3">
             <OPTION value="cablint" selected>cablint</OPTION>
             <OPTION value="x509lint">x509lint</OPTION>
-            <OPTION value="lint">Both</OPTION>
+            <OPTION value="zlint">zlint</OPTION>
+            <OPTION value="lint">ALL</OPTION>
           </SELECT>
           <SELECT name="linttype" size="3">
             <OPTION value="1 week" selected>1-week Summary</OPTION>
@@ -730,6 +733,8 @@ BEGIN
           <BR><BR>
           <INPUT type="submit" class="button" value="Lint"
                  onClick="doSearch(document.search_form.linter.value,document.search_form.linttype.value)">
+          <BR><BR><A href="/linttbscert">TBSCertificate Linter</A>
+          <BR><A href="/lintcert">Certificate Linter</A>
         </TD>
       </TR>
       <TR>
@@ -1049,7 +1054,7 @@ Content-Type: application/json
 
 			RETURN
 '[BEGIN_HEADERS]
-Content-Type: ' || t_outputType || '
+Content-Type: text/plain; charset=UTF-8
 [END_HEADERS]
 ' || lint_tbscertificate(t_tbsCertificate);
 		END IF;
@@ -1073,9 +1078,9 @@ Content-Type: ' || t_outputType || '
 
 			RETURN
 '[BEGIN_HEADERS]
-Content-Type: ' || t_outputType || '
+Content-Type: text/plain; charset=UTF-8
 [END_HEADERS]
-' || lint_certificate(t_certificate);
+' || lint_certificate(t_certificate, FALSE);
 		END IF;
 
 	ELSIF t_type = 'revoked-intermediates' THEN
@@ -3712,6 +3717,47 @@ Content-Type: ' || t_outputType || '
 ';
 		END IF;
 
+		t_showZLint := (',' || t_opt) LIKE '%,zlint,%';
+		IF t_showZLint THEN
+			t_output := t_output ||
+'  <TR>
+    <TH class="outer">ZLint<BR>
+      <DIV class="small" style="padding-top:3px">Powered by <A href="//github.com/zmap/zlint" target="_blank">zlint</A></DIV>
+    </TH>
+    <TD class="text">
+';
+			FOR l_record IN (
+						SELECT substr(ZLINT, 4) ISSUE_TEXT,
+								CASE substr(ZLINT, 1, 2)
+									WHEN 'B:' THEN 1
+									WHEN 'I:' THEN 2
+									WHEN 'N:' THEN 3
+									WHEN 'F:' THEN 4
+									WHEN 'E:' THEN 5
+									WHEN 'W:' THEN 6
+									ELSE 5
+								END ISSUE_TYPE,
+								CASE substr(ZLINT, 1, 2)
+									WHEN 'B:' THEN '<SPAN>&nbsp; &nbsp; &nbsp;BUG:'
+									WHEN 'I:' THEN '<SPAN>&nbsp; &nbsp; INFO:'
+									WHEN 'N:' THEN '<SPAN class="notice">&nbsp; NOTICE:'
+									WHEN 'F:' THEN '<SPAN class="fatal">&nbsp; &nbsp;FATAL:'
+									WHEN 'E:' THEN '<SPAN class="error">&nbsp; &nbsp;ERROR:'
+									WHEN 'W:' THEN '<SPAN class="warning">&nbsp;WARNING:'
+									ELSE '<SPAN>&nbsp; &nbsp; &nbsp; &nbsp;' || substr(ZLINT, 1, 2)
+								END ISSUE_HEADING
+							FROM zlint_embedded(t_certificate) ZLINT
+							ORDER BY ISSUE_TYPE, ISSUE_TEXT
+					) LOOP
+				t_output := t_output ||
+'      ' || l_record.ISSUE_HEADING || ' ' || l_record.ISSUE_TEXT || '&nbsp;</SPAN><BR>';
+			END LOOP;
+			t_output := t_output ||
+'    </TD>
+  </TR>
+';
+		END IF;
+
 		t_output := t_output ||
 '  <TR>
 ';
@@ -3743,6 +3789,11 @@ Content-Type: ' || t_outputType || '
 			IF NOT t_showX509Lint THEN
 				t_output := t_output ||
 '      <BR><BR><A href="?asn1=' || t_certificateID::text || '&opt=' || t_opt || 'x509lint">Run x509lint</A>
+';
+			END IF;
+			IF NOT t_showZLint THEN
+				t_output := t_output ||
+'      <BR><BR><A href="?asn1=' || t_certificateID::text || '&opt=' || t_opt || 'zlint">Run zlint</A>
 ';
 			END IF;
 			t_output := t_output ||
@@ -3803,6 +3854,11 @@ Content-Type: ' || t_outputType || '
 			IF NOT t_showX509Lint THEN
 				t_output := t_output ||
 '      <BR><BR><A href="?id=' || t_certificateID::text || '&opt=' || t_opt || 'x509lint">Run x509lint</A>
+';
+			END IF;
+			IF NOT t_showZLint THEN
+				t_output := t_output ||
+'      <BR><BR><A href="?id=' || t_certificateID::text || '&opt=' || t_opt || 'zlint">Run zlint</A>
 ';
 			END IF;
 			t_output := t_output ||
@@ -4072,6 +4128,61 @@ Content-Type: ' || t_outputType || '
 '        <TR>
           <TD class="text">' || l_record.ISSUE_HEADING || ' ' || l_record.ISSUE_TEXT || '&nbsp;</SPAN></TD>
           <TD><A href="?x509lint=' || l_record.ID::text || '&iCAID=' || t_caID::text || t_minNotBeforeString || '">' || l_record.NUM_CERTS::text || '</A></TD>
+        </TR>
+';
+				END LOOP;
+				t_output := t_output ||
+'      </TABLE>
+    </TD>
+  </TR>
+';
+			END IF;
+
+			t_showZLint := (',' || coalesce(get_parameter('opt', paramNames, paramValues), '') || ',') LIKE '%,zlint,%';
+			IF t_showZLint THEN
+				t_output := t_output ||
+'  <TR>
+    <TH class="outer">ZLint</TH>
+    <TD class="outer">
+      <TABLE class="options">
+        <TR><TH colspan=3>For Issued Certificates with notBefore >= ' || to_char(t_minNotBefore, 'YYYY-MM-DD') || ':</TH><TR>
+        <TR>
+          <TH>Issue</TH>
+          <TH># Affected Certs</TH>
+        </TR>
+';
+				FOR l_record IN (
+							SELECT count(DISTINCT lci.CERTIFICATE_ID) NUM_CERTS, li.ID, li.SEVERITY, li.ISSUE_TEXT,
+									CASE li.SEVERITY
+										WHEN 'F' THEN 1
+										WHEN 'E' THEN 2
+										WHEN 'W' THEN 3
+										WHEN 'N' THEN 4
+										WHEN 'I' THEN 5
+										WHEN 'B' THEN 6
+										ELSE 7
+									END ISSUE_TYPE,
+									CASE li.SEVERITY
+										WHEN 'F' THEN '<SPAN class="fatal">&nbsp; &nbsp;FATAL:'
+										WHEN 'E' THEN '<SPAN class="error">&nbsp; &nbsp;ERROR:'
+										WHEN 'W' THEN '<SPAN class="warning">&nbsp;WARNING:'
+										WHEN 'N' THEN '<SPAN class="notice">&nbsp; NOTICE:'
+										WHEN 'I' THEN '<SPAN>&nbsp; &nbsp; INFO:'
+										WHEN 'B' THEN '<SPAN>&nbsp; &nbsp; &nbsp;BUG:'
+										ELSE '<SPAN>&nbsp; &nbsp; &nbsp; &nbsp;' || li.SEVERITY || ':'
+									END ISSUE_HEADING
+								FROM lint_cert_issue lci, lint_issue li
+								WHERE lci.NOT_BEFORE >= t_minNotBefore
+									AND lci.ISSUER_CA_ID = t_value::integer
+									AND lci.LINT_ISSUE_ID = li.ID
+									AND li.LINTER = 'zlint'
+								GROUP BY li.ID, li.SEVERITY, li.ISSUE_TEXT
+								ORDER BY ISSUE_TYPE, NUM_CERTS DESC
+						) LOOP
+					t_output := t_output ||
+'        <TR>
+          <TD class="text">' || l_record.ISSUE_HEADING || ' ' || l_record.ISSUE_TEXT || '&nbsp;</SPAN></TD>
+          <TD><A href="?zlint=' || l_record.ID::text || '&iCAID=' || t_caID::text || t_minNotBeforeString || '">' || l_record.NUM_CERTS::text || '</A></TD>
         </TR>
 ';
 				END LOOP;
@@ -4479,6 +4590,7 @@ Content-Type: ' || t_outputType || '
 				'IP Address',
 				'CA/B Forum lint',
 				'X.509 lint',
+				'ZLint'
 				'Lint'
 			) THEN
 		-- Determine whether to use a reverse index (if available).

@@ -46,6 +46,7 @@ CREATE TABLE certificate (
 	ISSUER_CA_ID			integer		NOT NULL,
 	CABLINT_CACHED_AT		timestamp,
 	X509LINT_CACHED_AT		timestamp,
+	ZLINT_CACHED_AT			timestamp,
 	CONSTRAINT c_pk
 		PRIMARY KEY (ID),
 	CONSTRAINT c_ica_fk

@@ -139,6 +139,7 @@ BEGIN
 	IF t_lintingApplies THEN
 		PERFORM lint_cached(t_certificateID, 'cablint');
 		PERFORM lint_cached(t_certificateID, 'x509lint');
+		PERFORM lint_cached(t_certificateID, 'zlint');
 	END IF;
 
 	FOR l_cdp IN (
@@ -148,7 +149,7 @@ BEGIN
 				CA_ID, DISTRIBUTION_POINT_URL, NEXT_CHECK_DUE, IS_ACTIVE
 			)
 			VALUES (
-				t_issuerCAID, trim(l_cdp.URL), statement_timestamp(), TRUE
+				t_issuerCAID, trim(l_cdp.URL), statement_timestamp() AT TIME ZONE 'UTC', TRUE
 			)
 			ON CONFLICT DO NOTHING;
 	END LOOP;
