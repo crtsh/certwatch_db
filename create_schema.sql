@@ -231,7 +231,7 @@ CREATE INDEX ctle_el
 	ON ct_log_entry (ENTRY_ID, CT_LOG_ID);
 
 CREATE TYPE linter_type AS ENUM (
-	'cablint', 'x509lint'
+	'cablint', 'x509lint', 'zlint'
 );
 
 CREATE TABLE linter_version (
