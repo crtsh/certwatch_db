@@ -563,6 +563,19 @@ CREATE TYPE disclosure_status_type AS ENUM (
 	'DisclosedButInCRL'
 );
 
+CREATE TABLE ccadb_caowner (
+	CA_OWNER_NAME				text,
+	ORGANIZATIONAL_TYPE			text,
+	GEOGRAPHIC_FOCUS			text,
+	PRIMARY_MARKET				text,
+	COMPANY_WEBSITE				text,
+	RECOGNIZED_CAA_DOMAINS		text,
+	PROBLEM_REPORTING			text
+);
+
+CREATE UNIQUE INDEX cco_caowner
+	ON ccadb_caowner (CA_OWNER_NAME);
+
 
 CREATE TABLE microsoft_disallowedcert_import (
 	PUBLIC_KEY_MD5		bytea,
@@ -697,6 +710,8 @@ GRANT SELECT ON root_trust_purpose TO crtsh;
 GRANT SELECT ON ca_trust_purpose TO crtsh;
 
 GRANT SELECT ON applicable_purpose TO crtsh;
+
+GRANT SELECT ON ccadb_caowner TO crtsh;
 
 GRANT SELECT ON microsoft_disallowedcert TO crtsh;
 

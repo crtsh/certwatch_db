@@ -136,28 +136,6 @@ DECLARE
 	t_issuerCAID		certificate.ISSUER_CA_ID%TYPE;
 	t_issuerCAID_table	text;
 	t_feedUpdated		timestamp;
-	t_incompleteServerCount	integer		:= 0;
-	t_incompleteNonServerCount	integer	:= 0;
-	t_undisclosedServerCount	integer	:= 0;
-	t_undisclosedNonServerCount	integer	:= 0;
-	t_trustRevokedCount	integer			:= 0;
-	t_notTrustedCount	integer			:= 0;
-	t_expiredCount		integer			:= 0;
-	t_constrainedOtherCount	integer		:= 0;
-	t_constrainedCount	integer			:= 0;
-	t_revokedExpiredCount	integer		:= 0;
-	t_revokedViaOneCRLCount	integer		:= 0;
-	t_revokedCount		integer			:= 0;
-	t_parentRevokedCount	integer		:= 0;
-	t_discExpiredCount	integer			:= 0;
-	t_discUntrustedCount	integer		:= 0;
-	t_discConstrainedCount	integer		:= 0;
-	t_discRevokedCount	integer			:= 0;
-	t_discErrorCount	integer			:= 0;
-	t_discCRLCount		integer			:= 0;
-	t_discCRLRemovedCount	integer		:= 0;
-	t_disclosedCount	integer			:= 0;
-	t_unknownCount		integer			:= 0;
 	t_caPublicKey		ca.PUBLIC_KEY%TYPE;
 	t_count				integer;
 	t_count2			integer;
@@ -1821,7 +1799,7 @@ Content-Type: text/plain; charset=UTF-8
     <TH>Standard Audit</TH>
     <TH>BR Audit</TH>
     <TH>Documents</TH>
-    <TH>CA Community</TH>
+    <TH>CCADB</TH>
     <TH>Root Owner / Certificate</TH>
   </TR>
   <TR>
@@ -1978,7 +1956,12 @@ Content-Type: text/plain; charset=UTF-8
 
 			t_output := t_output ||
 '  <TR>
-    <TH class="outer">Revocation</TH>
+    <TH class="outer">Revocation';
+			IF lower(',' || t_opt) NOT LIKE '%,problemreporting,%' THEN
+				t_output := t_output || '<BR><BR>
+      <DIV class="small" style="padding-top:3px"><A href="?id=' || t_certificateID::text || '&opt=problemreporting">Report a problem</A> with<BR>this certificate to the CA</DIV>';
+			END IF;
+			t_output := t_output || '</TH>
     <TD class="outer">
       <TABLE class="options" style="margin-left:0px">
         <TR>
@@ -2020,7 +2003,37 @@ Content-Type: text/plain; charset=UTF-8
       </TABLE>
     </TD>
   </TR>
-  <TR>
+';
+			IF lower(',' || t_opt) LIKE '%,problemreporting,%' THEN
+				SELECT cco.PROBLEM_REPORTING
+					INTO t_temp3
+					FROM ca_certificate cac, ccadb_certificate cc, ccadb_caowner cco, ca_trust_purpose ctp, certificate c
+					WHERE cac.CA_ID = t_issuerCAID
+						AND cac.CERTIFICATE_ID = cc.CERTIFICATE_ID
+						AND cc.INCLUDED_CERTIFICATE_OWNER = cco.CA_OWNER_NAME
+						AND cac.CA_ID = ctp.CA_ID
+						AND cac.CERTIFICATE_ID = c.ID
+					GROUP BY cco.PROBLEM_REPORTING
+					ORDER BY min(ctp.SHORTEST_CHAIN), max(x509_notAfter(c.CERTIFICATE)) DESC
+					LIMIT 1;
+
+				IF trim(coalesce(t_temp3, '')) = '' THEN
+					t_temp3 := 'Unknown';
+				END IF;
+				t_output := t_output ||
+'  <TR>
+    <TH class="outer">Problem Reporting<BR>
+      <DIV class="small" style="padding-top:3px">Mechanism(s) disclosed<BR>via the
+        <A href="//ccadb-public.secure.force.com/mozilla/CAInformationReport" target="_blank">CCADB</A></DIV>
+    </TH>
+    <TD class="outer">' || replace(html_escape(t_temp3), '. ', '.<BR>') || '</TD>
+  </TR>
+';
+			END IF;
+		END IF;
+
+		t_output := t_output ||
+'  <TR>
     <TH class="outer">SHA-256(Certificate)</TH>
     <TD class="outer"><A href="//censys.io/certificates/' || coalesce(lower(encode(t_certificateSHA256, 'hex')), '') || '">'
 						|| coalesce(upper(encode(t_certificateSHA256, 'hex')), '<I>Not found</I>') || '</A></TD>
@@ -2030,7 +2043,6 @@ Content-Type: text/plain; charset=UTF-8
     <TD class="outer">' || coalesce(upper(encode(t_certificateSHA1, 'hex')), '<I>Not found</I>') || '</TD>
   </TR>
 ';
-		END IF;
 
 		t_showCABLint := (',' || t_opt) LIKE '%,cablint,%';
 		IF t_showCABLint THEN
