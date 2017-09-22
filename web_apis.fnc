@@ -787,15 +787,17 @@ BEGIN
     <TR>
       <TH rowspan="2">Operator</TH>
       <TH rowspan="2">URL</TH>
-      <TH rowspan="2">MMD<BR>(hrs)</TH>
-      <TH rowspan="2">Latest STH<BR>(UTC)</TH>
+      <TH rowspan="2">MMD<BR><SPAN class="small">(hrs)</SPAN></TH>
+      <TH rowspan="2">Latest STH<BR><SPAN class="small">(UTC)</SPAN></TH>
       <TH colspan="2">Entries</TH>
-      <TH rowspan="2">Last Contacted<BR>(UTC)</TH>
-      <TH rowspan="2">In Chrome?</TH>
+      <TH rowspan="2">Last Contacted<BR><SPAN class="small">(UTC)</SPAN></TH>
+      <TH colspan="2">Google</TH>
     </TR>
     <TR>
       <TH>Tree Size</TH>
       <TH>Backlog</TH>
+      <TH>In Chrome?</TH>
+      <TH>Uptime %</TH>
     </TR>';
 		FOR l_record IN (
 					SELECT ctl.ID, ctl.OPERATOR, ctl.URL,
@@ -805,7 +807,12 @@ BEGIN
 								THEN ' style="color:#FF0000"'
 								ELSE ''
 							END FONT_STYLE,
-							ctl.INCLUDED_IN_CHROME, ctl.CHROME_ISSUE_NUMBER, ctl.NON_INCLUSION_STATUS
+							ctl.INCLUDED_IN_CHROME, ctl.CHROME_ISSUE_NUMBER, ctl.NON_INCLUSION_STATUS,
+							ctl.GOOGLE_UPTIME,
+							CASE WHEN coalesce(ctl.GOOGLE_UPTIME::numeric, 100) < 99
+								THEN ';color:#FF0000'
+								ELSE ''
+							END UPTIME_FONT_STYLE
 						FROM ct_log ctl
 						WHERE ctl.IS_ACTIVE = 't'
 						ORDER BY ctl.TREE_SIZE DESC NULLS LAST
@@ -841,7 +848,9 @@ BEGIN
 				t_output := t_output || l_record.NON_INCLUSION_STATUS;
 			END IF;
 			t_output := t_output ||
-'    </TR>';
+'      </TD>
+      <TD style="text-align:right' || l_record.UPTIME_FONT_STYLE || '">' || coalesce(l_record.GOOGLE_UPTIME, '') || '</TD>
+    </TR>';
 		END LOOP;
 		t_output := t_output || '
   </TABLE>
@@ -850,10 +859,10 @@ BEGIN
     <TR>
       <TH rowspan="2">Operator</TH>
       <TH rowspan="2">URL</TH>
-      <TH rowspan="2">MMD<BR>(hrs)</TH>
-      <TH rowspan="2">Latest STH<BR>(UTC)</TH>
+      <TH rowspan="2">MMD<BR><SPAN class="small">(hrs)</SPAN></TH>
+      <TH rowspan="2">Latest STH<BR><SPAN class="small">(UTC)</SPAN></TH>
       <TH colspan="2">Entries</TH>
-      <TH rowspan="2">Last Contacted<BR>(UTC)</TH>
+      <TH rowspan="2">Last Contacted<BR><SPAN class="small">(UTC)</SPAN></TH>
       <TH rowspan="2">In Chrome?</TH>
     </TR>
     <TR>
@@ -864,10 +873,6 @@ BEGIN
 					SELECT ctl.ID, ctl.OPERATOR, ctl.URL,
 							ctl.TREE_SIZE, ctl.LATEST_ENTRY_ID, ctl.LATEST_UPDATE,
 							ctl.LATEST_STH_TIMESTAMP, ctl.MMD_IN_SECONDS,
-							CASE WHEN coalesce(ctl.LATEST_STH_TIMESTAMP + (ctl.MMD_IN_SECONDS || ' seconds')::interval, statement_timestamp()) <= statement_timestamp()
-								THEN ' style="color:#FF0000"'
-								ELSE ''
-							END FONT_STYLE,
 							ctl.INCLUDED_IN_CHROME, ctl.CHROME_ISSUE_NUMBER, ctl.NON_INCLUSION_STATUS
 						FROM ct_log ctl
 						WHERE ctl.IS_ACTIVE = 'f'
@@ -883,12 +888,12 @@ BEGIN
 			END IF;
 			t_output := t_output || '
     <TR>
-      <TD' || l_record.FONT_STYLE || '>' || l_record.OPERATOR || '</TD>
-      <TD' || l_record.FONT_STYLE || '>' || l_record.URL || '</TD>
-      <TD' || l_record.FONT_STYLE || '>' || coalesce((l_record.MMD_IN_SECONDS / 60 / 60)::text, '?') || '</TD>
-      <TD' || l_record.FONT_STYLE || '>' || coalesce(to_char(l_record.LATEST_STH_TIMESTAMP, 'YYYY-MM-DD HH24:MI:SS'), '') || '</TD>
-      <TD' || l_record.FONT_STYLE || '>' || coalesce(l_record.TREE_SIZE::text, '') || '</TD>
-      <TD' || l_record.FONT_STYLE || '>' || t_count::text || '</TD>
+      <TD>' || l_record.OPERATOR || '</TD>
+      <TD>' || l_record.URL || '</TD>
+      <TD>' || coalesce((l_record.MMD_IN_SECONDS / 60 / 60)::text, '?') || '</TD>
+      <TD>' || coalesce(to_char(l_record.LATEST_STH_TIMESTAMP, 'YYYY-MM-DD HH24:MI:SS'), '') || '</TD>
+      <TD>' || coalesce(l_record.TREE_SIZE::text, '') || '</TD>
+      <TD>' || t_count::text || '</TD>
       <TD>' || coalesce(to_char(l_record.LATEST_UPDATE, 'YYYY-MM-DD HH24:MI:SS'), '') || '</TD>
       <TD>
 ';
@@ -905,7 +910,8 @@ BEGIN
 				t_output := t_output || l_record.NON_INCLUSION_STATUS;
 			END IF;
 			t_output := t_output ||
-'    </TR>';
+'      </TD>
+    </TR>';
 		END LOOP;
 		t_output := t_output || '
 </TABLE>';
