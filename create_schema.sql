@@ -6,6 +6,9 @@
 CREATE EXTENSION pgcrypto;
 
 
+CREATE EXTENSION libzlintpq;
+
+
 -- As the "certwatch" user.
 
 CREATE TABLE ca (

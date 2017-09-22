@@ -81,9 +81,9 @@ DROP TABLE lint_cert_issue;
 
 DROP TABLE lint_issue;
 
-DROP TYPE linter_type;
-
 DROP TABLE linter_version;
+
+DROP TYPE linter_type;
 
 DROP TABLE ct_log_entry;
 
@@ -99,6 +99,15 @@ DROP TABLE certificate_identity;
 
 DROP TYPE name_type;
 
+DROP TABLE invalid_certificate;
+
 DROP TABLE certificate;
 
 DROP TABLE ca;
+
+
+-- As the "postgres" user.
+
+DROP EXTENSION libzlintpq;
+
+DROP EXTENSION pgcrypto;
