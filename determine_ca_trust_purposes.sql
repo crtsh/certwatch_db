@@ -1,19 +1,16 @@
 \timing
 
-DROP TABLE ca_trust_purpose_temp;
-
 \set ON_ERROR_STOP on
 
-CREATE TABLE ca_trust_purpose_temp ( LIKE ca_trust_purpose INCLUDING INDEXES);
+BEGIN WORK;
+
+CREATE TEMPORARY TABLE ca_trust_purpose_temp ( LIKE ca_trust_purpose INCLUDING INDEXES)
+	ON COMMIT DROP;
 
 CREATE INDEX ctpt_lc
 	ON ca_trust_purpose_temp (ITERATION_LAST_MODIFIED, TRUST_PURPOSE_ID, CA_ID, TRUST_CONTEXT_ID);
 
 SELECT determine_ca_trust_purposes();
-
-BEGIN WORK;
-
-LOCK ca_trust_purpose;
 
 TRUNCATE ca_trust_purpose;
 
@@ -23,5 +20,3 @@ INSERT INTO ca_trust_purpose
 COMMIT WORK;
 
 CLUSTER ca_trust_purpose USING ctp_pk;
-
-DROP TABLE ca_trust_purpose_temp;
