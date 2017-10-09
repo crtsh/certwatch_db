@@ -22,14 +22,15 @@ DECLARE
 	l_record				RECORD;
 BEGIN
 	IF trustContextID = 5 THEN
-		t_disclosureStatusField := 'DISCLOSURE_STATUS';
+		t_disclosureStatusField := 'MOZILLA_DISCLOSURE_STATUS';
 		t_opt := '&opt=mozilladisclosure';
 	ELSIF trustContextID = 1 THEN
 		t_disclosureStatusField := 'MICROSOFT_DISCLOSURE_STATUS';
 	END IF;
 
 	t_query :=
-'SELECT *
+'SELECT *,
+		cc.' || 'LAST_' || t_disclosureStatusField || '_CHANGE	LAST_DISCLOSURE_STATUS_CHANGE
 	FROM ccadb_certificate cc
 	WHERE cc.' || t_disclosureStatusField || ' = ''' || disclosureStatus || '''
 		AND cc.CERTIFICATE_ID IS NOT NULL
@@ -115,11 +116,11 @@ BEGIN
 		IF l_record.CERT_RECORD_TYPE = 'Root Certificate' THEN
 			t_row := t_row || '<B>[Root]</B> ';
 		END IF;
-		IF l_record.SALESFORCE_ID IS NOT NULL THEN
-			t_row := t_row || '<A href="//ccadb.force.com/' || l_record.SALESFORCE_ID || '" target="_blank">';
+		IF l_record.CCADB_RECORD_ID IS NOT NULL THEN
+			t_row := t_row || '<A href="//ccadb.force.com/' || l_record.CCADB_RECORD_ID || '" target="_blank">';
 		END IF;
 		t_row := t_row || coalesce(html_escape(l_record.CERT_NAME), '&nbsp;');
-		IF l_record.SALESFORCE_ID IS NOT NULL THEN
+		IF l_record.CCADB_RECORD_ID IS NOT NULL THEN
 			t_row := t_row || '</A>';
 		END IF;
 		t_row := t_row || '</TD>

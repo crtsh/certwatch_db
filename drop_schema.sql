@@ -73,6 +73,8 @@ DROP TABLE microsoft_disallowedcert_import;
 
 DROP TABLE ccadb_caowner;
 
+DROP TABLE ccadb_certificate;
+
 DROP TYPE disclosure_status_type;
 
 DROP TABLE ca_trust_purpose;

@@ -579,6 +579,77 @@ CREATE TYPE disclosure_status_type AS ENUM (
 	'DisclosedButInCRL'
 );
 
+CREATE TABLE ccadb_certificate(
+	CCADB_RECORD_ID					text,
+	CERTIFICATE_ID					bigint,
+	PARENT_CERTIFICATE_ID			bigint,
+	INCLUDED_CERTIFICATE_ID			bigint,
+	INCLUDED_CERTIFICATE_OWNER		text,
+	CA_OWNER						text,
+	CERT_NAME						text,
+	PARENT_CERT_NAME				text,
+	CERT_RECORD_TYPE				text,
+	REVOCATION_STATUS				text,
+	CERT_SHA256						bytea,
+	AUDITS_SAME_AS_PARENT			boolean,
+	AUDITOR							text,
+	STANDARD_AUDIT_URL				text,
+	STANDARD_AUDIT_TYPE				text,
+	STANDARD_AUDIT_DATE				date,
+	STANDARD_AUDIT_START			date,
+	STANDARD_AUDIT_END				date,
+	BRSSL_AUDIT_URL					text,
+	BRSSL_AUDIT_TYPE				text,
+	BRSSL_AUDIT_DATE				date,
+	BRSSL_AUDIT_START				date,
+	BRSSL_AUDIT_END					date,
+	EVSSL_AUDIT_URL					text,
+	EVSSL_AUDIT_TYPE				text,
+	EVSSL_AUDIT_DATE				date,
+	EVSSL_AUDIT_START				date,
+	EVSSL_AUDIT_END					date,
+	EVCODE_AUDIT_URL				text,
+	EVCODE_AUDIT_TYPE				text,
+	EVCODE_AUDIT_DATE				date,
+	EVCODE_AUDIT_START				date,
+	EVCODE_AUDIT_END				date,
+	CP_CPS_SAME_AS_PARENT			boolean,
+	CP_URL							text,
+	CPS_URL							text,
+	TEST_WEBSITE_VALID				text,
+	TEST_WEBSITE_EXPIRED			text,
+	TEST_WEBSITE_REVOKED			text,
+	IS_TECHNICALLY_CONSTRAINED		text,
+	MOZILLA_STATUS					text,
+	MICROSOFT_STATUS				text,
+	ISSUER_CN						text,
+	ISSUER_O						text,
+	SUBJECT_CN						text,
+	SUBJECT_O						text,
+	MOZILLA_DISCLOSURE_STATUS		disclosure_status_type,
+	MICROSOFT_DISCLOSURE_STATUS		disclosure_status_type,
+	LAST_MOZILLA_DISCLOSURE_STATUS_CHANGE	timestamp,
+	LAST_MICROSOFT_DISCLOSURE_STATUS_CHANGE	timestamp,
+	CONSTRAINT cc_c_fk
+		FOREIGN KEY (CERTIFICATE_ID)
+		REFERENCES certificate(ID),
+	CONSTRAINT cc_pc_fk
+		FOREIGN KEY (PARENT_CERTIFICATE_ID)
+		REFERENCES certificate(ID),
+	CONSTRAINT cc_ic_fk
+		FOREIGN KEY (INCLUDED_CERTIFICATE_ID)
+		REFERENCES certificate(ID)
+);
+
+CREATE INDEX cc_c
+	ON ccadb_certificate(CERTIFICATE_ID);
+
+CREATE INDEX cc_mozds_c
+	ON ccadb_certificate(MOZILLA_DISCLOSURE_STATUS, CERTIFICATE_ID);
+
+CREATE INDEX cc_msds_c
+	ON ccadb_certificate(MICROSOFT_DISCLOSURE_STATUS, CERTIFICATE_ID);
+
 CREATE TABLE ccadb_caowner (
 	CA_OWNER_NAME				text,
 	ORGANIZATIONAL_TYPE			text,
@@ -728,6 +799,8 @@ GRANT SELECT ON root_trust_purpose TO crtsh;
 GRANT SELECT ON ca_trust_purpose TO crtsh;
 
 GRANT SELECT ON applicable_purpose TO crtsh;
+
+GRANT SELECT ON ccadb_certificate TO crtsh;
 
 GRANT SELECT ON ccadb_caowner TO crtsh;
 

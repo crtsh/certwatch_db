@@ -16,7 +16,7 @@ DECLARE
 	l_record				RECORD;
 BEGIN
 	IF trustContextID = 5 THEN
-		t_disclosureStatusField := 'DISCLOSURE_STATUS';
+		t_disclosureStatusField := 'MOZILLA_DISCLOSURE_STATUS';
 		t_opt := '&opt=mozilladisclosure';
 	ELSIF trustContextID = 1 THEN
 		t_disclosureStatusField := 'MICROSOFT_DISCLOSURE_STATUS';
@@ -25,7 +25,7 @@ BEGIN
 	IF disclosureStatus IS NULL THEN
 		t_query :=
 'SELECT cc.CERT_NAME, cc.INCLUDED_CERTIFICATE_ID, cc.INCLUDED_CERTIFICATE_OWNER, cc.CERT_RECORD_TYPE,
-		cc.ISSUER_O, cc.ISSUER_CN, cc.SUBJECT_O, cc.SUBJECT_CN, cc.CERT_SHA256, cc.SALESFORCE_ID,
+		cc.ISSUER_O, cc.ISSUER_CN, cc.SUBJECT_O, cc.SUBJECT_CN, cc.CERT_SHA256, cc.CCADB_RECORD_ID,
 		ic.CERTIFICATE_ID, ic.PROBLEMS
 	FROM ccadb_certificate cc
 			LEFT OUTER JOIN invalid_certificate ic
@@ -62,11 +62,11 @@ BEGIN
 		IF l_record.CERT_RECORD_TYPE = 'Root Certificate' THEN
 			t_table := t_table || '<B>[Root]</B> ';
 		END IF;
-		IF l_record.SALESFORCE_ID IS NOT NULL THEN
-			t_table := t_table || '<A href="//ccadb.force.com/' || l_record.SALESFORCE_ID || '" target="_blank">';
+		IF l_record.CCADB_RECORD_ID IS NOT NULL THEN
+			t_table := t_table || '<A href="//ccadb.force.com/' || l_record.CCADB_RECORD_ID || '" target="_blank">';
 		END IF;
 		t_table := t_table || coalesce(html_escape(l_record.CERT_NAME), '&nbsp;');
-		IF l_record.SALESFORCE_ID IS NOT NULL THEN
+		IF l_record.CCADB_RECORD_ID IS NOT NULL THEN
 			t_table := t_table || '</A>';
 		END IF;
 		IF disclosureStatus IS NOT NULL THEN

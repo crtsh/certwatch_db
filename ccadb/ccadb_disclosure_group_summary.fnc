@@ -13,7 +13,7 @@ DECLARE
 	l_record				RECORD;
 BEGIN
 	IF trustContextID = 5 THEN
-		t_disclosureStatusField := 'DISCLOSURE_STATUS';
+		t_disclosureStatusField := 'MOZILLA_DISCLOSURE_STATUS';
 	ELSIF trustContextID = 1 THEN
 		t_disclosureStatusField := 'MICROSOFT_DISCLOSURE_STATUS';
 	END IF;

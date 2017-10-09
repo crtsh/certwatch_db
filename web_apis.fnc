@@ -226,7 +226,7 @@ BEGIN
 		t_title := t_type;
 		t_outputType := 'html';
 	ELSIF lower(t_outputType) IN ('revoked-intermediates', 'mozilla-certvalidations', 'mozilla-certvalidations-by-root', 'mozilla-certvalidations-by-owner', 'mozilla-certvalidations-by-version',
-									'mozilla-disclosures', 'mozilla-onecrl', 'redacted-precertificates') THEN
+									'mozilla-disclosures', 'mozilla-onecrl', 'microsoft-disclosures', 'redacted-precertificates') THEN
 		t_type := lower(t_outputType);
 		t_title := t_type;
 		t_outputType := 'html';
@@ -424,7 +424,7 @@ BEGIN
 		t_output := t_output ||
 '  <STYLE type="text/css">
 ';
-		IF t_type != 'mozilla-disclosures' THEN
+		IF t_type NOT IN ('mozilla-disclosures', 'microsoft-disclosures') THEN
 			t_output := t_output ||
 '    a {
       white-space: nowrap;
@@ -1097,7 +1097,8 @@ Content-Type: text/plain; charset=UTF-8
 							md.CERTIFICATE_ID MS_CERTIFICATE_ID,
 							mo.CERTIFICATE_ID MOZ_CERTIFICATE_ID,
 							gr.ENTRY_TYPE, cr.SERIAL_NUMBER,
-							coalesce(cc.DISCLOSURE_STATUS, 'Undisclosed') DISCLOSURE_STATUS
+							cc.MOZILLA_DISCLOSURE_STATUS, cc.MICROSOFT_DISCLOSURE_STATUS,
+							cc.REVOCATION_STATUS
 						FROM ca_certificate cac, certificate c
 							LEFT OUTER JOIN microsoft_disallowedcert md ON (c.ID = md.CERTIFICATE_ID)
 							LEFT OUTER JOIN mozilla_onecrl mo ON (c.ID = mo.CERTIFICATE_ID)
@@ -1180,12 +1181,13 @@ Content-Type: text/plain; charset=UTF-8
 			END IF;
 			t_temp := t_temp || '</TD>
     <TD style="color:';
-			IF l_record.DISCLOSURE_STATUS::text LIKE 'Disclos%' THEN
+			IF (l_record.MOZILLA_DISCLOSURE_STATUS::text LIKE 'Disclos%')
+					OR (l_record.MICROSOFT_DISCLOSURE_STATUS::text LIKE 'Disclos%') THEN
 				t_temp := t_temp || 'CC0000">Disclosed';
-			ELSIF l_record.DISCLOSURE_STATUS::text LIKE 'Revoked%' THEN
+			ELSIF l_record.REVOCATION_STATUS = 'Revoked' THEN
 				t_temp := t_temp || '00CC00">Revoked';
 				t_count2 := t_count2 + 1;
-			ELSIF l_record.DISCLOSURE_STATUS = 'ParentRevoked' THEN
+			ELSIF l_record.REVOCATION_STATUS = 'Parent Cert Revoked' THEN
 				t_temp := t_temp || '00CC00">ParentRevoked';
 				t_count2 := t_count2 + 1;
 			ELSIF t_ctp2.CA_ID IS NULL THEN
@@ -1512,6 +1514,9 @@ Content-Type: text/plain; charset=UTF-8
 '</TABLE>
 ';
 
+	ELSIF t_type = 'microsoft-disclosures' THEN
+		t_output := t_output || microsoft_disclosures();
+
 	ELSIF t_type IN (
 				'ID',
 				'SHA-1(Certificate)',
@@ -1791,14 +1796,15 @@ Content-Type: text/plain; charset=UTF-8
     <TD class="outer">
 ';
 				t_temp := NULL;
+				t_temp2 := NULL;
 				FOR l_record IN (
 							SELECT *
 								FROM ccadb_certificate cc
-								WHERE cc.DISCLOSURE_STATUS::text LIKE 'Disclosed%'
+								WHERE cc.CCADB_RECORD_ID IS NOT NULL
 									AND cc.CERTIFICATE_ID = t_certificateID
 						) LOOP
-					t_temp := '';
-					t_output := t_output ||
+					IF t_temp IS NULL THEN
+						t_temp :=
 '<TABLE class="options" style="margin-left:0px">
   <TR>
     <TH>Auditor</TH>
@@ -1808,58 +1814,58 @@ Content-Type: text/plain; charset=UTF-8
     <TH>CCADB</TH>
     <TH>Root Owner / Certificate</TH>
   </TR>
-  <TR>
+';
+					END IF;
+					t_temp := t_temp ||
+'  <TR>
     <TD>' || coalesce(l_record.AUDITOR, '') || '</TD>
     <TD>';
 					IF coalesce(l_record.STANDARD_AUDIT_URL, '') NOT LIKE '%://%' THEN
-						t_output := t_output || coalesce(l_record.STANDARD_AUDIT_URL, 'Not disclosed');
+						t_temp := t_temp || coalesce(l_record.STANDARD_AUDIT_URL, 'Not disclosed');
 					ELSE
-						t_output := t_output || '
+						t_temp := t_temp || '
       <A href="' || l_record.STANDARD_AUDIT_URL || '" target="_blank">' || coalesce(l_record.STANDARD_AUDIT_DATE::text, 'Yes') || '</A>
     ';
 					END IF;
-					t_output := t_output || '</TD>
+					t_temp := t_temp || '</TD>
     <TD>';
 					IF coalesce(l_record.BRSSL_AUDIT_URL, '') NOT LIKE '%://%' THEN
-						t_output := t_output || coalesce(l_record.BRSSL_AUDIT_URL, 'No');
+						t_temp := t_temp || coalesce(l_record.BRSSL_AUDIT_URL, 'No');
 					ELSE
-						t_output := t_output || '
+						t_temp := t_temp || '
       <A href="' || l_record.BRSSL_AUDIT_URL || '" target="_blank">Yes</A>
     ';
 					END IF;
-					t_output := t_output || '</TD>
+					t_temp := t_temp || '</TD>
     <TD>
 ';
 					IF coalesce(l_record.CP_URL, '') != '' THEN
-						t_output := t_output ||
+						t_temp := t_temp ||
 '      <A href="' || l_record.CP_URL || '" target="blank">CP</A>
 ';
 					END IF;
 					IF coalesce(l_record.CPS_URL, '') != '' THEN
-						t_output := t_output ||
+						t_temp := t_temp ||
 '      <A href="' || l_record.CPS_URL || '" target="blank">CPS</A>
 ';
 					END IF;
-					t_output := t_output ||
+					t_temp := t_temp ||
 '    </TD>
     <TD>';
-					IF l_record.SALESFORCE_ID IS NOT NULL THEN
-						t_output := t_output || '<A href="//ccadb.force.com/' || l_record.SALESFORCE_ID || '" target="_blank">' || l_record.SALESFORCE_ID || '</A>';
+					IF l_record.CCADB_RECORD_ID IS NOT NULL THEN
+						t_temp := t_temp || '<A href="//ccadb.force.com/' || l_record.CCADB_RECORD_ID || '" target="_blank">' || l_record.CCADB_RECORD_ID || '</A>';
 					ELSE
-						t_output := t_output || '&nbsp;';
+						t_temp := t_temp || '&nbsp;';
 					END IF;
-					t_output := t_output || '</TD>
+					t_temp := t_temp || '</TD>
     <TD>';
 					IF l_record.INCLUDED_CERTIFICATE_ID IS NULL THEN
-						t_output := t_output || coalesce(html_escape(l_record.INCLUDED_CERTIFICATE_OWNER), '&nbsp;');
+						t_temp := t_temp || coalesce(html_escape(l_record.INCLUDED_CERTIFICATE_OWNER), '&nbsp;');
 					ELSE
-						t_output := t_output || '<A href="/?id=' || l_record.INCLUDED_CERTIFICATE_ID::text || '">' || coalesce(html_escape(l_record.INCLUDED_CERTIFICATE_OWNER), '&nbsp;') || '</A>';
+						t_temp := t_temp || '<A href="/?id=' || l_record.INCLUDED_CERTIFICATE_ID::text || '">' || coalesce(html_escape(l_record.INCLUDED_CERTIFICATE_OWNER), '&nbsp;') || '</A>';
 					END IF;
-					t_output := t_output || '</TD>
-  </TR>
-</TABLE>';
 					IF l_record.CERT_RECORD_TYPE = 'Root Certificate' THEN
-						t_output := t_output ||
+						t_temp2 :=
 '  <TR>
     <TH class="outer">Telemetry<BR>
       <DIV class="small" style="padding-top:3px">Collected by
@@ -1869,22 +1875,19 @@ Content-Type: text/plain; charset=UTF-8
   </TR>
 ';
 					END IF;
-					EXIT;
 				END LOOP;
-				IF t_temp IS NULL THEN
-					SELECT CASE WHEN cc.DISCLOSURE_STATUS IN ('RevokedViaOneCRL', 'Revoked', 'RevokedButExpired') THEN 'Disclosed as Revoked'
-								WHEN cc.DISCLOSURE_STATUS = 'ParentRevoked' THEN 'Disclosed as Parent Revoked'
-								WHEN cc.DISCLOSURE_STATUS = 'DisclosureIncomplete' THEN 'Disclosure Incomplete'
-							END
-						INTO t_temp
-						FROM ccadb_certificate cc
-						WHERE cc.CERTIFICATE_ID = t_certificateID;
-					t_temp := coalesce(t_temp, 'Not Disclosed');
+				IF t_temp IS NOT NULL THEN
+					t_temp := t_temp || '</TD>
+  </TR>
+</TABLE>';
+				ELSE
+					t_temp := 'Not Disclosed';
 				END IF;
+
 				t_output := t_output || t_temp || '
     </TD>
   </TR>
-';
+' || coalesce(t_temp2, '');
 			END IF;
 
 			SELECT '<SPAN style="color:#CC0000">Revoked'
@@ -2412,7 +2415,7 @@ Content-Type: text/plain; charset=UTF-8
 					ELSIF NOT t_ctp.IS_TIME_VALID THEN
 						t_temp3 := t_temp3 || '888888>Expired';
 					ELSE
-						SELECT cc.DISCLOSURE_STATUS
+						SELECT cc.MOZILLA_DISCLOSURE_STATUS
 							INTO t_temp2
 							FROM ccadb_certificate cc
 							WHERE cc.CERTIFICATE_ID = l_record.ID;
