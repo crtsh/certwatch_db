@@ -993,7 +993,7 @@ BEGIN
 <BR><BR>1. Enter a base64 encoded certificate.
 <BR><BR>2. Press the button to generate JSON that you can then submit to a log''s /ct/v1/add-chain API.
 <BR>(crt.sh will discover the trust chain for you).
-<BR><BR><FORM method="post">
+<BR><BR><FORM method="post" name="form1">
   <TEXTAREA name="b64cert" rows=25 cols=64></TEXTAREA>
   <BR><BR><INPUT type="submit" class="button" value="Generate JSON">
 </FORM>
@@ -1022,13 +1022,22 @@ Content-Type: application/json
 		t_temp := get_parameter('b64tbscert', paramNames, paramValues);
 		IF t_temp IS NULL THEN
 			t_output := t_output ||
-'  <SPAN class="whiteongrey">TBSCertificate Linter</SPAN>
-<BR><BR>1. Enter a base64 encoded TBSCertificate.
-<BR><BR>2. Press the "Lint TBSCertificate" button.
-<BR><BR><FORM method="post">
-  <TEXTAREA name="b64tbscert" rows=25 cols=64></TEXTAREA>
-  <BR><BR><INPUT type="submit" class="button" value="Lint TBSCertificate">
-</FORM>';
+'  <SCRIPT>
+    function handleFiles() {
+      var reader = new FileReader();
+      reader.onload = function(e) {
+        document.form1.b64tbscert.value = reader.result;
+      }
+      reader.readAsText(document.getElementById("fil").files[0]);
+    }
+  </SCRIPT>
+  <SPAN class="whiteongrey">TBSCertificate Linter</SPAN>
+  <BR><BR>Pick a file or Paste a base64 encoded TBSCertificate, then press "Lint":
+  <BR><BR><INPUT type="file" id="fil" onchange="handleFiles(this.files)" />
+  <BR><BR><FORM method="post" name="form1">
+    <TEXTAREA name="b64tbscert" rows=25 cols=64></TEXTAREA>
+    <BR><BR><INPUT type="submit" class="button" value="Lint">
+  </FORM>';
 		ELSE
 			t_tbsCertificate := decode(
 				replace(replace(t_temp, '-----BEGIN CERTIFICATE-----', ''), '-----END CERTIFICATE-----', ''),
@@ -1046,13 +1055,22 @@ Content-Type: text/plain; charset=UTF-8
 		t_temp := get_parameter('b64cert', paramNames, paramValues);
 		IF t_temp IS NULL THEN
 			t_output := t_output ||
-'  <SPAN class="whiteongrey">Certificate Linter</SPAN>
-<BR><BR>1. Enter a base64 encoded Certificate.
-<BR><BR>2. Press the "Lint Certificate" button.
-<BR><BR><FORM method="post">
-  <TEXTAREA name="b64cert" rows=25 cols=64></TEXTAREA>
-  <BR><BR><INPUT type="submit" class="button" value="Lint Certificate">
-</FORM>';
+'  <SCRIPT>
+    function handleFiles() {
+      var reader = new FileReader();
+      reader.onload = function(e) {
+        document.form1.b64cert.value = reader.result;
+      }
+      reader.readAsText(document.getElementById("fil").files[0]);
+    }
+  </SCRIPT>
+  <SPAN class="whiteongrey">Certificate Linter</SPAN>
+  <BR><BR>Pick a file or Paste a base64 encoded Certificate, then press "Lint":
+  <BR><BR><INPUT type="file" id="fil" onchange="handleFiles(this.files)" />
+  <BR><BR><FORM method="post" name="form1">
+    <TEXTAREA name="b64cert" rows=25 cols=64></TEXTAREA>
+    <BR><BR><INPUT type="submit" class="button" value="Lint">
+  </FORM>';
 		ELSE
 			t_certificate := decode(
 				replace(replace(t_temp, '-----BEGIN CERTIFICATE-----', ''), '-----END CERTIFICATE-----', ''),
