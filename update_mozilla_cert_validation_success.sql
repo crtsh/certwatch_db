@@ -13,14 +13,14 @@ UPDATE mozilla_root_hashes_new mrhn
 	SET DISPLAY_ORDER = sub.ROW_NUMBER,
 		CA_OWNER = sub.CA_OWNER
 	FROM (
-		SELECT mrhn2.CERTIFICATE_ID, coalesce(md.CA_OWNER, mrh.CA_OWNER) CA_OWNER,
-				row_number() OVER (ORDER BY coalesce(md.CA_OWNER, mrh.CA_OWNER), get_ca_name_attribute(cac.CA_ID))
+		SELECT mrhn2.CERTIFICATE_ID, coalesce(cc.CA_OWNER, mrh.CA_OWNER) CA_OWNER,
+				row_number() OVER (ORDER BY coalesce(cc.CA_OWNER, mrh.CA_OWNER), get_ca_name_attribute(cac.CA_ID))
 			FROM mozilla_root_hashes_new mrhn2
 				LEFT OUTER JOIN ca_certificate cac ON (mrhn2.CERTIFICATE_ID = cac.CERTIFICATE_ID)
-				LEFT OUTER JOIN mozilla_disclosure md ON (mrhn2.CERTIFICATE_ID = md.CERTIFICATE_ID)
+				LEFT OUTER JOIN ccadb_certificate cc ON (mrhn2.CERTIFICATE_ID = cc.CERTIFICATE_ID)
 				LEFT OUTER JOIN mozilla_root_hashes mrh ON (mrhn2.CERTIFICATE_ID = mrh.CERTIFICATE_ID)
 			WHERE mrhn2.CERTIFICATE_ID = cac.CERTIFICATE_ID
-			GROUP BY mrhn2.CERTIFICATE_ID, coalesce(md.CA_OWNER, mrh.CA_OWNER), cac.CA_ID
+			GROUP BY mrhn2.CERTIFICATE_ID, coalesce(cc.CA_OWNER, mrh.CA_OWNER), cac.CA_ID
 		) sub
 	WHERE mrhn.CERTIFICATE_ID = sub.CERTIFICATE_ID;
 
