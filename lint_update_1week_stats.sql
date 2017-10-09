@@ -9,9 +9,7 @@ SELECT linter,
 		0::bigint ERROR_CERTS,
 		0::bigint ERROR_ISSUES,
 		0::bigint WARNING_CERTS,
-		0::bigint WARNING_ISSUES,
-		0::bigint NOTICE_CERTS,
-		0::bigint NOTICE_ISSUES
+		0::bigint WARNING_ISSUES
 	FROM certificate c, ca, unnest(array_append(enum_range(NULL::linter_type), NULL)) linter
 	WHERE x509_notBefore(c.CERTIFICATE) >= date_trunc('day', statement_timestamp() - interval '1 week')
 		AND c.ISSUER_CA_ID = ca.ID
@@ -27,9 +25,9 @@ UPDATE lint_1week_summary_temp l1st
 				lci.ISSUER_CA_ID,
 				li.LINTER
 			FROM lint_cert_issue lci, lint_issue li
-			WHERE lci.NOT_BEFORE >= date_trunc('day', statement_timestamp() - interval '1 week')
+			WHERE lci.NOT_BEFORE_DATE >= date_trunc('day', statement_timestamp() - interval '1 week')
 				AND lci.LINT_ISSUE_ID = li.ID
-				AND li.SEVERITY NOT IN ('I', 'B')
+				AND li.SEVERITY IN ('W', 'E', 'F')
 			GROUP BY lci.ISSUER_CA_ID, li.LINTER
 		) sub
 	WHERE l1st.ISSUER_CA_ID = sub.ISSUER_CA_ID
@@ -42,9 +40,9 @@ UPDATE lint_1week_summary_temp l1st
 				count(*) ALL_ISSUES,
 				lci.ISSUER_CA_ID
 			FROM lint_cert_issue lci, lint_issue li
-			WHERE lci.NOT_BEFORE >= date_trunc('day', statement_timestamp() - interval '1 week')
+			WHERE lci.NOT_BEFORE_DATE >= date_trunc('day', statement_timestamp() - interval '1 week')
 				AND lci.LINT_ISSUE_ID = li.ID
-				AND li.SEVERITY NOT IN ('I', 'B')
+				AND li.SEVERITY IN ('W', 'E', 'F')
 			GROUP BY lci.ISSUER_CA_ID
 		) sub
 	WHERE l1st.ISSUER_CA_ID = sub.ISSUER_CA_ID
@@ -59,7 +57,7 @@ UPDATE lint_1week_summary_temp l1st
 				lci.ISSUER_CA_ID,
 				li.LINTER
 			FROM lint_cert_issue lci, lint_issue li
-			WHERE lci.NOT_BEFORE >= date_trunc('day', statement_timestamp() - interval '1 week')
+			WHERE lci.NOT_BEFORE_DATE >= date_trunc('day', statement_timestamp() - interval '1 week')
 				AND lci.LINT_ISSUE_ID = li.ID
 				AND li.SEVERITY = 'F'
 			GROUP BY lci.ISSUER_CA_ID, li.LINTER
@@ -74,7 +72,7 @@ UPDATE lint_1week_summary_temp l1st
 				count(*) FATAL_ISSUES,
 				lci.ISSUER_CA_ID
 			FROM lint_cert_issue lci, lint_issue li
-			WHERE lci.NOT_BEFORE >= date_trunc('day', statement_timestamp() - interval '1 week')
+			WHERE lci.NOT_BEFORE_DATE >= date_trunc('day', statement_timestamp() - interval '1 week')
 				AND lci.LINT_ISSUE_ID = li.ID
 				AND li.SEVERITY = 'F'
 			GROUP BY lci.ISSUER_CA_ID
@@ -91,7 +89,7 @@ UPDATE lint_1week_summary_temp l1st
 				lci.ISSUER_CA_ID,
 				li.LINTER
 			FROM lint_cert_issue lci, lint_issue li
-			WHERE lci.NOT_BEFORE >= date_trunc('day', statement_timestamp() - interval '1 week')
+			WHERE lci.NOT_BEFORE_DATE >= date_trunc('day', statement_timestamp() - interval '1 week')
 				AND lci.LINT_ISSUE_ID = li.ID
 				AND li.SEVERITY = 'E'
 			GROUP BY lci.ISSUER_CA_ID, li.LINTER
@@ -106,7 +104,7 @@ UPDATE lint_1week_summary_temp l1st
 				count(*) ERROR_ISSUES,
 				lci.ISSUER_CA_ID
 			FROM lint_cert_issue lci, lint_issue li
-			WHERE lci.NOT_BEFORE >= date_trunc('day', statement_timestamp() - interval '1 week')
+			WHERE lci.NOT_BEFORE_DATE >= date_trunc('day', statement_timestamp() - interval '1 week')
 				AND lci.LINT_ISSUE_ID = li.ID
 				AND li.SEVERITY = 'E'
 			GROUP BY lci.ISSUER_CA_ID
@@ -123,7 +121,7 @@ UPDATE lint_1week_summary_temp l1st
 				lci.ISSUER_CA_ID,
 				li.LINTER
 			FROM lint_cert_issue lci, lint_issue li
-			WHERE lci.NOT_BEFORE >= date_trunc('day', statement_timestamp() - interval '1 week')
+			WHERE lci.NOT_BEFORE_DATE >= date_trunc('day', statement_timestamp() - interval '1 week')
 				AND lci.LINT_ISSUE_ID = li.ID
 				AND li.SEVERITY = 'W'
 			GROUP BY lci.ISSUER_CA_ID, li.LINTER
@@ -138,41 +136,9 @@ UPDATE lint_1week_summary_temp l1st
 				count(*) WARNING_ISSUES,
 				lci.ISSUER_CA_ID
 			FROM lint_cert_issue lci, lint_issue li
-			WHERE lci.NOT_BEFORE >= date_trunc('day', statement_timestamp() - interval '1 week')
+			WHERE lci.NOT_BEFORE_DATE >= date_trunc('day', statement_timestamp() - interval '1 week')
 				AND lci.LINT_ISSUE_ID = li.ID
 				AND li.SEVERITY = 'W'
-			GROUP BY lci.ISSUER_CA_ID
-		) sub
-	WHERE l1st.ISSUER_CA_ID = sub.ISSUER_CA_ID
-		AND l1st.LINTER IS NULL;
-
-UPDATE lint_1week_summary_temp l1st
-	SET NOTICE_CERTS = sub.NOTICE_CERTS,
-		NOTICE_ISSUES = sub.NOTICE_ISSUES
-	FROM (
-		SELECT count(DISTINCT lci.CERTIFICATE_ID) NOTICE_CERTS,
-				count(*) NOTICE_ISSUES,
-				lci.ISSUER_CA_ID,
-				li.LINTER
-			FROM lint_cert_issue lci, lint_issue li
-			WHERE lci.NOT_BEFORE >= date_trunc('day', statement_timestamp() - interval '1 week')
-				AND lci.LINT_ISSUE_ID = li.ID
-				AND li.SEVERITY = 'N'
-			GROUP BY lci.ISSUER_CA_ID, li.LINTER
-		) sub
-	WHERE l1st.ISSUER_CA_ID = sub.ISSUER_CA_ID
-		AND l1st.LINTER = sub.LINTER;
-UPDATE lint_1week_summary_temp l1st
-	SET NOTICE_CERTS = sub.NOTICE_CERTS,
-		NOTICE_ISSUES = sub.NOTICE_ISSUES
-	FROM (
-		SELECT count(DISTINCT lci.CERTIFICATE_ID) NOTICE_CERTS,
-				count(*) NOTICE_ISSUES,
-				lci.ISSUER_CA_ID
-			FROM lint_cert_issue lci, lint_issue li
-			WHERE lci.NOT_BEFORE >= date_trunc('day', statement_timestamp() - interval '1 week')
-				AND lci.LINT_ISSUE_ID = li.ID
-				AND li.SEVERITY = 'N'
 			GROUP BY lci.ISSUER_CA_ID
 		) sub
 	WHERE l1st.ISSUER_CA_ID = sub.ISSUER_CA_ID

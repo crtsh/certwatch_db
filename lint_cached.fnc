@@ -88,29 +88,41 @@ BEGIN
 		END IF;
 
 		FOR l_record IN EXECUTE t_query USING t_certificate, t_certType LOOP
-			SELECT li.ID
-				INTO t_lintIssueID
-				FROM lint_issue li
-				WHERE li.LINTER = v_linter
-					AND li.SEVERITY = substr(l_record.LINT, 1, 1)
-					AND li.ISSUE_TEXT = substr(l_record.LINT, 4);
-			IF NOT FOUND THEN
-				INSERT INTO lint_issue (
-						LINTER, SEVERITY, ISSUE_TEXT
+			IF substr(l_record.LINT, 1, 1) IN ('W', 'E', 'F') THEN
+				SELECT li.ID
+					INTO t_lintIssueID
+					FROM lint_issue li
+					WHERE li.LINTER = v_linter
+						AND li.SEVERITY = substr(l_record.LINT, 1, 1)
+						AND li.ISSUE_TEXT = substr(l_record.LINT, 4);
+				IF NOT FOUND THEN
+					BEGIN
+						INSERT INTO lint_issue (
+								LINTER, SEVERITY, ISSUE_TEXT
+							)
+							VALUES (
+								v_linter, substr(l_record.LINT, 1, 1), substr(l_record.LINT, 4)
+							)
+							RETURNING ID
+								INTO t_lintIssueID;
+					EXCEPTION
+						WHEN unique_violation THEN
+							SELECT li.ID
+								INTO t_lintIssueID
+								FROM lint_issue li
+								WHERE li.LINTER = v_linter
+									AND li.SEVERITY = substr(l_record.LINT, 1, 1)
+									AND li.ISSUE_TEXT = substr(l_record.LINT, 4);
+					END;
+				END IF;
+				INSERT INTO lint_cert_issue (
+						CERTIFICATE_ID, lint_issue_ID, ISSUER_CA_ID, NOT_BEFORE_DATE
 					)
 					VALUES (
-						v_linter, substr(l_record.LINT, 1, 1), substr(l_record.LINT, 4)
-					)
-					RETURNING ID
-						INTO t_lintIssueID;
+						cert_id, t_lintIssueID, t_issuerCAID, x509_notBefore(t_certificate)::date
+					);
+				RETURN NEXT t_lintIssueID;
 			END IF;
-			INSERT INTO lint_cert_issue (
-					CERTIFICATE_ID, lint_issue_ID, ISSUER_CA_ID, NOT_BEFORE
-				)
-				VALUES (
-					cert_id, t_lintIssueID, t_issuerCAID, x509_notBefore(t_certificate)
-				);
-			RETURN NEXT t_lintIssueID;
 		END LOOP;
 
 		IF v_linter = 'cablint' THEN

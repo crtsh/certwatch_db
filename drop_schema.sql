@@ -45,6 +45,12 @@ DROP FUNCTION lint_cached(
 );
 
 
+DROP TRIGGER lint_summarizer;
+
+DROP FUNCTION lint_summarizer(
+);
+
+
 DROP TABLE cached_response;
 
 DROP TABLE mozilla_root_hashes;
@@ -78,6 +84,8 @@ DROP TABLE applicable_purpose;
 DROP TABLE trust_purpose;
 
 DROP TABLE trust_context;
+
+DROP TABLE lint_summary;
 
 DROP TABLE lint_cert_issue;
 

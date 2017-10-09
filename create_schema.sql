@@ -242,10 +242,13 @@ CREATE TYPE linter_type AS ENUM (
 );
 
 CREATE TABLE linter_version (
+	ID				smallint,
 	VERSION_STRING	text,
 	GIT_COMMIT		bytea,
 	DEPLOYED_AT		timestamp,
-	LINTER			linter_type
+	LINTER			linter_type,
+	CONSTRAINT lv_pk
+		PRIMARY KEY (ID)
 );
 
 CREATE UNIQUE INDEX lv_li_da
@@ -266,35 +269,47 @@ CREATE TABLE lint_issue (
 );
 
 CREATE TABLE lint_cert_issue (
-	ID					bigserial,
-	CERTIFICATE_ID		integer,
+	CERTIFICATE_ID		bigint,
 	LINT_ISSUE_ID		integer,
 	ISSUER_CA_ID		integer,
-	NOT_BEFORE			timestamp,
+	NOT_BEFORE_DATE		date,
 	CONSTRAINT lci_pk
-		PRIMARY KEY (ID),
-	CONSTRAINT lci_c_fk
-		FOREIGN KEY (CERTIFICATE_ID)
-		REFERENCES certificate(ID),
-	CONSTRAINT lci_ci_fk
+		PRIMARY KEY (ISSUER_CA_ID, LINT_ISSUE_ID, NOT_BEFORE_DATE, CERTIFICATE_ID),
+	CONSTRAINT lci_ca_fk
+		FOREIGN KEY (ISSUER_CA_ID)
+		REFERENCES ca(ID),
+	CONSTRAINT lci_li_fk
 		FOREIGN KEY (LINT_ISSUE_ID)
 		REFERENCES lint_issue(ID),
-	CONSTRAINT lci_ca_fk
+	CONSTRAINT lci_c_fk
+		FOREIGN KEY (CERTIFICATE_ID)
+		REFERENCES certificate(ID)
+);
+
+CREATE INDEX lci_c
+	ON lint_cert_issue (CERTIFICATE_ID);
+
+CREATE TABLE lint_summary (
+	LINT_ISSUE_ID	integer,
+	ISSUER_CA_ID	integer,
+	NOT_BEFORE_DATE	date,
+	NO_OF_CERTS		integer,
+	CONSTRAINT ls_pk
+		PRIMARY KEY (LINT_ISSUE_ID, ISSUER_CA_ID, NOT_BEFORE_DATE),
+	CONSTRAINT ls_li_fk
+		FOREIGN KEY (LINT_ISSUE_ID)
+		REFERENCES lint_issue(ID),
+	CONSTRAINT ls_ca_fk
 		FOREIGN KEY (ISSUER_CA_ID)
 		REFERENCES ca(ID)
 );
 
-CREATE INDEX lci_c_ci
-	ON lint_cert_issue (CERTIFICATE_ID, LINT_ISSUE_ID);
+\i lint_summarizer.fnc
 
-CREATE INDEX lci_ca_ci_nb_c
-	ON lint_cert_issue (ISSUER_CA_ID, LINT_ISSUE_ID, NOT_BEFORE, CERTIFICATE_ID);
-
-CREATE INDEX lci_ci_nb
-	ON lint_cert_issue (LINT_ISSUE_ID, NOT_BEFORE);
-
-CREATE INDEX lci_nb_ca_ci
-	ON lint_cert_issue (NOT_BEFORE, ISSUER_CA_ID, LINT_ISSUE_ID);
+CREATE TRIGGER lint_summarizer
+	BEFORE INSERT OR DELETE on lint_cert_issue
+	FOR EACH ROW
+	EXECUTE PROCEDURE lint_summarizer();
 
 
 CREATE TABLE trust_context (
@@ -450,6 +465,7 @@ INSERT INTO trust_purpose ( ID, PURPOSE, PURPOSE_OID, DISPLAY_ORDER ) VALUES ( 1
 INSERT INTO trust_purpose ( ID, PURPOSE, PURPOSE_OID, DISPLAY_ORDER ) VALUES ( 195, 'EV Server Authentication', '2.16.756.1.17.3.22.51', 1 );
 INSERT INTO trust_purpose ( ID, PURPOSE, PURPOSE_OID, DISPLAY_ORDER ) VALUES ( 196, 'EV Server Authentication', '1.3.171.1.1.1.10.8', 1 );
 INSERT INTO trust_purpose ( ID, PURPOSE, PURPOSE_OID, DISPLAY_ORDER ) VALUES ( 197, 'EV Server Authentication', '1.2.616.1.113527.2.5.1.7', 1 );
+INSERT INTO trust_purpose ( ID, PURPOSE, PURPOSE_OID, DISPLAY_ORDER ) VALUES ( 198, 'EV Server Authentication', '1.3.6.1.4.1.4146.1.2', 1 );
 
 
 CREATE TABLE applicable_purpose(
@@ -700,6 +716,8 @@ GRANT SELECT ON ct_log_entry TO crtsh;
 GRANT SELECT ON lint_issue TO crtsh;
 
 GRANT SELECT ON lint_cert_issue TO crtsh;
+
+GRANT SELECT ON lint_summary TO crtsh;
 
 GRANT SELECT ON trust_context TO crtsh;
 

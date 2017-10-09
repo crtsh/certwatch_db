@@ -126,7 +126,7 @@ DECLARE
 	t_joinToCertificate_table	text;
 	t_joinToCTLogEntry	text;
 	t_showIdentity		boolean;
-	t_minNotBefore		timestamp;
+	t_minNotBefore		date;
 	t_minNotBeforeString	text;
 	t_excludeExpired	text;
 	t_excludeAffectedCerts	text;
@@ -308,10 +308,10 @@ BEGIN
 
 	t_temp := get_parameter('minNotBefore', paramNames, paramValues);
 	IF t_temp IS NULL THEN
-		t_minNotBefore := date_trunc('day', statement_timestamp() - interval '1 week');
+		t_minNotBefore := (statement_timestamp() at time zone 'UTC' - interval '1 week')::date;
 		t_minNotBeforeString := '';
 	ELSE
-		t_minNotBefore := t_temp::timestamp;
+		t_minNotBefore := t_temp::date;
 		t_minNotBeforeString := '&minNotBefore=' || t_temp;
 	END IF;
 
@@ -2465,29 +2465,23 @@ Content-Type: text/plain; charset=UTF-8
         </TR>
 ';
 				FOR l_record IN (
-							SELECT count(DISTINCT lci.CERTIFICATE_ID) NUM_CERTS, li.ID, li.SEVERITY, li.ISSUE_TEXT,
+							SELECT sum(ls.NO_OF_CERTS) NUM_CERTS, li.ID, li.SEVERITY, li.ISSUE_TEXT,
 									CASE li.SEVERITY
 										WHEN 'F' THEN 1
 										WHEN 'E' THEN 2
 										WHEN 'W' THEN 3
-										WHEN 'N' THEN 4
-										WHEN 'I' THEN 5
-										WHEN 'B' THEN 6
-										ELSE 7
+										ELSE 4
 									END ISSUE_TYPE,
 									CASE li.SEVERITY
 										WHEN 'F' THEN '<SPAN class="fatal">&nbsp; &nbsp;FATAL:'
 										WHEN 'E' THEN '<SPAN class="error">&nbsp; &nbsp;ERROR:'
 										WHEN 'W' THEN '<SPAN class="warning">&nbsp;WARNING:'
-										WHEN 'N' THEN '<SPAN class="notice">&nbsp; NOTICE:'
-										WHEN 'I' THEN '<SPAN>&nbsp; &nbsp; INFO:'
-										WHEN 'B' THEN '<SPAN>&nbsp; &nbsp; &nbsp;BUG:'
 										ELSE '<SPAN>&nbsp; &nbsp; &nbsp; &nbsp;' || li.SEVERITY || ':'
 									END ISSUE_HEADING
-								FROM lint_cert_issue lci, lint_issue li
-								WHERE lci.NOT_BEFORE >= t_minNotBefore
-									AND lci.ISSUER_CA_ID = t_value::integer
-									AND lci.LINT_ISSUE_ID = li.ID
+								FROM lint_summary ls, lint_issue li
+								WHERE ls.NOT_BEFORE_DATE >= t_minNotBefore
+									AND ls.ISSUER_CA_ID = t_value::integer
+									AND ls.LINT_ISSUE_ID = li.ID
 									AND li.LINTER = 'cablint'
 								GROUP BY li.ID, li.SEVERITY, li.ISSUE_TEXT
 								ORDER BY ISSUE_TYPE, NUM_CERTS DESC
@@ -2520,29 +2514,23 @@ Content-Type: text/plain; charset=UTF-8
         </TR>
 ';
 				FOR l_record IN (
-							SELECT count(DISTINCT lci.CERTIFICATE_ID) NUM_CERTS, li.ID, li.SEVERITY, li.ISSUE_TEXT,
+							SELECT sum(ls.NO_OF_CERTS) NUM_CERTS, li.ID, li.SEVERITY, li.ISSUE_TEXT,
 									CASE li.SEVERITY
 										WHEN 'F' THEN 1
 										WHEN 'E' THEN 2
 										WHEN 'W' THEN 3
-										WHEN 'N' THEN 4
-										WHEN 'I' THEN 5
-										WHEN 'B' THEN 6
-										ELSE 7
+										ELSE 4
 									END ISSUE_TYPE,
 									CASE li.SEVERITY
 										WHEN 'F' THEN '<SPAN class="fatal">&nbsp; &nbsp;FATAL:'
 										WHEN 'E' THEN '<SPAN class="error">&nbsp; &nbsp;ERROR:'
 										WHEN 'W' THEN '<SPAN class="warning">&nbsp;WARNING:'
-										WHEN 'N' THEN '<SPAN class="notice">&nbsp; NOTICE:'
-										WHEN 'I' THEN '<SPAN>&nbsp; &nbsp; INFO:'
-										WHEN 'B' THEN '<SPAN>&nbsp; &nbsp; &nbsp;BUG:'
 										ELSE '<SPAN>&nbsp; &nbsp; &nbsp; &nbsp;' || li.SEVERITY || ':'
 									END ISSUE_HEADING
-								FROM lint_cert_issue lci, lint_issue li
-								WHERE lci.NOT_BEFORE >= t_minNotBefore
-									AND lci.ISSUER_CA_ID = t_value::integer
-									AND lci.LINT_ISSUE_ID = li.ID
+								FROM lint_summary ls, lint_issue li
+								WHERE ls.NOT_BEFORE_DATE >= t_minNotBefore
+									AND ls.ISSUER_CA_ID = t_value::integer
+									AND ls.LINT_ISSUE_ID = li.ID
 									AND li.LINTER = 'x509lint'
 								GROUP BY li.ID, li.SEVERITY, li.ISSUE_TEXT
 								ORDER BY ISSUE_TYPE, NUM_CERTS DESC
@@ -2575,29 +2563,23 @@ Content-Type: text/plain; charset=UTF-8
         </TR>
 ';
 				FOR l_record IN (
-							SELECT count(DISTINCT lci.CERTIFICATE_ID) NUM_CERTS, li.ID, li.SEVERITY, li.ISSUE_TEXT,
+							SELECT sum(ls.NO_OF_CERTS) NUM_CERTS, li.ID, li.SEVERITY, li.ISSUE_TEXT,
 									CASE li.SEVERITY
 										WHEN 'F' THEN 1
 										WHEN 'E' THEN 2
 										WHEN 'W' THEN 3
-										WHEN 'N' THEN 4
-										WHEN 'I' THEN 5
-										WHEN 'B' THEN 6
-										ELSE 7
+										ELSE 4
 									END ISSUE_TYPE,
 									CASE li.SEVERITY
 										WHEN 'F' THEN '<SPAN class="fatal">&nbsp; &nbsp;FATAL:'
 										WHEN 'E' THEN '<SPAN class="error">&nbsp; &nbsp;ERROR:'
 										WHEN 'W' THEN '<SPAN class="warning">&nbsp;WARNING:'
-										WHEN 'N' THEN '<SPAN class="notice">&nbsp; NOTICE:'
-										WHEN 'I' THEN '<SPAN>&nbsp; &nbsp; INFO:'
-										WHEN 'B' THEN '<SPAN>&nbsp; &nbsp; &nbsp;BUG:'
 										ELSE '<SPAN>&nbsp; &nbsp; &nbsp; &nbsp;' || li.SEVERITY || ':'
 									END ISSUE_HEADING
-								FROM lint_cert_issue lci, lint_issue li
-								WHERE lci.NOT_BEFORE >= t_minNotBefore
-									AND lci.ISSUER_CA_ID = t_value::integer
-									AND lci.LINT_ISSUE_ID = li.ID
+								FROM lint_summary ls, lint_issue li
+								WHERE ls.NOT_BEFORE_DATE >= t_minNotBefore
+									AND ls.ISSUER_CA_ID = t_value::integer
+									AND ls.LINT_ISSUE_ID = li.ID
 									AND li.LINTER = 'zlint'
 								GROUP BY li.ID, li.SEVERITY, li.ISSUE_TEXT
 								ORDER BY ISSUE_TYPE, NUM_CERTS DESC
@@ -3075,9 +3057,6 @@ Content-Type: text/plain; charset=UTF-8
 							WHEN 'F' THEN '<SPAN class="fatal">&nbsp;FATAL:'
 							WHEN 'E' THEN '<SPAN class="error">&nbsp;ERROR:'
 							WHEN 'W' THEN '<SPAN class="warning">&nbsp;WARNING:'
-							WHEN 'N' THEN '<SPAN class="notice">&nbsp;NOTICE:'
-							WHEN 'I' THEN '<SPAN>&nbsp;INFO:'
-							WHEN 'B' THEN '<SPAN>&nbsp;BUG:'
 							ELSE '<SPAN>&nbsp;' || li.SEVERITY || ':'
 						END || ' ' || li.ISSUE_TEXT || '&nbsp;</SPAN>'
 					INTO t_temp
@@ -3151,7 +3130,7 @@ Content-Type: text/plain; charset=UTF-8
 						'	WHERE c.ISSUER_CA_ID = $1::integer' || chr(10) ||
 						'		AND c.ID = lci.CERTIFICATE_ID' || chr(10) ||
 						'		AND lci.ISSUER_CA_ID = $1::integer' || chr(10) ||
-						'		AND lci.NOT_BEFORE >= $3' || chr(10) ||
+						'		AND lci.NOT_BEFORE_DATE >= $3' || chr(10) ||
 						'		AND lci.LINT_ISSUE_ID = $2::integer' || chr(10) ||
 						'		AND lci.LINT_ISSUE_ID = li.ID' || chr(10);
 				IF t_linter IS NOT NULL THEN
@@ -3406,7 +3385,7 @@ Content-Type: text/plain; charset=UTF-8
 				END IF;
 				t_where := t_where || chr(10) ||
 							'        AND lci.LINT_ISSUE_ID = $1::integer' || chr(10) ||
-							'        AND lci.NOT_BEFORE >= $2' || chr(10) ||
+							'        AND lci.NOT_BEFORE_DATE >= $2' || chr(10) ||
 							'        AND lci.LINT_ISSUE_ID = li.ID' || chr(10) ||
 							'        AND ca.LINTING_APPLIES';
 				IF t_linter IS NOT NULL THEN
@@ -3784,11 +3763,10 @@ Content-Type: application/atom+xml
 					t_output := t_output || ' ' || t_dirSymbol;
 				END IF;
 				t_output := t_output || '</TH>
-      <TH colspan="3"><A title="These errors are fatal to the checks and prevent most further checks from being executed.  These are extremely bad errors."><SPAN class="fatal">&nbsp;FATAL&nbsp;</SPAN></A></TH>
-      <TH colspan="3"><A title="These are issues where the certificate is not compliant with the standard."><SPAN class="error">&nbsp;ERROR&nbsp;</SPAN></A></TH>
-      <TH colspan="3"><A title="These are issues where a standard recommends differently but the standard uses terms such as ''SHOULD'' or ''MAY''."><SPAN class="warning">&nbsp;WARNING&nbsp;</SPAN></A></TH>
-      <TH colspan="3"><A title="These are items known to cause issues with one or more implementations of certificate processing but are not errors according to the standard."><SPAN class="notice">&nbsp;NOTICE&nbsp;</SPAN></A></TH>
-      <TH colspan="3"><A title="FATAL + ERROR + WARNING + NOTICE">ALL</A></TH>
+      <TH colspan="2"><A title="These errors are fatal to the checks and prevent most further checks from being executed.  These are extremely bad errors."><SPAN class="fatal">&nbsp;FATAL&nbsp;</SPAN></A></TH>
+      <TH colspan="2"><A title="These are issues where the certificate is not compliant with the standard."><SPAN class="error">&nbsp;ERROR&nbsp;</SPAN></A></TH>
+      <TH colspan="2"><A title="These are issues where a standard recommends differently but the standard uses terms such as ''SHOULD'' or ''MAY''."><SPAN class="warning">&nbsp;WARNING&nbsp;</SPAN></A></TH>
+      <TH colspan="2"><A title="FATAL + ERROR + WARNING">ALL</A></TH>
     </TR>
     <TR>
       <TH><A href="?' || urlEncode(t_cmd) || '=' || urlEncode(t_value) || '&dir=' || t_oppositeDirection || '&sort=4' || t_groupByParameter || t_issuerOParameter || '"># Certs</A>';
@@ -3798,11 +3776,6 @@ Content-Type: application/atom+xml
 				t_output := t_output || '</TH>
       <TH><A href="?' || urlEncode(t_cmd) || '=' || urlEncode(t_value) || '&dir=' || t_oppositeDirection || '&sort=5' || t_groupByParameter || t_issuerOParameter || '">%</A>';
 				IF t_sort = 5 THEN
-					t_output := t_output || ' ' || t_dirSymbol;
-				END IF;
-				t_output := t_output || '</TH>
-      <TH><A href="?' || urlEncode(t_cmd) || '=' || urlEncode(t_value) || '&dir=' || t_oppositeDirection || '&sort=6' || t_groupByParameter || t_issuerOParameter || '"># Issues</A>';
-				IF t_sort = 6 THEN
 					t_output := t_output || ' ' || t_dirSymbol;
 				END IF;
 				t_output := t_output || '</TH>
@@ -3816,11 +3789,6 @@ Content-Type: application/atom+xml
 					t_output := t_output || ' ' || t_dirSymbol;
 				END IF;
 				t_output := t_output || '</TH>
-      <TH><A href="?' || urlEncode(t_cmd) || '=' || urlEncode(t_value) || '&dir=' || t_oppositeDirection || '&sort=9' || t_groupByParameter || t_issuerOParameter || '"># Issues</A>';
-				IF t_sort = 9 THEN
-					t_output := t_output || ' ' || t_dirSymbol;
-				END IF;
-				t_output := t_output || '</TH>
       <TH><A href="?' || urlEncode(t_cmd) || '=' || urlEncode(t_value) || '&dir=' || t_oppositeDirection || '&sort=10' || t_groupByParameter || t_issuerOParameter || '"># Certs</A>';
 				IF t_sort = 10 THEN
 					t_output := t_output || ' ' || t_dirSymbol;
@@ -3828,26 +3796,6 @@ Content-Type: application/atom+xml
 				t_output := t_output || '</TH>
       <TH><A href="?' || urlEncode(t_cmd) || '=' || urlEncode(t_value) || '&dir=' || t_oppositeDirection || '&sort=11' || t_groupByParameter || t_issuerOParameter || '">%</A>';
 				IF t_sort = 11 THEN
-					t_output := t_output || ' ' || t_dirSymbol;
-				END IF;
-				t_output := t_output || '</TH>
-      <TH><A href="?' || urlEncode(t_cmd) || '=' || urlEncode(t_value) || '&dir=' || t_oppositeDirection || '&sort=12' || t_groupByParameter || t_issuerOParameter || '"># Issues</A>';
-				IF t_sort = 12 THEN
-					t_output := t_output || ' ' || t_dirSymbol;
-				END IF;
-				t_output := t_output || '</TH>
-      <TH><A href="?' || urlEncode(t_cmd) || '=' || urlEncode(t_value) || '&dir=' || t_oppositeDirection || '&sort=13' || t_groupByParameter || t_issuerOParameter || '"># Certs</A>';
-				IF t_sort = 13 THEN
-					t_output := t_output || ' ' || t_dirSymbol;
-				END IF;
-				t_output := t_output || '</TH>
-      <TH><A href="?' || urlEncode(t_cmd) || '=' || urlEncode(t_value) || '&dir=' || t_oppositeDirection || '&sort=14' || t_groupByParameter || t_issuerOParameter || '">%</A>';
-				IF t_sort = 14 THEN
-					t_output := t_output || ' ' || t_dirSymbol;
-				END IF;
-				t_output := t_output || '</TH>
-      <TH><A href="?' || urlEncode(t_cmd) || '=' || urlEncode(t_value) || '&dir=' || t_oppositeDirection || '&sort=15' || t_groupByParameter || t_issuerOParameter || '"># Issues</A>';
-				IF t_sort = 15 THEN
 					t_output := t_output || ' ' || t_dirSymbol;
 				END IF;
 				t_output := t_output || '</TH>
@@ -3861,11 +3809,6 @@ Content-Type: application/atom+xml
 					t_output := t_output || ' ' || t_dirSymbol;
 				END IF;
 				t_output := t_output || '</TH>
-      <TH><A href="?' || urlEncode(t_cmd) || '=' || urlEncode(t_value) || '&dir=' || t_oppositeDirection || '&sort=18' || t_groupByParameter || t_issuerOParameter || '"># Issues</A>';
-				IF t_sort = 18 THEN
-					t_output := t_output || ' ' || t_dirSymbol;
-				END IF;
-				t_output := t_output || '</TH>
     </TR>
 ';
 			END IF;
@@ -3874,40 +3817,26 @@ Content-Type: application/atom+xml
 				t_query := 'SELECT NULL::integer ISSUER_CA_ID,' || chr(10) ||
 							'		(sum(l1s.CERTS_ISSUED))::bigint CERTS_ISSUED,' || chr(10) ||
 							'		(sum(l1s.ALL_CERTS))::bigint ALL_CERTS,' || chr(10) ||
-							'		(sum(l1s.ALL_ISSUES))::bigint ALL_ISSUES,' || chr(10) ||
 							'		((sum(l1s.ALL_CERTS) * 100) / sum(l1s.CERTS_ISSUED))::numeric ALL_PERC,' || chr(10) ||
 							'		(sum(l1s.FATAL_CERTS))::bigint FATAL_CERTS,' || chr(10) ||
-							'		(sum(l1s.FATAL_ISSUES))::bigint FATAL_ISSUES,' || chr(10) ||
 							'		((sum(l1s.FATAL_CERTS) * 100) / sum(l1s.CERTS_ISSUED))::numeric FATAL_PERC,' || chr(10) ||
 							'		(sum(l1s.ERROR_CERTS))::bigint ERROR_CERTS,' || chr(10) ||
-							'		(sum(l1s.ERROR_ISSUES))::bigint ERROR_ISSUES,' || chr(10) ||
 							'		((sum(l1s.ERROR_CERTS) * 100) / sum(l1s.CERTS_ISSUED))::numeric ERROR_PERC,' || chr(10) ||
 							'		(sum(l1s.WARNING_CERTS))::bigint WARNING_CERTS,' || chr(10) ||
-							'		(sum(l1s.WARNING_ISSUES))::bigint WARNING_ISSUES,' || chr(10) ||
 							'		((sum(l1s.WARNING_CERTS) * 100) / sum(l1s.CERTS_ISSUED))::numeric WARNING_PERC,' || chr(10) ||
-							'		(sum(l1s.NOTICE_CERTS))::bigint NOTICE_CERTS,' || chr(10) ||
-							'		(sum(l1s.NOTICE_ISSUES))::bigint NOTICE_ISSUES,' || chr(10) ||
-							'		((sum(l1s.NOTICE_CERTS) * 100) / sum(l1s.CERTS_ISSUED))::numeric NOTICE_PERC,' || chr(10) ||
 							'		get_ca_name_attribute(l1s.ISSUER_CA_ID, ''organizationName'') ISSUER_ORGANIZATION_NAME,' || chr(10) ||
 							'		NULL ISSUER_FRIENDLY_NAME' || chr(10);
 			ELSE
 				t_query := 'SELECT l1s.ISSUER_CA_ID::integer,' || chr(10) ||
 							'		l1s.CERTS_ISSUED::bigint,' || chr(10) ||
 							'		l1s.ALL_CERTS::bigint,' || chr(10) ||
-							'		l1s.ALL_ISSUES::bigint,' || chr(10) ||
 							'		((l1s.ALL_CERTS * 100) / l1s.CERTS_ISSUED::numeric) ALL_PERC,' || chr(10) ||
 							'		l1s.FATAL_CERTS::bigint,' || chr(10) ||
-							'		l1s.FATAL_ISSUES::bigint,' || chr(10) ||
 							'		((l1s.FATAL_CERTS * 100) / l1s.CERTS_ISSUED::numeric) FATAL_PERC,' || chr(10) ||
 							'		l1s.ERROR_CERTS::bigint,' || chr(10) ||
-							'		l1s.ERROR_ISSUES::bigint,' || chr(10) ||
 							'		((l1s.ERROR_CERTS * 100) / l1s.CERTS_ISSUED::numeric) ERROR_PERC,' || chr(10) ||
 							'		l1s.WARNING_CERTS::bigint,' || chr(10) ||
-							'		l1s.WARNING_ISSUES::bigint,' || chr(10) ||
 							'		((l1s.WARNING_CERTS * 100) / l1s.CERTS_ISSUED::numeric) WARNING_PERC,' || chr(10) ||
-							'		l1s.NOTICE_CERTS::bigint,' || chr(10) ||
-							'		l1s.NOTICE_ISSUES::bigint,' || chr(10) ||
-							'		((l1s.NOTICE_CERTS * 100) / l1s.CERTS_ISSUED::numeric) NOTICE_PERC,' || chr(10) ||
 							'		get_ca_name_attribute(l1s.ISSUER_CA_ID, ''organizationName'') ISSUER_ORGANIZATION_NAME,' || chr(10) ||
 							'		get_ca_name_attribute(l1s.ISSUER_CA_ID, ''_friendlyName_'') ISSUER_FRIENDLY_NAME' || chr(10);
 			END IF;
@@ -3939,32 +3868,18 @@ Content-Type: application/atom+xml
 				t_query := t_query || 'ORDER BY FATAL_CERTS ' || t_orderBy || ', ISSUER_ORGANIZATION_NAME, ISSUER_FRIENDLY_NAME';
 			ELSIF t_sort = 5 THEN
 				t_query := t_query || 'ORDER BY FATAL_PERC ' || t_orderBy || ', ISSUER_ORGANIZATION_NAME, ISSUER_FRIENDLY_NAME';
-			ELSIF t_sort = 6 THEN
-				t_query := t_query || 'ORDER BY FATAL_ISSUES ' || t_orderBy || ', ISSUER_ORGANIZATION_NAME, ISSUER_FRIENDLY_NAME';
 			ELSIF t_sort = 7 THEN
 				t_query := t_query || 'ORDER BY ERROR_CERTS ' || t_orderBy || ', ISSUER_ORGANIZATION_NAME, ISSUER_FRIENDLY_NAME';
 			ELSIF t_sort = 8 THEN
 				t_query := t_query || 'ORDER BY ERROR_PERC ' || t_orderBy || ', ISSUER_ORGANIZATION_NAME, ISSUER_FRIENDLY_NAME';
-			ELSIF t_sort = 9 THEN
-				t_query := t_query || 'ORDER BY ERROR_ISSUES ' || t_orderBy || ', ISSUER_ORGANIZATION_NAME, ISSUER_FRIENDLY_NAME';
 			ELSIF t_sort = 10 THEN
 				t_query := t_query || 'ORDER BY WARNING_CERTS ' || t_orderBy || ', ISSUER_ORGANIZATION_NAME, ISSUER_FRIENDLY_NAME';
 			ELSIF t_sort = 11 THEN
 				t_query := t_query || 'ORDER BY WARNING_PERC ' || t_orderBy || ', ISSUER_ORGANIZATION_NAME, ISSUER_FRIENDLY_NAME';
-			ELSIF t_sort = 12 THEN
-				t_query := t_query || 'ORDER BY WARNING_ISSUES ' || t_orderBy || ', ISSUER_ORGANIZATION_NAME, ISSUER_FRIENDLY_NAME';
-			ELSIF t_sort = 13 THEN
-				t_query := t_query || 'ORDER BY NOTICE_CERTS ' || t_orderBy || ', ISSUER_ORGANIZATION_NAME, ISSUER_FRIENDLY_NAME';
-			ELSIF t_sort = 14 THEN
-				t_query := t_query || 'ORDER BY NOTICE_PERC ' || t_orderBy || ', ISSUER_ORGANIZATION_NAME, ISSUER_FRIENDLY_NAME';
-			ELSIF t_sort = 15 THEN
-				t_query := t_query || 'ORDER BY NOTICE_ISSUES ' || t_orderBy || ', ISSUER_ORGANIZATION_NAME, ISSUER_FRIENDLY_NAME';
 			ELSIF t_sort = 16 THEN
 				t_query := t_query || 'ORDER BY ALL_CERTS ' || t_orderBy || ', ISSUER_ORGANIZATION_NAME, ISSUER_FRIENDLY_NAME';
 			ELSIF t_sort = 17 THEN
 				t_query := t_query || 'ORDER BY ALL_PERC ' || t_orderBy || ', ISSUER_ORGANIZATION_NAME, ISSUER_FRIENDLY_NAME';
-			ELSIF t_sort = 18 THEN
-				t_query := t_query || 'ORDER BY ALL_ISSUES ' || t_orderBy || ', ISSUER_ORGANIZATION_NAME, ISSUER_FRIENDLY_NAME';
 			END IF;
 
 			FOR l_record IN EXECUTE t_query USING t_issuerO LOOP
@@ -3993,19 +3908,12 @@ Content-Type: application/atom+xml
 '      <TD>' || l_record.CERTS_ISSUED::text || '</TD>
       <TD>' || l_record.FATAL_CERTS::text || '</TD>
       <TD>' || replace(round(l_record.FATAL_PERC, 2)::text, '.00', '') || '</TD>
-      <TD>' || l_record.FATAL_ISSUES::text || '</TD>
       <TD>' || l_record.ERROR_CERTS::text || '</TD>
       <TD>' || replace(round(l_record.ERROR_PERC, 2)::text, '.00', '') || '</TD>
-      <TD>' || l_record.ERROR_ISSUES::text || '</TD>
       <TD>' || l_record.WARNING_CERTS::text || '</TD>
       <TD>' || replace(round(l_record.WARNING_PERC, 2)::text, '.00', '') || '</TD>
-      <TD>' || l_record.WARNING_ISSUES::text || '</TD>
-      <TD>' || l_record.NOTICE_CERTS::text || '</TD>
-      <TD>' || replace(round(l_record.NOTICE_PERC, 2)::text, '.00', '') || '</TD>
-      <TD>' || l_record.NOTICE_ISSUES::text || '</TD>
       <TD>' || l_record.ALL_CERTS::text || '</TD>
       <TD>' || replace(round(l_record.ALL_PERC, 2)::text, '.00', '') || '</TD>
-      <TD>' || l_record.ALL_ISSUES::text || '</TD>
     </TR>
 ';
 				END IF;
@@ -4057,7 +3965,7 @@ Content-Type: application/atom+xml
 
 		t_query := 'SELECT li.ID, li.ISSUE_TEXT,';
 		IF t_excludeAffectedCerts IS NULL THEN
-			t_query := t_query || ' count(DISTINCT lci.CERTIFICATE_ID) NUM_CERTS,';
+			t_query := t_query || ' sum(ls.NO_OF_CERTS) NUM_CERTS,';
 		ELSE
 			t_query := t_query || ' -1::bigint NUM_CERTS,';
 		END IF;
@@ -4066,39 +3974,32 @@ Content-Type: application/atom+xml
 					'			WHEN ''F'' THEN 1' || chr(10) ||
 					'			WHEN ''E'' THEN 2' || chr(10) ||
 					'			WHEN ''W'' THEN 3' || chr(10) ||
-					'			WHEN ''N'' THEN 4' || chr(10) ||
-					'			WHEN ''I'' THEN 5' || chr(10) ||
-					'			WHEN ''B'' THEN 6' || chr(10) ||
-					'			ELSE 7' || chr(10) ||
+					'			ELSE 4' || chr(10) ||
 					'		END ISSUE_TYPE,' || chr(10) ||
 					'		CASE li.SEVERITY' || chr(10) ||
 					'			WHEN ''F'' THEN ''FATAL''' || chr(10) ||
 					'			WHEN ''E'' THEN ''ERROR''' || chr(10) ||
 					'			WHEN ''W'' THEN ''WARNING''' || chr(10) ||
-					'			WHEN ''N'' THEN ''NOTICE''' || chr(10) ||
-					'			WHEN ''I'' THEN ''INFO''' || chr(10) ||
-					'			WHEN ''B'' THEN ''BUG''' || chr(10) ||
 					'			ELSE li.SEVERITY ' || chr(10) ||
 					'		END ISSUE_HEADING,' || chr(10) ||
 					'		CASE li.SEVERITY' || chr(10) ||
 					'			WHEN ''F'' THEN ''class="fatal"''' || chr(10) ||
 					'			WHEN ''E'' THEN ''class="error"''' || chr(10) ||
 					'			WHEN ''W'' THEN ''class="warning"''' || chr(10) ||
-					'			WHEN ''N'' THEN ''class="notice"''' || chr(10) ||
 					'			ELSE ''''' || chr(10) ||
 					'		END ISSUE_CLASS' || chr(10);
 		IF t_excludeAffectedCerts IS NULL THEN
 			t_query := t_query ||
-					'	FROM lint_cert_issue lci, lint_issue li, ca' || chr(10) ||
-					'	WHERE lci.LINT_ISSUE_ID = li.ID' || chr(10) ||
-					'		AND lci.ISSUER_CA_ID = ca.ID' || chr(10) ||
+					'	FROM lint_summary ls, lint_issue li, ca' || chr(10) ||
+					'	WHERE ls.LINT_ISSUE_ID = li.ID' || chr(10) ||
+					'		AND ls.ISSUER_CA_ID = ca.ID' || chr(10) ||
 					'		AND ca.LINTING_APPLIES' || chr(10);
 			IF t_linter IS NOT NULL THEN
 				t_query := t_query ||
 					'		AND li.LINTER = ''' || t_linter || '''' || chr(10);
 			END IF;
 			t_query := t_query ||
-					'		AND lci.NOT_BEFORE >= $1' || chr(10) ||
+					'		AND ls.NOT_BEFORE_DATE >= $1' || chr(10) ||
 					'	GROUP BY li.ID, li.SEVERITY, li.ISSUE_TEXT' || chr(10);
 		ELSE
 			t_query := t_query ||
