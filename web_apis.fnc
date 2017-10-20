@@ -1707,6 +1707,9 @@ Content-Type: text/plain; charset=UTF-8
 
 		t_offset := strpos(t_text, 'CT&nbsp;Precertificate');
 		IF t_offset != 0 THEN
+			IF substr(t_text, t_offset, 34) = 'CT&nbsp;Precertificate&nbsp;Poison' THEN
+				t_certSummary := 'Precertificate';
+			END IF;
 			SELECT c.ID::text
 				INTO t_temp
 				FROM certificate c
@@ -1714,8 +1717,7 @@ Content-Type: text/plain; charset=UTF-8
 					AND c.ISSUER_CA_ID = t_issuerCAID
 					AND c.ID != t_certificateID;
 			IF t_temp IS NOT NULL THEN
-				IF substr(t_text, t_offset, 34) = 'CT&nbsp;Precertificate&nbsp;Poison' THEN
-					t_certSummary := 'Precertificate';
+				IF t_certSummary = 'Precertificate' THEN
 					t_text := substr(t_text, 1, t_offset - 1)
 								|| 'CT Pre<A href="?id=' || t_temp
 										|| '">certificate</A>'
