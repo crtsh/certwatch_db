@@ -225,6 +225,14 @@ BEGIN
 		t_type := lower(t_outputType);
 		t_title := t_type;
 		t_outputType := 'html';
+	ELSIF lower(t_outputType) LIKE '%.json' THEN
+		t_type := lower(t_outputType);
+		t_outputType := 'json';
+		t_output :=
+'[BEGIN_HEADERS]
+Content-Type: application/json
+[END_HEADERS]
+';
 	ELSIF lower(t_outputType) IN ('revoked-intermediates', 'mozilla-certvalidations', 'mozilla-certvalidations-by-root', 'mozilla-certvalidations-by-owner', 'mozilla-certvalidations-by-version',
 									'mozilla-disclosures', 'mozilla-onecrl', 'microsoft-disclosures', 'redacted-precertificates') THEN
 		t_type := lower(t_outputType);
@@ -385,7 +393,7 @@ BEGIN
 	END IF;
 
 	-- Generate page header.
-	t_output := '';
+	t_output := coalesce(t_output, '');
 	IF t_outputType = 'html' THEN
 		t_output :=
 '<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.0 Transitional//EN">
@@ -777,6 +785,25 @@ BEGIN
      + ''&showsearch=true&showpopout=true&showtabs=false''
      + ''&parenturl='' + encodeURIComponent(window.location.href);
 </SCRIPT>';
+
+	ELSIF t_type = 'logs.json' THEN
+		t_temp := coalesce(get_parameter('include', paramNames, paramValues), 'active');
+		t_output := t_output || '{' || chr(10) || '  "logs": [' || chr(10);
+		FOR l_record IN (
+					SELECT ctl.NAME, ctl.PUBLIC_KEY, ctl.URL, ctl.MMD_IN_SECONDS
+						FROM ct_log ctl
+						WHERE ctl.IS_ACTIVE = CASE WHEN t_temp = 'all' THEN ctl.IS_ACTIVE ELSE 't' END
+						ORDER BY ctl.NAME
+				) LOOP
+			t_output := t_output || '    {' || chr(10)
+								|| '      "description": "' || l_record.NAME || '",' || chr(10)
+								|| '      "log_id": "' || encode(digest(l_record.PUBLIC_KEY, 'sha256'), 'base64') || '",' || chr(10)
+								|| '      "key": "' || replace(encode(l_record.PUBLIC_KEY, 'base64'), chr(10), '') || '",' || chr(10)
+								|| '      "url": "' || l_record.URL || '",' || chr(10)
+								|| '      "maximum_merge_delay": ' || coalesce(l_record.MMD_IN_SECONDS::text, '') || chr(10)
+								|| '    },' || chr(10);
+		END LOOP;
+		t_output := rtrim(t_output, ',' || chr(10)) || chr(10) || '  ]' || chr(10) || '}';
 
 	ELSIF t_type = 'monitored-logs' THEN
 		t_output := t_output ||
