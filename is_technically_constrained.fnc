@@ -105,7 +105,9 @@ BEGIN
 		END LOOP;
 
 		IF t_serverAuth THEN
-			IF NOT (t_permittedDNS OR t_excludedAllDNS) THEN
+			IF NOT t_permittedDirName THEN
+				RETURN FALSE;
+			ELSIF NOT (t_permittedDNS OR t_excludedAllDNS) THEN
 				RETURN FALSE;
 			ELSIF NOT (t_permittedIP OR (t_excludedAllIPv4 AND t_excludedAllIPv6)) THEN
 				RETURN FALSE;
