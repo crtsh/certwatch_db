@@ -335,7 +335,7 @@ Content-Type: application/json
 
 	t_opt := coalesce(get_parameter('opt', paramNames, paramValues), '');
 	IF t_opt != '' THEN
-		t_opt := t_opt || ',';
+		t_opt := html_escape(t_opt) || ',';
 	END IF;
 
 	IF t_outputType = 'html' THEN
@@ -349,7 +349,7 @@ Content-Type: application/json
 
 		t_groupByParameter := t_groupBy;
 		IF t_groupByParameter != '' THEN
-			t_groupByParameter := '&group=' || t_groupByParameter;
+			t_groupByParameter := '&group=' || html_escape(t_groupByParameter);
 		END IF;
 
 		IF t_direction NOT IN ('^', 'v') THEN
