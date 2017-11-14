@@ -819,12 +819,14 @@ Content-Type: application/json
       <TH colspan="2">Entries</TH>
       <TH rowspan="2">Last Contacted<BR><SPAN class="small">(UTC)</SPAN></TH>
       <TH colspan="2">Google</TH>
+      <TH colspan="1">Apple</TH>
     </TR>
     <TR>
       <TH>Tree Size</TH>
       <TH>Backlog</TH>
-      <TH>In Chrome?</TH>
       <TH>Uptime %</TH>
+      <TH>In Chrome?</TH>
+      <TH>In MacOS?</TH>
     </TR>';
 		FOR l_record IN (
 					SELECT ctl.ID, ctl.OPERATOR, ctl.URL,
@@ -839,7 +841,8 @@ Content-Type: application/json
 							CASE WHEN coalesce(ctl.GOOGLE_UPTIME::numeric, 100) < 99
 								THEN ';color:#FF0000'
 								ELSE ''
-							END UPTIME_FONT_STYLE
+							END UPTIME_FONT_STYLE,
+							ctl.INCLUDED_IN_MACOS
 						FROM ct_log ctl
 						WHERE ctl.IS_ACTIVE = 't'
 						ORDER BY ctl.TREE_SIZE DESC NULLS LAST
@@ -860,6 +863,7 @@ Content-Type: application/json
       <TD' || l_record.FONT_STYLE || '>' || coalesce(l_record.TREE_SIZE::text, '') || '</TD>
       <TD' || l_record.FONT_STYLE || '>' || t_count::text || '</TD>
       <TD>' || coalesce(to_char(l_record.LATEST_UPDATE, 'YYYY-MM-DD HH24:MI:SS'), '') || '</TD>
+      <TD style="text-align:right' || l_record.UPTIME_FONT_STYLE || '">' || coalesce(l_record.GOOGLE_UPTIME, '') || '</TD>
       <TD>
 ';
 			IF l_record.CHROME_ISSUE_NUMBER IS NOT NULL THEN
@@ -876,7 +880,7 @@ Content-Type: application/json
 			END IF;
 			t_output := t_output ||
 '      </TD>
-      <TD style="text-align:right' || l_record.UPTIME_FONT_STYLE || '">' || coalesce(l_record.GOOGLE_UPTIME, '') || '</TD>
+      <TD>' || coalesce(l_record.INCLUDED_IN_MACOS, '') || '</TD>
     </TR>';
 		END LOOP;
 		t_output := t_output || '
@@ -891,6 +895,7 @@ Content-Type: application/json
       <TH colspan="2">Entries</TH>
       <TH rowspan="2">Last Contacted<BR><SPAN class="small">(UTC)</SPAN></TH>
       <TH rowspan="2">In Chrome?</TH>
+      <TH rowspan="2">In MacOS?</TH>
     </TR>
     <TR>
       <TH>Tree Size</TH>
@@ -900,7 +905,8 @@ Content-Type: application/json
 					SELECT ctl.ID, ctl.OPERATOR, ctl.URL,
 							ctl.TREE_SIZE, ctl.LATEST_ENTRY_ID, ctl.LATEST_UPDATE,
 							ctl.LATEST_STH_TIMESTAMP, ctl.MMD_IN_SECONDS,
-							ctl.INCLUDED_IN_CHROME, ctl.CHROME_ISSUE_NUMBER, ctl.NON_INCLUSION_STATUS
+							ctl.INCLUDED_IN_CHROME, ctl.CHROME_ISSUE_NUMBER, ctl.NON_INCLUSION_STATUS,
+							ctl.INCLUDED_IN_MACOS
 						FROM ct_log ctl
 						WHERE ctl.IS_ACTIVE = 'f'
 							AND ctl.LATEST_ENTRY_ID IS NOT NULL
@@ -938,6 +944,7 @@ Content-Type: application/json
 			END IF;
 			t_output := t_output ||
 '      </TD>
+      <TD>' || coalesce(l_record.INCLUDED_IN_MACOS, '') || '</TD>
     </TR>';
 		END LOOP;
 		t_output := t_output || '

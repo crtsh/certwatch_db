@@ -204,6 +204,7 @@ CREATE TABLE ct_log (
 	CHROME_ISSUE_NUMBER		integer,
 	NON_INCLUSION_STATUS	text,
 	BATCH_SIZE				integer,
+	INCLUDED_IN_MACOS		text,
 	CONSTRAINT ctl_pk
 		PRIMARY KEY (ID),
 	CONSTRAINT crl_url_unq
