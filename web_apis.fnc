@@ -77,6 +77,7 @@ DECLARE
 	t_certificateSHA1	bytea;
 	t_certificateSHA256	bytea;
 	t_certificate		certificate.CERTIFICATE%TYPE;
+	t_issuerCertificate	certificate.CERTIFICATE%TYPE;
 	t_tbsCertificate	bytea;
 	t_certSummary		text;
 	t_caID				ca.ID%TYPE;
@@ -91,6 +92,8 @@ DECLARE
 	t_temp				text;
 	t_temp2				text;
 	t_temp3				text;
+	t_temp4				text;
+	t_temp5				text;
 	t_select			text;
 	t_from				text;
 	t_where				text;
@@ -2017,6 +2020,53 @@ Content-Type: text/plain; charset=UTF-8
 				WHERE mo.CERTIFICATE_ID = t_certificateID;
 			t_temp3 := coalesce(t_temp3, 'Not Revoked</TD><TD><SPAN style="color:#888888">n/a</SPAN>');
 
+			IF lower(',' || t_opt) LIKE '%,ocsp,%' THEN
+				SELECT c.CERTIFICATE
+					INTO t_issuerCertificate
+					FROM ca_certificate cac, certificate c
+					WHERE cac.CA_ID = t_issuerCAID
+						AND cac.CERTIFICATE_ID = c.ID
+					LIMIT 1;
+				t_temp4 := ocsp_embedded(t_certificate, t_issuerCertificate);
+				IF t_temp4 LIKE 'Good%' THEN
+					t_temp4 := 'Good</TD>
+          <TD><SPAN style="color:#888888">n/a</SPAN></TD>
+          <TD><SPAN style="color:#888888">n/a</SPAN></TD>';
+				ELSIF t_temp4 LIKE 'Revoked%' THEN
+					t_offset := position('|' in t_temp4);
+					t_pos1 := position('|' in substring(t_temp4 from t_offset + 1)) + t_offset;
+					t_temp5 := '<SPAN style="color:#CC0000">Revoked' || CASE substring(t_temp4 from (t_pos1 + 1))::integer
+						WHEN 1 THEN ' (keyCompromise)'
+						WHEN 2 THEN ' (cACompromise)'
+						WHEN 3 THEN ' (affiliationChanged)'
+						WHEN 4 THEN ' (superseded)'
+						WHEN 5 THEN ' (cessationOfOperation)'
+						WHEN 6 THEN ' (certificateHold)'
+						WHEN 7 THEN ' (privilegeWithdrawn)'
+						WHEN 8 THEN ' (aACompromise)'
+						ELSE ''
+					END || '</SPAN>';
+					t_temp4 := t_temp5 || '</TD>
+          <TD>' || to_char(substring(t_temp4 from (t_offset + 1) for 19)::timestamp, 'YYYY-MM-DD') || '&nbsp; <FONT class="small">'
+				|| to_char(substring(t_temp4 from (t_offset + 1) for 19)::timestamp, 'HH24:MI:SS UTC') || '</FONT></TD>
+          <TD><SPAN style="color:#888888">n/a</SPAN></TD>';
+				ELSIF t_temp4 LIKE 'Unknown%' THEN
+					t_temp4 := '<SPAN style="color:#FF9400">Unknown</SPAN></TD>
+          <TD><SPAN style="color:#888888">n/a</SPAN></TD>
+          <TD><SPAN style="color:#888888">n/a</SPAN></TD>';
+				ELSE	-- Error
+					null;
+				END IF;
+				t_temp4 := t_temp4 || '
+          <TD>' || to_char(statement_timestamp(), 'YYYY-MM-DD') || '&nbsp; <FONT class="small">'
+				|| to_char(statement_timestamp(), 'HH24:MI:SS UTC') || '</FONT>';
+			ELSE
+				t_temp4 := '<A href="?id=' || t_certificateID::text || '&opt=' || t_opt || 'ocsp">Check</A></TD>
+          <TD><SPAN style="color:#888888">?</SPAN></TD>
+          <TD><SPAN style="color:#888888">n/a</SPAN></TD>
+          <TD><SPAN style="color:#888888">?</SPAN>';
+			END IF;
+
 			t_output := t_output ||
 '  <TR>
     <TH class="outer">Revocation';
@@ -2034,6 +2084,11 @@ Content-Type: text/plain; charset=UTF-8
           <TH>Revocation Date</TH>
           <TH>Last Observed in CRL</TH>
           <TH>Last Checked <SPAN style="color:#CC0000;vertical-align:middle;font-size:70%;font-weight:normal">(Error)</SPAN></TH>
+        </TR>
+        <TR>
+          <TD>OCSP</TD>
+          <TD>The CA</TD>
+          <TD>' || t_temp4 || '</TD>
         </TR>
         <TR>
           <TD>CRL</TD>
