@@ -32,6 +32,7 @@ DECLARE
 	t_lintingApplies	ca.LINTING_APPLIES%TYPE			:= TRUE;
 	l_ca				RECORD;
 	l_cdp				RECORD;
+	l_aiaOCSP			RECORD;
 BEGIN
 	IF cert_data IS NULL THEN
 		RETURN NULL;
@@ -150,6 +151,18 @@ BEGIN
 			)
 			VALUES (
 				t_issuerCAID, trim(l_cdp.URL), statement_timestamp() AT TIME ZONE 'UTC', TRUE
+			)
+			ON CONFLICT DO NOTHING;
+	END LOOP;
+
+	FOR l_aiaOCSP IN (
+				SELECT x509_authorityInfoAccess(cert_data, 1) URL
+			) LOOP
+		INSERT INTO ocsp_responder (
+				CA_ID, URL, NEXT_CHECKS_DUE
+			)
+			VALUES (
+				t_issuerCAID, l_aiaOCSP.URL, statement_timestamp() AT TIME ZONE 'UTC'
 			)
 			ON CONFLICT DO NOTHING;
 	END LOOP;
