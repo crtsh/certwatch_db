@@ -237,7 +237,7 @@ Content-Type: application/json
 [END_HEADERS]
 ';
 	ELSIF lower(t_outputType) IN ('revoked-intermediates', 'mozilla-certvalidations', 'mozilla-certvalidations-by-root', 'mozilla-certvalidations-by-owner', 'mozilla-certvalidations-by-version',
-									'mozilla-disclosures', 'mozilla-onecrl', 'microsoft-disclosures', 'redacted-precertificates') THEN
+									'mozilla-disclosures', 'mozilla-onecrl', 'microsoft-disclosures', 'ocsp-responders', 'ocsp-response', 'redacted-precertificates') THEN
 		t_type := lower(t_outputType);
 		t_title := t_type;
 		t_outputType := 'html';
@@ -407,7 +407,8 @@ Content-Type: application/json
   <META name="description" content="Free CT Log Certificate Search Tool from COMODO">
   <META name="keywords" content="crt.sh, CT, Certificate Transparency, Certificate Search, SSL Certificate, Comodo CA">
 ';
-		IF t_type = 'Certificate ASN.1' THEN
+		IF (t_type = 'Certificate ASN.1')
+				OR ((t_type = 'ocsp-response') AND (coalesce(get_parameter('type', paramNames, paramValues), 'dump') = 'asn1')) THEN
 			t_output := t_output ||
 '  <LINK rel="stylesheet" href="/asn1js/index.css" type="text/css">
 ';
@@ -435,7 +436,7 @@ Content-Type: application/json
 		t_output := t_output ||
 '  <STYLE type="text/css">
 ';
-		IF t_type NOT IN ('mozilla-disclosures', 'microsoft-disclosures') THEN
+		IF t_type NOT IN ('mozilla-disclosures', 'microsoft-disclosures', 'ocsp-responders') THEN
 			t_output := t_output ||
 '    a {
       white-space: nowrap;
@@ -738,6 +739,7 @@ Content-Type: application/json
               <TD>
                 <A href="/forum">Forum</A>
                 <BR><A href="/revoked-intermediates">Revoked Intermediates</A>
+                <BR><A href="/ocsp-responders">OCSP Responders</A>
               </TD>
               </TD>
             </TR>
@@ -1571,6 +1573,27 @@ Content-Type: text/plain; charset=UTF-8
 
 	ELSIF t_type = 'microsoft-disclosures' THEN
 		t_output := t_output || microsoft_disclosures();
+
+	ELSIF t_type = 'ocsp-responders' THEN
+		t_output := t_output || ocsp_responders(
+			coalesce(get_parameter('dir', paramNames, paramValues), 'v'),
+			coalesce(get_parameter('sort', paramNames, paramValues), '2')::integer,
+			get_parameter('url', paramNames, paramValues),
+			get_parameter('trustedby', paramNames, paramValues),
+			get_parameter('trustedfor', paramNames, paramValues),
+			get_parameter('trustedexclude', paramNames, paramValues),
+			get_parameter('get', paramNames, paramValues),
+			get_parameter('post', paramNames, paramValues),
+			get_parameter('randomserial', paramNames, paramValues)
+		);
+
+	ELSIF t_type = 'ocsp-response' THEN
+		t_output := t_output || ocsp_response(
+			coalesce(get_parameter('caID', paramNames, paramValues), '')::integer,
+			coalesce(get_parameter('url', paramNames, paramValues), ''),
+			coalesce(get_parameter('request', paramNames, paramValues), ''),
+			coalesce(get_parameter('type', paramNames, paramValues), 'dump')
+		);
 
 	ELSIF t_type IN (
 				'ID',

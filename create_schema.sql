@@ -189,6 +189,31 @@ CREATE TABLE crl_revoked (
 		PRIMARY KEY (CA_ID, SERIAL_NUMBER)
 );
 
+CREATE TABLE ocsp_responder (
+	CA_ID					integer,
+	URL						text,
+	NEXT_CHECKS_DUE			timestamp,
+	LAST_CHECKED			timestamp,
+	RANDOM_SERIAL_RESULT	text,
+	RANDOM_SERIAL_DUMP		bytea,
+	RANDOM_SERIAL_DURATION	bigint,
+	TESTED_CERTIFICATE_ID	bigint,
+	GET_RESULT				text,
+	GET_DUMP				bytea,
+	GET_DURATION			bigint,
+	POST_RESULT				text,
+	POST_DUMP				bytea,
+	POST_DURATION			bigint,
+	CONSTRAINT or_pk
+		PRIMARY KEY (CA_ID, URL),
+	CONSTRAINT or_ca_fk
+		FOREIGN KEY (CA_ID)
+		REFERENCES ca(ID),
+	CONSTRAINT or_c_fk
+		FOREIGN KEY (TESTED_CERTIFICATE_ID)
+		REFERENCES certificate(ID)
+);
+
 CREATE TABLE ct_log (
 	ID						smallint,
 	URL						text,
@@ -780,6 +805,8 @@ GRANT SELECT ON ca_certificate TO crtsh;
 GRANT SELECT ON crl TO crtsh;
 
 GRANT SELECT ON crl_revoked TO crtsh;
+
+GRANT SELECT ON ocsp_responder TO crtsh;
 
 GRANT SELECT ON ct_log TO crtsh;
 

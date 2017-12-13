@@ -101,6 +101,8 @@ DROP TABLE ct_log_entry;
 
 DROP TABLE ct_log;
 
+DROP TABLE ocsp_responder;
+
 DROP TABLE crl_revoked;
 
 DROP TABLE crl;
