@@ -270,6 +270,7 @@ UPDATE ccadb_certificate_temp cct
 	SET PARENT_CERTIFICATE_ID = cct_parent.CERTIFICATE_ID
 	FROM certificate c, ca_certificate cac_parent, certificate c_parent, ccadb_certificate_temp cct_parent
 	WHERE cct.CERTIFICATE_ID IS NOT NULL
+		AND cct.PARENT_CERTIFICATE_ID IS NULL
 		AND cct.CERTIFICATE_ID = c.ID
 		AND c.ISSUER_CA_ID = cac_parent.CA_ID
 		AND cac_parent.CERTIFICATE_ID = c_parent.ID
