@@ -123,12 +123,17 @@ BEGIN
 	PERFORM extract_cert_names(t_certificateID, t_issuerCAID);
 
 	IF t_canIssueCerts THEN
-		INSERT INTO ca_certificate (
-				CERTIFICATE_ID, CA_ID
-			)
-			VALUES (
-				t_certificateID, t_caID
-			);
+		BEGIN
+			INSERT INTO ca_certificate (
+					CERTIFICATE_ID, CA_ID
+				)
+				VALUES (
+					t_certificateID, t_caID
+				);
+		EXCEPTION
+			WHEN unique_violation THEN
+				NULL;
+		END;
 
 		IF NOT t_lintingApplies THEN
 			UPDATE ca
