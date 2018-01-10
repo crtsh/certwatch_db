@@ -228,11 +228,13 @@ CREATE TABLE ct_log (
 	MMD_IN_SECONDS			integer,
 	CHROME_ISSUE_NUMBER		integer,
 	NON_INCLUSION_STATUS	text,
+	TREE_SIZE				integer,
 	BATCH_SIZE				integer,
+	GOOGLE_UPTIME			text,
 	INCLUDED_IN_MACOS		text,
 	CONSTRAINT ctl_pk
 		PRIMARY KEY (ID),
-	CONSTRAINT crl_url_unq
+	CONSTRAINT ctl_url_unq
 		UNIQUE (URL)
 );
 
