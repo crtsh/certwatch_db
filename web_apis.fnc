@@ -432,7 +432,7 @@ Content-Type: application/json
 			t_output := t_output ||
 '  <STYLE type="text/css">
     table tr:nth-child(2n+5) {
-      background: #EFEFEF
+      background: #E7E7E7
     }
   </STYLE>
 ';
@@ -819,7 +819,7 @@ Content-Type: application/json
 '  <SPAN class="whiteongrey">Monitored Logs</SPAN>
   <BR><BR>
   <TABLE>
-    <TR><TD colspan="8" class="heading">CT Logs currently monitored:</TD></TR>
+    <TR><TD colspan="10" class="heading">CT Logs currently monitored:</TD></TR>
     <TR>
       <TH rowspan="2">Operator</TH>
       <TH rowspan="2">URL</TH>
@@ -838,7 +838,9 @@ Content-Type: application/json
       <TH>In MacOS?</TH>
     </TR>';
 		FOR l_record IN (
-					SELECT ctl.ID, ctl.OPERATOR, ctl.URL,
+					SELECT ctl.ID,
+							coalesce(ctlo.DISPLAY_STRING, ctl.OPERATOR) AS OPERATOR,
+							ctl.URL,
 							ctl.TREE_SIZE, ctl.LATEST_ENTRY_ID, ctl.LATEST_UPDATE,
 							ctl.LATEST_STH_TIMESTAMP, ctl.MMD_IN_SECONDS,
 							CASE WHEN coalesce(ctl.LATEST_STH_TIMESTAMP + (ctl.MMD_IN_SECONDS || ' seconds')::interval, statement_timestamp()) <= statement_timestamp()
@@ -853,6 +855,7 @@ Content-Type: application/json
 							END UPTIME_FONT_STYLE,
 							ctl.INCLUDED_IN_MACOS
 						FROM ct_log ctl
+								LEFT OUTER JOIN ct_log_operator ctlo ON (ctl.OPERATOR = ctlo.OPERATOR)
 						WHERE ctl.IS_ACTIVE = 't'
 						ORDER BY ctl.TREE_SIZE DESC NULLS LAST
 				) LOOP
@@ -871,7 +874,7 @@ Content-Type: application/json
       <TD' || l_record.FONT_STYLE || '>' || coalesce(to_char(l_record.LATEST_STH_TIMESTAMP, 'YYYY-MM-DD HH24:MI:SS'), '') || '</TD>
       <TD' || l_record.FONT_STYLE || '>' || coalesce(l_record.TREE_SIZE::text, '') || '</TD>
       <TD' || l_record.FONT_STYLE || '>' || t_count::text || '</TD>
-      <TD>' || coalesce(to_char(l_record.LATEST_UPDATE, 'YYYY-MM-DD HH24:MI:SS'), '') || '</TD>
+      <TD' || l_record.FONT_STYLE || '>' || coalesce(to_char(l_record.LATEST_UPDATE, 'YYYY-MM-DD HH24:MI:SS'), '') || '</TD>
       <TD style="text-align:right' || l_record.UPTIME_FONT_STYLE || '">' || coalesce(l_record.GOOGLE_UPTIME, '') || '</TD>
       <TD>
 ';
@@ -895,7 +898,7 @@ Content-Type: application/json
 		t_output := t_output || '
   </TABLE>
   <TABLE>
-    <TR><TD colspan="8" class="heading">CT Logs no longer monitored:</TD></TR>
+    <TR><TD colspan="9" class="heading">CT Logs no longer monitored:</TD></TR>
     <TR>
       <TH rowspan="2">Operator</TH>
       <TH rowspan="2">URL</TH>
@@ -911,12 +914,15 @@ Content-Type: application/json
       <TH>Backlog</TH>
     </TR>';
 		FOR l_record IN (
-					SELECT ctl.ID, ctl.OPERATOR, ctl.URL,
+					SELECT ctl.ID,
+							coalesce(ctlo.DISPLAY_STRING, ctl.OPERATOR) AS OPERATOR,
+							ctl.URL,
 							ctl.TREE_SIZE, ctl.LATEST_ENTRY_ID, ctl.LATEST_UPDATE,
 							ctl.LATEST_STH_TIMESTAMP, ctl.MMD_IN_SECONDS,
 							ctl.INCLUDED_IN_CHROME, ctl.CHROME_ISSUE_NUMBER, ctl.NON_INCLUSION_STATUS,
 							ctl.INCLUDED_IN_MACOS
 						FROM ct_log ctl
+								LEFT OUTER JOIN ct_log_operator ctlo ON (ctl.OPERATOR = ctlo.OPERATOR)
 						WHERE ctl.IS_ACTIVE = 'f'
 							AND ctl.LATEST_ENTRY_ID IS NOT NULL
 						ORDER BY ctl.TREE_SIZE DESC NULLS LAST

@@ -241,6 +241,13 @@ CREATE TABLE ct_log (
 CREATE UNIQUE INDEX ctl_sha256_pubkey
 	ON ct_log (digest(PUBLIC_KEY, 'sha256'));
 
+CREATE TABLE ct_log_operator (
+	OPERATOR				text,
+	DISPLAY_STRING			text,
+	CONSTRAINT ctlo_pk
+		PRIMARY KEY (OPERATOR)
+);
+
 CREATE TABLE ct_log_entry (
 	CERTIFICATE_ID	integer,
 	CT_LOG_ID		smallint,
@@ -811,6 +818,8 @@ GRANT SELECT ON crl_revoked TO crtsh;
 GRANT SELECT ON ocsp_responder TO crtsh;
 
 GRANT SELECT ON ct_log TO crtsh;
+
+GRANT SELECT ON ct_log_operator TO crtsh;
 
 GRANT SELECT ON ct_log_entry TO crtsh;
 

@@ -99,6 +99,8 @@ DROP TYPE linter_type;
 
 DROP TABLE ct_log_entry;
 
+DROP TABLE ct_log_operator;
+
 DROP TABLE ct_log;
 
 DROP TABLE ocsp_responder;
