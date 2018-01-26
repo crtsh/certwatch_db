@@ -382,13 +382,9 @@ Content-Type: application/json
 	END IF;
 
 	IF t_useCachedResponse THEN
-		IF t_type = 'redacted-precertificates' THEN
-			t_maxAge := '2017-12-01'::date;
-		ELSE
-			t_count := coalesce(get_parameter('maxage', paramNames, paramValues), '14400')::integer;
-			t_cacheResponse := (t_count = 0);
-			t_maxAge := statement_timestamp() - (interval '1 second' * t_count);
-		END IF;
+		t_count := coalesce(get_parameter('maxage', paramNames, paramValues), '14400')::integer;
+		t_cacheResponse := (t_count = 0);
+		t_maxAge := statement_timestamp() - (interval '1 second' * t_count);
 		SELECT cr.RESPONSE_BODY
 			INTO t_output
 			FROM cached_response cr
