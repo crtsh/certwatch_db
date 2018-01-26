@@ -800,10 +800,15 @@ Content-Type: application/json
 						WHERE ctl.IS_ACTIVE = CASE WHEN t_temp = 'all' THEN ctl.IS_ACTIVE ELSE 't' END
 						ORDER BY ctl.NAME
 				) LOOP
-			t_output := t_output || '    {' || chr(10)
-								|| '      "description": "' || l_record.NAME || '",' || chr(10)
+			t_output := t_output
+								|| '    {' || chr(10)
+								|| '      "description": "' || l_record.NAME || '",' || chr(10);
+			IF l_record.PUBLIC_KEY IS NOT NULL THEN
+				t_output := t_output
 								|| '      "log_id": "' || encode(digest(l_record.PUBLIC_KEY, 'sha256'), 'base64') || '",' || chr(10)
-								|| '      "key": "' || replace(encode(l_record.PUBLIC_KEY, 'base64'), chr(10), '') || '",' || chr(10)
+								|| '      "key": "' || replace(encode(l_record.PUBLIC_KEY, 'base64'), chr(10), '') || '",' || chr(10);
+			END IF;
+			t_output := t_output
 								|| '      "url": "' || l_record.URL || '",' || chr(10)
 								|| '      "maximum_merge_delay": ' || coalesce(l_record.MMD_IN_SECONDS::text, '') || chr(10)
 								|| '    },' || chr(10);
