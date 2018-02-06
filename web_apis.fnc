@@ -816,11 +816,16 @@ Content-Type: application/json
 		t_output := rtrim(t_output, ',' || chr(10)) || chr(10) || '  ]' || chr(10) || '}';
 
 	ELSIF t_type = 'monitored-logs' THEN
+		t_temp := lower(coalesce(get_parameter('trustedBy', paramNames, paramValues), ''));
 		t_output := t_output ||
 '  <SPAN class="whiteongrey">Monitored Logs</SPAN>
   <BR>
   <TABLE>
-    <TR><TD colspan="10" class="heading">CT Logs currently monitored:</TD></TR>
+    <TR><TD colspan="10" class="heading">CT Logs currently monitored';
+		IF t_temp = 'chromium' THEN
+			t_output := t_output || ' (that are trusted by Chromium)';
+		END IF;
+		t_output := t_output || ':</TD></TR>
     <TR>
       <TH rowspan="2">Operator</TH>
       <TH rowspan="2">URL</TH>
@@ -835,7 +840,7 @@ Content-Type: application/json
       <TH>Tree Size</TH>
       <TH>Backlog</TH>
       <TH>Uptime %</TH>
-      <TH>In Chrome?</TH>
+      <TH><A href="monitored-logs?trustedBy=Chromium">In Chrome?</A></TH>
       <TH>In MacOS?</TH>
     </TR>';
 		FOR l_record IN (
@@ -860,6 +865,9 @@ Content-Type: application/json
 						WHERE ctl.IS_ACTIVE = 't'
 						ORDER BY ctl.TREE_SIZE DESC NULLS LAST
 				) LOOP
+			IF (t_temp = 'chromium') AND ((l_record.INCLUDED_IN_CHROME IS NULL) OR (l_record.NON_INCLUSION_STATUS IS NOT NULL)) THEN
+				CONTINUE;
+			END IF;
 			SELECT coalesce(l_record.TREE_SIZE, 0) - coalesce(max(ENTRY_ID), -1) - 1
 				INTO t_count
 				FROM ct_log_entry ctle
@@ -896,7 +904,9 @@ Content-Type: application/json
       <TD>' || coalesce(l_record.INCLUDED_IN_MACOS, '') || '</TD>
     </TR>';
 		END LOOP;
-		t_output := t_output || '
+
+		IF NOT ((t_temp = 'chromium') AND ((l_record.INCLUDED_IN_CHROME IS NULL) OR (l_record.NON_INCLUSION_STATUS IS NOT NULL))) THEN
+			t_output := t_output || '
   </TABLE>
   <TABLE>
     <TR><TD colspan="9" class="heading">CT Logs no longer monitored:</TD></TR>
@@ -914,28 +924,28 @@ Content-Type: application/json
       <TH>Tree Size</TH>
       <TH>Backlog</TH>
     </TR>';
-		FOR l_record IN (
-					SELECT ctl.ID,
-							coalesce(ctlo.DISPLAY_STRING, ctl.OPERATOR) AS OPERATOR,
-							ctl.URL,
-							ctl.TREE_SIZE, ctl.LATEST_ENTRY_ID, ctl.LATEST_UPDATE,
-							ctl.LATEST_STH_TIMESTAMP, ctl.MMD_IN_SECONDS,
-							ctl.INCLUDED_IN_CHROME, ctl.CHROME_ISSUE_NUMBER, ctl.NON_INCLUSION_STATUS,
-							ctl.INCLUDED_IN_MACOS
-						FROM ct_log ctl
-								LEFT OUTER JOIN ct_log_operator ctlo ON (ctl.OPERATOR = ctlo.OPERATOR)
-						WHERE ctl.IS_ACTIVE = 'f'
-							AND ctl.LATEST_ENTRY_ID IS NOT NULL
-						ORDER BY ctl.TREE_SIZE DESC NULLS LAST
-				) LOOP
-			SELECT coalesce(l_record.TREE_SIZE, 0) - coalesce(max(ENTRY_ID), -1) - 1
-				INTO t_count
-				FROM ct_log_entry ctle
-				WHERE ctle.CT_LOG_ID = l_record.ID;
-			IF t_count < 0 THEN
-				t_count := 0;
-			END IF;
-			t_output := t_output || '
+			FOR l_record IN (
+						SELECT ctl.ID,
+								coalesce(ctlo.DISPLAY_STRING, ctl.OPERATOR) AS OPERATOR,
+								ctl.URL,
+								ctl.TREE_SIZE, ctl.LATEST_ENTRY_ID, ctl.LATEST_UPDATE,
+								ctl.LATEST_STH_TIMESTAMP, ctl.MMD_IN_SECONDS,
+								ctl.INCLUDED_IN_CHROME, ctl.CHROME_ISSUE_NUMBER, ctl.NON_INCLUSION_STATUS,
+								ctl.INCLUDED_IN_MACOS
+							FROM ct_log ctl
+									LEFT OUTER JOIN ct_log_operator ctlo ON (ctl.OPERATOR = ctlo.OPERATOR)
+							WHERE ctl.IS_ACTIVE = 'f'
+								AND ctl.LATEST_ENTRY_ID IS NOT NULL
+							ORDER BY ctl.TREE_SIZE DESC NULLS LAST
+					) LOOP
+				SELECT coalesce(l_record.TREE_SIZE, 0) - coalesce(max(ENTRY_ID), -1) - 1
+					INTO t_count
+					FROM ct_log_entry ctle
+					WHERE ctle.CT_LOG_ID = l_record.ID;
+				IF t_count < 0 THEN
+					t_count := 0;
+				END IF;
+				t_output := t_output || '
     <TR>
       <TD>' || l_record.OPERATOR || '</TD>
       <TD>' || l_record.URL || '</TD>
@@ -946,23 +956,24 @@ Content-Type: application/json
       <TD>' || coalesce(to_char(l_record.LATEST_UPDATE, 'YYYY-MM-DD HH24:MI:SS'), '') || '</TD>
       <TD>
 ';
-			IF l_record.CHROME_ISSUE_NUMBER IS NOT NULL THEN
-				t_output := t_output || '<A href="https://code.google.com/p/chromium/issues/detail?id='
-									|| l_record.CHROME_ISSUE_NUMBER::text || '" target="_blank">';
-				IF l_record.INCLUDED_IN_CHROME IS NOT NULL THEN
-					t_output := t_output || coalesce(l_record.NON_INCLUSION_STATUS, 'M' || l_record.INCLUDED_IN_CHROME::text);
-				ELSE
-					t_output := t_output || coalesce(l_record.NON_INCLUSION_STATUS, 'Pending');
+				IF l_record.CHROME_ISSUE_NUMBER IS NOT NULL THEN
+					t_output := t_output || '<A href="https://code.google.com/p/chromium/issues/detail?id='
+										|| l_record.CHROME_ISSUE_NUMBER::text || '" target="_blank">';
+					IF l_record.INCLUDED_IN_CHROME IS NOT NULL THEN
+						t_output := t_output || coalesce(l_record.NON_INCLUSION_STATUS, 'M' || l_record.INCLUDED_IN_CHROME::text);
+					ELSE
+						t_output := t_output || coalesce(l_record.NON_INCLUSION_STATUS, 'Pending');
+					END IF;
+					t_output := t_output || '</A>' || chr(10);
+				ELSIF l_record.NON_INCLUSION_STATUS IS NOT NULL THEN
+					t_output := t_output || l_record.NON_INCLUSION_STATUS;
 				END IF;
-				t_output := t_output || '</A>' || chr(10);
-			ELSIF l_record.NON_INCLUSION_STATUS IS NOT NULL THEN
-				t_output := t_output || l_record.NON_INCLUSION_STATUS;
-			END IF;
-			t_output := t_output ||
+				t_output := t_output ||
 '      </TD>
       <TD>' || coalesce(l_record.INCLUDED_IN_MACOS, '') || '</TD>
     </TR>';
-		END LOOP;
+			END LOOP;
+		END IF;
 		t_output := t_output || '
 </TABLE>';
 
