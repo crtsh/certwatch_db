@@ -816,14 +816,14 @@ Content-Type: application/json
 		t_output := rtrim(t_output, ',' || chr(10)) || chr(10) || '  ]' || chr(10) || '}';
 
 	ELSIF t_type = 'monitored-logs' THEN
-		t_temp := lower(coalesce(get_parameter('trustedBy', paramNames, paramValues), ''));
+		t_temp := lower(coalesce(get_parameter('recognizedBy', paramNames, paramValues), ''));
 		t_output := t_output ||
 '  <SPAN class="whiteongrey">Monitored Logs</SPAN>
   <BR>
   <TABLE>
     <TR><TD colspan="10" class="heading">CT Logs currently monitored';
 		IF t_temp = 'chromium' THEN
-			t_output := t_output || ' (that are trusted by Chromium)';
+			t_output := t_output || ' (that are recognized by Chromium)';
 		END IF;
 		t_output := t_output || ':</TD></TR>
     <TR>
@@ -840,7 +840,7 @@ Content-Type: application/json
       <TH>Tree Size</TH>
       <TH>Backlog</TH>
       <TH>Uptime %</TH>
-      <TH><A href="monitored-logs?trustedBy=Chromium">In Chrome?</A></TH>
+      <TH><A href="monitored-logs?recognizedBy=Chromium">In Chrome?</A></TH>
       <TH>In MacOS?</TH>
     </TR>';
 		FOR l_record IN (
@@ -854,7 +854,7 @@ Content-Type: application/json
 								ELSE ''
 							END FONT_STYLE,
 							ctl.INCLUDED_IN_CHROME, ctl.CHROME_ISSUE_NUMBER, ctl.NON_INCLUSION_STATUS,
-							ctl.GOOGLE_UPTIME,
+							ctl.CHROME_FINAL_TREE_SIZE, ctl.CHROME_DISQUALIFIED_AT, ctl.GOOGLE_UPTIME,
 							CASE WHEN coalesce(ctl.GOOGLE_UPTIME::numeric, 100) < 99
 								THEN ';color:#FF0000'
 								ELSE ''
@@ -865,9 +865,21 @@ Content-Type: application/json
 						WHERE ctl.IS_ACTIVE = 't'
 						ORDER BY ctl.TREE_SIZE DESC NULLS LAST
 				) LOOP
-			IF (t_temp = 'chromium') AND ((l_record.INCLUDED_IN_CHROME IS NULL) OR (l_record.NON_INCLUSION_STATUS IS NOT NULL)) THEN
+			IF (t_temp = 'chromium') AND (
+						(l_record.INCLUDED_IN_CHROME IS NULL)
+						OR (coalesce(l_record.NON_INCLUSION_STATUS, '') = 'Removed')
+						OR (
+							(coalesce(l_record.NON_INCLUSION_STATUS, '') = 'Disqualified')
+							AND (l_record.CHROME_DISQUALIFIED_AT IS NULL)
+						)
+						OR (
+							(coalesce(l_record.NON_INCLUSION_STATUS, '') = 'Frozen')
+							AND (l_record.CHROME_FINAL_TREE_SIZE IS NULL)
+						)
+					) THEN
 				CONTINUE;
 			END IF;
+
 			SELECT coalesce(l_record.TREE_SIZE, 0) - coalesce(max(ENTRY_ID), -1) - 1
 				INTO t_count
 				FROM ct_log_entry ctle
@@ -888,14 +900,19 @@ Content-Type: application/json
       <TD>
 ';
 			IF l_record.CHROME_ISSUE_NUMBER IS NOT NULL THEN
-				t_output := t_output || '<A href="https://bugs.chromium.org/p/chromium/issues/detail?id='
+				t_output := t_output || '<A href="https://code.google.com/p/chromium/issues/detail?id='
 									|| l_record.CHROME_ISSUE_NUMBER::text || '" target="_blank">';
 				IF l_record.INCLUDED_IN_CHROME IS NOT NULL THEN
-					t_output := t_output || coalesce(l_record.NON_INCLUSION_STATUS, 'M' || l_record.INCLUDED_IN_CHROME::text);
+					t_output := t_output || coalesce(l_record.NON_INCLUSION_STATUS, 'M' || l_record.INCLUDED_IN_CHROME::text) || '</A>';
+					IF l_record.CHROME_FINAL_TREE_SIZE IS NOT NULL THEN
+						t_output := t_output || ' <SPAN class="small">(' || l_record.CHROME_FINAL_TREE_SIZE::text || ')</SPAN>';
+					ELSIF l_record.CHROME_DISQUALIFIED_AT IS NOT NULL THEN
+						t_output := t_output || ' <SPAN class="small">(' || to_char(l_record.CHROME_DISQUALIFIED_AT, 'YYYY-MM-DD HH24:MI:SS') || ')</SPAN>';
+					END IF;
+					t_output := t_output || chr(10);
 				ELSE
-					t_output := t_output || coalesce(l_record.NON_INCLUSION_STATUS, 'Pending');
+					t_output := t_output || coalesce(l_record.NON_INCLUSION_STATUS, 'Pending') || '</A>' || chr(10);
 				END IF;
-				t_output := t_output || '</A>' || chr(10);
 			ELSIF l_record.NON_INCLUSION_STATUS IS NOT NULL THEN
 				t_output := t_output || l_record.NON_INCLUSION_STATUS;
 			END IF;
@@ -905,11 +922,14 @@ Content-Type: application/json
     </TR>';
 		END LOOP;
 
-		IF NOT ((t_temp = 'chromium') AND ((l_record.INCLUDED_IN_CHROME IS NULL) OR (l_record.NON_INCLUSION_STATUS IS NOT NULL))) THEN
-			t_output := t_output || '
+		t_output := t_output || '
   </TABLE>
   <TABLE>
-    <TR><TD colspan="9" class="heading">CT Logs no longer monitored:</TD></TR>
+    <TR><TD colspan="9" class="heading">CT Logs no longer monitored';
+		IF t_temp = 'chromium' THEN
+			t_output := t_output || ' (that are recognized by Chromium)';
+		END IF;
+		t_output := t_output || ':</TD></TR>
     <TR>
       <TH rowspan="2">Operator</TH>
       <TH rowspan="2">URL</TH>
@@ -924,28 +944,43 @@ Content-Type: application/json
       <TH>Tree Size</TH>
       <TH>Backlog</TH>
     </TR>';
-			FOR l_record IN (
-						SELECT ctl.ID,
-								coalesce(ctlo.DISPLAY_STRING, ctl.OPERATOR) AS OPERATOR,
-								ctl.URL,
-								ctl.TREE_SIZE, ctl.LATEST_ENTRY_ID, ctl.LATEST_UPDATE,
-								ctl.LATEST_STH_TIMESTAMP, ctl.MMD_IN_SECONDS,
-								ctl.INCLUDED_IN_CHROME, ctl.CHROME_ISSUE_NUMBER, ctl.NON_INCLUSION_STATUS,
-								ctl.INCLUDED_IN_MACOS
-							FROM ct_log ctl
-									LEFT OUTER JOIN ct_log_operator ctlo ON (ctl.OPERATOR = ctlo.OPERATOR)
-							WHERE ctl.IS_ACTIVE = 'f'
-								AND ctl.LATEST_ENTRY_ID IS NOT NULL
-							ORDER BY ctl.TREE_SIZE DESC NULLS LAST
-					) LOOP
-				SELECT coalesce(l_record.TREE_SIZE, 0) - coalesce(max(ENTRY_ID), -1) - 1
-					INTO t_count
-					FROM ct_log_entry ctle
-					WHERE ctle.CT_LOG_ID = l_record.ID;
-				IF t_count < 0 THEN
-					t_count := 0;
-				END IF;
-				t_output := t_output || '
+		FOR l_record IN (
+					SELECT ctl.ID,
+							coalesce(ctlo.DISPLAY_STRING, ctl.OPERATOR) AS OPERATOR,
+							ctl.URL,
+							ctl.TREE_SIZE, ctl.LATEST_ENTRY_ID, ctl.LATEST_UPDATE,
+							ctl.LATEST_STH_TIMESTAMP, ctl.MMD_IN_SECONDS,
+							ctl.INCLUDED_IN_CHROME, ctl.CHROME_ISSUE_NUMBER, ctl.NON_INCLUSION_STATUS,
+							ctl.CHROME_FINAL_TREE_SIZE, ctl.CHROME_DISQUALIFIED_AT,
+							ctl.INCLUDED_IN_MACOS
+						FROM ct_log ctl
+								LEFT OUTER JOIN ct_log_operator ctlo ON (ctl.OPERATOR = ctlo.OPERATOR)
+						WHERE ctl.IS_ACTIVE = 'f'
+							AND ctl.LATEST_ENTRY_ID IS NOT NULL
+						ORDER BY ctl.TREE_SIZE DESC NULLS LAST
+				) LOOP
+			IF (t_temp = 'chromium') AND (
+						(l_record.INCLUDED_IN_CHROME IS NULL)
+						OR (coalesce(l_record.NON_INCLUSION_STATUS, '') = 'Removed')
+						OR (
+							(coalesce(l_record.NON_INCLUSION_STATUS, '') = 'Disqualified')
+							AND (l_record.CHROME_DISQUALIFIED_AT IS NULL)
+						)
+						OR (
+							(coalesce(l_record.NON_INCLUSION_STATUS, '') = 'Frozen')
+							AND (l_record.CHROME_FINAL_TREE_SIZE IS NULL)
+						)
+					) THEN
+				CONTINUE;
+			END IF;
+			SELECT coalesce(l_record.TREE_SIZE, 0) - coalesce(max(ENTRY_ID), -1) - 1
+				INTO t_count
+				FROM ct_log_entry ctle
+				WHERE ctle.CT_LOG_ID = l_record.ID;
+			IF t_count < 0 THEN
+				t_count := 0;
+			END IF;
+			t_output := t_output || '
     <TR>
       <TD>' || l_record.OPERATOR || '</TD>
       <TD>' || l_record.URL || '</TD>
@@ -956,24 +991,28 @@ Content-Type: application/json
       <TD>' || coalesce(to_char(l_record.LATEST_UPDATE, 'YYYY-MM-DD HH24:MI:SS'), '') || '</TD>
       <TD>
 ';
-				IF l_record.CHROME_ISSUE_NUMBER IS NOT NULL THEN
-					t_output := t_output || '<A href="https://code.google.com/p/chromium/issues/detail?id='
-										|| l_record.CHROME_ISSUE_NUMBER::text || '" target="_blank">';
-					IF l_record.INCLUDED_IN_CHROME IS NOT NULL THEN
-						t_output := t_output || coalesce(l_record.NON_INCLUSION_STATUS, 'M' || l_record.INCLUDED_IN_CHROME::text);
-					ELSE
-						t_output := t_output || coalesce(l_record.NON_INCLUSION_STATUS, 'Pending');
+			IF l_record.CHROME_ISSUE_NUMBER IS NOT NULL THEN
+				t_output := t_output || '<A href="https://code.google.com/p/chromium/issues/detail?id='
+									|| l_record.CHROME_ISSUE_NUMBER::text || '" target="_blank">';
+				IF l_record.INCLUDED_IN_CHROME IS NOT NULL THEN
+					t_output := t_output || coalesce(l_record.NON_INCLUSION_STATUS, 'M' || l_record.INCLUDED_IN_CHROME::text) || '</A>';
+					IF l_record.CHROME_FINAL_TREE_SIZE IS NOT NULL THEN
+						t_output := t_output || ' <SPAN class="small">(' || l_record.CHROME_FINAL_TREE_SIZE::text || ')</SPAN>';
+					ELSIF l_record.CHROME_DISQUALIFIED_AT IS NOT NULL THEN
+						t_output := t_output || ' <SPAN class="small">(' || to_char(l_record.CHROME_DISQUALIFIED_AT, 'YYYY-MM-DD HH24:MI:SS') || ')</SPAN>';
 					END IF;
-					t_output := t_output || '</A>' || chr(10);
-				ELSIF l_record.NON_INCLUSION_STATUS IS NOT NULL THEN
-					t_output := t_output || l_record.NON_INCLUSION_STATUS;
+					t_output := t_output || chr(10);
+				ELSE
+					t_output := t_output || coalesce(l_record.NON_INCLUSION_STATUS, 'Pending') || '</A>' || chr(10);
 				END IF;
-				t_output := t_output ||
+			ELSIF l_record.NON_INCLUSION_STATUS IS NOT NULL THEN
+				t_output := t_output || l_record.NON_INCLUSION_STATUS;
+			END IF;
+			t_output := t_output ||
 '      </TD>
       <TD>' || coalesce(l_record.INCLUDED_IN_MACOS, '') || '</TD>
     </TR>';
-			END LOOP;
-		END IF;
+		END LOOP;
 		t_output := t_output || '
 </TABLE>';
 

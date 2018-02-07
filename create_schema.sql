@@ -232,6 +232,8 @@ CREATE TABLE ct_log (
 	BATCH_SIZE				integer,
 	GOOGLE_UPTIME			text,
 	INCLUDED_IN_MACOS		text,
+	CHROME_FINAL_TREE_SIZE	integer,
+	CHROME_DISQUALIFIED_AT	timestamp,
 	CONSTRAINT ctl_pk
 		PRIMARY KEY (ID),
 	CONSTRAINT ctl_url_unq
