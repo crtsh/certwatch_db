@@ -1795,7 +1795,7 @@ Content-Type: text/plain; charset=UTF-8
 				t_text, '<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Issuer:<BR>',
 				'<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<A href="?caid='
 						|| t_issuerCAID::text
-						|| t_temp || '">Issuer:</A><BR>'
+						|| t_temp || '">Issuer:</A> <SPAN class="small">(CA ID: ' || t_issuerCAID::text || ')</SPAN><BR>'
 			);
 		END IF;
 		IF t_caID IS NOT NULL THEN
@@ -1803,7 +1803,7 @@ Content-Type: text/plain; charset=UTF-8
 				t_text, '<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Subject:<BR>',
 				'<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<A href="?caid='
 						|| t_caID::text
-						|| t_temp || '">Subject:</A><BR>'
+						|| t_temp || '">Subject:</A> <SPAN class="small">(CA ID: ' || t_caID::text || ')</SPAN><BR>'
 			);
 			IF t_caID = coalesce(t_issuerCAID, -1) THEN
 				t_certSummary := 'Root certificate';
