@@ -3869,7 +3869,7 @@ Content-Type: application/atom+xml
 ';
 					IF lower(t_type) LIKE '%lint' THEN
 						t_output := t_output ||
-'    <TH>Root Owner (Mozilla)</TH>
+'    <TH>Root Owner (CCADB)</TH>
 ';
 					END IF;
 					t_output := t_output ||
