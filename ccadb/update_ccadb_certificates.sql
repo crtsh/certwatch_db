@@ -265,7 +265,7 @@ UPDATE ccadb_certificate_temp cct
 		AND c.ISSUER_CA_ID = cac_parent.CA_ID
 		AND cac_parent.CERTIFICATE_ID = c_parent.ID
 		AND digest(c_parent.CERTIFICATE, 'sha256') = decode(replace(cct.PARENT_CERT_SHA256, ':', ''), 'hex');
-/* ...then Disclosed Root CA certs... */
+/* ...then Disclosed Root CA certs that are unexpired... */
 UPDATE ccadb_certificate_temp cct
 	SET PARENT_CERTIFICATE_ID = cct_parent.CERTIFICATE_ID
 	FROM certificate c, ca_certificate cac_parent, certificate c_parent, ccadb_certificate_temp cct_parent
@@ -274,19 +274,22 @@ UPDATE ccadb_certificate_temp cct
 		AND cct.CERTIFICATE_ID = c.ID
 		AND c.ISSUER_CA_ID = cac_parent.CA_ID
 		AND cac_parent.CERTIFICATE_ID = c_parent.ID
+		AND x509_notAfter(c_parent.CERTIFICATE) > statement_timestamp() AT TIME ZONE 'UTC'
 		AND c_parent.ID = cct_parent.CERTIFICATE_ID
 		AND cct_parent.CERT_RECORD_TYPE = 'Root Certificate';
-/* ...then Disclosed Intermediate CA certs... */
+/* ...then Disclosed Intermediate CA certs that are unexpired... */
 UPDATE ccadb_certificate_temp cct
 	SET PARENT_CERTIFICATE_ID = cct_parent.CERTIFICATE_ID
-	FROM certificate c, ca_certificate cac_parent, ccadb_certificate_temp cct_parent
+	FROM certificate c, ca_certificate cac_parent, certificate c_parent, ccadb_certificate_temp cct_parent
 	WHERE cct.CERTIFICATE_ID IS NOT NULL
 		AND cct.PARENT_CERTIFICATE_ID IS NULL
 		AND cct.CERTIFICATE_ID = c.ID
 		AND c.ISSUER_CA_ID = cac_parent.CA_ID
-		AND cac_parent.CERTIFICATE_ID = cct_parent.CERTIFICATE_ID
+		AND cac_parent.CERTIFICATE_ID = c_parent.ID
+		AND x509_notAfter(c_parent.CERTIFICATE) > statement_timestamp() AT TIME ZONE 'UTC'
+		AND c_parent.ID = cct_parent.CERTIFICATE_ID
 		AND cct_parent.CERT_RECORD_TYPE IS NOT NULL;
-/* ...then any other CA certs trusted by Mozilla... */
+/* ...then any other CA certs trusted by Mozilla or Microsoft... */
 UPDATE ccadb_certificate_temp cct
 	SET PARENT_CERTIFICATE_ID = (
 		SELECT c_parent.ID
@@ -296,25 +299,7 @@ UPDATE ccadb_certificate_temp cct
 				AND cac_parent.CERTIFICATE_ID = c_parent.ID
 				AND c.ID != c_parent.ID
 				AND c_parent.ISSUER_CA_ID = ctp.CA_ID
-				AND ctp.TRUST_CONTEXT_ID = 5
-			ORDER BY ctp.IS_TIME_VALID DESC,
-					ctp.SHORTEST_CHAIN,
-					ctp.TRUST_PURPOSE_ID
-			LIMIT 1
-	)
-	WHERE cct.CERTIFICATE_ID IS NOT NULL
-		AND cct.PARENT_CERTIFICATE_ID IS NULL;
-/* ...or by Microsoft... */
-UPDATE ccadb_certificate_temp cct
-	SET PARENT_CERTIFICATE_ID = (
-		SELECT c_parent.ID
-			FROM certificate c, ca_certificate cac_parent, certificate c_parent, ca_trust_purpose ctp
-			WHERE cct.CERTIFICATE_ID = c.ID
-				AND c.ISSUER_CA_ID = cac_parent.CA_ID
-				AND cac_parent.CERTIFICATE_ID = c_parent.ID
-				AND c.ID != c_parent.ID
-				AND c_parent.ISSUER_CA_ID = ctp.CA_ID
-				AND ctp.TRUST_CONTEXT_ID = 1
+				AND ctp.TRUST_CONTEXT_ID IN (1, 5)
 			ORDER BY ctp.IS_TIME_VALID DESC,
 					ctp.SHORTEST_CHAIN,
 					ctp.TRUST_PURPOSE_ID
