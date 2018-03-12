@@ -231,11 +231,6 @@ BEGIN
 	ELSIF lower(t_outputType) LIKE '%.json' THEN
 		t_type := lower(t_outputType);
 		t_outputType := 'json';
-		t_output :=
-'[BEGIN_HEADERS]
-Content-Type: application/json
-[END_HEADERS]
-';
 	ELSIF lower(t_outputType) IN ('revoked-intermediates', 'mozilla-certvalidations', 'mozilla-certvalidations-by-root', 'mozilla-certvalidations-by-owner', 'mozilla-certvalidations-by-version',
 									'mozilla-disclosures', 'mozilla-onecrl', 'microsoft-disclosures', 'ocsp-responders', 'ocsp-response', 'redacted-precertificates') THEN
 		t_type := lower(t_outputType);
@@ -249,7 +244,14 @@ Content-Type: application/json
 		t_type := 'Advanced';
 		t_outputType := 'html';
 	END IF;
-	IF t_outputType NOT IN ('html', 'json', 'atom') THEN
+
+	IF t_outputType = 'json' THEN
+		t_output :=
+'[BEGIN_HEADERS]
+Content-Type: application/json
+[END_HEADERS]
+';
+	ELSIF t_outputType NOT IN ('html', 'atom') THEN
 		RAISE no_data_found USING MESSAGE = 'Unsupported output type: ' || html_escape(t_outputType);
 	END IF;
 
@@ -341,7 +343,7 @@ Content-Type: application/json
 		t_opt := html_escape(t_opt) || ',';
 	END IF;
 
-	IF t_outputType = 'html' THEN
+	IF t_outputType IN ('html', 'json') THEN
 		IF lower(t_type) LIKE '%lint%' THEN
 			t_groupBy := coalesce(get_parameter('group', paramNames, paramValues), '');
 			t_direction := coalesce(get_parameter('dir', paramNames, paramValues), 'v');
