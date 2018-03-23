@@ -3480,7 +3480,8 @@ Content-Type: text/plain; charset=UTF-8
 			IF coalesce(t_groupBy, '') = 'none' THEN
 				t_select := t_select ||
 							'        min(ctle.ENTRY_TIMESTAMP) MIN_ENTRY_TIMESTAMP,' || chr(10) ||
-							'        x509_notBefore(c.CERTIFICATE) NOT_BEFORE';
+							'        x509_notBefore(c.CERTIFICATE) NOT_BEFORE,' || chr(10) ||
+							'        x509_notAfter(c.CERTIFICATE) NOT_AFTER';
 				t_from := t_from || ',' || chr(10) ||
 							'        ct_log_entry ctle';
 				t_where := t_where || chr(10) ||
@@ -3495,6 +3496,8 @@ Content-Type: text/plain; charset=UTF-8
 					t_query := t_query || 'MIN_ENTRY_TIMESTAMP ' || t_orderBy || ', NAME_VALUE, ISSUER_NAME';
 				ELSIF t_sort = 2 THEN
 					t_query := t_query || 'NOT_BEFORE ' || t_orderBy || ', NAME_VALUE, ISSUER_NAME';
+				ELSIF t_sort = 4 THEN
+					t_query := t_query || 'NOT_AFTER ' || t_orderBy || ', NAME_VALUE, ISSUER_NAME';
 				ELSE
 					t_query := t_query || 'ISSUER_NAME ' || t_orderBy || ', NOT_BEFORE ' || t_orderBy || ', NAME_VALUE';
 				END IF;
@@ -3710,7 +3713,8 @@ Content-Type: text/plain; charset=UTF-8
 					IF coalesce(t_groupBy, '') = 'none' THEN
 						t_temp2 := t_temp2 || '<A href="?id=' || l_record.MIN_CERT_ID::text || t_opt || '">' || l_record.MIN_CERT_ID::text || '</A></TD>
     <TD style="text-align:center">' || to_char(l_record.MIN_ENTRY_TIMESTAMP, 'YYYY-MM-DD') || '</TD>
-    <TD style="text-align:center">' || to_char(l_record.NOT_BEFORE, 'YYYY-MM-DD');
+    <TD style="text-align:center">' || to_char(l_record.NOT_BEFORE, 'YYYY-MM-DD') || '</TD>
+    <TD style="text-align:center">' || to_char(l_record.NOT_AFTER, 'YYYY-MM-DD');
 					ELSIF (l_record.NUM_CERTS = 1)
 							AND (l_record.MIN_CERT_ID IS NOT NULL) THEN
 						t_temp2 := t_temp2 || '<A href="?id=' || l_record.MIN_CERT_ID::text || t_opt || '">'
@@ -3831,6 +3835,13 @@ Content-Type: application/atom+xml
     <TH style="white-space:nowrap"><A href="?' || t_temp || '&dir=' || t_oppositeDirection || '&sort=2' || t_minNotBeforeString || coalesce(t_excludeExpired, '') || coalesce(t_excludeCAsString, '') || t_groupByParameter || '">Not Before</A>
 ';
 						IF t_sort = 2 THEN
+							t_output := t_output || ' ' || t_dirSymbol;
+						END IF;
+						t_output := t_output ||
+'    </TH>
+    <TH style="white-space:nowrap"><A href="?' || t_temp || '&dir=' || t_oppositeDirection || '&sort=4' || t_minNotBeforeString || coalesce(t_excludeExpired, '') || coalesce(t_excludeCAsString, '') || t_groupByParameter || '">Not After</A>
+';
+						IF t_sort = 4 THEN
 							t_output := t_output || ' ' || t_dirSymbol;
 						END IF;
 						t_output := t_output ||
