@@ -71,6 +71,12 @@ DROP TABLE microsoft_disallowedcert;
 
 DROP TABLE microsoft_disallowedcert_import;
 
+DROP TABLE debian_weak_key;
+
+DROP TYPE debian_rnd_type;
+
+DROP TYPE debian_arch_type;
+
 DROP TABLE ccadb_caowner;
 
 DROP TABLE ccadb_certificate;

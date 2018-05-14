@@ -704,6 +704,28 @@ CREATE UNIQUE INDEX cco_caowner
 	ON ccadb_caowner (CA_OWNER_NAME);
 
 
+CREATE TYPE debian_arch_type AS ENUM (
+	'x86_64',
+	'i386',
+	'ppc64'
+);
+
+CREATE TYPE debian_rnd_type AS ENUM (
+	'rnd',
+	'nornd',
+	'noreadrnd'
+);
+
+CREATE TABLE debian_weak_key (
+	RSA_KEY_SIZE				smallint,
+	PROCESS_ID					smallint,
+	RND							debian_rnd_type,
+	ARCH						debian_arch_type,
+	SHA1_MODULUS				bytea,
+	CONSTRAINT dwk_pk
+		PRIMARY KEY (SHA1_MODULUS)
+);
+
 CREATE TABLE microsoft_disallowedcert_import (
 	PUBLIC_KEY_MD5		bytea,
 	CONSTRAINT mdci_pk
