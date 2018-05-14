@@ -120,6 +120,9 @@ DECLARE
 	t_showX509Lint		boolean;
 	t_showZLint			boolean;
 	t_showMetadata		boolean;
+	t_rsaModulus		bytea;
+	t_hasROCAFingerprint	boolean;
+	t_publicKeyProblems	text;
 	t_certType			integer;
 	t_showMozillaDisclosure	boolean;
 	t_ctp				ca_trust_purpose%ROWTYPE;
@@ -1682,12 +1685,16 @@ Content-Type: text/plain; charset=UTF-8
 					digest(c.CERTIFICATE, 'sha256'::text),
 					x509_serialNumber(c.CERTIFICATE),
 					digest(x509_publicKey(c.CERTIFICATE), 'sha256'::text),
+					x509_rsamodulus(c.CERTIFICATE),
+					x509_hasROCAFingerprint(c.CERTIFICATE),
 					c.CERTIFICATE
 				INTO t_certificateID, t_text, t_issuerCAID, t_caID,
 					t_certificateSHA1,
 					t_certificateSHA256,
 					t_serialNumber,
 					t_spkiSHA256,
+					t_rsaModulus,
+					t_hasROCAFingerprint,
 					t_certificate
 				FROM certificate c
 					LEFT OUTER JOIN ca ON (c.ISSUER_CA_ID = ca.ID)
@@ -1699,12 +1706,16 @@ Content-Type: text/plain; charset=UTF-8
 					digest(c.CERTIFICATE, 'sha256'::text),
 					x509_serialNumber(c.CERTIFICATE),
 					digest(x509_publicKey(c.CERTIFICATE), 'sha256'::text),
+					x509_rsamodulus(c.CERTIFICATE),
+					x509_hasROCAFingerprint(c.CERTIFICATE),
 					c.CERTIFICATE
 				INTO t_certificateID, t_text, t_issuerCAID, t_caID,
 					t_certificateSHA1,
 					t_certificateSHA256,
 					t_serialNumber,
 					t_spkiSHA256,
+					t_rsaModulus,
+					t_hasROCAFingerprint,
 					t_certificate
 				FROM certificate c
 					LEFT OUTER JOIN ca ON (c.ISSUER_CA_ID = ca.ID)
@@ -1717,12 +1728,16 @@ Content-Type: text/plain; charset=UTF-8
 					digest(c.CERTIFICATE, 'sha256'::text),
 					x509_serialNumber(c.CERTIFICATE),
 					digest(x509_publicKey(c.CERTIFICATE), 'sha256'::text),
+					x509_rsamodulus(c.CERTIFICATE),
+					x509_hasROCAFingerprint(c.CERTIFICATE),
 					c.CERTIFICATE
 				INTO t_certificateID, t_text, t_issuerCAID, t_caID,
 					t_certificateSHA1,
 					t_certificateSHA256,
 					t_serialNumber,
 					t_spkiSHA256,
+					t_rsaModulus,
+					t_hasROCAFingerprint,
 					t_certificate
 				FROM certificate c
 					LEFT OUTER JOIN ca ON (c.ISSUER_CA_ID = ca.ID)
@@ -1735,12 +1750,16 @@ Content-Type: text/plain; charset=UTF-8
 					digest(c.CERTIFICATE, 'sha256'::text),
 					x509_serialNumber(c.CERTIFICATE),
 					digest(x509_publicKey(c.CERTIFICATE), 'sha256'::text),
+					x509_rsamodulus(c.CERTIFICATE),
+					x509_hasROCAFingerprint(c.CERTIFICATE),
 					c.CERTIFICATE
 				INTO t_certificateID, t_text, t_issuerCAID, t_caID,
 					t_certificateSHA1,
 					t_certificateSHA256,
 					t_serialNumber,
 					t_spkiSHA256,
+					t_rsaModulus,
+					t_hasROCAFingerprint,
 					t_certificate
 				FROM certificate c
 					LEFT OUTER JOIN ca ON (c.ISSUER_CA_ID = ca.ID)
@@ -2375,6 +2394,26 @@ Content-Type: text/plain; charset=UTF-8
 			END LOOP;
 			t_output := t_output ||
 '    </TD>
+  </TR>
+';
+		END IF;
+
+		SELECT '<SPAN class="error">Debian OpenSSL RNG vulnerability</SPAN> <SPAN class="small"><A href="//en.wikipedia.org/wiki/Random_number_generator_attack#Debian_OpenSSL" target="_blank">Details</A></SPAN>'
+			INTO t_publicKeyProblems
+			FROM debian_weak_key dwk
+			WHERE dwk.SHA1_MODULUS = digest('Modulus=' || upper(encode(t_rsaModulus, 'hex')) || chr(10), 'sha1');
+		IF t_hasROCAFingerprint THEN
+			IF t_publicKeyProblems IS NOT NULL THEN
+				t_publicKeyProblems := t_publicKeyProblems || '<BR>';
+			END IF;
+			t_publicKeyProblems := coalesce(t_publicKeyProblems, '') || '<SPAN class="error">ROCA vulnerability</SPAN> <SPAN class="small"><A href="//en.wikipedia.org/wiki/ROCA_vulnerability" target="_blank">Details</A></SPAN>';
+		END IF;
+
+		IF t_publicKeyProblems IS NOT NULL THEN
+			t_output := t_output ||
+'  <TR>
+    <TH class="outer">Public Key Problems</TH>
+    <TD class="text">' || t_publicKeyProblems || '</TD>
   </TR>
 ';
 		END IF;
