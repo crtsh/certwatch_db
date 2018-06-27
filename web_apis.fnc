@@ -851,8 +851,7 @@ Content-Type: application/json
 		FOR l_record IN (
 					SELECT ctl.ID,
 							coalesce(ctlo.DISPLAY_STRING, ctl.OPERATOR) AS OPERATOR,
-							ctl.URL,
-							ctl.TREE_SIZE, ctl.LATEST_ENTRY_ID, ctl.LATEST_UPDATE,
+							ctl.URL, ctl.TREE_SIZE, ctl.LATEST_UPDATE,
 							ctl.LATEST_STH_TIMESTAMP, ctl.MMD_IN_SECONDS,
 							CASE WHEN coalesce(ctl.LATEST_STH_TIMESTAMP + (ctl.MMD_IN_SECONDS || ' seconds')::interval, statement_timestamp()) <= statement_timestamp()
 								THEN ' style="color:#FF0000"'
@@ -952,8 +951,7 @@ Content-Type: application/json
 		FOR l_record IN (
 					SELECT ctl.ID,
 							coalesce(ctlo.DISPLAY_STRING, ctl.OPERATOR) AS OPERATOR,
-							ctl.URL,
-							ctl.TREE_SIZE, ctl.LATEST_ENTRY_ID, ctl.LATEST_UPDATE,
+							ctl.URL, ctl.TREE_SIZE, ctl.LATEST_UPDATE,
 							ctl.LATEST_STH_TIMESTAMP, ctl.MMD_IN_SECONDS,
 							ctl.INCLUDED_IN_CHROME, ctl.CHROME_ISSUE_NUMBER, ctl.NON_INCLUSION_STATUS,
 							ctl.CHROME_FINAL_TREE_SIZE, ctl.CHROME_DISQUALIFIED_AT,
@@ -961,7 +959,7 @@ Content-Type: application/json
 						FROM ct_log ctl
 								LEFT OUTER JOIN ct_log_operator ctlo ON (ctl.OPERATOR = ctlo.OPERATOR)
 						WHERE ctl.IS_ACTIVE = 'f'
-							AND ctl.LATEST_ENTRY_ID IS NOT NULL
+							AND ctl.LATEST_STH_TIMESTAMP IS NOT NULL
 						ORDER BY ctl.TREE_SIZE DESC NULLS LAST
 				) LOOP
 			IF (t_temp = 'chromium') AND (

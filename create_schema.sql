@@ -222,7 +222,6 @@ CREATE TABLE ct_log (
 	URL						text,
 	NAME					text,
 	PUBLIC_KEY				bytea,
-	LATEST_ENTRY_ID			integer,
 	LATEST_UPDATE			timestamp,
 	OPERATOR				text,
 	INCLUDED_IN_CHROME		integer,
