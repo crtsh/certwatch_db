@@ -165,7 +165,7 @@ CREATE TABLE crl (
 	IS_ACTIVE				boolean,
 	ERROR_MESSAGE			text,
 	CRL_SHA256				bytea,
-	CRL_SIZE				integer
+	CRL_SIZE				integer,
 	CONSTRAINT crl_pk
 		PRIMARY KEY (CA_ID, DISTRIBUTION_POINT_URL),
 	CONSTRAINT crl_ca_fk
@@ -868,6 +868,8 @@ GRANT SELECT ON applicable_purpose TO crtsh;
 GRANT SELECT ON ccadb_certificate TO crtsh;
 
 GRANT SELECT ON ccadb_caowner TO crtsh;
+
+GRANT SELECT ON debian_weak_key TO crtsh;
 
 GRANT SELECT ON microsoft_disallowedcert TO crtsh;
 
