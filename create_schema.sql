@@ -505,6 +505,7 @@ INSERT INTO trust_purpose ( ID, PURPOSE, PURPOSE_OID, DISPLAY_ORDER ) VALUES ( 1
 INSERT INTO trust_purpose ( ID, PURPOSE, PURPOSE_OID, DISPLAY_ORDER ) VALUES ( 196, 'EV Server Authentication', '1.3.171.1.1.1.10.8', 1 );
 INSERT INTO trust_purpose ( ID, PURPOSE, PURPOSE_OID, DISPLAY_ORDER ) VALUES ( 197, 'EV Server Authentication', '1.2.616.1.113527.2.5.1.7', 1 );
 INSERT INTO trust_purpose ( ID, PURPOSE, PURPOSE_OID, DISPLAY_ORDER ) VALUES ( 198, 'EV Server Authentication', '1.3.6.1.4.1.4146.1.2', 1 );
+INSERT INTO trust_purpose ( ID, PURPOSE, PURPOSE_OID, DISPLAY_ORDER ) VALUES ( 199, 'EV Server Authentication', '0.4.0.194112.1.4', 1 );
 
 
 CREATE TABLE applicable_purpose(
