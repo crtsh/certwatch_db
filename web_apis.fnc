@@ -1337,6 +1337,9 @@ Content-Type: text/plain; charset=UTF-8
 		t_output := t_output || '</SPAN>
 <BR><BR>
 <DIV id="root" style="text-align:left;font:8pt Arial;font-weight:normal">
+
+  <div id="spinner" style="margin: 0 auto; width: 400px; padding-top: 70px;"><img src="https://konklone.com/assets/misc/spinner.gif" style="display: inline-block" /><span style="font-size: 20px; display: inline-block; position: relative; top: -52px; left: 30px">Loading...</span></div>
+
   <DIV id="graph" class="many" style="width:100%"></DIV>
   <DIV id="options">
     <BUTTON onclick="toggleAll(true)">Select All</BUTTON>
@@ -1384,6 +1387,8 @@ Content-Type: text/plain; charset=UTF-8
   graph.updateOptions({clickCallback: onclick}, true);
 
   graph.ready(function() {
+    document.getElementById("spinner").style.display = "none";
+
     var toggles_form = document.getElementById("graph_toggles");
     var labels = graph.getLabels();
     var colors = graph.getColors();
@@ -2403,7 +2408,7 @@ Content-Type: text/plain; charset=UTF-8
 				INTO t_caID, t_caName, t_caPublicKey
 				FROM ca
 				WHERE ca.ID = t_value::integer;
-			
+
 			IF t_caName IS NULL THEN
 				RAISE no_data_found USING MESSAGE = 'CA not found';
 			ELSE
@@ -4141,7 +4146,7 @@ Content-Type: application/atom+xml
 	END IF;
 
 	IF t_outputType = 'html' THEN
-		t_output :=                                                                                                                                                                                                                          
+		t_output :=
 '[BEGIN_HEADERS]
 Cache-Control: max-age=' || t_cacheControlMaxAge::integer || '
 Content-Type: text/html; charset=UTF-8
