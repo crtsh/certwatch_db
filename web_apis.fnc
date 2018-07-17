@@ -1337,9 +1337,7 @@ Content-Type: text/plain; charset=UTF-8
 		t_output := t_output || '</SPAN>
 <BR><BR>
 <DIV id="root" style="text-align:left;font:8pt Arial;font-weight:normal">
-
-  <div id="spinner" style="margin: 0 auto; width: 400px; padding-top: 70px;"><img src="https://konklone.com/assets/misc/spinner.gif" style="display: inline-block" /><span style="font-size: 20px; display: inline-block; position: relative; top: -52px; left: 30px">Loading...</span></div>
-
+  <DIV id="spinner" style="margin:0 auto;width:400px;padding-top:70px;"><IMG src="/spinner.gif" style="display:inline-block" /><SPAN style="font-size:20px;display:inline-block;position:relative;top:-52px;left:30px">Loading...</SPAN></DIV>
   <DIV id="graph" class="many" style="width:100%"></DIV>
   <DIV id="options">
     <BUTTON onclick="toggleAll(true)">Select All</BUTTON>
