@@ -851,8 +851,9 @@ Content-Type: application/json
 		FOR l_record IN (
 					SELECT ctl.ID,
 							coalesce(ctlo.DISPLAY_STRING, ctl.OPERATOR) AS OPERATOR,
-							ctl.URL, ctl.TREE_SIZE, ctl.LATEST_UPDATE,
-							ctl.LATEST_STH_TIMESTAMP, ctl.MMD_IN_SECONDS,
+							ctl.URL, ctl.TREE_SIZE,
+							(coalesce(ctl.TREE_SIZE, 0) - latest.ENTRY_ID - 1) AS BACKLOG,
+							ctl.LATEST_UPDATE, ctl.LATEST_STH_TIMESTAMP, ctl.MMD_IN_SECONDS,
 							CASE WHEN coalesce(ctl.LATEST_STH_TIMESTAMP + (ctl.MMD_IN_SECONDS || ' seconds')::interval, statement_timestamp()) <= statement_timestamp()
 								THEN ' style="color:#FF0000"'
 								ELSE ''
@@ -866,7 +867,12 @@ Content-Type: application/json
 							ctl.INCLUDED_IN_MACOS
 						FROM ct_log ctl
 								LEFT OUTER JOIN ct_log_operator ctlo ON (ctl.OPERATOR = ctlo.OPERATOR)
-						WHERE ctl.IS_ACTIVE = 't'
+								LEFT JOIN LATERAL (
+									SELECT coalesce(max(ENTRY_ID), -1) ENTRY_ID
+										FROM ct_log_entry ctle
+										WHERE ctle.CT_LOG_ID = ctl.ID
+								) latest ON TRUE
+						WHERE ctl.IS_ACTIVE
 						ORDER BY ctl.TREE_SIZE DESC NULLS LAST
 				) LOOP
 			IF (t_temp = 'chromium') AND (
@@ -884,13 +890,6 @@ Content-Type: application/json
 				CONTINUE;
 			END IF;
 
-			SELECT coalesce(l_record.TREE_SIZE, 0) - coalesce(max(ENTRY_ID), -1) - 1
-				INTO t_count
-				FROM ct_log_entry ctle
-				WHERE ctle.CT_LOG_ID = l_record.ID;
-			IF t_count < 0 THEN
-				t_count := 0;
-			END IF;
 			t_output := t_output || '
     <TR>
       <TD' || l_record.FONT_STYLE || '>' || l_record.OPERATOR || '</TD>
@@ -898,7 +897,7 @@ Content-Type: application/json
       <TD' || l_record.FONT_STYLE || '>' || coalesce((l_record.MMD_IN_SECONDS / 60 / 60)::text, '?') || '</TD>
       <TD' || l_record.FONT_STYLE || '>' || coalesce(to_char(l_record.LATEST_STH_TIMESTAMP, 'YYYY-MM-DD HH24:MI:SS'), '') || '</TD>
       <TD' || l_record.FONT_STYLE || '>' || coalesce(l_record.TREE_SIZE::text, '') || '</TD>
-      <TD' || l_record.FONT_STYLE || '>' || t_count::text || '</TD>
+      <TD' || l_record.FONT_STYLE || '>' || l_record.BACKLOG::text || '</TD>
       <TD' || l_record.FONT_STYLE || '>' || coalesce(to_char(l_record.LATEST_UPDATE, 'YYYY-MM-DD HH24:MI:SS'), '') || '</TD>
       <TD style="text-align:right' || l_record.UPTIME_FONT_STYLE || '">' || coalesce(l_record.GOOGLE_UPTIME, '') || '</TD>
       <TD>
@@ -951,14 +950,20 @@ Content-Type: application/json
 		FOR l_record IN (
 					SELECT ctl.ID,
 							coalesce(ctlo.DISPLAY_STRING, ctl.OPERATOR) AS OPERATOR,
-							ctl.URL, ctl.TREE_SIZE, ctl.LATEST_UPDATE,
-							ctl.LATEST_STH_TIMESTAMP, ctl.MMD_IN_SECONDS,
+							ctl.URL, ctl.TREE_SIZE,
+							(coalesce(ctl.TREE_SIZE, 0) - latest.ENTRY_ID - 1) AS BACKLOG,
+							ctl.LATEST_UPDATE, ctl.LATEST_STH_TIMESTAMP, ctl.MMD_IN_SECONDS,
 							ctl.INCLUDED_IN_CHROME, ctl.CHROME_ISSUE_NUMBER, ctl.NON_INCLUSION_STATUS,
 							ctl.CHROME_FINAL_TREE_SIZE, ctl.CHROME_DISQUALIFIED_AT,
 							ctl.INCLUDED_IN_MACOS
 						FROM ct_log ctl
 								LEFT OUTER JOIN ct_log_operator ctlo ON (ctl.OPERATOR = ctlo.OPERATOR)
-						WHERE ctl.IS_ACTIVE = 'f'
+								LEFT JOIN LATERAL (
+									SELECT coalesce(max(ENTRY_ID), -1) ENTRY_ID
+										FROM ct_log_entry ctle
+										WHERE ctle.CT_LOG_ID = ctl.ID
+								) latest ON TRUE
+						WHERE NOT ctl.IS_ACTIVE
 							AND ctl.LATEST_STH_TIMESTAMP IS NOT NULL
 						ORDER BY ctl.TREE_SIZE DESC NULLS LAST
 				) LOOP
@@ -976,13 +981,7 @@ Content-Type: application/json
 					) THEN
 				CONTINUE;
 			END IF;
-			SELECT coalesce(l_record.TREE_SIZE, 0) - coalesce(max(ENTRY_ID), -1) - 1
-				INTO t_count
-				FROM ct_log_entry ctle
-				WHERE ctle.CT_LOG_ID = l_record.ID;
-			IF t_count < 0 THEN
-				t_count := 0;
-			END IF;
+
 			t_output := t_output || '
     <TR>
       <TD>' || l_record.OPERATOR || '</TD>
@@ -990,7 +989,7 @@ Content-Type: application/json
       <TD>' || coalesce((l_record.MMD_IN_SECONDS / 60 / 60)::text, '?') || '</TD>
       <TD>' || coalesce(to_char(l_record.LATEST_STH_TIMESTAMP, 'YYYY-MM-DD HH24:MI:SS'), '') || '</TD>
       <TD>' || coalesce(l_record.TREE_SIZE::text, '') || '</TD>
-      <TD>' || t_count::text || '</TD>
+      <TD>' || l_record.BACKLOG::text || '</TD>
       <TD>' || coalesce(to_char(l_record.LATEST_UPDATE, 'YYYY-MM-DD HH24:MI:SS'), '') || '</TD>
       <TD>
 ';
