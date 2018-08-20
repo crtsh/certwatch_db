@@ -925,10 +925,27 @@ Content-Type: application/json
     </TR>';
 		END LOOP;
 
+		SELECT sum((coalesce(ctl.TREE_SIZE, 0) - latest.ENTRY_ID - 1)) AS TOTAL_BACKLOG
+			INTO t_count
+			FROM ct_log ctl
+					LEFT OUTER JOIN ct_log_operator ctlo ON (ctl.OPERATOR = ctlo.OPERATOR)
+					LEFT JOIN LATERAL (
+						SELECT coalesce(max(ENTRY_ID), -1) ENTRY_ID
+							FROM ct_log_entry ctle
+							WHERE ctle.CT_LOG_ID = ctl.ID
+						) latest ON TRUE
+				WHERE ctl.IS_ACTIVE;
+
 		t_output := t_output || '
+    <TR>
+      <TD colspan="4" style="border:0px"></TD>
+      <TD>TOTAL</TD>
+      <TD>' || t_count::text || ' </TD>
+      <TD colspan="4" style="border:0px"></TD>
+    </TR>
   </TABLE>
   <TABLE>
-    <TR><TD colspan="9" class="heading">CT Logs no longer monitored';
+    <TR><TD colspan="10" class="heading">CT Logs no longer monitored';
 		IF t_temp = 'chromium' THEN
 			t_output := t_output || ' (that are recognized by Chromium)';
 		END IF;
