@@ -1,3 +1,5 @@
+BEGIN;
+
 CREATE TABLE lint_1week_summary_temp AS
 SELECT linter,
 		c.ISSUER_CA_ID,
@@ -153,3 +155,5 @@ GRANT SELECT ON lint_1week_summary_temp TO guest;
 DROP TABLE lint_1week_summary;
 
 ALTER TABLE lint_1week_summary_temp RENAME TO lint_1week_summary;
+
+COMMIT;
