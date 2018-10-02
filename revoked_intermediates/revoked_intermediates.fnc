@@ -6,11 +6,11 @@ DECLARE
 	t_ctp					ca_trust_purpose%ROWTYPE;
 	t_ctp2					ca_trust_purpose%ROWTYPE;
 	t_ctp3					ca_trust_purpose%ROWTYPE;
-	t_count					integer;
-	t_count2				integer;
+	t_count					bigint;
+	t_count2				bigint;
 	t_temp					text;
-	t_counts				integer[][];
-	t_counts_totals			integer[][] := array_fill(0, ARRAY[5, 8]);
+	t_counts				bigint[][];
+	t_counts_totals			bigint[][] := array_fill(0, ARRAY[5, 8]);
 	l_record				RECORD;
 BEGIN
 	t_output :=

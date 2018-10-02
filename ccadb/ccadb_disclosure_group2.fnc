@@ -13,11 +13,11 @@ DECLARE
 	t_earliestSCT			text;
 	t_row					text;
 	t_server				text		:= '';
-	t_serverCount			integer		:= 0;
-	t_serverTrustCount		integer		:= 0;
+	t_serverCount			bigint		:= 0;
+	t_serverTrustCount		bigint		:= 0;
 	t_nonServer				text		:= '';
-	t_nonServerCount		integer		:= 0;
-	t_nonServerTrustCount	integer		:= 0;
+	t_nonServerCount		bigint		:= 0;
+	t_nonServerTrustCount	bigint		:= 0;
 	t_group					text;
 	l_record				RECORD;
 BEGIN

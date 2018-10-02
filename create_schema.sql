@@ -12,7 +12,7 @@ CREATE EXTENSION libzlintpq;
 -- As the "certwatch" user.
 
 CREATE TABLE ca (
-	ID						serial,
+	ID						bigserial,
 	NAME					text		NOT NULL,
 	PUBLIC_KEY				bytea		NOT NULL,
 	BRAND					text,
@@ -44,9 +44,9 @@ CREATE INDEX ca_spki_sha256
 	ON ca (digest(PUBLIC_KEY, 'sha256'));
 
 CREATE TABLE certificate (
-	ID						serial,
+	ID						bigserial,
 	CERTIFICATE				bytea		NOT NULL,
-	ISSUER_CA_ID			integer		NOT NULL,
+	ISSUER_CA_ID			bigint		NOT NULL,
 	CABLINT_CACHED_AT		timestamp,
 	X509LINT_CACHED_AT		timestamp,
 	ZLINT_CACHED_AT			timestamp,
@@ -94,8 +94,8 @@ CREATE INDEX c_subject_sha1
 	ON certificate (digest(x509_name(CERTIFICATE), 'sha1'));
 
 CREATE TABLE invalid_certificate (
-	ID						serial,
-	CERTIFICATE_ID			integer,
+	ID						bigserial,
+	CERTIFICATE_ID			bigint,
 	PROBLEMS				text,
 	CERTIFICATE_AS_LOGGED	bytea,
 	CONSTRAINT ic_pk
@@ -111,10 +111,10 @@ CREATE TYPE name_type AS ENUM (
 );
 
 CREATE TABLE certificate_identity (
-	CERTIFICATE_ID			integer		NOT NULL,
+	CERTIFICATE_ID			bigint		NOT NULL,
 	NAME_TYPE				name_type	NOT NULL,
 	NAME_VALUE				text		NOT NULL,
-	ISSUER_CA_ID			integer,
+	ISSUER_CA_ID			bigint,
 	CONSTRAINT ci_c_fk
 		FOREIGN KEY (CERTIFICATE_ID)
 		REFERENCES certificate(ID),
@@ -140,8 +140,8 @@ CREATE INDEX ci_ca_reverse
 
 
 CREATE TABLE ca_certificate (
-	CERTIFICATE_ID			integer,
-	CA_ID					integer,
+	CERTIFICATE_ID			bigint,
+	CA_ID					bigint,
 	CONSTRAINT cac_pk
 		PRIMARY KEY (CERTIFICATE_ID),
 	CONSTRAINT cac_c_fk
@@ -156,7 +156,7 @@ CREATE INDEX cac_ca_cert
 	ON ca_certificate (CA_ID, CERTIFICATE_ID);
 
 CREATE TABLE crl (
-	CA_ID					integer,
+	CA_ID					bigint,
 	DISTRIBUTION_POINT_URL	text,
 	THIS_UPDATE				timestamp,
 	NEXT_UPDATE				timestamp,
@@ -165,7 +165,7 @@ CREATE TABLE crl (
 	IS_ACTIVE				boolean,
 	ERROR_MESSAGE			text,
 	CRL_SHA256				bytea,
-	CRL_SIZE				integer,
+	CRL_SIZE				bigint,
 	CONSTRAINT crl_pk
 		PRIMARY KEY (CA_ID, DISTRIBUTION_POINT_URL),
 	CONSTRAINT crl_ca_fk
@@ -180,7 +180,7 @@ CREATE INDEX crl_sz
 	ON crl (CRL_SIZE);
 
 CREATE TABLE crl_revoked (
-	CA_ID					integer,
+	CA_ID					bigint,
 	SERIAL_NUMBER			bytea,
 	REASON_CODE				smallint,
 	REVOCATION_DATE			timestamp,
@@ -193,7 +193,7 @@ CREATE TABLE crl_revoked (
 );
 
 CREATE TABLE ocsp_responder (
-	CA_ID					integer,
+	CA_ID					bigint,
 	URL						text,
 	NEXT_CHECKS_DUE			timestamp,
 	LAST_CHECKED			timestamp,
@@ -224,17 +224,17 @@ CREATE TABLE ct_log (
 	PUBLIC_KEY				bytea,
 	LATEST_UPDATE			timestamp,
 	OPERATOR				text,
-	INCLUDED_IN_CHROME		integer,
+	INCLUDED_IN_CHROME		bigint,
 	IS_ACTIVE				boolean,
 	LATEST_STH_TIMESTAMP	timestamp,
 	MMD_IN_SECONDS			integer,
 	CHROME_ISSUE_NUMBER		integer,
 	NON_INCLUSION_STATUS	text,
-	TREE_SIZE				integer,
+	TREE_SIZE				bigint,
 	BATCH_SIZE				integer,
 	GOOGLE_UPTIME			text,
 	INCLUDED_IN_MACOS		text,
-	CHROME_FINAL_TREE_SIZE	integer,
+	CHROME_FINAL_TREE_SIZE	bigint,
 	CHROME_DISQUALIFIED_AT	timestamp,
 	CONSTRAINT ctl_pk
 		PRIMARY KEY (ID),
@@ -253,9 +253,9 @@ CREATE TABLE ct_log_operator (
 );
 
 CREATE TABLE ct_log_entry (
-	CERTIFICATE_ID	integer,
+	CERTIFICATE_ID	bigint,
 	CT_LOG_ID		smallint,
-	ENTRY_ID		integer,
+	ENTRY_ID		bigint,
 	ENTRY_TIMESTAMP	timestamp,
 	CONSTRAINT ctle_pk
 		PRIMARY KEY (CERTIFICATE_ID, CT_LOG_ID, ENTRY_ID),
@@ -295,7 +295,7 @@ CREATE UNIQUE INDEX lv_li_da
 
 
 CREATE TABLE lint_issue (
-	ID				serial,
+	ID				bigserial,
 	SEVERITY		text,
 	ISSUE_TEXT		text,
 	LINTER			linter_type,
@@ -309,8 +309,8 @@ CREATE TABLE lint_issue (
 
 CREATE TABLE lint_cert_issue (
 	CERTIFICATE_ID		bigint,
-	LINT_ISSUE_ID		integer,
-	ISSUER_CA_ID		integer,
+	LINT_ISSUE_ID		bigint,
+	ISSUER_CA_ID		bigint,
 	NOT_BEFORE_DATE		date,
 	CONSTRAINT lci_pk
 		PRIMARY KEY (ISSUER_CA_ID, LINT_ISSUE_ID, NOT_BEFORE_DATE, CERTIFICATE_ID),
@@ -329,10 +329,10 @@ CREATE INDEX lci_c
 	ON lint_cert_issue (CERTIFICATE_ID);
 
 CREATE TABLE lint_summary (
-	LINT_ISSUE_ID	integer,
-	ISSUER_CA_ID	integer,
+	LINT_ISSUE_ID	bigint,
+	ISSUER_CA_ID	bigint,
 	NOT_BEFORE_DATE	date,
-	NO_OF_CERTS		integer,
+	NO_OF_CERTS		bigint,
 	CONSTRAINT ls_pk
 		PRIMARY KEY (LINT_ISSUE_ID, ISSUER_CA_ID, NOT_BEFORE_DATE),
 	CONSTRAINT ls_li_fk
@@ -553,7 +553,7 @@ INSERT INTO applicable_purpose ( TRUST_CONTEXT_ID, PURPOSE ) VALUES ( 24, 'Adobe
 
 
 CREATE TABLE root_trust_purpose(
-	CERTIFICATE_ID		integer,
+	CERTIFICATE_ID		bigint,
 	TRUST_CONTEXT_ID	integer,
 	TRUST_PURPOSE_ID	integer,
 	CONSTRAINT rtp_pk
@@ -571,7 +571,7 @@ CREATE TABLE root_trust_purpose(
 
 
 CREATE TABLE ca_trust_purpose (
-	CA_ID									integer,
+	CA_ID									bigint,
 	TRUST_CONTEXT_ID						integer,
 	TRUST_PURPOSE_ID						integer,
 	SHORTEST_CHAIN							integer,
@@ -733,7 +733,7 @@ CREATE TABLE microsoft_disallowedcert_import (
 );
 
 CREATE TABLE microsoft_disallowedcert (
-	CERTIFICATE_ID		integer,
+	CERTIFICATE_ID		bigint,
 	PUBLIC_KEY_MD5		bytea,
 	CONSTRAINT mdc_pk
 		PRIMARY KEY (CERTIFICATE_ID),
@@ -765,7 +765,7 @@ CREATE TABLE google_crlset_import (
 );
 
 CREATE TABLE google_revoked (
-	CERTIFICATE_ID		integer,
+	CERTIFICATE_ID		bigint,
 	ENTRY_TYPE			revocation_entry_type,
 	CONSTRAINT gr_pk
 		PRIMARY KEY (CERTIFICATE_ID, ENTRY_TYPE),
@@ -791,7 +791,7 @@ CREATE TABLE mozilla_cert_validation_success (
 	SUBMISSION_DATE		date,
 	BIN_NUMBER			smallint,
 	COUNT				bigint,
-	CERTIFICATE_ID		integer,
+	CERTIFICATE_ID		bigint,
 	CONSTRAINT mcvs_pk
 		PRIMARY KEY (SUBMISSION_DATE, BIN_NUMBER),
 	CONSTRAINT mcvs_c_fk
@@ -803,7 +803,7 @@ CREATE INDEX mcvs_bin_date
 	ON mozilla_cert_validation_success (BIN_NUMBER, SUBMISSION_DATE);
 
 CREATE TABLE mozilla_root_hashes (
-	CERTIFICATE_ID		integer,
+	CERTIFICATE_ID		bigint,
 	CERTIFICATE_SHA256	bytea,
 	BIN_NUMBER			smallint,
 	DISPLAY_ORDER		smallint,

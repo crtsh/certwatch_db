@@ -23,7 +23,7 @@ CREATE OR REPLACE FUNCTION generate_add_chain_body(
 AS $$
 DECLARE
 	t_issuerCAID		certificate.ISSUER_CA_ID%TYPE;
-	t_certChain			integer[];
+	t_certChain			bigint[];
 	t_output			text;
 	t_hexCertificate	text;
 	l_ca				RECORD;

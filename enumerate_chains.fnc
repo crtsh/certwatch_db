@@ -23,16 +23,16 @@ CREATE OR REPLACE FUNCTION enumerate_chains(
 	trust_purp_id			trust_purpose.ID%TYPE	DEFAULT NULL,
 	only_one_chain			boolean					DEFAULT FALSE,
 	max_ca_repeats			integer					DEFAULT 0,
-	certchain_so_far		integer[]				DEFAULT NULL,
-	cachain_so_far			integer[]				DEFAULT NULL
-) RETURNS SETOF integer[]
+	certchain_so_far		bigint[]				DEFAULT NULL,
+	cachain_so_far			bigint[]				DEFAULT NULL
+) RETURNS SETOF bigint[]
 AS $$
 DECLARE
 	t_certificate		certificate.CERTIFICATE%TYPE;
 	t_issuerCAID		certificate.ISSUER_CA_ID%TYPE;
 	t_caID				ca.ID%TYPE;
-	t_caChainSoFar		integer[];
-	t_certChainSoFar	integer[];
+	t_caChainSoFar		bigint[];
+	t_certChainSoFar	bigint[];
 	l_issuer			RECORD;
 	l_chain				RECORD;
 	t_count				integer;
