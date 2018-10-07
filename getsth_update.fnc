@@ -1,0 +1,13 @@
+CREATE OR REPLACE FUNCTION getsth_update(
+) RETURNS void
+AS $$
+DECLARE
+BEGIN
+	UPDATE ct_log
+		SET TREE_SIZE = gut.TREE_SIZE,
+			LATEST_STH_TIMESTAMP = gut.LATEST_STH_TIMESTAMP,
+			LATEST_UPDATE = gut.LATEST_UPDATE
+		FROM getsth_update_temp gut
+		WHERE ID = gut.CT_LOG_ID;
+END;
+$$ LANGUAGE plpgsql;
