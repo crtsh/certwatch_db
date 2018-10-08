@@ -232,6 +232,7 @@ CREATE TABLE ct_log (
 	NON_INCLUSION_STATUS	text,
 	TREE_SIZE				integer,
 	BATCH_SIZE				integer,
+	CHUNK_SIZE				integer,
 	GOOGLE_UPTIME			text,
 	INCLUDED_IN_MACOS		text,
 	CHROME_FINAL_TREE_SIZE	integer,
