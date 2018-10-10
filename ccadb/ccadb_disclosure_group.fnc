@@ -12,7 +12,7 @@ DECLARE
 	t_query					text;
 	t_table					text		:= '';
 	t_group					text;
-	t_count					integer		:= 0;
+	t_count					bigint		:= 0;
 	l_record				RECORD;
 BEGIN
 	IF trustContextID = 5 THEN

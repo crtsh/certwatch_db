@@ -136,7 +136,7 @@ DECLARE
 	t_minNotBeforeString	text;
 	t_excludeExpired	text;
 	t_excludeAffectedCerts	text;
-	t_excludeCAs		integer[];
+	t_excludeCAs		bigint[];
 	t_excludeCAsString	text;
 	t_searchProvider	text;
 	t_issuerCAID		certificate.ISSUER_CA_ID%TYPE;
@@ -193,7 +193,7 @@ BEGIN
 				RETURN download_cert(t_value);
 			ELSIF t_type IN ('ID', 'Certificate ASN.1', 'CA ID', 'CT Entry ID') THEN
 				BEGIN
-					EXIT WHEN t_value::integer IS NOT NULL;
+					EXIT WHEN t_value::bigint IS NOT NULL;
 				EXCEPTION
 					WHEN OTHERS THEN
 						NULL;
@@ -310,7 +310,7 @@ Content-Type: application/json
 			IF lower(t_value) = 'issues' THEN
 				t_type := t_type || ': Issues';
 			ELSE
-				t_value := (t_value::integer)::text;
+				t_value := (t_value::bigint)::text;
 			END IF;
 		EXCEPTION
 			WHEN OTHERS THEN
@@ -1270,7 +1270,7 @@ Content-Type: text/plain; charset=UTF-8
 		END LOOP;
 
 	ELSIF t_type = 'mozilla-certvalidations-by-version' THEN
-		t_certificateID := coalesce(get_parameter('id', paramNames, paramValues), '0')::integer;
+		t_certificateID := coalesce(get_parameter('id', paramNames, paramValues), '0')::bigint;
 		t_outputType := 'csv';
 		t_output := 'Date';
 
@@ -1321,7 +1321,7 @@ Content-Type: text/plain; charset=UTF-8
 		END LOOP;
 
 	ELSIF t_type = 'mozilla-certvalidations' THEN
-		t_certificateID := get_parameter('id', paramNames, paramValues)::integer;
+		t_certificateID := get_parameter('id', paramNames, paramValues)::bigint;
 		t_temp := '';
 		IF t_certificateID IS NOT NULL THEN
 			t_temp := 'id=' || t_certificateID::text;
@@ -1513,7 +1513,7 @@ Content-Type: text/plain; charset=UTF-8
 
 	ELSIF t_type = 'ocsp-response' THEN
 		t_output := t_output || ocsp_response(
-			coalesce(get_parameter('caID', paramNames, paramValues), '')::integer,
+			coalesce(get_parameter('caID', paramNames, paramValues), '')::bigint,
 			coalesce(get_parameter('url', paramNames, paramValues), ''),
 			coalesce(get_parameter('request', paramNames, paramValues), ''),
 			coalesce(get_parameter('type', paramNames, paramValues), 'dump')
@@ -1557,7 +1557,7 @@ Content-Type: text/plain; charset=UTF-8
 				FROM certificate c
 					LEFT OUTER JOIN ca ON (c.ISSUER_CA_ID = ca.ID)
 					LEFT OUTER JOIN ca_certificate cac ON (c.ID = cac.CERTIFICATE_ID)
-				WHERE c.ID = t_value::integer;
+				WHERE c.ID = t_value::bigint;
 		ELSIF t_type = 'SHA-1(Certificate)' THEN
 			SELECT c.ID, x509_print(c.CERTIFICATE, NULL, 196608), ca.ID, cac.CA_ID,
 					digest(c.CERTIFICATE, 'sha1'::text),
@@ -2421,7 +2421,7 @@ Content-Type: text/plain; charset=UTF-8
 			SELECT ca.ID, ca.NAME, ca.PUBLIC_KEY
 				INTO t_caID, t_caName, t_caPublicKey
 				FROM ca
-				WHERE ca.ID = t_value::integer;
+				WHERE ca.ID = t_value::bigint;
 
 			IF t_caName IS NULL THEN
 				RAISE no_data_found USING MESSAGE = 'CA not found';
@@ -2575,7 +2575,7 @@ Content-Type: text/plain; charset=UTF-8
 									END ISSUE_HEADING
 								FROM lint_summary ls, lint_issue li
 								WHERE ls.NOT_BEFORE_DATE >= t_minNotBefore
-									AND ls.ISSUER_CA_ID = t_value::integer
+									AND ls.ISSUER_CA_ID = t_value::bigint
 									AND ls.LINT_ISSUE_ID = li.ID
 									AND li.LINTER = 'cablint'
 								GROUP BY li.ID, li.SEVERITY, li.ISSUE_TEXT
@@ -2624,7 +2624,7 @@ Content-Type: text/plain; charset=UTF-8
 									END ISSUE_HEADING
 								FROM lint_summary ls, lint_issue li
 								WHERE ls.NOT_BEFORE_DATE >= t_minNotBefore
-									AND ls.ISSUER_CA_ID = t_value::integer
+									AND ls.ISSUER_CA_ID = t_value::bigint
 									AND ls.LINT_ISSUE_ID = li.ID
 									AND li.LINTER = 'x509lint'
 								GROUP BY li.ID, li.SEVERITY, li.ISSUE_TEXT
@@ -2673,7 +2673,7 @@ Content-Type: text/plain; charset=UTF-8
 									END ISSUE_HEADING
 								FROM lint_summary ls, lint_issue li
 								WHERE ls.NOT_BEFORE_DATE >= t_minNotBefore
-									AND ls.ISSUER_CA_ID = t_value::integer
+									AND ls.ISSUER_CA_ID = t_value::bigint
 									AND ls.LINT_ISSUE_ID = li.ID
 									AND li.LINTER = 'zlint'
 								GROUP BY li.ID, li.SEVERITY, li.ISSUE_TEXT
@@ -3101,7 +3101,7 @@ Content-Type: text/plain; charset=UTF-8
 			);
 		END IF;
 
-		t_caID := get_parameter('icaid', paramNames, paramValues)::integer;
+		t_caID := get_parameter('icaid', paramNames, paramValues)::bigint;
 		t_temp := coalesce(get_parameter('p', paramNames, paramValues), '');
 		IF t_temp = '' THEN
 			IF t_caID IS NOT NULL THEN
@@ -3156,7 +3156,7 @@ Content-Type: text/plain; charset=UTF-8
 						END || ' ' || li.ISSUE_TEXT || '&nbsp;</SPAN>'
 					INTO t_temp
 					FROM lint_issue li
-					WHERE li.ID = t_value::integer
+					WHERE li.ID = t_value::bigint
 						AND li.LINTER = coalesce(t_linter, li.LINTER);
 				t_output := t_output || t_temp;
 			ELSE
@@ -3222,11 +3222,11 @@ Content-Type: text/plain; charset=UTF-8
 			ELSIF lower(t_type) LIKE '%lint' THEN
 				t_query := t_query ||
 						'		, lint_cert_issue lci, lint_issue li' || chr(10) ||
-						'	WHERE c.ISSUER_CA_ID = $1::integer' || chr(10) ||
+						'	WHERE c.ISSUER_CA_ID = $1::bigint' || chr(10) ||
 						'		AND c.ID = lci.CERTIFICATE_ID' || chr(10) ||
-						'		AND lci.ISSUER_CA_ID = $1::integer' || chr(10) ||
+						'		AND lci.ISSUER_CA_ID = $1::bigint' || chr(10) ||
 						'		AND lci.NOT_BEFORE_DATE >= $3' || chr(10) ||
-						'		AND lci.LINT_ISSUE_ID = $2::integer' || chr(10) ||
+						'		AND lci.LINT_ISSUE_ID = $2::bigint' || chr(10) ||
 						'		AND lci.LINT_ISSUE_ID = li.ID' || chr(10);
 				IF t_linter IS NOT NULL THEN
 					t_query := t_query ||
@@ -3424,7 +3424,7 @@ Content-Type: text/plain; charset=UTF-8
 				t_certID_field := 'c.ID';
 				t_joinToCertificate_table := 'ctle';
 				t_where := t_where || chr(10) ||
-							'        AND ctle.ENTRY_ID = $1::integer' || chr(10) ||
+							'        AND ctle.ENTRY_ID = $1::bigint' || chr(10) ||
 							'        AND ctle.CT_LOG_ID = ctl.ID';
 			ELSIF t_type = 'Serial Number' THEN
 				t_from := t_from || ',' || chr(10) ||
@@ -3482,7 +3482,7 @@ Content-Type: text/plain; charset=UTF-8
 					END IF;
 				END IF;
 				t_where := t_where || chr(10) ||
-							'        AND lci.LINT_ISSUE_ID = $1::integer' || chr(10) ||
+							'        AND lci.LINT_ISSUE_ID = $1::bigint' || chr(10) ||
 							'        AND lci.NOT_BEFORE_DATE >= $2' || chr(10) ||
 							'        AND lci.LINT_ISSUE_ID = li.ID' || chr(10) ||
 							'        AND ca.LINTING_APPLIES';
@@ -3682,7 +3682,7 @@ Content-Type: application/atom+xml
 					SELECT '[' || li.LINTER || '] ' || li.ISSUE_TEXT
 						INTO t_summary
 						FROM lint_issue li
-						WHERE li.ID = t_value::integer;
+						WHERE li.ID = t_value::bigint;
 					t_output := t_output || t_summary;
 				ELSE
 					t_output := t_output || html_escape(t_cmd) || '=' || html_escape(t_value);
@@ -3920,7 +3920,7 @@ Content-Type: application/atom+xml
 			END IF;
 
 			IF t_groupBy = 'IssuerO' THEN
-				t_query := 'SELECT NULL::integer ISSUER_CA_ID,' || chr(10) ||
+				t_query := 'SELECT NULL::bigint ISSUER_CA_ID,' || chr(10) ||
 							'		(sum(l1s.CERTS_ISSUED))::bigint CERTS_ISSUED,' || chr(10) ||
 							'		(sum(l1s.ALL_CERTS))::bigint ALL_CERTS,' || chr(10) ||
 							'		((sum(l1s.ALL_CERTS) * 100) / sum(l1s.CERTS_ISSUED))::numeric ALL_PERC,' || chr(10) ||
@@ -3933,7 +3933,7 @@ Content-Type: application/atom+xml
 							'		get_ca_name_attribute(l1s.ISSUER_CA_ID, ''organizationName'') ISSUER_ORGANIZATION_NAME,' || chr(10) ||
 							'		NULL ISSUER_FRIENDLY_NAME' || chr(10);
 			ELSE
-				t_query := 'SELECT l1s.ISSUER_CA_ID::integer,' || chr(10) ||
+				t_query := 'SELECT l1s.ISSUER_CA_ID::bigint,' || chr(10) ||
 							'		l1s.CERTS_ISSUED::bigint,' || chr(10) ||
 							'		l1s.ALL_CERTS::bigint,' || chr(10) ||
 							'		((l1s.ALL_CERTS * 100) / l1s.CERTS_ISSUED::numeric) ALL_PERC,' || chr(10) ||

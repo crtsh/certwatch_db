@@ -33,7 +33,7 @@ BEGIN
 		SELECT replace(encode(c.CERTIFICATE, 'base64'), chr(10), '')
 			INTO t_b64Certificate
 			FROM certificate c
-			WHERE c.ID = cert_identifier::integer;
+			WHERE c.ID = cert_identifier::bigint;
 	END IF;
 	IF t_b64Certificate IS NULL THEN
 		RETURN NULL;
