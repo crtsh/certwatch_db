@@ -409,8 +409,9 @@ Content-Type: application/json
 <HEAD>
   <META http-equiv="Content-Type" content="text/html; charset=UTF-8">
   <TITLE>crt.sh | ' || html_escape(t_title) || '</TITLE>
-  <META name="description" content="Free CT Log Certificate Search Tool from COMODO">
-  <META name="keywords" content="crt.sh, CT, Certificate Transparency, Certificate Search, SSL Certificate, Comodo CA">
+  <META name="description" content="Free CT Log Certificate Search Tool from Sectigo (formerly Comodo CA)">
+  <META name="keywords" content="crt.sh, CT, Certificate Transparency, Certificate Search, SSL Certificate, Sectigo, Comodo CA">
+  <LINK href="//fonts.googleapis.com/css?family=Roboto+Mono|Roboto:400,700,700i" rel="stylesheet">
 ';
 		IF (t_type = 'Certificate ASN.1')
 				OR ((t_type = 'ocsp-response') AND (coalesce(get_parameter('type', paramNames, paramValues), 'dump') = 'asn1')) THEN
@@ -451,38 +452,40 @@ Content-Type: application/json
 		t_output := t_output ||
 '    body {
       color: #888888;
-      font: 12pt Arial, sans-serif;
+      font: 12pt Roboto, sans-serif;
       padding-top: 10px;
       text-align: center
     }
     form {
       margin: 0px
     }
+    span {
+      border-radius: 10px
+    }
     span.heading {
       color: #888888;
-      font: 12pt Arial, sans-serif
+      font: 12pt Roboto, sans-serif
     }
     span.title {
-      border: 1px solid;
-      color: #BF2E1A;
-      font: bold 18pt Arial, sans-serif;
+      background-color: #00B373;
+      color: #FFFFFF;
+      font: bold 18pt Roboto, sans-serif;
       padding: 0px 5px
     }
     span.text {
       color: #888888;
-      font: 10pt Arial, sans-serif
+      font: 10pt Roboto, sans-serif
     }
     span.whiteongrey {
-      background-color: #CCCCCC;
-      border: 1px solid;
+      background-color: #D9D9D6;
       color: #FFFFFF;
-      font: bold 18pt Arial, sans-serif;
+      font: bold 18pt Roboto, sans-serif;
       padding: 0px 5px
     }
     table {
       border-collapse: collapse;
       color: #222222;
-      font: 10pt Arial, sans-serif;
+      font: 10pt Roboto, sans-serif;
       margin-left: auto;
       margin-right: auto
     }
@@ -503,7 +506,7 @@ Content-Type: application/json
     }
     th.heading {
       color: #888888;
-      font: bold italic 12pt Arial, sans-serif;
+      font: bold italic 12pt Roboto, sans-serif;
       padding: 20px 0px 0px;
       text-align: center
     }
@@ -512,13 +515,13 @@ Content-Type: application/json
       vertical-align: middle
     }
     td.text {
-      font: 10pt Courier New, sans-serif;
+      font: 10pt "Roboto Mono", sans-serif;
       padding: 2px 20px
     }
     td.heading {
       border: none;
       color: #888888;
-      font: 12pt Arial, sans-serif;
+      font: 12pt Roboto, sans-serif;
       padding-top: 20px;
       text-align: center
     }
@@ -526,13 +529,14 @@ Content-Type: application/json
       text-align: center
     }
     .button {
-      background-color: #BF2E1A;
+      background-color: #00B373;
+      border-radius: 10px;
       color: #FFFFFF;
-      font: 13pt Arial, sans-serif
+      font: bold 13pt Roboto, sans-serif
     }
     .copyright {
-      font: 8pt Arial, sans-serif;
-      color: #DF4F3C
+      font: 8pt Roboto, sans-serif;
+      color: #00B373
     }
     .input {
       border: 1px solid #888888;
@@ -540,7 +544,7 @@ Content-Type: application/json
       text-align: center
     }
     .small {
-      font: 8pt Arial, sans-serif;
+      font: 8pt Roboto, sans-serif;
       color: #888888
     }
     .error {
@@ -564,7 +568,7 @@ Content-Type: application/json
   </STYLE>
 </HEAD>
 <BODY>
-  <A href="/"><SPAN class="title">crt.sh</SPAN></A>';
+  <A style="text-decoration:none" href="/"><SPAN class="title">crt.sh</SPAN></A>&nbsp;';
 	END IF;
 
 	IF t_type = 'Invalid value' THEN
@@ -1352,7 +1356,7 @@ Content-Type: text/plain; charset=UTF-8
 		END IF;
 		t_output := t_output || '</SPAN>
 <BR><BR>
-<DIV id="root" style="text-align:left;font:8pt Arial;font-weight:normal">
+<DIV id="root" style="text-align:left;font:8pt Roboto;font-weight:normal">
   <DIV id="spinner" style="margin:0 auto;width:400px;padding-top:70px;"><IMG src="/spinner.gif" style="display:inline-block" /><SPAN style="font-size:20px;display:inline-block;position:relative;top:-52px;left:30px">Loading...</SPAN></DIV>
   <DIV id="graph" class="many" style="width:100%"></DIV>
   <DIV id="options">
@@ -4174,9 +4178,10 @@ Content-Type: text/html; charset=UTF-8
 			END IF;
 		END IF;
 		t_output := t_output || '
-  <P class="copyright">&copy; COMODO CA Limited 2015-2018. All rights reserved.</P>
+  <P class="copyright">&copy; Sectigo Limited 2015-2018. All rights reserved.</P>
   <DIV>
-    <A href="https://github.com/crtsh"><IMG src="/GitHub-Mark-32px.png"></A>
+    <A href="https://sectigo.com/"><IMG src="/sectigo_s.png"></A>
+    &nbsp;<A href="https://github.com/crtsh"><IMG src="/GitHub-Mark-32px.png"></A>
   </DIV>
 </BODY>
 </HTML>';
