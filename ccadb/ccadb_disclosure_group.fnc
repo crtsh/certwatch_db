@@ -88,7 +88,7 @@ BEGIN
 	END LOOP;
 
 	t_group :=
-'<BR><BR><SPAN class="title" style="background-color:' || bgColour || '"><A name="' || anchor || '">' || description || '</A></SPAN>
+'<BR><BR><SPAN class="title" style="color:#041C2C;background-color:' || bgColour || '"><A name="' || anchor || '">' || description || '</A></SPAN>
 <SPAN class="whiteongrey">' || t_count::text || ' CA certificates</SPAN>
 <BR>
 <TABLE style="background-color:' || bgColour || '">
