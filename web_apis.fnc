@@ -411,7 +411,7 @@ Content-Type: application/json
   <TITLE>crt.sh | ' || html_escape(t_title) || '</TITLE>
   <META name="description" content="Free CT Log Certificate Search Tool from Sectigo (formerly Comodo CA)">
   <META name="keywords" content="crt.sh, CT, Certificate Transparency, Certificate Search, SSL Certificate, Sectigo, Comodo CA">
-  <LINK href="//fonts.googleapis.com/css?family=Roboto+Mono|Roboto:400,700,700i" rel="stylesheet">
+  <LINK href="//fonts.googleapis.com/css?family=Roboto+Mono|Roboto:400,400i,700,700i" rel="stylesheet">
 ';
 		IF (t_type = 'Certificate ASN.1')
 				OR ((t_type = 'ocsp-response') AND (coalesce(get_parameter('type', paramNames, paramValues), 'dump') = 'asn1')) THEN
