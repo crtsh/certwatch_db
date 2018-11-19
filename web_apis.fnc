@@ -235,7 +235,7 @@ BEGIN
 		t_type := lower(t_outputType);
 		t_outputType := 'json';
 	ELSIF lower(t_outputType) IN ('revoked-intermediates', 'mozilla-certvalidations', 'mozilla-certvalidations-by-root', 'mozilla-certvalidations-by-owner', 'mozilla-certvalidations-by-version',
-									'mozilla-disclosures', 'mozilla-onecrl', 'microsoft-disclosures', 'ocsp-responders', 'ocsp-response', 'redacted-precertificates') THEN
+									'mozilla-disclosures', 'mozilla-onecrl', 'microsoft-disclosures', 'ocsp-responders', 'ocsp-response', 'redacted-precertificates', 'test-websites') THEN
 		t_type := lower(t_outputType);
 		t_title := t_type;
 		t_outputType := 'html';
@@ -442,7 +442,7 @@ Content-Type: application/json
 		t_output := t_output ||
 '  <STYLE type="text/css">
 ';
-		IF t_type NOT IN ('mozilla-disclosures', 'microsoft-disclosures', 'ocsp-responders') THEN
+		IF t_type NOT IN ('mozilla-disclosures', 'microsoft-disclosures', 'ocsp-responders', 'test-websites') THEN
 			t_output := t_output ||
 '    a {
       white-space: nowrap;
@@ -749,6 +749,7 @@ Content-Type: application/json
                 <A href="/forum">Forum</A>
                 <BR><A href="/revoked-intermediates">Revoked Intermediates</A>
                 <BR><A href="/ocsp-responders">OCSP Responders</A>
+                <BR><A href="/test-websites">Test Websites</A>
               </TD>
               </TD>
             </TR>
@@ -1521,6 +1522,13 @@ Content-Type: text/plain; charset=UTF-8
 			coalesce(get_parameter('url', paramNames, paramValues), ''),
 			coalesce(get_parameter('request', paramNames, paramValues), ''),
 			coalesce(get_parameter('type', paramNames, paramValues), 'dump')
+		);
+
+	ELSIF t_type = 'test-websites' THEN
+		t_output := t_output || test_websites(
+			coalesce(get_parameter('dir', paramNames, paramValues), 'v'),
+			coalesce(get_parameter('sort', paramNames, paramValues), '2')::integer,
+			get_parameter('trustedby', paramNames, paramValues)
 		);
 
 	ELSIF t_type IN (
