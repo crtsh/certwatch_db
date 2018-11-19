@@ -29,7 +29,7 @@ BEGIN
 			INTO t_b64Certificate
 			FROM certificate c
 			WHERE digest(c.CERTIFICATE, 'sha256') = decode(cert_identifier, 'hex');
-	ELSE
+	ELSIF translate(cert_identifier, '0123456789', '') = '' THEN
 		SELECT replace(encode(c.CERTIFICATE, 'base64'), chr(10), '')
 			INTO t_b64Certificate
 			FROM certificate c
