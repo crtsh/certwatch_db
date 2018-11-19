@@ -852,7 +852,7 @@ Content-Type: application/json
       <TH>Backlog</TH>
       <TH>Uptime %</TH>
       <TH><A href="monitored-logs?recognizedBy=Chromium">In Chrome?</A></TH>
-      <TH>In MacOS?</TH>
+      <TH>Status (since)</TH>
     </TR>';
 		FOR l_record IN (
 					SELECT ctl.ID,
@@ -870,7 +870,7 @@ Content-Type: application/json
 								THEN ';color:#FF0000'
 								ELSE ''
 							END UPTIME_FONT_STYLE,
-							ctl.INCLUDED_IN_MACOS
+							ctl.INCLUDED_IN_MACOS, ctl.APPLE_LAST_STATE_CHANGE
 						FROM ct_log ctl
 								LEFT OUTER JOIN ct_log_operator ctlo ON (ctl.OPERATOR = ctlo.OPERATOR)
 								LEFT JOIN LATERAL (
@@ -927,7 +927,11 @@ Content-Type: application/json
 			END IF;
 			t_output := t_output ||
 '      </TD>
-      <TD>' || coalesce(l_record.INCLUDED_IN_MACOS, '') || '</TD>
+      <TD>' || coalesce(l_record.INCLUDED_IN_MACOS, '');
+			IF l_record.APPLE_LAST_STATE_CHANGE IS NOT NULL THEN
+				t_output := t_output || ' <SPAN class="small">(' || to_char(l_record.APPLE_LAST_STATE_CHANGE, 'YYYY-MM-DD HH24:MI:SS') || ')</SPAN>';
+			END IF;
+			t_output := t_output || '</TD>
     </TR>';
 		END LOOP;
 
@@ -963,8 +967,8 @@ Content-Type: application/json
       <TH rowspan="2">Latest STH<BR><SPAN class="small">(UTC)</SPAN></TH>
       <TH colspan="2">Entries</TH>
       <TH rowspan="2">Last Contacted<BR><SPAN class="small">(UTC)</SPAN></TH>
-      <TH rowspan="2">In Chrome?</TH>
-      <TH rowspan="2">In MacOS?</TH>
+      <TH rowspan="2">Google: In Chrome?</TH>
+      <TH rowspan="2">Apple: Status (since)</TH>
     </TR>
     <TR>
       <TH>Tree Size</TH>
