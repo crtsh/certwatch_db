@@ -431,6 +431,7 @@ Content-Type: application/json
   </STYLE>
 ';
 		ELSIF t_type = 'monitored-logs' THEN
+			t_cacheControlMaxAge := -1;
 			t_output := t_output ||
 '  <STYLE type="text/css">
     table tr:nth-child(2n+5) {
@@ -3676,7 +3677,7 @@ Content-Type: text/plain; charset=UTF-8
 			IF t_outputType = 'atom' THEN
 				t_output :=
 '[BEGIN_HEADERS]
-Cache-Control: max-age=' || t_cacheControlMaxAge::integer || '
+Cache-Control: max-age=' || t_cacheControlMaxAge::text || '
 Content-Type: application/atom+xml
 [END_HEADERS]
 <?xml version="1.0" encoding="utf-8"?>
@@ -4172,9 +4173,14 @@ Content-Type: application/atom+xml
 	END IF;
 
 	IF t_outputType = 'html' THEN
+		IF t_cacheControlMaxAge = -1 THEN
+			t_temp := 'no-cache';
+		ELSE
+			t_temp := 'max-age=' || t_cacheControlMaxAge::text;
+		END IF;
 		t_output :=
 '[BEGIN_HEADERS]
-Cache-Control: max-age=' || t_cacheControlMaxAge::integer || '
+Cache-Control: ' || t_temp || '
 Content-Type: text/html; charset=UTF-8
 [END_HEADERS]
 ' || t_output || '
@@ -4214,7 +4220,7 @@ EXCEPTION
 	WHEN no_data_found THEN
 		RETURN
 '[BEGIN_HEADERS]
-Cache-Control: max-age=' || t_cacheControlMaxAge::integer || '
+Cache-Control: max-age=' || t_cacheControlMaxAge::text || '
 Content-Type: text/html; charset=UTF-8
 [END_HEADERS]
 ' || coalesce(t_output, '') || '<BR><BR>' || SQLERRM ||
@@ -4225,7 +4231,7 @@ Content-Type: text/html; charset=UTF-8
 		GET STACKED DIAGNOSTICS t_temp = PG_EXCEPTION_CONTEXT;
 		RETURN
 '[BEGIN_HEADERS]
-Cache-Control: max-age=' || t_cacheControlMaxAge::integer || '
+Cache-Control: max-age=' || t_cacheControlMaxAge::text || '
 Content-Type: text/html; charset=UTF-8
 [END_HEADERS]
 ' || coalesce(t_output, '') || '<BR><BR>' || html_escape(SQLERRM) || '<BR><BR>' || html_escape(coalesce(t_temp, '')) || '<BR><BR>' || html_escape(coalesce(t_query, ''));
