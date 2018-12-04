@@ -905,3 +905,42 @@ GRANT SELECT ON cached_response TO crtsh;
 \i import_cert.fnc
 \i import_ct_cert.fnc
 \i web_apis.fnc
+
+CREATE VIEW certificate_lifecycle AS
+SELECT c.ID CERTIFICATE_ID,
+		c.ISSUER_CA_ID CA_ID,
+		encode(x509_serialNumber(c.CERTIFICATE), 'hex') SERIAL_NUMBER,
+		x509_subjectName(c.CERTIFICATE) SUBJECT_DISTINGUISHED_NAME,
+		(CASE WHEN (x509_print(c.CERTIFICATE) LIKE '%CT Precertificate Poison%')
+			THEN 'Precertificate'
+			ELSE 'Certificate'
+		END) CERTIFICATE_TYPE,
+		x509_notBefore(c.CERTIFICATE) NOT_BEFORE,
+		x509_notAfter(c.CERTIFICATE) NOT_AFTER,
+		ctle.FIRST_SEEN FIRST_SEEN,
+		coalesce(crlr.REVOKED, 0) REVOKED,
+		coalesce(lci.LINT_ERRORS, 0) LINT_ERRORS,
+		(x509_notAfter(c.CERTIFICATE) < now()) EXPIRED
+	FROM certificate c
+			JOIN LATERAL (
+				SELECT MIN(ctle.ENTRY_TIMESTAMP) FIRST_SEEN,
+						ctle.CERTIFICATE_ID
+					FROM ct_log_entry ctle
+					WHERE ctle.CERTIFICATE_ID = c.ID
+					GROUP BY ctle.CERTIFICATE_ID
+			) ctle ON TRUE
+			LEFT JOIN LATERAL (
+				SELECT count(crlr.CA_ID) REVOKED,
+						crlr.SERIAL_NUMBER
+					FROM crl_revoked crlr
+					WHERE crlr.CA_ID = c.ISSUER_CA_ID
+						AND crlr.SERIAL_NUMBER = x509_serialNumber(c.CERTIFICATE)
+					GROUP BY crlr.SERIAL_NUMBER
+			) crlr ON TRUE
+			LEFT JOIN LATERAL (
+				SELECT count(lci.CERTIFICATE_ID) LINT_ERRORS,
+						lci.CERTIFICATE_ID
+					FROM lint_cert_issue lci
+					WHERE lci.CERTIFICATE_ID = c.ID
+					GROUP BY lci.CERTIFICATE_ID
+			) lci ON TRUE;

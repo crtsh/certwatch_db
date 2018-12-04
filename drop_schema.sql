@@ -1,3 +1,5 @@
+DROP VIEW certificate_lifecycle;
+
 DROP FUNCTION web_apis(
 	name					text,
 	paramNames				text[],
