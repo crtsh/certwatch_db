@@ -1509,6 +1509,7 @@ Content-Type: text/plain; charset=UTF-8
 		t_output := t_output || microsoft_disclosures();
 
 	ELSIF t_type = 'ocsp-responders' THEN
+		t_cacheControlMaxAge := -1;
 		t_output := t_output || ocsp_responders(
 			coalesce(get_parameter('dir', paramNames, paramValues), 'v'),
 			coalesce(get_parameter('sort', paramNames, paramValues), '2')::integer,
@@ -1522,6 +1523,7 @@ Content-Type: text/plain; charset=UTF-8
 		);
 
 	ELSIF t_type = 'ocsp-response' THEN
+		t_cacheControlMaxAge := -1;
 		t_output := t_output || ocsp_response(
 			coalesce(get_parameter('caID', paramNames, paramValues), '')::integer,
 			coalesce(get_parameter('url', paramNames, paramValues), ''),
@@ -1530,6 +1532,7 @@ Content-Type: text/plain; charset=UTF-8
 		);
 
 	ELSIF t_type = 'test-websites' THEN
+		t_cacheControlMaxAge := -1;
 		t_output := t_output || test_websites(
 			coalesce(get_parameter('dir', paramNames, paramValues), 'v'),
 			coalesce(get_parameter('sort', paramNames, paramValues), '2')::integer,
