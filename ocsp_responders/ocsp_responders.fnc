@@ -67,7 +67,8 @@ BEGIN
 		t_params := t_params || '&url=' || urlEncode(url);
 	END IF;
 
-	t_query := t_query ||
+	IF (trustedBy IS NOT NULL) OR (trustedFor IS NOT NULL) OR (trustedExclude IS NOT NULL) THEN
+		t_query := t_query ||
 '		AND EXISTS (
 			SELECT 1
 				FROM ca_trust_purpose ctp, trust_context tc, trust_purpose tp
@@ -77,34 +78,35 @@ BEGIN
 					AND ctp.TRUST_PURPOSE_ID = tp.ID
 					AND tp.PURPOSE = ' || coalesce(quote_literal(trustedFor), 'tp.PURPOSE') || '
 ';
-	IF (',' || coalesce(trustedExclude, '') || ',') ILIKE '%,constrained,%' THEN
-		t_query := t_query ||
+		IF (',' || coalesce(trustedExclude, '') || ',') ILIKE '%,constrained,%' THEN
+			t_query := t_query ||
 '					AND NOT ctp.ALL_CHAINS_TECHNICALLY_CONSTRAINED
 ';
-	END IF;
-	IF (',' || coalesce(trustedExclude, '') || ',') ILIKE '%,expired,%' THEN
-		t_query := t_query ||
+		END IF;
+		IF (',' || coalesce(trustedExclude, '') || ',') ILIKE '%,expired,%' THEN
+			t_query := t_query ||
 '					AND ctp.IS_TIME_VALID
 ';
-	END IF;
-	IF (',' || coalesce(trustedExclude, '') || ',') ILIKE '%,onecrl,%' THEN
-		t_query := t_query ||
+		END IF;
+		IF (',' || coalesce(trustedExclude, '') || ',') ILIKE '%,onecrl,%' THEN
+			t_query := t_query ||
 '					AND NOT ctp.ALL_CHAINS_REVOKED_VIA_ONECRL
 ';
-	END IF;
-	IF (',' || coalesce(trustedExclude, '') || ',') ILIKE '%,crlset,%' THEN
-		t_query := t_query ||
+		END IF;
+		IF (',' || coalesce(trustedExclude, '') || ',') ILIKE '%,crlset,%' THEN
+			t_query := t_query ||
 '					AND NOT ctp.ALL_CHAINS_REVOKED_VIA_CRLSET
 ';
-	END IF;
-	IF (',' || coalesce(trustedExclude, '') || ',') ILIKE '%,disallowedstl,%' THEN
-		t_query := t_query ||
+		END IF;
+		IF (',' || coalesce(trustedExclude, '') || ',') ILIKE '%,disallowedstl,%' THEN
+			t_query := t_query ||
 '					AND NOT ctp.ALL_CHAINS_REVOKED_VIA_DISALLOWEDSTL
 ';
-	END IF;
-	t_query := t_query ||
+		END IF;
+		t_query := t_query ||
 '		)
 ';
+	END IF;
 	IF coalesce(get, '') != '' THEN
 		t_query := t_query ||
 '		AND orp.GET_RESULT ILIKE ' || quote_literal(get) || '
