@@ -18,6 +18,10 @@ DECLARE
 	t_count					integer;
 	t_certificate			certificate.CERTIFICATE%TYPE;
 	t_issuerCertificate		certificate.CERTIFICATE%TYPE;
+	t_thisUpdate			crl.THIS_UPDATE%TYPE;
+	t_nextUpdate			crl.NEXT_UPDATE%TYPE;
+	t_lastChecked			crl.LAST_CHECKED%TYPE;
+	t_lastSeenCheckDate		crl_revoked.LAST_SEEN_CHECK_DATE%TYPE;
 	l_root					RECORD;
 	l_record				RECORD;
 BEGIN
@@ -47,9 +51,13 @@ BEGIN
 'SELECT cc.CA_OWNER, cc.CERT_NAME, cc.CERTIFICATE_ID,
 		cc.TEST_WEBSITE_VALID, cc.TEST_WEBSITE_VALID_STATUS, cc.TEST_WEBSITE_VALID_CERTIFICATE_ID,
 		cc.TEST_WEBSITE_EXPIRED, cc.TEST_WEBSITE_EXPIRED_STATUS, cc.TEST_WEBSITE_EXPIRED_CERTIFICATE_ID,
-		cc.TEST_WEBSITE_REVOKED, cc.TEST_WEBSITE_REVOKED_STATUS, cc.TEST_WEBSITE_REVOKED_CERTIFICATE_ID
+		cc.TEST_WEBSITE_REVOKED, cc.TEST_WEBSITE_REVOKED_STATUS, cc.TEST_WEBSITE_REVOKED_CERTIFICATE_ID,
+		crev.ISSUER_CA_ID ISSUER_CA_ID_REVOKED, x509_serialNumber(crev.CERTIFICATE) SERIAL_NUMBER_REVOKED
 	FROM ccadb_certificate cc
-	WHERE cc.CERT_RECORD_TYPE = ''Root Certificate''
+			LEFT OUTER JOIN certificate crev ON (cc.TEST_WEBSITE_REVOKED_CERTIFICATE_ID = crev.ID)
+	WHERE cc.CERT_RECORD_TYPE = ''Root Certificate''';
+	IF trustedBy IS NOT NULL THEN
+		t_query := t_query || '
 		AND EXISTS (
 			SELECT 1
 				FROM root_trust_purpose rtp, trust_context tc
@@ -57,7 +65,9 @@ BEGIN
 					AND rtp.TRUST_PURPOSE_ID = 1	-- Server Authentication.
 					AND rtp.TRUST_CONTEXT_ID = tc.ID
 					AND tc.CTX = ' || coalesce(quote_literal(trustedBy), 'tc.CTX') || '
-		)
+		)';
+	END IF;
+	t_query := t_query || '
 	ORDER BY ' || CASE sort
 					WHEN 1 THEN 'cc.CA_OWNER' || t_orderBy || ', cc.CERT_NAME' || t_orderBy
 					WHEN 2 THEN 'cc.CERT_NAME' || t_orderBy || ', cc.CA_OWNER' || t_orderBy
@@ -145,7 +155,7 @@ BEGIN
 						AND x509_serialNumber(c.CERTIFICATE) = cr.SERIAL_NUMBER
 						AND c.ISSUER_CA_ID = cr.CA_ID;
 				IF t_count > 0 THEN
-					l_root.TEST_WEBSITE_VALID_STATUS := 'REVOKED';
+					l_root.TEST_WEBSITE_VALID_STATUS := 'Revoked';
 				END IF;
 			END IF;
 			IF l_root.TEST_WEBSITE_VALID_STATUS = 'OK' THEN
@@ -177,18 +187,31 @@ BEGIN
     <TD>';
 		IF (l_root.TEST_WEBSITE_REVOKED IS NULL) OR (l_root.TEST_WEBSITE_REVOKED_STATUS IS NULL) THEN
 			t_temp := t_temp || '&nbsp;';
-		ELSIF l_root.TEST_WEBSITE_EXPIRED_STATUS = 'Not checked' THEN
+		ELSIF l_root.TEST_WEBSITE_REVOKED_STATUS = 'Not checked' THEN
 			t_temp := t_temp || '<FONT color="#888888">No URL available</FONT>';
 		ELSE
 			IF l_root.TEST_WEBSITE_REVOKED_STATUS = 'OK' THEN
-				SELECT count(*)
-					INTO t_count
-					FROM certificate c, crl_revoked cr
-					WHERE c.ID = l_root.TEST_WEBSITE_REVOKED_CERTIFICATE_ID
-						AND x509_serialNumber(c.CERTIFICATE) = cr.SERIAL_NUMBER
-						AND c.ISSUER_CA_ID = cr.CA_ID;
-				IF t_count = 0 THEN
-					l_root.TEST_WEBSITE_REVOKED_STATUS := 'NOT REVOKED';
+				SELECT crl.THIS_UPDATE, crl.NEXT_UPDATE, crl.LAST_CHECKED
+					INTO t_thisUpdate, t_nextUpdate, t_lastChecked
+					FROM crl
+					WHERE crl.CA_ID = l_root.ISSUER_CA_ID_REVOKED
+					ORDER BY (crl.ERROR_MESSAGE IS NULL) DESC, crl.LAST_CHECKED DESC
+					LIMIT 1;
+				IF FOUND THEN
+					IF t_nextUpdate < statement_timestamp() AT TIME ZONE 'UTC' THEN
+						l_root.TEST_WEBSITE_REVOKED_STATUS := 'CRL Expired';
+					ELSE
+						SELECT max(cr.LAST_SEEN_CHECK_DATE)
+							INTO t_lastSeenCheckDate
+							FROM crl_revoked cr
+							WHERE cr.SERIAL_NUMBER = l_root.SERIAL_NUMBER_REVOKED
+								AND cr.CA_ID = l_root.ISSUER_CA_ID_REVOKED;
+						IF t_lastSeenCheckDate IS NULL THEN
+							l_root.TEST_WEBSITE_REVOKED_STATUS := 'Not on CRL';
+						ELSIF t_lastSeenCheckDate < t_thisUpdate THEN
+							l_root.TEST_WEBSITE_REVOKED_STATUS := 'Removed from CRL';
+						END IF;
+					END IF;
 				END IF;
 			END IF;
 			IF l_root.TEST_WEBSITE_REVOKED_STATUS = 'OK' THEN
