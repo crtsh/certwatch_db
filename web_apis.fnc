@@ -3567,8 +3567,13 @@ Content-Type: text/plain; charset=UTF-8
 
 			t_showIdentity := (position('%' IN t_value) > 0) OR (t_type = 'CT Entry ID');
 
+			IF t_outputType = 'json' THEN
+				t_output := t_output || '[';
+			END IF;
+
 			t_text := '';
 			t_summary := '';
+			t_temp3 := '';
 			FOR l_record IN EXECUTE t_query
 							USING t_value, t_minNotBefore LOOP
 				t_temp2 := '';
@@ -3622,7 +3627,8 @@ Content-Type: text/plain; charset=UTF-8
   </entry>
 ';
 				ELSIF t_outputType = 'json' THEN
-					t_output := t_output || row_to_json(l_record, FALSE);
+					t_output := t_output || t_temp3 || row_to_json(l_record, FALSE);
+					t_temp3 := ',';
 				ELSIF t_outputType = 'html' THEN
 					t_temp2 := t_temp2 ||
 '  <TR>
@@ -3816,6 +3822,8 @@ Content-Type: application/atom+xml
   </TR>
 </TABLE>
 ';
+			ELSIF t_outputType = 'json' THEN
+				t_output := t_output || ']';
 			END IF;
 		END IF;
 
