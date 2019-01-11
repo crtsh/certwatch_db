@@ -3945,6 +3945,8 @@ Content-Type: application/atom+xml
 				t_output := t_output || '</TH>
     </TR>
 ';
+			ELSIF t_outputType = 'json' THEN
+				t_output := t_output || '[';
 			END IF;
 
 			IF t_groupBy = 'IssuerO' THEN
@@ -4016,9 +4018,11 @@ Content-Type: application/atom+xml
 				t_query := t_query || 'ORDER BY ALL_PERC ' || t_orderBy || ', ISSUER_ORGANIZATION_NAME, ISSUER_FRIENDLY_NAME';
 			END IF;
 
+			t_temp3 := '';
 			FOR l_record IN EXECUTE t_query USING t_issuerO LOOP
 				IF t_outputType = 'json' THEN
-					t_output := t_output || row_to_json(l_record, FALSE);
+					t_output := t_output || t_temp3 || row_to_json(l_record, FALSE);
+					t_temp3 := ',';
 				ELSIF t_outputType = 'html' THEN
 					t_output := t_output || '
     <TR>
@@ -4057,6 +4061,8 @@ Content-Type: application/atom+xml
 				t_output := t_output ||
 '  </TABLE>
 ';
+			ELSIF t_outputType = 'json' THEN
+				t_output := t_output || ']';
 			END IF;
 		END IF;
 
@@ -4095,6 +4101,8 @@ Content-Type: application/atom+xml
 			t_output := t_output || '</TH>
     </TR>
 ';
+		ELSIF t_outputType = 'json' THEN
+			t_output := t_output || '[';
 		END IF;
 
 		t_query := 'SELECT li.ID, li.ISSUE_TEXT,';
@@ -4154,9 +4162,11 @@ Content-Type: application/atom+xml
 					'	ORDER BY NUM_CERTS ' || t_orderBy;
 		END IF;
 
+		t_temp3 := '';
 		FOR l_record IN EXECUTE t_query USING t_minNotBefore LOOP
 			IF t_outputType = 'json' THEN
-				t_output := t_output || row_to_json(l_record, FALSE);
+				t_output := t_output || t_temp3 || row_to_json(l_record, FALSE);
+				t_temp3 := ',';
 			ELSIF t_outputType = 'html' THEN
 				t_output := t_output ||
 '    <TR>
@@ -4178,6 +4188,8 @@ Content-Type: application/atom+xml
 			t_output := t_output ||
 '  </TABLE>
 ';
+		ELSIF t_outputType = 'json' THEN
+			t_output := t_output || ']';
 		END IF;
 
 	ELSE
