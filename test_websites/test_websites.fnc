@@ -139,8 +139,14 @@ BEGIN
 	FOR l_root IN EXECUTE t_query LOOP
 		t_temp :=
 '  <TR>
-    <TD>' || l_root.CA_OWNER || '</TD>
-    <TD><A href="/?id=' || l_root.CERTIFICATE_ID::text || '" target="_blank">' || l_root.CERT_NAME || '</A></TD>
+    <TD>' || coalesce(l_root.CA_OWNER, '') || '</TD>
+    <TD>';
+		IF l_root.CERTIFICATE_ID IS NOT NULL THEN
+			t_temp := t_temp || '<A href="/?id=' || l_root.CERTIFICATE_ID::text || '" target="_blank">' || l_root.CERT_NAME || '</A>';
+		ELSE
+			t_temp := t_temp || l_root.CERT_NAME;
+		END IF;
+		t_temp := t_temp || '</TD>
     <TD>';
 		IF (l_root.TEST_WEBSITE_VALID IS NULL) OR (l_root.TEST_WEBSITE_VALID_STATUS IS NULL) THEN
 			t_temp := t_temp || '&nbsp;';
