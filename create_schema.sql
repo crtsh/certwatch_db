@@ -376,6 +376,7 @@ INSERT INTO trust_context ( ID, CTX, URL, DISPLAY_ORDER ) VALUES ( 12, 'Apple', 
 INSERT INTO trust_context ( ID, CTX, URL, DISPLAY_ORDER ) VALUES ( 17, 'Android', 'https://android.googlesource.com/platform/system/ca-certificates/', 5 );
 INSERT INTO trust_context ( ID, CTX, URL, DISPLAY_ORDER ) VALUES ( 23, 'Java', 'http://www.oracle.com/technetwork/java/javase/javasecarootcertsprogram-1876540.html', 6 );
 INSERT INTO trust_context ( ID, CTX, URL, DISPLAY_ORDER ) VALUES ( 24, 'Adobe EUTL', 'https://blogs.adobe.com/documentcloud/eu-trusted-list-now-available-in-adobe-acrobat/', 9 );
+INSERT INTO trust_context ( ID, CTX, URL, DISPLAY_ORDER ) VALUES ( 25, '360 Browser', 'https://caprogram.360.cn/#trust', 0 );
 
 
 CREATE TABLE trust_purpose (
@@ -553,6 +554,7 @@ INSERT INTO applicable_purpose ( TRUST_CONTEXT_ID, PURPOSE ) VALUES ( 24, 'Code 
 INSERT INTO applicable_purpose ( TRUST_CONTEXT_ID, PURPOSE ) VALUES ( 24, 'Document Signing' );
 INSERT INTO applicable_purpose ( TRUST_CONTEXT_ID, PURPOSE ) VALUES ( 24, 'Secure Email' );
 INSERT INTO applicable_purpose ( TRUST_CONTEXT_ID, PURPOSE ) VALUES ( 24, 'Adobe Authentic Document' );
+INSERT INTO applicable_purpose ( TRUST_CONTEXT_ID, PURPOSE ) VALUES ( 25, 'Server Authentication' );
 
 
 CREATE TABLE root_trust_purpose(
