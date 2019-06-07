@@ -1,18 +1,18 @@
 \timing
 
-CREATE TABLE onecrl_import1 (
+BEGIN WORK;
+
+CREATE TEMPORARY TABLE onecrl_import1 (
 	ONECRL_DATA	JSON
-);
+) ON COMMIT DROP;
 
 \COPY onecrl_import1 FROM 'onecrl.json';
 
-CREATE TABLE onecrl_import2 AS
+CREATE TEMPORARY TABLE onecrl_import2 ON COMMIT DROP AS
 SELECT json_array_elements((o.onecrl_data->>'data')::json) CERT_ITEM
 	FROM onecrl_import1 o;
 
-DROP TABLE onecrl_import1;
-
-CREATE TABLE onecrl_import3 AS
+CREATE TEMPORARY TABLE onecrl_import3 ON COMMIT DROP AS
 SELECT decode(
 			o.CERT_ITEM->>'issuerName'
 				|| CASE length(o.CERT_ITEM->>'issuerName') % 4
@@ -33,14 +33,15 @@ SELECT decode(
 				END,
 			'base64'
 		) SERIAL_NUMBER,
-		(((o.CERT_ITEM->>'details')::json)->>'created')::timestamp CREATED,
+		CASE WHEN coalesce((((o.CERT_ITEM->>'details')::json)->>'created'), '') = ''
+			THEN NULL
+			ELSE (((o.CERT_ITEM->>'details')::json)->>'created')::timestamp
+		END CREATED,
 		((o.CERT_ITEM->>'details')::json)->>'bug' BUG_URL,
 		((o.CERT_ITEM->>'details')::json)->>'name' SUMMARY
 	FROM onecrl_import2 o;
 
-DROP TABLE onecrl_import2;
-
-CREATE TABLE mozilla_onecrl_new AS
+CREATE TEMPORARY TABLE mozilla_onecrl_new ON COMMIT DROP AS
 SELECT c.ID		CERTIFICATE_ID,
 		c.ISSUER_CA_ID,
 		o.*,
@@ -52,23 +53,17 @@ SELECT c.ID		CERTIFICATE_ID,
 			AND o.ISSUER_NAME = x509_name(c.CERTIFICATE, 'f')
 		);
 
-DROP TABLE onecrl_import3;
-
 UPDATE mozilla_onecrl_new mon
 	SET ISSUER_CA_ID = ca.ID
 	FROM ca
 	WHERE ca.NAME = x509_name_print(mon.ISSUER_NAME)
 		AND mon.ISSUER_CA_ID IS NULL;
 
-GRANT SELECT ON mozilla_onecrl_new TO httpd;
+TRUNCATE mozilla_onecrl;
 
-GRANT SELECT ON mozilla_onecrl_new TO guest;
-
-BEGIN WORK;
-
-DROP TABLE mozilla_onecrl;
-
-ALTER TABLE mozilla_onecrl_new RENAME TO mozilla_onecrl;
+INSERT INTO mozilla_onecrl
+	SELECT *
+		FROM mozilla_onecrl_new;
 
 COMMIT WORK;
 
