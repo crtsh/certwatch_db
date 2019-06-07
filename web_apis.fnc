@@ -4243,7 +4243,7 @@ Content-Type: text/html; charset=UTF-8
 			END IF;
 		END IF;
 		t_output := t_output || '
-  <P class="copyright">&copy; Sectigo Limited 2015-2018. All rights reserved.</P>
+  <P class="copyright">&copy; Sectigo Limited 2015-2019. All rights reserved.</P>
   <DIV>
     <A href="https://sectigo.com/"><IMG src="/sectigo_s.png"></A>
     &nbsp;<A href="https://github.com/crtsh"><IMG src="/GitHub-Mark-32px.png"></A>
