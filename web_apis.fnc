@@ -155,6 +155,7 @@ DECLARE
 	t_versions			text[];
 	t_date				date;
 	t_onlyOneChain		boolean;
+	t_isJSONOutputSupported    boolean	:= FALSE;
 BEGIN
 	FOR t_paramNo IN 1..array_length(c_params, 1) LOOP
 		IF t_cmd IS NULL THEN
@@ -191,29 +192,51 @@ BEGIN
 
 			IF t_type = 'Download Certificate' THEN
 				RETURN download_cert(t_value);
-			ELSIF t_type IN ('ID', 'Certificate ASN.1', 'CA ID', 'CT Entry ID') THEN
+			ELSIF t_type IN ('ID', 'Certificate ASN.1', 'CA ID') THEN
 				BEGIN
 					EXIT WHEN t_value::integer IS NOT NULL;
 				EXCEPTION
 					WHEN OTHERS THEN
 						NULL;
 				END;
+			ELSIF t_type = 'CT Entry ID' THEN
+				BEGIN
+					IF t_value::integer IS NOT NULL THEN
+						t_isJSONOutputSupported := TRUE;
+						EXIT;
+					END IF;
+				EXCEPTION
+					WHEN OTHERS THEN
+						NULL;
+				END;
 			ELSIF t_type IN (
-						'Simple', 'Advanced', 'CA/B Forum lint', 'X.509 lint', 'ZLint', 'Lint', 'CA Name',
+						'Simple', 'Advanced', 'CA Name'
+					) THEN
+				EXIT;
+			ELSIF t_type IN (
+						'CA/B Forum lint', 'X.509 lint', 'ZLint', 'Lint',
 						'Identity', 'Common Name', 'Email Address',
 						'Organizational Unit Name', 'Organization Name',
 						'Domain Name', 'Email Address (SAN)', 'IP Address'
 					) THEN
+				t_isJSONOutputSupported := TRUE;
 				EXIT;
-			ELSIF t_type IN (
-						'SHA-1(Certificate)', 'SHA-1(SubjectPublicKeyInfo)',
-						'SHA-1(Subject)'
-					) THEN
+			ELSIF t_type = 'SHA-1(Certificate)' THEN
 				EXIT WHEN length(t_bytea) = 20;
 			ELSIF t_type IN (
-						'SHA-256(Certificate)', 'SHA-256(SubjectPublicKeyInfo)'
+						'SHA-1(SubjectPublicKeyInfo)', 'SHA-1(Subject)'
 					) THEN
+				IF length(bytea) = 20 THEN
+					t_isJSONOutputSupported := TRUE;
+					EXIT;
+				END IF;
+			ELSIF t_type = 'SHA-256(Certificate)' THEN
 				EXIT WHEN length(t_bytea) = 32;
+			ELSIF t_type = 'SHA-256(SubjectPublicKeyInfo)' THEN
+				IF length(t_bytea) = 32 THEN
+					t_isJSONOutputSupported := TRUE;
+					EXIT;
+				END IF;
 			ELSIF t_type IN ('Serial Number', 'Subject Key Identifier') THEN
 				EXIT WHEN t_bytea IS NOT NULL;
 			ELSE
@@ -234,6 +257,7 @@ BEGIN
 	ELSIF lower(t_outputType) LIKE '%.json' THEN
 		t_type := lower(t_outputType);
 		t_outputType := 'json';
+		t_isJSONOutputSupported := TRUE;
 	ELSIF lower(t_outputType) IN ('revoked-intermediates', 'mozilla-certvalidations', 'mozilla-certvalidations-by-root', 'mozilla-certvalidations-by-owner', 'mozilla-certvalidations-by-version',
 									'mozilla-disclosures', 'mozilla-onecrl', 'microsoft-disclosures', 'ocsp-responders', 'ocsp-response', 'redacted-precertificates', 'test-websites') THEN
 		t_type := lower(t_outputType);
@@ -248,7 +272,7 @@ BEGIN
 		t_outputType := 'html';
 	END IF;
 
-	IF t_outputType = 'json' THEN
+	IF (t_outputType = 'json') AND t_isJSONOutputSupported THEN
 		t_output :=
 '[BEGIN_HEADERS]
 Content-Type: application/json
