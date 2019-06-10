@@ -411,7 +411,7 @@ Content-Type: application/json
 	END IF;
 
 	IF t_useCachedResponse THEN
-		t_count := coalesce(get_parameter('maxage', paramNames, paramValues), '14400')::integer;
+		t_count := coalesce(get_parameter('maxage', paramNames, paramValues), '172800')::integer;
 		t_cacheResponse := (t_count = 0);
 		t_maxAge := statement_timestamp() - (interval '1 second' * t_count);
 		SELECT cr.RESPONSE_BODY
