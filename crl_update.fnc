@@ -29,7 +29,7 @@ BEGIN
 		SET THIS_UPDATE = _this_update,
 			NEXT_UPDATE = _next_update,
 			LAST_CHECKED = _last_checked,
-			NEXT_CHECK_DUE = _last_checked + interval '1 hour',
+			NEXT_CHECK_DUE = _last_checked + interval '4 hours',
 			ERROR_MESSAGE = _error_message,
 			CRL_SHA256 = _crl_sha256,
 			CRL_SIZE = _crl_size
