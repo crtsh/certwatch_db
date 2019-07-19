@@ -39,6 +39,7 @@ CREATE TEMPORARY TABLE ccadb_certificate_import (
 	CP_CPS_SAME_AS_PARENT		text,
 	CP_URL						text,
 	CPS_URL						text,
+	CP_CPS_LAST_UPDATED			text,
 	TEST_WEBSITE_VALID			text,
 	TEST_WEBSITE_EXPIRED		text,
 	TEST_WEBSITE_REVOKED		text,
