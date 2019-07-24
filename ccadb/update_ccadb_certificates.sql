@@ -376,41 +376,111 @@ UPDATE ccadb_certificate_temp cct
 \echo Handling Audit Inheritance
 UPDATE ccadb_certificate_temp cct
 	SET STANDARD_AUDIT_URL = coalesce(cct.STANDARD_AUDIT_URL, cct_parent.STANDARD_AUDIT_URL),
+		STANDARD_AUDIT_TYPE = coalesce(cct.STANDARD_AUDIT_TYPE, cct_parent.STANDARD_AUDIT_TYPE),
+		STANDARD_AUDIT_DATE = coalesce(cct.STANDARD_AUDIT_DATE, cct_parent.STANDARD_AUDIT_DATE),
+		STANDARD_AUDIT_START = coalesce(cct.STANDARD_AUDIT_START, cct_parent.STANDARD_AUDIT_START),
+		STANDARD_AUDIT_END = coalesce(cct.STANDARD_AUDIT_END, cct_parent.STANDARD_AUDIT_END),
 		BRSSL_AUDIT_URL = coalesce(cct.BRSSL_AUDIT_URL, cct_parent.BRSSL_AUDIT_URL),
-		AUDITOR = coalesce(cct.AUDITOR, cct_parent.AUDITOR),
-		STANDARD_AUDIT_DATE = coalesce(cct.STANDARD_AUDIT_DATE, cct_parent.STANDARD_AUDIT_DATE)
+		BRSSL_AUDIT_TYPE = coalesce(cct.BRSSL_AUDIT_TYPE, cct_parent.BRSSL_AUDIT_TYPE),
+		BRSSL_AUDIT_DATE = coalesce(cct.BRSSL_AUDIT_DATE, cct_parent.BRSSL_AUDIT_DATE),
+		BRSSL_AUDIT_START = coalesce(cct.BRSSL_AUDIT_START, cct_parent.BRSSL_AUDIT_START),
+		BRSSL_AUDIT_END = coalesce(cct.BRSSL_AUDIT_END, cct_parent.BRSSL_AUDIT_END),
+		EVSSL_AUDIT_URL = coalesce(cct.EVSSL_AUDIT_URL, cct_parent.EVSSL_AUDIT_URL),
+		EVSSL_AUDIT_TYPE = coalesce(cct.EVSSL_AUDIT_TYPE, cct_parent.EVSSL_AUDIT_TYPE),
+		EVSSL_AUDIT_DATE = coalesce(cct.EVSSL_AUDIT_DATE, cct_parent.EVSSL_AUDIT_DATE),
+		EVSSL_AUDIT_START = coalesce(cct.EVSSL_AUDIT_START, cct_parent.EVSSL_AUDIT_START),
+		EVSSL_AUDIT_END = coalesce(cct.EVSSL_AUDIT_END, cct_parent.EVSSL_AUDIT_END),
+		EVCODE_AUDIT_URL = coalesce(cct.EVCODE_AUDIT_URL, cct_parent.EVCODE_AUDIT_URL),
+		EVCODE_AUDIT_TYPE = coalesce(cct.EVCODE_AUDIT_TYPE, cct_parent.EVCODE_AUDIT_TYPE),
+		EVCODE_AUDIT_DATE = coalesce(cct.EVCODE_AUDIT_DATE, cct_parent.EVCODE_AUDIT_DATE),
+		EVCODE_AUDIT_START = coalesce(cct.EVCODE_AUDIT_START, cct_parent.EVCODE_AUDIT_START),
+		EVCODE_AUDIT_END = coalesce(cct.EVCODE_AUDIT_END, cct_parent.EVCODE_AUDIT_END),
+		AUDITOR = coalesce(cct.AUDITOR, cct_parent.AUDITOR)
 	FROM ccadb_certificate_temp cct_parent
 	WHERE cct.CERTIFICATE_ID IS NOT NULL
 		AND cct.AUDITS_SAME_AS_PARENT
 		AND cct.PARENT_CERTIFICATE_ID = cct_parent.CERTIFICATE_ID;
+\echo Handling Audit Inheritance
 UPDATE ccadb_certificate_temp cct
 	SET STANDARD_AUDIT_URL = coalesce(cct.STANDARD_AUDIT_URL, cct_parent.STANDARD_AUDIT_URL),
+		STANDARD_AUDIT_TYPE = coalesce(cct.STANDARD_AUDIT_TYPE, cct_parent.STANDARD_AUDIT_TYPE),
+		STANDARD_AUDIT_DATE = coalesce(cct.STANDARD_AUDIT_DATE, cct_parent.STANDARD_AUDIT_DATE),
+		STANDARD_AUDIT_START = coalesce(cct.STANDARD_AUDIT_START, cct_parent.STANDARD_AUDIT_START),
+		STANDARD_AUDIT_END = coalesce(cct.STANDARD_AUDIT_END, cct_parent.STANDARD_AUDIT_END),
 		BRSSL_AUDIT_URL = coalesce(cct.BRSSL_AUDIT_URL, cct_parent.BRSSL_AUDIT_URL),
-		AUDITOR = coalesce(cct.AUDITOR, cct_parent.AUDITOR),
-		STANDARD_AUDIT_DATE = coalesce(cct.STANDARD_AUDIT_DATE, cct_parent.STANDARD_AUDIT_DATE)
+		BRSSL_AUDIT_TYPE = coalesce(cct.BRSSL_AUDIT_TYPE, cct_parent.BRSSL_AUDIT_TYPE),
+		BRSSL_AUDIT_DATE = coalesce(cct.BRSSL_AUDIT_DATE, cct_parent.BRSSL_AUDIT_DATE),
+		BRSSL_AUDIT_START = coalesce(cct.BRSSL_AUDIT_START, cct_parent.BRSSL_AUDIT_START),
+		BRSSL_AUDIT_END = coalesce(cct.BRSSL_AUDIT_END, cct_parent.BRSSL_AUDIT_END),
+		EVSSL_AUDIT_URL = coalesce(cct.EVSSL_AUDIT_URL, cct_parent.EVSSL_AUDIT_URL),
+		EVSSL_AUDIT_TYPE = coalesce(cct.EVSSL_AUDIT_TYPE, cct_parent.EVSSL_AUDIT_TYPE),
+		EVSSL_AUDIT_DATE = coalesce(cct.EVSSL_AUDIT_DATE, cct_parent.EVSSL_AUDIT_DATE),
+		EVSSL_AUDIT_START = coalesce(cct.EVSSL_AUDIT_START, cct_parent.EVSSL_AUDIT_START),
+		EVSSL_AUDIT_END = coalesce(cct.EVSSL_AUDIT_END, cct_parent.EVSSL_AUDIT_END),
+		EVCODE_AUDIT_URL = coalesce(cct.EVCODE_AUDIT_URL, cct_parent.EVCODE_AUDIT_URL),
+		EVCODE_AUDIT_TYPE = coalesce(cct.EVCODE_AUDIT_TYPE, cct_parent.EVCODE_AUDIT_TYPE),
+		EVCODE_AUDIT_DATE = coalesce(cct.EVCODE_AUDIT_DATE, cct_parent.EVCODE_AUDIT_DATE),
+		EVCODE_AUDIT_START = coalesce(cct.EVCODE_AUDIT_START, cct_parent.EVCODE_AUDIT_START),
+		EVCODE_AUDIT_END = coalesce(cct.EVCODE_AUDIT_END, cct_parent.EVCODE_AUDIT_END),
+		AUDITOR = coalesce(cct.AUDITOR, cct_parent.AUDITOR)
 	FROM ccadb_certificate_temp cct_parent
 	WHERE cct.CERTIFICATE_ID IS NOT NULL
 		AND cct.AUDITS_SAME_AS_PARENT
 		AND cct.PARENT_CERTIFICATE_ID = cct_parent.CERTIFICATE_ID;
+\echo Handling Audit Inheritance
 UPDATE ccadb_certificate_temp cct
 	SET STANDARD_AUDIT_URL = coalesce(cct.STANDARD_AUDIT_URL, cct_parent.STANDARD_AUDIT_URL),
+		STANDARD_AUDIT_TYPE = coalesce(cct.STANDARD_AUDIT_TYPE, cct_parent.STANDARD_AUDIT_TYPE),
+		STANDARD_AUDIT_DATE = coalesce(cct.STANDARD_AUDIT_DATE, cct_parent.STANDARD_AUDIT_DATE),
+		STANDARD_AUDIT_START = coalesce(cct.STANDARD_AUDIT_START, cct_parent.STANDARD_AUDIT_START),
+		STANDARD_AUDIT_END = coalesce(cct.STANDARD_AUDIT_END, cct_parent.STANDARD_AUDIT_END),
 		BRSSL_AUDIT_URL = coalesce(cct.BRSSL_AUDIT_URL, cct_parent.BRSSL_AUDIT_URL),
-		AUDITOR = coalesce(cct.AUDITOR, cct_parent.AUDITOR),
-		STANDARD_AUDIT_DATE = coalesce(cct.STANDARD_AUDIT_DATE, cct_parent.STANDARD_AUDIT_DATE)
+		BRSSL_AUDIT_TYPE = coalesce(cct.BRSSL_AUDIT_TYPE, cct_parent.BRSSL_AUDIT_TYPE),
+		BRSSL_AUDIT_DATE = coalesce(cct.BRSSL_AUDIT_DATE, cct_parent.BRSSL_AUDIT_DATE),
+		BRSSL_AUDIT_START = coalesce(cct.BRSSL_AUDIT_START, cct_parent.BRSSL_AUDIT_START),
+		BRSSL_AUDIT_END = coalesce(cct.BRSSL_AUDIT_END, cct_parent.BRSSL_AUDIT_END),
+		EVSSL_AUDIT_URL = coalesce(cct.EVSSL_AUDIT_URL, cct_parent.EVSSL_AUDIT_URL),
+		EVSSL_AUDIT_TYPE = coalesce(cct.EVSSL_AUDIT_TYPE, cct_parent.EVSSL_AUDIT_TYPE),
+		EVSSL_AUDIT_DATE = coalesce(cct.EVSSL_AUDIT_DATE, cct_parent.EVSSL_AUDIT_DATE),
+		EVSSL_AUDIT_START = coalesce(cct.EVSSL_AUDIT_START, cct_parent.EVSSL_AUDIT_START),
+		EVSSL_AUDIT_END = coalesce(cct.EVSSL_AUDIT_END, cct_parent.EVSSL_AUDIT_END),
+		EVCODE_AUDIT_URL = coalesce(cct.EVCODE_AUDIT_URL, cct_parent.EVCODE_AUDIT_URL),
+		EVCODE_AUDIT_TYPE = coalesce(cct.EVCODE_AUDIT_TYPE, cct_parent.EVCODE_AUDIT_TYPE),
+		EVCODE_AUDIT_DATE = coalesce(cct.EVCODE_AUDIT_DATE, cct_parent.EVCODE_AUDIT_DATE),
+		EVCODE_AUDIT_START = coalesce(cct.EVCODE_AUDIT_START, cct_parent.EVCODE_AUDIT_START),
+		EVCODE_AUDIT_END = coalesce(cct.EVCODE_AUDIT_END, cct_parent.EVCODE_AUDIT_END),
+		AUDITOR = coalesce(cct.AUDITOR, cct_parent.AUDITOR)
 	FROM ccadb_certificate_temp cct_parent
 	WHERE cct.CERTIFICATE_ID IS NOT NULL
 		AND cct.AUDITS_SAME_AS_PARENT
 		AND cct.PARENT_CERTIFICATE_ID = cct_parent.CERTIFICATE_ID;
+\echo Handling Audit Inheritance
 UPDATE ccadb_certificate_temp cct
 	SET STANDARD_AUDIT_URL = coalesce(cct.STANDARD_AUDIT_URL, cct_parent.STANDARD_AUDIT_URL),
+		STANDARD_AUDIT_TYPE = coalesce(cct.STANDARD_AUDIT_TYPE, cct_parent.STANDARD_AUDIT_TYPE),
+		STANDARD_AUDIT_DATE = coalesce(cct.STANDARD_AUDIT_DATE, cct_parent.STANDARD_AUDIT_DATE),
+		STANDARD_AUDIT_START = coalesce(cct.STANDARD_AUDIT_START, cct_parent.STANDARD_AUDIT_START),
+		STANDARD_AUDIT_END = coalesce(cct.STANDARD_AUDIT_END, cct_parent.STANDARD_AUDIT_END),
 		BRSSL_AUDIT_URL = coalesce(cct.BRSSL_AUDIT_URL, cct_parent.BRSSL_AUDIT_URL),
-		AUDITOR = coalesce(cct.AUDITOR, cct_parent.AUDITOR),
-		STANDARD_AUDIT_DATE = coalesce(cct.STANDARD_AUDIT_DATE, cct_parent.STANDARD_AUDIT_DATE)
+		BRSSL_AUDIT_TYPE = coalesce(cct.BRSSL_AUDIT_TYPE, cct_parent.BRSSL_AUDIT_TYPE),
+		BRSSL_AUDIT_DATE = coalesce(cct.BRSSL_AUDIT_DATE, cct_parent.BRSSL_AUDIT_DATE),
+		BRSSL_AUDIT_START = coalesce(cct.BRSSL_AUDIT_START, cct_parent.BRSSL_AUDIT_START),
+		BRSSL_AUDIT_END = coalesce(cct.BRSSL_AUDIT_END, cct_parent.BRSSL_AUDIT_END),
+		EVSSL_AUDIT_URL = coalesce(cct.EVSSL_AUDIT_URL, cct_parent.EVSSL_AUDIT_URL),
+		EVSSL_AUDIT_TYPE = coalesce(cct.EVSSL_AUDIT_TYPE, cct_parent.EVSSL_AUDIT_TYPE),
+		EVSSL_AUDIT_DATE = coalesce(cct.EVSSL_AUDIT_DATE, cct_parent.EVSSL_AUDIT_DATE),
+		EVSSL_AUDIT_START = coalesce(cct.EVSSL_AUDIT_START, cct_parent.EVSSL_AUDIT_START),
+		EVSSL_AUDIT_END = coalesce(cct.EVSSL_AUDIT_END, cct_parent.EVSSL_AUDIT_END),
+		EVCODE_AUDIT_URL = coalesce(cct.EVCODE_AUDIT_URL, cct_parent.EVCODE_AUDIT_URL),
+		EVCODE_AUDIT_TYPE = coalesce(cct.EVCODE_AUDIT_TYPE, cct_parent.EVCODE_AUDIT_TYPE),
+		EVCODE_AUDIT_DATE = coalesce(cct.EVCODE_AUDIT_DATE, cct_parent.EVCODE_AUDIT_DATE),
+		EVCODE_AUDIT_START = coalesce(cct.EVCODE_AUDIT_START, cct_parent.EVCODE_AUDIT_START),
+		EVCODE_AUDIT_END = coalesce(cct.EVCODE_AUDIT_END, cct_parent.EVCODE_AUDIT_END),
+		AUDITOR = coalesce(cct.AUDITOR, cct_parent.AUDITOR)
 	FROM ccadb_certificate_temp cct_parent
 	WHERE cct.CERTIFICATE_ID IS NOT NULL
 		AND cct.AUDITS_SAME_AS_PARENT
 		AND cct.PARENT_CERTIFICATE_ID = cct_parent.CERTIFICATE_ID;
-
 
 \echo Handle the Expired cases
 UPDATE ccadb_certificate_temp cct
@@ -627,12 +697,56 @@ UPDATE ccadb_certificate_temp cct
 		AND cct.CERT_RECORD_TYPE != 'Root Certificate'
 		AND (
 			(
-				NOT cct.CP_CPS_SAME_AS_PARENT
-				AND (coalesce(cct.CP_URL, cct.CPS_URL) IS NULL)
+				(coalesce(cct.CP_URL, cct.CPS_URL) IS NULL)
+				OR (cct.STANDARD_AUDIT_URL IS NULL)
+				OR (cct.STANDARD_AUDIT_TYPE IS NULL)
+				OR (cct.STANDARD_AUDIT_DATE IS NULL)
+				OR (cct.STANDARD_AUDIT_START IS NULL)
+				OR (cct.STANDARD_AUDIT_END IS NULL)
 			)
 			OR (
-				NOT cct.AUDITS_SAME_AS_PARENT
-				AND (coalesce(cct.STANDARD_AUDIT_URL, cct.BRSSL_AUDIT_URL) IS NULL)
+				EXISTS (
+					SELECT 1
+						FROM ca_trust_purpose ctp
+						WHERE ctp.CA_ID = c.ISSUER_CA_ID
+							AND ctp.TRUST_CONTEXT_ID = 5
+							AND ctp.TRUST_PURPOSE_ID = 1
+							AND (
+								x509_isEKUPermitted(c.CERTIFICATE, '1.3.6.1.5.5.7.3.1')
+								OR x509_isEKUPermitted(c.CERTIFICATE, '1.3.6.1.4.1.311.10.3.3')	-- MS SGC.
+								OR x509_isEKUPermitted(c.CERTIFICATE, '2.16.840.1.113730.4.1')	-- NS Step-Up.
+							)
+				)
+				AND (
+					(cct.BRSSL_AUDIT_URL IS NULL)
+					OR (cct.BRSSL_AUDIT_TYPE IS NULL)
+					OR (cct.BRSSL_AUDIT_DATE IS NULL)
+					OR (cct.BRSSL_AUDIT_START IS NULL)
+					OR (cct.BRSSL_AUDIT_END IS NULL)
+				)
+			)
+			OR (
+				EXISTS (
+					SELECT 1
+						FROM ca_trust_purpose ctp, trust_purpose tp
+						WHERE ctp.CA_ID = c.ISSUER_CA_ID
+							AND ctp.TRUST_CONTEXT_ID = 5
+							AND ctp.TRUST_PURPOSE_ID >= 100
+							AND ctp.TRUST_PURPOSE_ID = tp.ID
+							AND x509_isPolicyPermitted(c.CERTIFICATE, tp.PURPOSE_OID)
+							AND (
+								x509_isEKUPermitted(c.CERTIFICATE, '1.3.6.1.5.5.7.3.1')
+								OR x509_isEKUPermitted(c.CERTIFICATE, '1.3.6.1.4.1.311.10.3.3')	-- MS SGC.
+								OR x509_isEKUPermitted(c.CERTIFICATE, '2.16.840.1.113730.4.1')	-- NS Step-Up.
+							)
+				)
+				AND (
+					(cct.EVSSL_AUDIT_URL IS NULL)
+					OR (cct.EVSSL_AUDIT_TYPE IS NULL)
+					OR (cct.EVSSL_AUDIT_DATE IS NULL)
+					OR (cct.EVSSL_AUDIT_START IS NULL)
+					OR (cct.EVSSL_AUDIT_END IS NULL)
+				)
 			)
 		);
 UPDATE ccadb_certificate_temp cct
@@ -643,14 +757,344 @@ UPDATE ccadb_certificate_temp cct
 		AND cct.CERT_RECORD_TYPE != 'Root Certificate'
 		AND (
 			(
-				NOT cct.CP_CPS_SAME_AS_PARENT
-				AND (coalesce(cct.CP_URL, cct.CPS_URL) IS NULL)
+				(coalesce(cct.CP_URL, cct.CPS_URL) IS NULL)
+				OR (cct.STANDARD_AUDIT_URL IS NULL)
+				OR (cct.STANDARD_AUDIT_TYPE IS NULL)
+				OR (cct.STANDARD_AUDIT_DATE IS NULL)
+				OR (cct.STANDARD_AUDIT_START IS NULL)
+				OR (cct.STANDARD_AUDIT_END IS NULL)
 			)
 			OR (
-				NOT cct.AUDITS_SAME_AS_PARENT
-				AND (coalesce(cct.STANDARD_AUDIT_URL, cct.BRSSL_AUDIT_URL) IS NULL)
+				EXISTS (
+					SELECT 1
+						FROM ca_trust_purpose ctp
+						WHERE ctp.CA_ID = c.ISSUER_CA_ID
+							AND ctp.TRUST_CONTEXT_ID = 1
+							AND ctp.TRUST_PURPOSE_ID = 1
+							AND (
+								x509_isEKUPermitted(c.CERTIFICATE, '1.3.6.1.5.5.7.3.1')
+								OR x509_isEKUPermitted(c.CERTIFICATE, '1.3.6.1.4.1.311.10.3.3')	-- MS SGC.
+								OR x509_isEKUPermitted(c.CERTIFICATE, '2.16.840.1.113730.4.1')	-- NS Step-Up.
+							)
+				)
+				AND (
+					(cct.BRSSL_AUDIT_URL IS NULL)
+					OR (cct.BRSSL_AUDIT_TYPE IS NULL)
+					OR (cct.BRSSL_AUDIT_DATE IS NULL)
+					OR (cct.BRSSL_AUDIT_START IS NULL)
+					OR (cct.BRSSL_AUDIT_END IS NULL)
+				)
+			)
+			OR (
+				EXISTS (
+					SELECT 1
+						FROM ca_trust_purpose ctp, trust_purpose tp
+						WHERE ctp.CA_ID = c.ISSUER_CA_ID
+							AND ctp.TRUST_CONTEXT_ID = 1
+							AND ctp.TRUST_PURPOSE_ID >= 100
+							AND ctp.TRUST_PURPOSE_ID = tp.ID
+							AND x509_isPolicyPermitted(c.CERTIFICATE, tp.PURPOSE_OID)
+							AND (
+								x509_isEKUPermitted(c.CERTIFICATE, '1.3.6.1.5.5.7.3.1')
+								OR x509_isEKUPermitted(c.CERTIFICATE, '1.3.6.1.4.1.311.10.3.3')	-- MS SGC.
+								OR x509_isEKUPermitted(c.CERTIFICATE, '2.16.840.1.113730.4.1')	-- NS Step-Up.
+							)
+				)
+				AND (
+					(cct.EVSSL_AUDIT_URL IS NULL)
+					OR (cct.EVSSL_AUDIT_TYPE IS NULL)
+					OR (cct.EVSSL_AUDIT_DATE IS NULL)
+					OR (cct.EVSSL_AUDIT_START IS NULL)
+					OR (cct.EVSSL_AUDIT_END IS NULL)
+				)
 			)
 		);
+
+\echo Disclosed -> DisclosedWithInconsistentAudit
+UPDATE ccadb_certificate_temp cct
+	SET MOZILLA_DISCLOSURE_STATUS = 'DisclosedWithInconsistentAudit'
+	FROM ca_certificate cac
+			LEFT JOIN LATERAL (
+				SELECT COUNT(*) AS NUMBER_OF_AUDIT_VARIATIONS
+					FROM (
+						SELECT 1
+							FROM ca_certificate cac2, ccadb_certificate_temp cct2
+							WHERE cac.CA_ID = cac2.CA_ID
+								AND EXISTS (
+									SELECT 1
+										FROM certificate c, ca_trust_purpose ctp
+										WHERE c.ID = cac2.CERTIFICATE_ID
+											AND x509_notAfter(c.CERTIFICATE) > statement_timestamp() AT TIME ZONE 'UTC'
+											AND c.ISSUER_CA_ID = ctp.CA_ID
+											AND ctp.TRUST_CONTEXT_ID = 5
+											AND NOT ctp.ALL_CHAINS_REVOKED_IN_SALESFORCE
+											AND ctp.IS_TIME_VALID
+								)
+								AND cac2.CERTIFICATE_ID = cct2.CERTIFICATE_ID
+								AND cct2.CCADB_RECORD_ID IS NOT NULL	-- Ignore CA certificates not in CCADB (e.g., kernel mode cross-certificates).
+							GROUP BY cct2.STANDARD_AUDIT_URL, cct2.STANDARD_AUDIT_TYPE, cct2.STANDARD_AUDIT_DATE, cct2.STANDARD_AUDIT_START, cct2.STANDARD_AUDIT_END
+					) sub
+			) audit_variations ON TRUE
+	WHERE cct.MOZILLA_DISCLOSURE_STATUS = 'Disclosed'
+		AND cct.CERT_RECORD_TYPE != 'Root Certificate'
+		AND cct.CERTIFICATE_ID = cac.CERTIFICATE_ID
+		AND EXISTS (			-- Standard audit inconsistencies are only relevant if the CA is trusted by Mozilla.
+			SELECT 1
+				FROM ca_trust_purpose ctp
+				WHERE ctp.CA_ID = cac.CA_ID
+					AND ctp.TRUST_CONTEXT_ID = 5
+		)
+		AND coalesce(audit_variations.NUMBER_OF_AUDIT_VARIATIONS, 0) > 1;
+UPDATE ccadb_certificate_temp cct
+	SET MOZILLA_DISCLOSURE_STATUS = 'DisclosedWithInconsistentAudit'
+	FROM ca_certificate cac
+			LEFT JOIN LATERAL (
+				SELECT COUNT(*) AS NUMBER_OF_AUDIT_VARIATIONS
+					FROM (
+						SELECT 1
+							FROM ca_certificate cac2, ccadb_certificate_temp cct2
+							WHERE cac.CA_ID = cac2.CA_ID
+								AND EXISTS (
+									SELECT 1
+										FROM certificate c, ca_trust_purpose ctp
+										WHERE c.ID = cac2.CERTIFICATE_ID
+											AND x509_notAfter(c.CERTIFICATE) > statement_timestamp() AT TIME ZONE 'UTC'
+											AND c.ISSUER_CA_ID = ctp.CA_ID
+											AND ctp.TRUST_CONTEXT_ID = 5
+											AND ctp.TRUST_PURPOSE_ID = 1
+											AND NOT ctp.ALL_CHAINS_REVOKED_IN_SALESFORCE
+											AND ctp.IS_TIME_VALID
+								)
+								AND cac2.CERTIFICATE_ID = cct2.CERTIFICATE_ID
+								AND cct2.CCADB_RECORD_ID IS NOT NULL	-- Ignore CA certificates not in CCADB (e.g., kernel mode cross-certificates).
+							GROUP BY cct2.BRSSL_AUDIT_URL, cct2.BRSSL_AUDIT_TYPE, cct2.BRSSL_AUDIT_DATE, cct2.BRSSL_AUDIT_START, cct2.BRSSL_AUDIT_END
+					) sub
+			) audit_variations ON TRUE
+	WHERE cct.MOZILLA_DISCLOSURE_STATUS = 'Disclosed'
+		AND cct.CERT_RECORD_TYPE != 'Root Certificate'
+		AND cct.CERTIFICATE_ID = cac.CERTIFICATE_ID
+		AND EXISTS (			-- BR SSL audit inconsistencies are only relevant if the CA is trusted to issue Server Authentication certificates.
+			SELECT 1
+				FROM ca_trust_purpose ctp
+				WHERE ctp.CA_ID = cac.CA_ID
+					AND ctp.TRUST_CONTEXT_ID = 5
+					AND ctp.TRUST_PURPOSE_ID = 1
+		)
+		AND coalesce(audit_variations.NUMBER_OF_AUDIT_VARIATIONS, 0) > 1;
+UPDATE ccadb_certificate_temp cct
+	SET MOZILLA_DISCLOSURE_STATUS = 'DisclosedWithInconsistentAudit'
+	FROM ca_certificate cac
+			LEFT JOIN LATERAL (
+				SELECT COUNT(*) AS NUMBER_OF_AUDIT_VARIATIONS
+					FROM (
+						SELECT 1
+							FROM ca_certificate cac2, ccadb_certificate_temp cct2
+							WHERE cac.CA_ID = cac2.CA_ID
+								AND EXISTS (
+									SELECT 1
+										FROM certificate c, ca_trust_purpose ctp
+										WHERE c.ID = cac2.CERTIFICATE_ID
+											AND x509_notAfter(c.CERTIFICATE) > statement_timestamp() AT TIME ZONE 'UTC'
+											AND c.ISSUER_CA_ID = ctp.CA_ID
+											AND ctp.TRUST_CONTEXT_ID = 5
+											AND ctp.TRUST_PURPOSE_ID >= 100
+											AND NOT ctp.ALL_CHAINS_REVOKED_IN_SALESFORCE
+											AND ctp.IS_TIME_VALID
+								)
+								AND cac2.CERTIFICATE_ID = cct2.CERTIFICATE_ID
+								AND cct2.CCADB_RECORD_ID IS NOT NULL	-- Ignore CA certificates not in CCADB (e.g., kernel mode cross-certificates).
+							GROUP BY cct2.EVSSL_AUDIT_URL, cct2.EVSSL_AUDIT_TYPE, cct2.EVSSL_AUDIT_DATE, cct2.EVSSL_AUDIT_START, cct2.EVSSL_AUDIT_END
+					) sub
+			) audit_variations ON TRUE
+	WHERE cct.MOZILLA_DISCLOSURE_STATUS = 'Disclosed'
+		AND cct.CERT_RECORD_TYPE != 'Root Certificate'
+		AND cct.CERTIFICATE_ID = cac.CERTIFICATE_ID
+		AND EXISTS (			-- EV SSL audit inconsistencies are only relevant if the CA is trusted to issue EV SSL certificates.
+			SELECT 1
+				FROM ca_trust_purpose ctp
+				WHERE ctp.CA_ID = cac.CA_ID
+					AND ctp.TRUST_CONTEXT_ID = 5
+					AND ctp.TRUST_PURPOSE_ID >= 100
+		)
+		AND coalesce(audit_variations.NUMBER_OF_AUDIT_VARIATIONS, 0) > 1;
+
+UPDATE ccadb_certificate_temp cct
+	SET MICROSOFT_DISCLOSURE_STATUS = 'DisclosedWithInconsistentAudit'
+	FROM ca_certificate cac
+			LEFT JOIN LATERAL (
+				SELECT COUNT(*) AS NUMBER_OF_AUDIT_VARIATIONS
+					FROM (
+						SELECT 1
+							FROM ca_certificate cac2, ccadb_certificate_temp cct2
+							WHERE cac.CA_ID = cac2.CA_ID
+								AND EXISTS (
+									SELECT 1
+										FROM certificate c, ca_trust_purpose ctp
+										WHERE c.ID = cac2.CERTIFICATE_ID
+											AND x509_notAfter(c.CERTIFICATE) > statement_timestamp() AT TIME ZONE 'UTC'
+											AND c.ISSUER_CA_ID = ctp.CA_ID
+											AND ctp.TRUST_CONTEXT_ID = 1
+											AND NOT ctp.ALL_CHAINS_REVOKED_IN_SALESFORCE
+											AND ctp.IS_TIME_VALID
+								)
+								AND cac2.CERTIFICATE_ID = cct2.CERTIFICATE_ID
+								AND cct2.CCADB_RECORD_ID IS NOT NULL	-- Ignore CA certificates not in CCADB (e.g., kernel mode cross-certificates).
+							GROUP BY cct2.STANDARD_AUDIT_URL, cct2.STANDARD_AUDIT_TYPE, cct2.STANDARD_AUDIT_DATE, cct2.STANDARD_AUDIT_START, cct2.STANDARD_AUDIT_END
+					) sub
+			) audit_variations ON TRUE
+	WHERE cct.MICROSOFT_DISCLOSURE_STATUS = 'Disclosed'
+		AND cct.CERT_RECORD_TYPE != 'Root Certificate'
+		AND cct.CERTIFICATE_ID = cac.CERTIFICATE_ID
+		AND EXISTS (			-- Standard audit inconsistencies are only relevant if the CA is trusted by Microsoft.
+			SELECT 1
+				FROM ca_trust_purpose ctp
+				WHERE ctp.CA_ID = cac.CA_ID
+					AND ctp.TRUST_CONTEXT_ID = 1
+		)
+		AND coalesce(audit_variations.NUMBER_OF_AUDIT_VARIATIONS, 0) > 1;
+UPDATE ccadb_certificate_temp cct
+	SET MICROSOFT_DISCLOSURE_STATUS = 'DisclosedWithInconsistentAudit'
+	FROM ca_certificate cac
+			LEFT JOIN LATERAL (
+				SELECT COUNT(*) AS NUMBER_OF_AUDIT_VARIATIONS
+					FROM (
+						SELECT 1
+							FROM ca_certificate cac2, ccadb_certificate_temp cct2
+							WHERE cac.CA_ID = cac2.CA_ID
+								AND EXISTS (
+									SELECT 1
+										FROM certificate c, ca_trust_purpose ctp
+										WHERE c.ID = cac2.CERTIFICATE_ID
+											AND x509_notAfter(c.CERTIFICATE) > statement_timestamp() AT TIME ZONE 'UTC'
+											AND c.ISSUER_CA_ID = ctp.CA_ID
+											AND ctp.TRUST_CONTEXT_ID = 1
+											AND ctp.TRUST_PURPOSE_ID = 1
+											AND NOT ctp.ALL_CHAINS_REVOKED_IN_SALESFORCE
+											AND ctp.IS_TIME_VALID
+								)
+								AND cac2.CERTIFICATE_ID = cct2.CERTIFICATE_ID
+								AND cct2.CCADB_RECORD_ID IS NOT NULL	-- Ignore CA certificates not in CCADB (e.g., kernel mode cross-certificates).
+							GROUP BY cct2.BRSSL_AUDIT_URL, cct2.BRSSL_AUDIT_TYPE, cct2.BRSSL_AUDIT_DATE, cct2.BRSSL_AUDIT_START, cct2.BRSSL_AUDIT_END
+					) sub
+			) audit_variations ON TRUE
+	WHERE cct.MICROSOFT_DISCLOSURE_STATUS = 'Disclosed'
+		AND cct.CERT_RECORD_TYPE != 'Root Certificate'
+		AND cct.CERTIFICATE_ID = cac.CERTIFICATE_ID
+		AND EXISTS (			-- BR SSL audit inconsistencies are only relevant if the CA is trusted to issue Server Authentication certificates.
+			SELECT 1
+				FROM ca_trust_purpose ctp
+				WHERE ctp.CA_ID = cac.CA_ID
+					AND ctp.TRUST_CONTEXT_ID = 1
+					AND ctp.TRUST_PURPOSE_ID = 1
+		)
+		AND coalesce(audit_variations.NUMBER_OF_AUDIT_VARIATIONS, 0) > 1;
+UPDATE ccadb_certificate_temp cct
+	SET MICROSOFT_DISCLOSURE_STATUS = 'DisclosedWithInconsistentAudit'
+	FROM ca_certificate cac
+			LEFT JOIN LATERAL (
+				SELECT COUNT(*) AS NUMBER_OF_AUDIT_VARIATIONS
+					FROM (
+						SELECT 1
+							FROM ca_certificate cac2, ccadb_certificate_temp cct2
+							WHERE cac.CA_ID = cac2.CA_ID
+								AND EXISTS (
+									SELECT 1
+										FROM certificate c, ca_trust_purpose ctp
+										WHERE c.ID = cac2.CERTIFICATE_ID
+											AND x509_notAfter(c.CERTIFICATE) > statement_timestamp() AT TIME ZONE 'UTC'
+											AND c.ISSUER_CA_ID = ctp.CA_ID
+											AND ctp.TRUST_CONTEXT_ID = 1
+											AND ctp.TRUST_PURPOSE_ID >= 100
+											AND NOT ctp.ALL_CHAINS_REVOKED_IN_SALESFORCE
+											AND ctp.IS_TIME_VALID
+								)
+								AND cac2.CERTIFICATE_ID = cct2.CERTIFICATE_ID
+								AND cct2.CCADB_RECORD_ID IS NOT NULL	-- Ignore CA certificates not in CCADB (e.g., kernel mode cross-certificates).
+							GROUP BY cct2.EVSSL_AUDIT_URL, cct2.EVSSL_AUDIT_TYPE, cct2.EVSSL_AUDIT_DATE, cct2.EVSSL_AUDIT_START, cct2.EVSSL_AUDIT_END
+					) sub
+			) audit_variations ON TRUE
+	WHERE cct.MICROSOFT_DISCLOSURE_STATUS = 'Disclosed'
+		AND cct.CERT_RECORD_TYPE != 'Root Certificate'
+		AND cct.CERTIFICATE_ID = cac.CERTIFICATE_ID
+		AND EXISTS (			-- EV SSL audit inconsistencies are only relevant if the CA is trusted to issue EV SSL certificates.
+			SELECT 1
+				FROM ca_trust_purpose ctp
+				WHERE ctp.CA_ID = cac.CA_ID
+					AND ctp.TRUST_CONTEXT_ID = 1
+					AND ctp.TRUST_PURPOSE_ID >= 100
+		)
+		AND coalesce(audit_variations.NUMBER_OF_AUDIT_VARIATIONS, 0) > 1;
+
+\echo Disclosed -> DisclosedWithInconsistentCPS
+UPDATE ccadb_certificate_temp cct
+	SET MOZILLA_DISCLOSURE_STATUS = 'DisclosedWithInconsistentCPS'
+	FROM ca_certificate cac
+			LEFT JOIN LATERAL (
+				SELECT COUNT(*) AS NUMBER_OF_CP_CPS_VARIATIONS
+					FROM (
+						SELECT 1
+							FROM ca_certificate cac2, ccadb_certificate_temp cct2
+							WHERE cac.CA_ID = cac2.CA_ID
+								AND EXISTS (
+									SELECT 1
+										FROM certificate c, ca_trust_purpose ctp
+										WHERE c.ID = cac2.CERTIFICATE_ID
+											AND x509_notAfter(c.CERTIFICATE) > statement_timestamp() AT TIME ZONE 'UTC'
+											AND c.ISSUER_CA_ID = ctp.CA_ID
+											AND ctp.TRUST_CONTEXT_ID = 5
+											AND NOT ctp.ALL_CHAINS_REVOKED_IN_SALESFORCE
+											AND ctp.IS_TIME_VALID
+								)
+								AND cac2.CERTIFICATE_ID = cct2.CERTIFICATE_ID
+								AND cct2.CCADB_RECORD_ID IS NOT NULL	-- Ignore CA certificates not in CCADB (e.g., kernel mode cross-certificates).
+							GROUP BY cct2.CP_URL, cct2.CPS_URL
+					) sub
+			) cpcps_variations ON TRUE
+	WHERE cct.MOZILLA_DISCLOSURE_STATUS = 'Disclosed'
+		AND cct.CERT_RECORD_TYPE != 'Root Certificate'
+		AND cct.CERTIFICATE_ID = cac.CERTIFICATE_ID
+		AND EXISTS (			-- Standard audit inconsistencies are only relevant if the CA is trusted by Mozilla.
+			SELECT 1
+				FROM ca_trust_purpose ctp
+				WHERE ctp.CA_ID = cac.CA_ID
+					AND ctp.TRUST_CONTEXT_ID = 5
+		)
+		AND coalesce(cpcps_variations.NUMBER_OF_CP_CPS_VARIATIONS, 0) > 1;
+
+UPDATE ccadb_certificate_temp cct
+	SET MICROSOFT_DISCLOSURE_STATUS = 'DisclosedWithInconsistentCPS'
+	FROM ca_certificate cac
+			LEFT JOIN LATERAL (
+				SELECT COUNT(*) AS NUMBER_OF_CP_CPS_VARIATIONS
+					FROM (
+						SELECT 1
+							FROM ca_certificate cac2, ccadb_certificate_temp cct2
+							WHERE cac.CA_ID = cac2.CA_ID
+								AND EXISTS (
+									SELECT 1
+										FROM certificate c, ca_trust_purpose ctp
+										WHERE c.ID = cac2.CERTIFICATE_ID
+											AND x509_notAfter(c.CERTIFICATE) > statement_timestamp() AT TIME ZONE 'UTC'
+											AND c.ISSUER_CA_ID = ctp.CA_ID
+											AND ctp.TRUST_CONTEXT_ID = 1
+											AND NOT ctp.ALL_CHAINS_REVOKED_IN_SALESFORCE
+											AND ctp.IS_TIME_VALID
+								)
+								AND cac2.CERTIFICATE_ID = cct2.CERTIFICATE_ID
+								AND cct2.CCADB_RECORD_ID IS NOT NULL	-- Ignore CA certificates not in CCADB (e.g., kernel mode cross-certificates).
+							GROUP BY cct2.CP_URL, cct2.CPS_URL
+					) sub
+			) cpcps_variations ON TRUE
+	WHERE cct.MICROSOFT_DISCLOSURE_STATUS = 'Disclosed'
+		AND cct.CERT_RECORD_TYPE != 'Root Certificate'
+		AND cct.CERTIFICATE_ID = cac.CERTIFICATE_ID
+		AND EXISTS (			-- Standard audit inconsistencies are only relevant if the CA is trusted by Mozilla.
+			SELECT 1
+				FROM ca_trust_purpose ctp
+				WHERE ctp.CA_ID = cac.CA_ID
+					AND ctp.TRUST_CONTEXT_ID = 1
+		)
+		AND coalesce(cpcps_variations.NUMBER_OF_CP_CPS_VARIATIONS, 0) > 1;
 
 \echo Disclosed -> DisclosedWithErrors
 UPDATE ccadb_certificate_temp cct

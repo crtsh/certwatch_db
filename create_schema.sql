@@ -607,6 +607,8 @@ CREATE TABLE ca_trust_purpose (
 
 CREATE TYPE disclosure_status_type AS ENUM (
 	'DisclosureIncomplete',
+	'DisclosedWithInconsistentAudit',
+	'DisclosedWithInconsistentCPS',
 	'Undisclosed',
 	'AllServerAuthPathsRevoked',
 	'NoKnownServerAuthTrustPath',
