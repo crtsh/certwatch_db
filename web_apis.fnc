@@ -111,7 +111,7 @@ DECLARE
 	t_orderBy			text			:= 'ASC';
 	t_matchType			text			:= '=';
 	t_opt				text;
-	t_maxAge			timestamp;
+	t_maxAge			timestamp without time zone;
 	t_cacheResponse		boolean			:= FALSE;
 	t_useCachedResponse	boolean			:= FALSE;
 	t_linter			linter_type;
@@ -413,7 +413,7 @@ Content-Type: application/json
 	IF t_useCachedResponse THEN
 		t_count := coalesce(get_parameter('maxage', paramNames, paramValues), '172800')::integer;
 		t_cacheResponse := (t_count = 0);
-		t_maxAge := statement_timestamp() - (interval '1 second' * t_count);
+		t_maxAge := statement_timestamp() AT TIME ZONE 'UTC' - (interval '1 second' * t_count);
 		SELECT cr.RESPONSE_BODY
 			INTO t_output
 			FROM cached_response cr
@@ -1874,6 +1874,7 @@ Content-Type: text/plain; charset=UTF-8
     <TH>Auditor</TH>
     <TH>Standard Audit</TH>
     <TH>BR Audit</TH>
+    <TH>EV SSL Audit</TH>
     <TH>Documents</TH>
     <TH>CCADB</TH>
     <TH>Root Owner / Certificate</TH>
@@ -1882,26 +1883,32 @@ Content-Type: text/plain; charset=UTF-8
 					END IF;
 					t_temp := t_temp ||
 '  <TR>
-    <TD>' || coalesce(l_record.AUDITOR, '') || '</TD>
-    <TD>';
-					IF coalesce(l_record.STANDARD_AUDIT_URL, '') NOT LIKE '%://%' THEN
-						t_temp := t_temp || coalesce(l_record.STANDARD_AUDIT_URL, 'Not disclosed');
-					ELSE
-						t_temp := t_temp || '
+    <TD style="vertical-align:middle">' || coalesce(l_record.AUDITOR, '') || '</TD>
+    <TD>' || coalesce(l_record.STANDARD_AUDIT_TYPE, 'Not disclosed');
+					IF coalesce(l_record.STANDARD_AUDIT_URL, '') LIKE '%://%' THEN
+						t_temp := t_temp || ':
       <A href="' || l_record.STANDARD_AUDIT_URL || '" target="_blank">' || coalesce(l_record.STANDARD_AUDIT_DATE::text, 'Yes') || '</A>
-    ';
+      <BR><FONT style="font-size:8pt">(' || l_record.STANDARD_AUDIT_START || ' to ' || l_record.STANDARD_AUDIT_END || ')</FONT></TD>
+';
 					END IF;
-					t_temp := t_temp || '</TD>
-    <TD>';
-					IF coalesce(l_record.BRSSL_AUDIT_URL, '') NOT LIKE '%://%' THEN
-						t_temp := t_temp || coalesce(l_record.BRSSL_AUDIT_URL, 'No');
-					ELSE
-						t_temp := t_temp || '
-      <A href="' || l_record.BRSSL_AUDIT_URL || '" target="_blank">Yes</A>
-    ';
+					t_temp := t_temp ||
+'    <TD>' || coalesce(l_record.BRSSL_AUDIT_TYPE, 'No');
+					IF coalesce(l_record.BRSSL_AUDIT_URL, '') LIKE '%://%' THEN
+						t_temp := t_temp || ':
+      <A href="' || l_record.BRSSL_AUDIT_URL || '" target="_blank">' || coalesce(l_record.BRSSL_AUDIT_DATE::text, 'Yes') || '</A>
+      <BR><FONT style="font-size:8pt">(' || l_record.BRSSL_AUDIT_START || ' to ' || l_record.BRSSL_AUDIT_END || ')</FONT></TD>
+';
 					END IF;
-					t_temp := t_temp || '</TD>
-    <TD>
+					t_temp := t_temp ||
+'    <TD>' || coalesce(l_record.EVSSL_AUDIT_TYPE, 'No');
+					IF coalesce(l_record.EVSSL_AUDIT_URL, '') LIKE '%://%' THEN
+						t_temp := t_temp || ':
+      <A href="' || l_record.EVSSL_AUDIT_URL || '" target="_blank">' || coalesce(l_record.EVSSL_AUDIT_DATE::text, 'Yes') || '</A>
+      <BR><FONT style="font-size:8pt">(' || l_record.EVSSL_AUDIT_START || ' to ' || l_record.EVSSL_AUDIT_END || ')</FONT></TD>
+';
+					END IF;
+					t_temp := t_temp ||
+'    <TD>
 ';
 					IF coalesce(l_record.CP_URL, '') != '' THEN
 						t_temp := t_temp ||
@@ -4257,10 +4264,10 @@ Content-Type: text/html; charset=UTF-8
 				PAGE_NAME, GENERATED_AT, RESPONSE_BODY
 			)
 			VALUES (
-				t_type, statement_timestamp(), t_output
+				t_type, statement_timestamp() AT TIME ZONE 'UTC', t_output
 			)
 			ON CONFLICT (PAGE_NAME) DO UPDATE
-				SET GENERATED_AT = statement_timestamp(),
+				SET GENERATED_AT = statement_timestamp() AT TIME ZONE 'UTC',
 					RESPONSE_BODY = t_output;
 		RETURN 'Cached';
 	ELSE
