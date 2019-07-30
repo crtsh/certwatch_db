@@ -19,6 +19,8 @@ DECLARE
 	t_nonServerCount		integer		:= 0;
 	t_nonServerTrustCount	integer		:= 0;
 	t_group					text;
+	t_problems				text[];
+	t_spki					bytea;
 	l_record				RECORD;
 BEGIN
 	IF trustContextID = 5 THEN
@@ -127,6 +129,26 @@ BEGIN
     <TD style="font-family:monospace"><A href="/?sha256=' || encode(l_record.CERT_SHA256, 'hex') || t_opt || '" target="blank">' || substr(upper(encode(l_record.CERT_SHA256, 'hex')), 1, 16) || '...</A></TD>
   </TR>
 ';
+		t_problems := disclosure_problems(l_record.CERTIFICATE_ID, 5);
+		IF array_length(t_problems, 1) > 0 THEN
+			SELECT digest(x509_publicKey(c.CERTIFICATE), 'sha256')
+				INTO t_spki
+				FROM certificate c
+				WHERE c.ID = l_record.CERTIFICATE_ID;
+			t_row := t_row ||
+'  <TR>
+    <TD colspan="10" style="font-family:monospace;font-size:8pt;color:red;padding-left:20px">
+';
+			IF disclosureStatus != 'DisclosureIncomplete' THEN
+				t_row := t_row ||
+'      <A href="//ccadb.force.com/_ui/search/ui/UnifiedSearchResults?str=' || encode(t_spki, 'hex') || '" target="_blank">Review this Subject CA''s CCADB records</A><BR>
+';
+			END IF;
+			t_row := t_row || array_to_string(t_problems, '<BR>') || '
+    </TD>
+  </TR>
+';
+		END IF;
 
 		IF t_serverTrustCount > 0 THEN
 			t_server := t_server || t_row;
