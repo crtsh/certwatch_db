@@ -1,6 +1,8 @@
 \timing
 
-CREATE TABLE mozilla_root_hashes_new ( LIKE mozilla_root_hashes INCLUDING INDEXES);
+BEGIN WORK;
+
+CREATE TEMPORARY TABLE mozilla_root_hashes_new ( LIKE mozilla_root_hashes INCLUDING INDEXES) ON COMMIT DROP;
 
 \i mozilla_root_hashes.sql
 
@@ -24,8 +26,6 @@ UPDATE mozilla_root_hashes_new mrhn
 		) sub
 	WHERE mrhn.CERTIFICATE_ID = sub.CERTIFICATE_ID;
 
-BEGIN WORK;
-
 LOCK mozilla_root_hashes;
 
 TRUNCATE mozilla_root_hashes;
@@ -35,13 +35,16 @@ INSERT INTO mozilla_root_hashes
 
 COMMIT WORK;
 
-DROP TABLE mozilla_root_hashes_new;
 
+BEGIN WORK;
+
+LOCK TABLE mozilla_cert_validation_success_import;
 
 TRUNCATE TABLE mozilla_cert_validation_success_import;
 
 \COPY mozilla_cert_validation_success_import FROM mozilla_cert_validation_success.csv
 
+LOCK TABLE mozilla_cert_validation_success;
 
 TRUNCATE TABLE mozilla_cert_validation_success;
 
@@ -54,6 +57,7 @@ INSERT INTO mozilla_cert_validation_success (
 		WHERE mcvsi.RELEASE = 'release'
 		GROUP BY mcvsi.SUBMISSION_DATE, mcvsi.BIN_NUMBER, mrh.CERTIFICATE_ID;
 
+COMMIT WORK;
 
 -- Cache page(s).
 SELECT substr(web_apis(NULL, '{output,maxage}'::text[], '{mozilla-certvalidations-by-root,0}'::text[]), 1, 6);

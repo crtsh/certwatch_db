@@ -59,6 +59,8 @@ UPDATE mozilla_onecrl_new mon
 	WHERE ca.NAME = x509_name_print(mon.ISSUER_NAME)
 		AND mon.ISSUER_CA_ID IS NULL;
 
+LOCK mozilla_onecrl;
+
 TRUNCATE mozilla_onecrl;
 
 INSERT INTO mozilla_onecrl
@@ -70,6 +72,7 @@ COMMIT WORK;
 SELECT substr(web_apis(NULL, '{output,maxage}'::text[], '{mozilla-onecrl,0}'::text[]), 1, 6);
 
 SELECT substr(web_apis(NULL, '{output,maxage}'::text[], '{revoked-intermediates,0}'::text[]), 1, 6);
+
 
 BEGIN WORK;
 
@@ -85,11 +88,13 @@ INSERT INTO microsoft_disallowedcert (CERTIFICATE_ID, PUBLIC_KEY_MD5)
 COMMIT WORK;
 
 
+BEGIN WORK;
+
+LOCK google_crlset_import;
+
 TRUNCATE google_crlset_import;
 
 \COPY google_crlset_import FROM 'google_crlset.csv';
-
-BEGIN WORK;
 
 LOCK google_revoked;
 

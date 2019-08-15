@@ -12,6 +12,8 @@ CREATE INDEX ctpt_lc
 
 SELECT determine_ca_trust_purposes();
 
+LOCK TABLE ca_trust_purpose;
+
 TRUNCATE ca_trust_purpose;
 
 INSERT INTO ca_trust_purpose

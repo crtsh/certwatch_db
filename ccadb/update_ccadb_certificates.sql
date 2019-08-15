@@ -1178,6 +1178,8 @@ UPDATE ccadb_certificate_temp cct
 	FROM ccadb_certificate cc
 	WHERE cct.CERT_SHA256 = cc.CERT_SHA256;
 
+LOCK ccadb_certificate;
+
 TRUNCATE ccadb_certificate;
 
 INSERT INTO ccadb_certificate
