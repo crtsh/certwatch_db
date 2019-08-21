@@ -71,8 +71,6 @@ DROP TYPE revocation_entry_type;
 
 DROP TABLE microsoft_disallowedcert;
 
-DROP TABLE microsoft_disallowedcert_import;
-
 DROP TABLE debian_weak_key;
 
 DROP TYPE debian_rnd_type;

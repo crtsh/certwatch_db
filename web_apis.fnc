@@ -2020,15 +2020,22 @@ Content-Type: text/plain; charset=UTF-8
 				WHERE gr.CERTIFICATE_ID = t_certificateID;
 			t_temp := coalesce(t_temp, 'Not Revoked');
 
-			SELECT '<SPAN style="color:#CC0000">Revoked [by MD5(PublicKey)]</SPAN>'
+			SELECT '<SPAN style="color:#CC0000">Revoked' ||
+					CASE length(mdc.DISALLOWED_HASH)
+						WHEN 16 THEN ' [by MD5(PublicKey)]'
+						WHEN 48 THEN ' [by SHA-384(TBSCertificate)]'
+					END || '</SPAN>'
 				INTO t_temp2
 				FROM microsoft_disallowedcert mdc
 				WHERE mdc.CERTIFICATE_ID = t_certificateID;
 			t_temp2 := coalesce(t_temp2, 'Not Revoked');
 
 			SELECT '<SPAN style="color:#CC0000">Revoked [by Issuer Name, Serial Number]</SPAN></TD><TD>'
-					|| to_char(mo.CREATED, 'YYYY-MM-DD') || '&nbsp; <FONT class="small">'
-					|| to_char(mo.CREATED, 'HH24:MI:SS UTC') || '</FONT>'
+					|| CASE WHEN mo.CREATED IS NOT NULL
+						THEN to_char(mo.CREATED, 'YYYY-MM-DD') || '&nbsp; <FONT class="small">'
+							|| to_char(mo.CREATED, 'HH24:MI:SS UTC') || '</FONT>'
+						ELSE '<SPAN style="color:#888888">Unknown</SPAN>'
+						END
 				INTO t_temp3
 				FROM mozilla_onecrl mo
 				WHERE mo.CERTIFICATE_ID = t_certificateID;

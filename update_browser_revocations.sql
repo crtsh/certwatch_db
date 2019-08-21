@@ -1,5 +1,10 @@
 \timing
 
+-- Note: The microsoft_disallowedcert table is updated manually.
+
+
+-- Update the mozilla_onecrl table.
+
 BEGIN WORK;
 
 CREATE TEMPORARY TABLE onecrl_import1 (
@@ -74,19 +79,7 @@ SELECT substr(web_apis(NULL, '{output,maxage}'::text[], '{mozilla-onecrl,0}'::te
 SELECT substr(web_apis(NULL, '{output,maxage}'::text[], '{revoked-intermediates,0}'::text[]), 1, 6);
 
 
-BEGIN WORK;
-
-LOCK microsoft_disallowedcert;
-
-TRUNCATE microsoft_disallowedcert;
-
-INSERT INTO microsoft_disallowedcert (CERTIFICATE_ID, PUBLIC_KEY_MD5)
-	SELECT c.ID, mdci.PUBLIC_KEY_MD5
-		FROM microsoft_disallowedcert_import mdci, certificate c
-		WHERE mdci.PUBLIC_KEY_MD5 = x509_publicKeyMD5(c.CERTIFICATE);
-
-COMMIT WORK;
-
+-- Update the google_revoked table.
 
 BEGIN WORK;
 

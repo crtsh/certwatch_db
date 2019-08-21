@@ -746,15 +746,9 @@ CREATE TABLE debian_weak_key (
 		PRIMARY KEY (SHA1_MODULUS)
 );
 
-CREATE TABLE microsoft_disallowedcert_import (
-	PUBLIC_KEY_MD5		bytea,
-	CONSTRAINT mdci_pk
-		PRIMARY KEY (PUBLIC_KEY_MD5)
-);
-
 CREATE TABLE microsoft_disallowedcert (
 	CERTIFICATE_ID		integer,
-	PUBLIC_KEY_MD5		bytea,
+	DISALLOWED_HASH		bytea,
 	CONSTRAINT mdc_pk
 		PRIMARY KEY (CERTIFICATE_ID),
 	CONSTRAINT mdc_c_fk
