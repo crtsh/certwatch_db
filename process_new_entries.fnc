@@ -12,7 +12,7 @@ DECLARE
 	findIssuer_cursor	CURSOR FOR
 							SELECT net.CT_LOG_ID, net.ENTRY_ID, net.ENTRY_TIMESTAMP,
 									net.DER_X509, net.CERTIFICATE_ID,
-									net.ISSUER_CA_ID, net.LINTING_APPLIES,
+									net.ISSUER_CA_ID, NULL::boolean LINTING_APPLIES,
 									net.NEW_AND_CAN_ISSUE_CERTS
 								FROM newentries_temp net
 								WHERE net.NEW_CERT_COUNT = 1
@@ -26,10 +26,11 @@ DECLARE
 BEGIN
 	-- Linting requirements flow down from the issuer CA.
 	UPDATE newentries_temp net
-		SET LINTING_APPLIES = ca.LINTING_APPLIES
+		SET LINTING_APPLIES = 't'
 		FROM ca
 		WHERE net.ISSUER_CA_ID IS NOT NULL
-			AND net.ISSUER_CA_ID = ca.ID;
+			AND net.ISSUER_CA_ID = ca.ID
+			AND ca.LINTING_APPLIES = 't';
 
 	-- Determine which certificates are already known.
 	UPDATE newentries_temp net
