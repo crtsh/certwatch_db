@@ -831,6 +831,7 @@ UPDATE ccadb_certificate_temp cct
 											AND ctp.IS_TIME_VALID
 								)
 								AND cac2.CERTIFICATE_ID = cct2.CERTIFICATE_ID
+								AND cct2.REVOCATION_STATUS NOT IN ('Revoked', 'Parent Cert Revoked')
 								AND cct2.CCADB_RECORD_ID IS NOT NULL	-- Ignore CA certificates not in CCADB (e.g., kernel mode cross-certificates).
 							GROUP BY cct2.STANDARD_AUDIT_URL, cct2.STANDARD_AUDIT_TYPE, cct2.STANDARD_AUDIT_DATE, cct2.STANDARD_AUDIT_START, cct2.STANDARD_AUDIT_END
 					) sub
@@ -866,6 +867,7 @@ UPDATE ccadb_certificate_temp cct
 											AND ctp.IS_TIME_VALID
 								)
 								AND cac2.CERTIFICATE_ID = cct2.CERTIFICATE_ID
+								AND cct2.REVOCATION_STATUS NOT IN ('Revoked', 'Parent Cert Revoked')
 								AND cct2.CCADB_RECORD_ID IS NOT NULL	-- Ignore CA certificates not in CCADB (e.g., kernel mode cross-certificates).
 							GROUP BY cct2.BRSSL_AUDIT_URL, cct2.BRSSL_AUDIT_TYPE, cct2.BRSSL_AUDIT_DATE, cct2.BRSSL_AUDIT_START, cct2.BRSSL_AUDIT_END
 					) sub
@@ -902,6 +904,7 @@ UPDATE ccadb_certificate_temp cct
 											AND ctp.IS_TIME_VALID
 								)
 								AND cac2.CERTIFICATE_ID = cct2.CERTIFICATE_ID
+								AND cct2.REVOCATION_STATUS NOT IN ('Revoked', 'Parent Cert Revoked')
 								AND cct2.CCADB_RECORD_ID IS NOT NULL	-- Ignore CA certificates not in CCADB (e.g., kernel mode cross-certificates).
 							GROUP BY cct2.EVSSL_AUDIT_URL, cct2.EVSSL_AUDIT_TYPE, cct2.EVSSL_AUDIT_DATE, cct2.EVSSL_AUDIT_START, cct2.EVSSL_AUDIT_END
 					) sub
@@ -938,6 +941,7 @@ UPDATE ccadb_certificate_temp cct
 											AND ctp.IS_TIME_VALID
 								)
 								AND cac2.CERTIFICATE_ID = cct2.CERTIFICATE_ID
+								AND cct2.REVOCATION_STATUS NOT IN ('Revoked', 'Parent Cert Revoked')
 								AND cct2.CCADB_RECORD_ID IS NOT NULL	-- Ignore CA certificates not in CCADB (e.g., kernel mode cross-certificates).
 							GROUP BY cct2.STANDARD_AUDIT_URL, cct2.STANDARD_AUDIT_TYPE, cct2.STANDARD_AUDIT_DATE, cct2.STANDARD_AUDIT_START, cct2.STANDARD_AUDIT_END
 					) sub
@@ -973,6 +977,7 @@ UPDATE ccadb_certificate_temp cct
 											AND ctp.IS_TIME_VALID
 								)
 								AND cac2.CERTIFICATE_ID = cct2.CERTIFICATE_ID
+								AND cct2.REVOCATION_STATUS NOT IN ('Revoked', 'Parent Cert Revoked')
 								AND cct2.CCADB_RECORD_ID IS NOT NULL	-- Ignore CA certificates not in CCADB (e.g., kernel mode cross-certificates).
 							GROUP BY cct2.BRSSL_AUDIT_URL, cct2.BRSSL_AUDIT_TYPE, cct2.BRSSL_AUDIT_DATE, cct2.BRSSL_AUDIT_START, cct2.BRSSL_AUDIT_END
 					) sub
@@ -1009,6 +1014,7 @@ UPDATE ccadb_certificate_temp cct
 											AND ctp.IS_TIME_VALID
 								)
 								AND cac2.CERTIFICATE_ID = cct2.CERTIFICATE_ID
+								AND cct2.REVOCATION_STATUS NOT IN ('Revoked', 'Parent Cert Revoked')
 								AND cct2.CCADB_RECORD_ID IS NOT NULL	-- Ignore CA certificates not in CCADB (e.g., kernel mode cross-certificates).
 							GROUP BY cct2.EVSSL_AUDIT_URL, cct2.EVSSL_AUDIT_TYPE, cct2.EVSSL_AUDIT_DATE, cct2.EVSSL_AUDIT_START, cct2.EVSSL_AUDIT_END
 					) sub
@@ -1046,6 +1052,7 @@ UPDATE ccadb_certificate_temp cct
 											AND ctp.IS_TIME_VALID
 								)
 								AND cac2.CERTIFICATE_ID = cct2.CERTIFICATE_ID
+								AND cct2.REVOCATION_STATUS NOT IN ('Revoked', 'Parent Cert Revoked')
 								AND cct2.CCADB_RECORD_ID IS NOT NULL	-- Ignore CA certificates not in CCADB (e.g., kernel mode cross-certificates).
 							GROUP BY cct2.CP_URL, cct2.CPS_URL
 					) sub
@@ -1081,6 +1088,7 @@ UPDATE ccadb_certificate_temp cct
 											AND ctp.IS_TIME_VALID
 								)
 								AND cac2.CERTIFICATE_ID = cct2.CERTIFICATE_ID
+								AND cct2.REVOCATION_STATUS NOT IN ('Revoked', 'Parent Cert Revoked')
 								AND cct2.CCADB_RECORD_ID IS NOT NULL	-- Ignore CA certificates not in CCADB (e.g., kernel mode cross-certificates).
 							GROUP BY cct2.CP_URL, cct2.CPS_URL
 					) sub
