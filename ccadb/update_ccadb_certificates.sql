@@ -716,6 +716,7 @@ UPDATE ccadb_certificate_temp cct
 								OR x509_isEKUPermitted(c.CERTIFICATE, '1.3.6.1.4.1.311.10.3.3')	-- MS SGC.
 								OR x509_isEKUPermitted(c.CERTIFICATE, '2.16.840.1.113730.4.1')	-- NS Step-Up.
 							)
+							AND ctp.IS_TIME_VALID
 				)
 				AND (
 					(cct.BRSSL_AUDIT_URL IS NULL)
@@ -739,6 +740,7 @@ UPDATE ccadb_certificate_temp cct
 								OR x509_isEKUPermitted(c.CERTIFICATE, '1.3.6.1.4.1.311.10.3.3')	-- MS SGC.
 								OR x509_isEKUPermitted(c.CERTIFICATE, '2.16.840.1.113730.4.1')	-- NS Step-Up.
 							)
+							AND ctp.IS_TIME_VALID
 				)
 				AND (
 					(cct.EVSSL_AUDIT_URL IS NULL)
@@ -776,6 +778,7 @@ UPDATE ccadb_certificate_temp cct
 								OR x509_isEKUPermitted(c.CERTIFICATE, '1.3.6.1.4.1.311.10.3.3')	-- MS SGC.
 								OR x509_isEKUPermitted(c.CERTIFICATE, '2.16.840.1.113730.4.1')	-- NS Step-Up.
 							)
+							AND ctp.IS_TIME_VALID
 				)
 				AND (
 					(cct.BRSSL_AUDIT_URL IS NULL)
@@ -799,6 +802,7 @@ UPDATE ccadb_certificate_temp cct
 								OR x509_isEKUPermitted(c.CERTIFICATE, '1.3.6.1.4.1.311.10.3.3')	-- MS SGC.
 								OR x509_isEKUPermitted(c.CERTIFICATE, '2.16.840.1.113730.4.1')	-- NS Step-Up.
 							)
+							AND ctp.IS_TIME_VALID
 				)
 				AND (
 					(cct.EVSSL_AUDIT_URL IS NULL)
