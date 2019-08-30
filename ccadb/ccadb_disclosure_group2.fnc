@@ -137,7 +137,7 @@ BEGIN
 				WHERE c.ID = l_record.CERTIFICATE_ID;
 			t_row := t_row ||
 '  <TR>
-    <TD colspan="10" style="font-family:monospace;font-size:8pt;color:red;padding-left:20px">
+    <TD colspan="10" style="font-family:monospace;font-size:8pt;color:black;padding-left:20px">
 ';
 			IF disclosureStatus != 'DisclosureIncomplete' THEN
 				t_row := t_row ||
