@@ -226,7 +226,7 @@ BEGIN
 			ELSIF t_type IN (
 						'SHA-1(SubjectPublicKeyInfo)', 'SHA-1(Subject)'
 					) THEN
-				IF length(bytea) = 20 THEN
+				IF length(t_bytea) = 20 THEN
 					t_isJSONOutputSupported := TRUE;
 					EXIT;
 				END IF;
