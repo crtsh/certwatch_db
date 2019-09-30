@@ -1748,6 +1748,15 @@ Content-Type: text/plain; charset=UTF-8
 						|| coalesce(encode(x509_subjectKeyIdentifier(t_certificate), 'hex'), '')
 						|| '">X509v3&nbsp;Subject&nbsp;Key&nbsp;Identifier:</A><BR>'
 		);
+		t_bytea := x509_authorityKeyId(t_certificate);
+		IF t_bytea IS NOT NULL THEN
+			t_text := replace(
+				t_text, '<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;X509v3&nbsp;Authority&nbsp;Key&nbsp;Identifier:&nbsp;<BR>',
+					'<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<A href="?ski='
+							|| coalesce(encode(t_bytea, 'hex'), '')
+							|| '">X509v3&nbsp;Authority&nbsp;Key&nbsp;Identifier:</A><BR>'
+			);
+		END IF;
 
 		t_offset := strpos(t_text, 'CT&nbsp;Precertificate');
 		IF t_offset != 0 THEN
