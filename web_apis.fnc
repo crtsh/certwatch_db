@@ -3438,11 +3438,11 @@ Content-Type: text/plain; charset=UTF-8
 			END IF;
 
 			t_select := 	'SELECT __issuer_ca_id_table__.ISSUER_CA_ID,' || chr(10) ||
-							'        ca.NAME ISSUER_NAME,' || chr(10) ||
+							'        NULL::text ISSUER_NAME,' || chr(10) ||
 							'        __name_value__ NAME_VALUE,' || chr(10) ||
 							'        min(__cert_id_field__) MIN_CERT_ID,' || chr(10);
-			t_from := 		'    FROM ca';
-			t_where :=		'    WHERE __issuer_ca_id_table__.ISSUER_CA_ID = ca.ID';
+			t_from := 		'    FROM';
+			t_where :=		'    WHERE';
 			IF coalesce(t_groupBy, '') = 'none' THEN
 				t_select := t_select ||
 							'        min(ctle.ENTRY_TIMESTAMP) MIN_ENTRY_TIMESTAMP,' || chr(10) ||
@@ -3603,8 +3603,8 @@ Content-Type: text/plain; charset=UTF-8
 			END IF;
 
 			t_query := t_select || chr(10)
-					|| t_from || chr(10)
-					|| t_where || chr(10)
+					|| replace(t_from, 'FROM,' || chr(10) || '       ', 'FROM') || chr(10)
+					|| replace(t_where, 'WHERE' || chr(10) || '        AND', 'WHERE') || chr(10)
 					|| t_query;
 
 			t_query := replace(t_query, '__issuer_ca_id_table__', t_issuerCAID_table);
@@ -3625,6 +3625,11 @@ Content-Type: text/plain; charset=UTF-8
 			t_temp3 := '';
 			FOR l_record IN EXECUTE t_query
 							USING t_value, t_minNotBefore LOOP
+				SELECT ca.NAME
+					INTO l_record.ISSUER_NAME
+					FROM ca
+					WHERE ca.ID = l_record.ISSUER_CA_ID;
+
 				t_temp2 := '';
 				IF t_outputType = 'atom' THEN
 					IF coalesce(t_certificateID, -l_record.MIN_CERT_ID) != l_record.MIN_CERT_ID THEN
