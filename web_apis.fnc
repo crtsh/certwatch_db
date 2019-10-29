@@ -194,14 +194,14 @@ BEGIN
 				RETURN download_cert(t_value);
 			ELSIF t_type IN ('ID', 'Certificate ASN.1', 'CA ID') THEN
 				BEGIN
-					EXIT WHEN t_value::integer IS NOT NULL;
+					EXIT WHEN t_value::bigint IS NOT NULL;
 				EXCEPTION
 					WHEN OTHERS THEN
 						NULL;
 				END;
 			ELSIF t_type = 'CT Entry ID' THEN
 				BEGIN
-					IF t_value::integer IS NOT NULL THEN
+					IF t_value::bigint IS NOT NULL THEN
 						t_isJSONOutputSupported := TRUE;
 						EXIT;
 					END IF;
@@ -1304,7 +1304,7 @@ Content-Type: text/plain; charset=UTF-8
 		END LOOP;
 
 	ELSIF t_type = 'mozilla-certvalidations-by-version' THEN
-		t_certificateID := coalesce(get_parameter('id', paramNames, paramValues), '0')::integer;
+		t_certificateID := coalesce(get_parameter('id', paramNames, paramValues), '0')::bigint;
 		t_outputType := 'csv';
 		t_output := 'Date';
 
@@ -1355,7 +1355,7 @@ Content-Type: text/plain; charset=UTF-8
 		END LOOP;
 
 	ELSIF t_type = 'mozilla-certvalidations' THEN
-		t_certificateID := get_parameter('id', paramNames, paramValues)::integer;
+		t_certificateID := get_parameter('id', paramNames, paramValues)::bigint;
 		t_temp := '';
 		IF t_certificateID IS NOT NULL THEN
 			t_temp := 'id=' || t_certificateID::text;
@@ -1603,7 +1603,7 @@ Content-Type: text/plain; charset=UTF-8
 				FROM certificate c
 					LEFT OUTER JOIN ca ON (c.ISSUER_CA_ID = ca.ID)
 					LEFT OUTER JOIN ca_certificate cac ON (c.ID = cac.CERTIFICATE_ID)
-				WHERE c.ID = t_value::integer;
+				WHERE c.ID = t_value::bigint;
 		ELSIF t_type = 'SHA-1(Certificate)' THEN
 			SELECT c.ID, x509_print(c.CERTIFICATE, NULL, 196608), ca.ID, cac.CA_ID,
 					digest(c.CERTIFICATE, 'sha1'::text),
@@ -3493,7 +3493,7 @@ Content-Type: text/plain; charset=UTF-8
 				t_certID_field := 'c.ID';
 				t_joinToCertificate_table := 'ctle';
 				t_where := t_where || chr(10) ||
-							'        AND ctle.ENTRY_ID = $1::integer' || chr(10) ||
+							'        AND ctle.ENTRY_ID = $1::bigint' || chr(10) ||
 							'        AND ctle.CT_LOG_ID = ctl.ID';
 			ELSIF t_type = 'Serial Number' THEN
 				t_from := t_from || ',' || chr(10) ||
