@@ -638,6 +638,7 @@ CREATE TABLE ccadb_certificate(
 	INCLUDED_CERTIFICATE_ID			bigint,
 	INCLUDED_CERTIFICATE_OWNER		text,
 	CA_OWNER						text,
+	SUBORDINATE_CA_OWNER			text,
 	CERT_NAME						text,
 	PARENT_CERT_NAME				text,
 	CERT_RECORD_TYPE				text,

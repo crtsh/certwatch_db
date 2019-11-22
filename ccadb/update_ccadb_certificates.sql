@@ -45,7 +45,8 @@ CREATE TEMPORARY TABLE ccadb_certificate_import (
 	TEST_WEBSITE_REVOKED		text,
 	IS_TECHNICALLY_CONSTRAINED	text,
 	MOZILLA_STATUS				text,
-	MICROSOFT_STATUS			text
+	MICROSOFT_STATUS			text,
+	SUBORDINATE_CA_OWNER		text
 ) ON COMMIT DROP;
 
 \COPY ccadb_certificate_import FROM 'ccadb_all_certificate_records.csv' CSV HEADER;
@@ -62,6 +63,7 @@ INSERT INTO ccadb_certificate_temp (
 		INCLUDED_CERTIFICATE_OWNER,
 		CCADB_RECORD_ID,
 		CA_OWNER,
+		SUBORDINATE_CA_OWNER,
 		CERT_NAME,
 		PARENT_CERT_NAME,
 		CERT_RECORD_TYPE,
@@ -115,6 +117,7 @@ INSERT INTO ccadb_certificate_temp (
 			NULL					INCLUDED_CERTIFICATE_OWNER,
 			cci.CCADB_RECORD_ID,
 			cci.CA_OWNER,
+			cci.SUBORDINATE_CA_OWNER,
 			CASE WHEN (cci.CERT_NAME = '') THEN NULL
 				ELSE cci.CERT_NAME
 			END CERT_NAME,
