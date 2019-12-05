@@ -1,1 +1,0 @@
-\COPY (SELECT c.ID FROM certificate c, ca WHERE c.ISSUER_CA_ID = ca.ID AND ca.LINTING_APPLIES AND x509_notBefore(c.CERTIFICATE) >= date_trunc('day', statement_timestamp() - interval '1 week') AND coalesce(c.CABLINT_CACHED_AT, '2000-01-01'::timestamp) < (SELECT max(lv.deployed_at) FROM linter_version lv WHERE lv.LINTER = 'cablint')) TO 'work_to_do.sql';
