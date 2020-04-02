@@ -14,4 +14,7 @@
 0 * * * *	~/app_monitor.sh ~/certwatch/ccadb/update_caowner_information.sh
 
 # Every one day.
-#0 3 * * *	/root/every_one_day.sh
+#0 3 * * *	?
+
+# Every one week.
+#0 3 * * sun	?
