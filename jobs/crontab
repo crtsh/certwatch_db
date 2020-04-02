@@ -11,6 +11,7 @@
 # Every one hour.
 0 * * * *	~/app_monitor.sh ~/certwatch/jobs/regular_maintenance.sh
 0 * * * *	~/app_monitor.sh ~/certwatch/jobs/update_browser_revocations.sh
+0 * * * *	~/app_monitor.sh ~/certwatch/ccadb/update_caowner_information.sh
 
 # Every one day.
 #0 3 * * *	/root/every_one_day.sh

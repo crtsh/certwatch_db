@@ -1,4 +1,6 @@
-\timing
+\timing on
+
+\set ON_ERROR_STOP on
 
 \echo Importing All CCADB CA Owner Records
 
