@@ -1,4 +1,6 @@
-\timing
+\timing on
+
+\set ON_ERROR_STOP on
 
 BEGIN WORK;
 
@@ -278,7 +280,7 @@ UPDATE ccadb_certificate_temp cct
 		AND cct.CERTIFICATE_ID = c.ID
 		AND c.ISSUER_CA_ID = cac_parent.CA_ID
 		AND cac_parent.CERTIFICATE_ID = c_parent.ID
-		AND x509_notAfter(c_parent.CERTIFICATE) > statement_timestamp() AT TIME ZONE 'UTC'
+		AND coalesce(x509_notAfter(c_parent.CERTIFICATE), 'infinity'::timestamp) > statement_timestamp() AT TIME ZONE 'UTC'
 		AND c_parent.ID = cct_parent.CERTIFICATE_ID
 		AND cct_parent.CERT_RECORD_TYPE = 'Root Certificate';
 /* ...then Disclosed Intermediate CA certs that are unexpired... */
@@ -290,7 +292,7 @@ UPDATE ccadb_certificate_temp cct
 		AND cct.CERTIFICATE_ID = c.ID
 		AND c.ISSUER_CA_ID = cac_parent.CA_ID
 		AND cac_parent.CERTIFICATE_ID = c_parent.ID
-		AND x509_notAfter(c_parent.CERTIFICATE) > statement_timestamp() AT TIME ZONE 'UTC'
+		AND coalesce(x509_notAfter(c_parent.CERTIFICATE), 'infinity'::timestamp) > statement_timestamp() AT TIME ZONE 'UTC'
 		AND c_parent.ID = cct_parent.CERTIFICATE_ID
 		AND cct_parent.CERT_RECORD_TYPE IS NOT NULL;
 /* ...then any other CA certs trusted by Mozilla or Microsoft... */
@@ -501,7 +503,7 @@ UPDATE ccadb_certificate_temp cct
 		END
 	FROM certificate c
 	WHERE cct.CERTIFICATE_ID = c.ID
-		AND x509_notAfter(c.CERTIFICATE) < statement_timestamp();
+		AND coalesce(x509_notAfter(c.CERTIFICATE), 'infinity'::timestamp) < statement_timestamp();
 
 \echo Undisclosed -> NoKnownServerAuthTrustPath
 UPDATE ccadb_certificate_temp cct
@@ -831,7 +833,7 @@ UPDATE ccadb_certificate_temp cct
 									SELECT 1
 										FROM certificate c, ca_trust_purpose ctp
 										WHERE c.ID = cac2.CERTIFICATE_ID
-											AND x509_notAfter(c.CERTIFICATE) > statement_timestamp() AT TIME ZONE 'UTC'
+											AND coalesce(x509_notAfter(c.CERTIFICATE), 'infinity'::timestamp) > statement_timestamp() AT TIME ZONE 'UTC'
 											AND c.ISSUER_CA_ID = ctp.CA_ID
 											AND ctp.TRUST_CONTEXT_ID = 5
 											AND NOT ctp.ALL_CHAINS_REVOKED_IN_SALESFORCE
@@ -868,7 +870,7 @@ UPDATE ccadb_certificate_temp cct
 									SELECT 1
 										FROM certificate c, ca_trust_purpose ctp
 										WHERE c.ID = cac2.CERTIFICATE_ID
-											AND x509_notAfter(c.CERTIFICATE) > statement_timestamp() AT TIME ZONE 'UTC'
+											AND coalesce(x509_notAfter(c.CERTIFICATE), 'infinity'::timestamp) > statement_timestamp() AT TIME ZONE 'UTC'
 											AND c.ISSUER_CA_ID = ctp.CA_ID
 											AND ctp.TRUST_CONTEXT_ID = 5
 											AND ctp.TRUST_PURPOSE_ID = 1
@@ -907,7 +909,7 @@ UPDATE ccadb_certificate_temp cct
 									SELECT 1
 										FROM certificate c, ca_trust_purpose ctp
 										WHERE c.ID = cac2.CERTIFICATE_ID
-											AND x509_notAfter(c.CERTIFICATE) > statement_timestamp() AT TIME ZONE 'UTC'
+											AND coalesce(x509_notAfter(c.CERTIFICATE), 'infinity'::timestamp) > statement_timestamp() AT TIME ZONE 'UTC'
 											AND c.ISSUER_CA_ID = ctp.CA_ID
 											AND ctp.TRUST_CONTEXT_ID = 5
 											AND ctp.TRUST_PURPOSE_ID >= 100
@@ -947,7 +949,7 @@ UPDATE ccadb_certificate_temp cct
 									SELECT 1
 										FROM certificate c, ca_trust_purpose ctp
 										WHERE c.ID = cac2.CERTIFICATE_ID
-											AND x509_notAfter(c.CERTIFICATE) > statement_timestamp() AT TIME ZONE 'UTC'
+											AND coalesce(x509_notAfter(c.CERTIFICATE), 'infinity'::timestamp) > statement_timestamp() AT TIME ZONE 'UTC'
 											AND c.ISSUER_CA_ID = ctp.CA_ID
 											AND ctp.TRUST_CONTEXT_ID = 1
 											AND NOT ctp.ALL_CHAINS_REVOKED_IN_SALESFORCE
@@ -984,7 +986,7 @@ UPDATE ccadb_certificate_temp cct
 									SELECT 1
 										FROM certificate c, ca_trust_purpose ctp
 										WHERE c.ID = cac2.CERTIFICATE_ID
-											AND x509_notAfter(c.CERTIFICATE) > statement_timestamp() AT TIME ZONE 'UTC'
+											AND coalesce(x509_notAfter(c.CERTIFICATE), 'infinity'::timestamp) > statement_timestamp() AT TIME ZONE 'UTC'
 											AND c.ISSUER_CA_ID = ctp.CA_ID
 											AND ctp.TRUST_CONTEXT_ID = 1
 											AND ctp.TRUST_PURPOSE_ID = 1
@@ -1023,7 +1025,7 @@ UPDATE ccadb_certificate_temp cct
 									SELECT 1
 										FROM certificate c, ca_trust_purpose ctp
 										WHERE c.ID = cac2.CERTIFICATE_ID
-											AND x509_notAfter(c.CERTIFICATE) > statement_timestamp() AT TIME ZONE 'UTC'
+											AND coalesce(x509_notAfter(c.CERTIFICATE), 'infinity'::timestamp) > statement_timestamp() AT TIME ZONE 'UTC'
 											AND c.ISSUER_CA_ID = ctp.CA_ID
 											AND ctp.TRUST_CONTEXT_ID = 1
 											AND ctp.TRUST_PURPOSE_ID >= 100
@@ -1064,7 +1066,7 @@ UPDATE ccadb_certificate_temp cct
 									SELECT 1
 										FROM certificate c, ca_trust_purpose ctp
 										WHERE c.ID = cac2.CERTIFICATE_ID
-											AND x509_notAfter(c.CERTIFICATE) > statement_timestamp() AT TIME ZONE 'UTC'
+											AND coalesce(x509_notAfter(c.CERTIFICATE), 'infinity'::timestamp) > statement_timestamp() AT TIME ZONE 'UTC'
 											AND c.ISSUER_CA_ID = ctp.CA_ID
 											AND ctp.TRUST_CONTEXT_ID = 5
 											AND NOT ctp.ALL_CHAINS_REVOKED_IN_SALESFORCE
@@ -1102,7 +1104,7 @@ UPDATE ccadb_certificate_temp cct
 									SELECT 1
 										FROM certificate c, ca_trust_purpose ctp
 										WHERE c.ID = cac2.CERTIFICATE_ID
-											AND x509_notAfter(c.CERTIFICATE) > statement_timestamp() AT TIME ZONE 'UTC'
+											AND coalesce(x509_notAfter(c.CERTIFICATE), 'infinity'::timestamp) > statement_timestamp() AT TIME ZONE 'UTC'
 											AND c.ISSUER_CA_ID = ctp.CA_ID
 											AND ctp.TRUST_CONTEXT_ID = 1
 											AND NOT ctp.ALL_CHAINS_REVOKED_IN_SALESFORCE
