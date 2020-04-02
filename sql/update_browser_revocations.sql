@@ -1,5 +1,8 @@
 \timing
 
+\set ON_ERROR_STOP on
+
+
 -- Note: The microsoft_disallowedcert table is updated manually.
 
 
