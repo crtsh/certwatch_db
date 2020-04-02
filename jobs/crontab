@@ -1,3 +1,6 @@
+# Every one minute.
+* * * * *	~/app_monitor.sh ~/certwatch/jobs/update_expirations.sh
+
 # Every ten minutes.
 */10 * * * *	~/app_monitor.sh ~/certwatch/ct_monitor/bin/ct_monitor
 */10 * * * *	~/app_monitor.sh ~/certwatch/crl_monitor/bin/crl_monitor
