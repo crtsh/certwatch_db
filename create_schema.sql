@@ -3,169 +3,174 @@
 
 -- As the "postgres" user.
 
+CREATE DATABASE certwatch ENCODING=UTF8;
+
+\connect certwatch postgres
+
+CREATE ROLE certwatch WITH LOGIN;
+
+CREATE ROLE guest WITH LOGIN PASSWORD 'guest';
+
+CREATE ROLE httpd WITH LOGIN PASSWORD 'httpd';
+
+
 CREATE EXTENSION pgcrypto;
 
 
 CREATE EXTENSION libzlintpq;
 
 
--- As the "certwatch" user.
+\connect certwatch certwatch
 
 CREATE TABLE ca (
 	ID						serial,
-	NAME					text		NOT NULL,
-	PUBLIC_KEY				bytea		NOT NULL,
-	BRAND					text,
-	LINTING_APPLIES			boolean		DEFAULT TRUE,
-	NO_OF_CERTS_ISSUED		bigint		DEFAULT 0	NOT NULL,
+	NUM_ISSUED				bigint[],
+	NUM_EXPIRED				bigint[],
+	LAST_NOT_AFTER			timestamp,
+	NEXT_NOT_AFTER			timestamp,
+	LINTING_APPLIES			boolean		DEFAULT TRUE						NOT NULL,
+	NAME					text											NOT NULL,
+	PUBLIC_KEY				bytea											NOT NULL,
 	CONSTRAINT ca_pk
 		PRIMARY KEY (ID)
 );
 
-CREATE UNIQUE INDEX ca_uniq
-	ON ca (NAME text_pattern_ops, PUBLIC_KEY);
-
-CREATE INDEX ca_name
-	ON ca (lower(NAME) text_pattern_ops);
-
-CREATE INDEX ca_brand
-	ON ca (lower(BRAND) text_pattern_ops);
-
-CREATE INDEX ca_name_reverse
-	ON ca (reverse(lower(NAME)) text_pattern_ops);
-
-CREATE INDEX ca_brand_reverse
-	ON ca (reverse(lower(BRAND)) text_pattern_ops);
+CREATE INDEX ca_next_not_after
+	ON ca (NEXT_NOT_AFTER)
+	WHERE NEXT_NOT_AFTER IS NOT NULL;
 
 CREATE INDEX ca_linting_applies
 	ON ca (LINTING_APPLIES, ID);
 
+CREATE INDEX ca_name
+	ON ca (lower(NAME) text_pattern_ops);
+
+CREATE INDEX ca_name_reverse
+	ON ca (reverse(lower(NAME)) text_pattern_ops);
+
+CREATE UNIQUE INDEX ca_uniq
+	ON ca (NAME text_pattern_ops, PUBLIC_KEY);
+
 CREATE INDEX ca_spki_sha256
 	ON ca (digest(PUBLIC_KEY, 'sha256'));
 
+INSERT INTO ca ( ID, NAME, PUBLIC_KEY ) VALUES ( -1, 'Issuer Not Found', E'\\x00' );
+
+
 CREATE TABLE certificate (
-	ID						serial,
-	CERTIFICATE				bytea		NOT NULL,
-	ISSUER_CA_ID			integer		NOT NULL,
-	CABLINT_CACHED_AT		timestamp,
-	X509LINT_CACHED_AT		timestamp,
-	ZLINT_CACHED_AT			timestamp,
-	CONSTRAINT c_pk
-		PRIMARY KEY (ID),
+	ID				bigserial	NOT NULL,
+	ISSUER_CA_ID	integer		NOT NULL,
+	CERTIFICATE		bytea		NOT NULL,
 	CONSTRAINT c_ica_fk
 		FOREIGN KEY (ISSUER_CA_ID)
 		REFERENCES ca(ID)
-);
+) PARTITION BY RANGE (coalesce(x509_notAfter(CERTIFICATE), 'infinity'::timestamp));
 
-CREATE INDEX c_ica_typecanissue
-	ON certificate (ISSUER_CA_ID, x509_canIssueCerts(CERTIFICATE));
+CREATE TABLE certificate_2013andbefore PARTITION OF certificate
+	FOR VALUES FROM (MINVALUE) TO ('2014-01-01T00:00:00'::timestamp);
 
-CREATE INDEX c_ica_notbefore
-	ON certificate (ISSUER_CA_ID, x509_notBefore(CERTIFICATE));
+CREATE TABLE certificate_2014 PARTITION OF certificate
+	FOR VALUES FROM ('2014-01-01T00:00:00'::timestamp) TO ('2015-01-01T00:00:00'::timestamp);
 
-CREATE INDEX c_notafter_ica
-	ON certificate (x509_notAfter(CERTIFICATE), ISSUER_CA_ID);
+CREATE TABLE certificate_2015 PARTITION OF certificate
+	FOR VALUES FROM ('2015-01-01T00:00:00'::timestamp) TO ('2016-01-01T00:00:00'::timestamp);
 
-CREATE INDEX c_notbefore_ica
-	ON certificate (x509_notBefore(CERTIFICATE), ISSUER_CA_ID);
+CREATE TABLE certificate_2016 PARTITION OF certificate
+	FOR VALUES FROM ('2016-01-01T00:00:00'::timestamp) TO ('2017-01-01T00:00:00'::timestamp);
 
-CREATE INDEX c_serial_ica
-	ON certificate (x509_serialNumber(CERTIFICATE), ISSUER_CA_ID);
+CREATE TABLE certificate_2017 PARTITION OF certificate
+	FOR VALUES FROM ('2017-01-01T00:00:00'::timestamp) TO ('2018-01-01T00:00:00'::timestamp);
 
-CREATE INDEX c_sha1
-	ON certificate (digest(CERTIFICATE, 'sha1'));
+CREATE TABLE certificate_2018 PARTITION OF certificate
+	FOR VALUES FROM ('2018-01-01T00:00:00'::timestamp) TO ('2019-01-01T00:00:00'::timestamp);
 
-CREATE UNIQUE INDEX c_sha256
-	ON certificate (digest(CERTIFICATE, 'sha256'));
+CREATE TABLE certificate_2019 PARTITION OF certificate
+	FOR VALUES FROM ('2019-01-01T00:00:00'::timestamp) TO ('2020-01-01T00:00:00'::timestamp);
 
-CREATE INDEX c_ski
-	ON certificate (x509_subjectKeyIdentifier(CERTIFICATE));
+CREATE TABLE certificate_2020 PARTITION OF certificate
+	FOR VALUES FROM ('2020-01-01T00:00:00'::timestamp) TO ('2021-01-01T00:00:00'::timestamp);
 
-CREATE INDEX c_pubkey_md5
-	ON certificate (x509_publicKeyMD5(CERTIFICATE));
+CREATE TABLE certificate_2021 PARTITION OF certificate
+	FOR VALUES FROM ('2021-01-01T00:00:00'::timestamp) TO ('2022-01-01T00:00:00'::timestamp);
 
-CREATE INDEX c_spki_sha1
-	ON certificate (digest(x509_publicKey(CERTIFICATE), 'sha1'));
+CREATE TABLE certificate_2022 PARTITION OF certificate
+	FOR VALUES FROM ('2022-01-01T00:00:00'::timestamp) TO ('2023-01-01T00:00:00'::timestamp);
 
-CREATE INDEX c_spki_sha256
-	ON certificate (digest(x509_publicKey(CERTIFICATE), 'sha256'));
+CREATE TABLE certificate_2023andbeyond PARTITION OF certificate
+	FOR VALUES FROM ('2023-01-01T00:00:00'::timestamp) TO (MAXVALUE);
 
-CREATE INDEX c_subject_sha1
-	ON certificate (digest(x509_name(CERTIFICATE), 'sha1'));
+CREATE INDEX c_id ON certificate (ID);
+
+CREATE INDEX c_sha1 ON certificate (digest(CERTIFICATE, 'sha1'));
+
+CREATE INDEX c_sha256 ON certificate (digest(CERTIFICATE, 'sha256'));
+
+CREATE INDEX c_serial ON certificate (x509_serialNumber(CERTIFICATE));
+
+CREATE INDEX c_spki_sha1 ON certificate (digest(x509_publicKey(CERTIFICATE), 'sha1'));
+
+CREATE INDEX c_spki_sha256 ON certificate (digest(x509_publicKey(CERTIFICATE), 'sha256'));
+
+CREATE INDEX c_pubkey_md5 ON certificate (x509_publicKeyMD5(CERTIFICATE));
+
+CREATE INDEX c_ica_notbefore ON certificate (ISSUER_CA_ID, x509_notBefore(CERTIFICATE));
+
+CREATE INDEX c_ica_notafter ON certificate (ISSUER_CA_ID, coalesce(x509_notAfter(CERTIFICATE), 'infinity'::timestamp));
+
+CREATE INDEX c_ica_canissue ON certificate (ISSUER_CA_ID) WHERE x509_canIssueCerts(CERTIFICATE);
+
+CREATE INDEX c_subject_sha1 ON certificate (digest(x509_name(CERTIFICATE), 'sha1'));
+
+CREATE INDEX c_ski ON certificate (x509_subjectKeyIdentifier(CERTIFICATE));
+
+\i fnc/identities.fnc
+
+CREATE INDEX c_identities ON certificate USING GIN (identities(CERTIFICATE));
+
+\i fnc/cert_counter.trg
+\i fnc/update_expirations.fnc
+
+CREATE TRIGGER cert_counter
+	AFTER INSERT OR UPDATE OR DELETE ON certificate
+	FOR EACH ROW
+	EXECUTE PROCEDURE cert_counter();
+
 
 CREATE TABLE invalid_certificate (
 	ID						serial,
-	CERTIFICATE_ID			integer,
+	CERTIFICATE_ID			bigint,
 	PROBLEMS				text,
 	CERTIFICATE_AS_LOGGED	bytea,
 	CONSTRAINT ic_pk
-		PRIMARY KEY (ID),
-	CONSTRAINT ic_c_fk
-		FOREIGN KEY (CERTIFICATE_ID)
-		REFERENCES certificate(ID)
+		PRIMARY KEY (ID)
 );
-
-CREATE TYPE name_type AS ENUM (
-	'commonName', 'organizationName', 'emailAddress',
-	'rfc822Name', 'dNSName', 'iPAddress', 'organizationalUnitName'
-);
-
-CREATE TABLE certificate_identity (
-	CERTIFICATE_ID			integer		NOT NULL,
-	NAME_TYPE				name_type	NOT NULL,
-	NAME_VALUE				text		NOT NULL,
-	ISSUER_CA_ID			integer,
-	CONSTRAINT ci_c_fk
-		FOREIGN KEY (CERTIFICATE_ID)
-		REFERENCES certificate(ID),
-	CONSTRAINT ci_ca_fk
-		FOREIGN KEY (ISSUER_CA_ID)
-		REFERENCES ca(ID)
-);
-
-CREATE UNIQUE INDEX ci_uniq
-	ON certificate_identity (CERTIFICATE_ID, lower(NAME_VALUE) text_pattern_ops, NAME_TYPE);
-
-CREATE INDEX ci_forward
-	ON certificate_identity (lower(NAME_VALUE) text_pattern_ops, ISSUER_CA_ID, NAME_TYPE);
-
-CREATE INDEX ci_reverse
-	ON certificate_identity (reverse(lower(NAME_VALUE)) text_pattern_ops, ISSUER_CA_ID, NAME_TYPE);
-
-CREATE INDEX ci_ca
-	ON certificate_identity (ISSUER_CA_ID, lower(NAME_VALUE) text_pattern_ops, NAME_TYPE);
-
-CREATE INDEX ci_ca_reverse
-	ON certificate_identity (ISSUER_CA_ID, reverse(lower(NAME_VALUE)) text_pattern_ops, NAME_TYPE);
 
 
 CREATE TABLE ca_certificate (
-	CERTIFICATE_ID			integer,
+	CERTIFICATE_ID			bigint,
 	CA_ID					integer,
 	CONSTRAINT cac_pk
 		PRIMARY KEY (CERTIFICATE_ID),
-	CONSTRAINT cac_c_fk
-		FOREIGN KEY (CERTIFICATE_ID)
-		REFERENCES certificate(ID),
 	CONSTRAINT cac_ca_fk
 		FOREIGN KEY (CA_ID)
 		REFERENCES ca(ID)
 );
 
-CREATE INDEX cac_ca_cert
+CREATE INDEX cac_ca_c
 	ON ca_certificate (CA_ID, CERTIFICATE_ID);
+
 
 CREATE TABLE crl (
 	CA_ID					integer,
-	DISTRIBUTION_POINT_URL	text,
 	THIS_UPDATE				timestamp,
 	NEXT_UPDATE				timestamp,
 	LAST_CHECKED			timestamp,
 	NEXT_CHECK_DUE			timestamp,
-	IS_ACTIVE				boolean,
+	DISTRIBUTION_POINT_URL	text,
 	ERROR_MESSAGE			text,
 	CRL_SHA256				bytea,
 	CRL_SIZE				integer,
+	IS_ACTIVE				boolean,
 	CONSTRAINT crl_pk
 		PRIMARY KEY (CA_ID, DISTRIBUTION_POINT_URL),
 	CONSTRAINT crl_ca_fk
@@ -178,6 +183,7 @@ CREATE INDEX crl_ia_lc
 
 CREATE INDEX crl_sz
 	ON crl (CRL_SIZE);
+
 
 CREATE TABLE crl_revoked (
 	CA_ID					integer,
@@ -192,11 +198,12 @@ CREATE TABLE crl_revoked (
 		REFERENCES ca(ID)
 );
 
+
 CREATE TABLE ocsp_responder (
 	CA_ID					integer,
-	URL						text,
 	NEXT_CHECKS_DUE			timestamp,
 	LAST_CHECKED			timestamp,
+	URL						text,
 	RANDOM_SERIAL_RESULT	text,
 	RANDOM_SERIAL_DUMP		bytea,
 	RANDOM_SERIAL_DURATION	bigint,
@@ -211,33 +218,31 @@ CREATE TABLE ocsp_responder (
 		PRIMARY KEY (CA_ID, URL),
 	CONSTRAINT or_ca_fk
 		FOREIGN KEY (CA_ID)
-		REFERENCES ca(ID),
-	CONSTRAINT or_c_fk
-		FOREIGN KEY (TESTED_CERTIFICATE_ID)
-		REFERENCES certificate(ID)
+		REFERENCES ca(ID)
 );
 
+
 CREATE TABLE ct_log (
-	ID						smallint,
+	ID						integer,
+	OPERATOR				text,
 	URL						text,
 	NAME					text,
 	PUBLIC_KEY				bytea,
-	LATEST_UPDATE			timestamp,
-	OPERATOR				text,
-	INCLUDED_IN_CHROME		integer,
 	IS_ACTIVE				boolean,
+	LATEST_UPDATE			timestamp,
 	LATEST_STH_TIMESTAMP	timestamp,
 	MMD_IN_SECONDS			integer,
-	CHROME_ISSUE_NUMBER		integer,
-	NON_INCLUSION_STATUS	text,
 	TREE_SIZE				integer,
 	BATCH_SIZE				integer,
 	CHUNK_SIZE				integer,
 	GOOGLE_UPTIME			text,
-	INCLUDED_IN_MACOS		text,
-	APPLE_LAST_STATE_CHANGE	timestamp,
+	INCLUDED_IN_CHROME		integer,
+	NON_INCLUSION_STATUS	text,
+	CHROME_ISSUE_NUMBER		integer,
 	CHROME_FINAL_TREE_SIZE	integer,
 	CHROME_DISQUALIFIED_AT	timestamp,
+	INCLUDED_IN_MACOS		text,
+	APPLE_LAST_STATE_CHANGE	timestamp,
 	CONSTRAINT ctl_pk
 		PRIMARY KEY (ID),
 	CONSTRAINT ctl_url_unq
@@ -255,56 +260,72 @@ CREATE TABLE ct_log_operator (
 );
 
 CREATE TABLE ct_log_entry (
-	CERTIFICATE_ID	integer,
-	CT_LOG_ID		smallint,
-	ENTRY_ID		integer,
-	ENTRY_TIMESTAMP	timestamp,
-	CONSTRAINT ctle_pk
-		PRIMARY KEY (CERTIFICATE_ID, CT_LOG_ID, ENTRY_ID),
-	CONSTRAINT ctle_c_fk
-		FOREIGN KEY (CERTIFICATE_ID)
-		REFERENCES certificate(ID),
+	CERTIFICATE_ID	bigint		NOT NULL,
+	ENTRY_ID		bigint		NOT NULL,
+	ENTRY_TIMESTAMP	timestamp	NOT NULL,
+	CT_LOG_ID		integer		NOT NULL,
 	CONSTRAINT ctle_ctl_fk
 		FOREIGN KEY (CT_LOG_ID)
 		REFERENCES ct_log(ID)
-);
+) PARTITION BY RANGE (ENTRY_TIMESTAMP);
 
-CREATE INDEX ctle_le
-	ON ct_log_entry (CT_LOG_ID, ENTRY_ID);
+CREATE TABLE ct_log_entry_2013 PARTITION OF ct_log_entry
+	FOR VALUES FROM ('2013-01-01T00:00:00'::timestamp) TO ('2014-01-01T00:00:00'::timestamp);
 
-CREATE INDEX ctle_el
-	ON ct_log_entry (ENTRY_ID, CT_LOG_ID);
+CREATE TABLE ct_log_entry_2014 PARTITION OF ct_log_entry
+	FOR VALUES FROM ('2014-01-01T00:00:00'::timestamp) TO ('2015-01-01T00:00:00'::timestamp);
 
-CREATE INDEX ctle_et
-	ON ct_log_entry (ENTRY_TIMESTAMP);
+CREATE TABLE ct_log_entry_2015 PARTITION OF ct_log_entry
+	FOR VALUES FROM ('2015-01-01T00:00:00'::timestamp) TO ('2016-01-01T00:00:00'::timestamp);
+
+CREATE TABLE ct_log_entry_2016 PARTITION OF ct_log_entry
+	FOR VALUES FROM ('2016-01-01T00:00:00'::timestamp) TO ('2017-01-01T00:00:00'::timestamp);
+
+CREATE TABLE ct_log_entry_2017 PARTITION OF ct_log_entry
+	FOR VALUES FROM ('2017-01-01T00:00:00'::timestamp) TO ('2018-01-01T00:00:00'::timestamp);
+
+CREATE TABLE ct_log_entry_2018 PARTITION OF ct_log_entry
+	FOR VALUES FROM ('2018-01-01T00:00:00'::timestamp) TO ('2019-01-01T00:00:00'::timestamp);
+
+CREATE TABLE ct_log_entry_2019 PARTITION OF ct_log_entry
+	FOR VALUES FROM ('2019-01-01T00:00:00'::timestamp) TO ('2020-01-01T00:00:00'::timestamp);
+
+CREATE TABLE ct_log_entry_2020 PARTITION OF ct_log_entry
+	FOR VALUES FROM ('2020-01-01T00:00:00'::timestamp) TO ('2021-01-01T00:00:00'::timestamp);
+
+CREATE INDEX ctle_c ON ct_log_entry (CERTIFICATE_ID);
+
+CREATE INDEX ctle_e ON ct_log_entry (ENTRY_ID);
+
+CREATE INDEX ctle_t ON ct_log_entry (ENTRY_TIMESTAMP);
+
 
 CREATE TYPE linter_type AS ENUM (
 	'cablint', 'x509lint', 'zlint'
 );
 
 CREATE TABLE linter_version (
-	ID				smallint,
-	VERSION_STRING	text,
-	GIT_COMMIT		bytea,
-	DEPLOYED_AT		timestamp,
-	LINTER			linter_type,
+	ID					integer,
+	MIN_CERTIFICATE_ID	bigint,
+	DEPLOYED_AT			timestamp,
+	LINTER				linter_type,
+	VERSION_STRING		text,
+	GIT_COMMIT			bytea,
 	CONSTRAINT lv_pk
 		PRIMARY KEY (ID)
 );
 
 CREATE UNIQUE INDEX lv_li_da
-	ON linter_version(LINTER, DEPLOYED_AT);
+	ON linter_version (LINTER, DEPLOYED_AT);
 
 
 CREATE TABLE lint_issue (
 	ID				serial,
+	LINTER			linter_type,
 	SEVERITY		text,
 	ISSUE_TEXT		text,
-	LINTER			linter_type,
 	CONSTRAINT li_pk
 		PRIMARY KEY (ID),
-	CONSTRAINT li_it_unq
-		UNIQUE (SEVERITY, ISSUE_TEXT),
 	CONSTRAINT li_li_se_it_unq
 		UNIQUE (LINTER, SEVERITY, ISSUE_TEXT)
 );
@@ -312,23 +333,16 @@ CREATE TABLE lint_issue (
 CREATE TABLE lint_cert_issue (
 	CERTIFICATE_ID		bigint,
 	LINT_ISSUE_ID		integer,
-	ISSUER_CA_ID		integer,
-	NOT_BEFORE_DATE		date,
 	CONSTRAINT lci_pk
-		PRIMARY KEY (ISSUER_CA_ID, LINT_ISSUE_ID, NOT_BEFORE_DATE, CERTIFICATE_ID),
-	CONSTRAINT lci_ca_fk
-		FOREIGN KEY (ISSUER_CA_ID)
-		REFERENCES ca(ID),
+		PRIMARY KEY (CERTIFICATE_ID, LINT_ISSUE_ID),
 	CONSTRAINT lci_li_fk
 		FOREIGN KEY (LINT_ISSUE_ID)
-		REFERENCES lint_issue(ID),
-	CONSTRAINT lci_c_fk
-		FOREIGN KEY (CERTIFICATE_ID)
-		REFERENCES certificate(ID)
+		REFERENCES lint_issue(ID)
 );
 
 CREATE INDEX lci_c
 	ON lint_cert_issue (CERTIFICATE_ID);
+
 
 CREATE TABLE lint_summary (
 	LINT_ISSUE_ID	integer,
@@ -345,21 +359,25 @@ CREATE TABLE lint_summary (
 		REFERENCES ca(ID)
 );
 
-\i lint_summarizer.fnc
+\i linting/lint_new_cert.fnc
+\i linting/lint_cached.fnc
+\i linting/lint_certificate.fnc
+\i linting/lint_tbscertificate.fnc
+\i linting/lint_summarizer.trg
 
 CREATE TRIGGER lint_summarizer
-	BEFORE INSERT OR DELETE on lint_cert_issue
+	BEFORE INSERT OR DELETE ON lint_cert_issue
 	FOR EACH ROW
 	EXECUTE PROCEDURE lint_summarizer();
 
 
 CREATE TABLE trust_context (
 	ID				integer,
+	DISPLAY_ORDER	integer,
 	CTX				text		NOT NULL,
 	URL				text,
 	VERSION			text,
 	VERSION_URL		text,
-	DISPLAY_ORDER	integer,
 	CONSTRAINT tc_pk
 		PRIMARY KEY (ID)
 );
@@ -381,11 +399,9 @@ INSERT INTO trust_context ( ID, CTX, URL, DISPLAY_ORDER ) VALUES ( 25, '360 Brow
 
 CREATE TABLE trust_purpose (
 	ID					integer,
+	DISPLAY_ORDER		integer,
 	PURPOSE				text,
 	PURPOSE_OID			text,
-	EARLIEST_NOT_BEFORE	timestamp,
-	LATEST_NOT_AFTER	timestamp,
-	DISPLAY_ORDER		integer,
 	CONSTRAINT tp_pk
 		PRIMARY KEY (ID)
 );
@@ -519,7 +535,12 @@ INSERT INTO trust_purpose ( ID, PURPOSE, PURPOSE_OID, DISPLAY_ORDER ) VALUES ( 2
 
 CREATE TABLE applicable_purpose(
 	TRUST_CONTEXT_ID	integer,
-	PURPOSE				text
+	PURPOSE				text,
+	CONSTRAINT ap_pk
+		PRIMARY KEY (TRUST_CONTEXT_ID, PURPOSE),
+	CONSTRAINT ap_tc_fk
+		FOREIGN KEY (TRUST_CONTEXT_ID)
+		REFERENCES trust_context(ID)
 );
 
 INSERT INTO applicable_purpose ( TRUST_CONTEXT_ID, PURPOSE ) VALUES ( 1, 'Client Authentication' );
@@ -563,14 +584,11 @@ INSERT INTO applicable_purpose ( TRUST_CONTEXT_ID, PURPOSE ) VALUES ( 25, 'Serve
 
 
 CREATE TABLE root_trust_purpose(
-	CERTIFICATE_ID		integer,
+	CERTIFICATE_ID		bigint,
 	TRUST_CONTEXT_ID	integer,
 	TRUST_PURPOSE_ID	integer,
 	CONSTRAINT rtp_pk
 		PRIMARY KEY (CERTIFICATE_ID, TRUST_CONTEXT_ID, TRUST_PURPOSE_ID),
-	CONSTRAINT rtp_c_fk
-		FOREIGN KEY (CERTIFICATE_ID)
-		REFERENCES certificate(ID),
 	CONSTRAINT rtp_tc_fk
 		FOREIGN KEY (TRUST_CONTEXT_ID)
 		REFERENCES trust_context(ID),
@@ -690,16 +708,7 @@ CREATE TABLE ccadb_certificate(
 	TEST_WEBSITE_REVOKED_STATUS		text,
 	TEST_WEBSITE_VALID_CERTIFICATE_ID	bigint,
 	TEST_WEBSITE_EXPIRED_CERTIFICATE_ID	bigint,
-	TEST_WEBSITE_REVOKED_CERTIFICATE_ID	bigint,
-	CONSTRAINT cc_c_fk
-		FOREIGN KEY (CERTIFICATE_ID)
-		REFERENCES certificate(ID),
-	CONSTRAINT cc_pc_fk
-		FOREIGN KEY (PARENT_CERTIFICATE_ID)
-		REFERENCES certificate(ID),
-	CONSTRAINT cc_ic_fk
-		FOREIGN KEY (INCLUDED_CERTIFICATE_ID)
-		REFERENCES certificate(ID)
+	TEST_WEBSITE_REVOKED_CERTIFICATE_ID	bigint
 );
 
 CREATE INDEX cc_c
@@ -748,15 +757,11 @@ CREATE TABLE debian_weak_key (
 );
 
 CREATE TABLE microsoft_disallowedcert (
-	CERTIFICATE_ID		integer,
+	CERTIFICATE_ID		bigint,
 	DISALLOWED_HASH		bytea,
 	CONSTRAINT mdc_pk
-		PRIMARY KEY (CERTIFICATE_ID),
-	CONSTRAINT mdc_c_fk
-		FOREIGN KEY (CERTIFICATE_ID)
-		REFERENCES certificate(ID)
+		PRIMARY KEY (CERTIFICATE_ID)
 );
-
 
 CREATE TYPE revocation_entry_type AS ENUM (
 	'Serial Number',
@@ -780,13 +785,10 @@ CREATE TABLE google_crlset_import (
 );
 
 CREATE TABLE google_revoked (
-	CERTIFICATE_ID		integer,
+	CERTIFICATE_ID		bigint,
 	ENTRY_TYPE			revocation_entry_type,
 	CONSTRAINT gr_pk
-		PRIMARY KEY (CERTIFICATE_ID, ENTRY_TYPE),
-	CONSTRAINT gr_c_fk
-		FOREIGN KEY (CERTIFICATE_ID)
-		REFERENCES certificate(ID)
+		PRIMARY KEY (CERTIFICATE_ID, ENTRY_TYPE)
 );
 
 CREATE TABLE mozilla_cert_validation_success_import (
@@ -799,6 +801,25 @@ CREATE TABLE mozilla_cert_validation_success_import (
 		PRIMARY KEY (SUBMISSION_DATE, BIN_NUMBER, RELEASE, VERSION)
 );
 
+CREATE TABLE mozilla_onecrl (
+	CERTIFICATE_ID		bigint,
+	ISSUER_CA_ID		integer,
+	ISSUER_NAME			bytea,
+	LAST_MODIFIED		timestamp,
+	SERIAL_NUMBER		bytea,
+	CREATED				timestamp,
+	BUG_URL				text,
+	SUMMARY				text,
+	SUBJECT_NAME		bytea,
+	NOT_AFTER			timestamp,
+	CONSTRAINT mo_ca_fk
+		FOREIGN KEY (ISSUER_CA_ID)
+		REFERENCES ca(ID)
+);
+
+CREATE INDEX mo_c
+	ON mozilla_onecrl (CERTIFICATE_ID);
+
 CREATE INDEX mcvsi_bin_date_rel_ver
 	ON mozilla_cert_validation_success_import (BIN_NUMBER, SUBMISSION_DATE, RELEASE, VERSION);
 
@@ -806,19 +827,16 @@ CREATE TABLE mozilla_cert_validation_success (
 	SUBMISSION_DATE		date,
 	BIN_NUMBER			smallint,
 	COUNT				bigint,
-	CERTIFICATE_ID		integer,
+	CERTIFICATE_ID		bigint,
 	CONSTRAINT mcvs_pk
-		PRIMARY KEY (SUBMISSION_DATE, BIN_NUMBER),
-	CONSTRAINT mcvs_c_fk
-		FOREIGN KEY (CERTIFICATE_ID)
-		REFERENCES certificate(ID)
+		PRIMARY KEY (SUBMISSION_DATE, BIN_NUMBER)
 );
 
 CREATE INDEX mcvs_bin_date
 	ON mozilla_cert_validation_success (BIN_NUMBER, SUBMISSION_DATE);
 
 CREATE TABLE mozilla_root_hashes (
-	CERTIFICATE_ID		integer,
+	CERTIFICATE_ID		bigint,
 	CERTIFICATE_SHA256	bytea,
 	BIN_NUMBER			smallint,
 	DISPLAY_ORDER		smallint,
@@ -901,22 +919,40 @@ GRANT SELECT ON mozilla_root_hashes TO crtsh;
 
 GRANT SELECT ON cached_response TO crtsh;
 
-\i lint_cached.fnc
-\i download_cert.fnc
-\i extract_cert_names.fnc
-\i get_ca_primary_name_attribute.fnc
-\i get_parameter.fnc
-\i html_escape.fnc
-\i import_cert.fnc
-\i import_ct_cert.fnc
-\i web_apis.fnc
+
+\i fnc/ci_error_message.fnc
+\i fnc/crl_update.fnc
+\i fnc/determine_ca_trust_purposes.fnc
+\i fnc/download_cert.fnc
+\i fnc/enumerate_chains.fnc
+\i fnc/generate_add_chain_body.fnc
+\i fnc/get_ca_name_attribute.fnc
+\i fnc/get_parameter.fnc
+\i fnc/getsth_update.fnc
+\i fnc/html_escape.fnc
+\i fnc/import_cert.fnc
+\i fnc/import_chain_cert.fnc
+\i fnc/is_technically_constrained.fnc
+\i fnc/process_new_entries.fnc
+
+\i linting/lint_cached.fnc
+
+\i fnc/web_apis.fnc
+
+
+CREATE VIEW certificate_identity AS
+SELECT NULL::bigint		CERTIFICATE_ID,
+		NULL::text		NAME_TYPE,
+		NULL::text		NAME_VALUE,
+		NULL::integer	ISSUER_CA_ID
+	FROM ci_error_message();
 
 CREATE VIEW certificate_lifecycle AS
 SELECT c.ID CERTIFICATE_ID,
 		c.ISSUER_CA_ID CA_ID,
 		encode(x509_serialNumber(c.CERTIFICATE), 'hex') SERIAL_NUMBER,
 		x509_subjectName(c.CERTIFICATE) SUBJECT_DISTINGUISHED_NAME,
-		(CASE WHEN (x509_print(c.CERTIFICATE) LIKE '%CT Precertificate Poison%')
+		(CASE WHEN x509_hasExtension(c.CERTIFICATE, '1.3.6.1.4.1.11129.2.4.3', TRUE)
 			THEN 'Precertificate'
 			ELSE 'Certificate'
 		END) CERTIFICATE_TYPE,
@@ -925,7 +961,7 @@ SELECT c.ID CERTIFICATE_ID,
 		ctle.FIRST_SEEN FIRST_SEEN,
 		coalesce(crlr.REVOKED, 0) REVOKED,
 		coalesce(lci.LINT_ERRORS, 0) LINT_ERRORS,
-		(x509_notAfter(c.CERTIFICATE) < now()) EXPIRED
+		(x509_notAfter(c.CERTIFICATE) < now() AT TIME ZONE 'UTC') EXPIRED
 	FROM certificate c
 			JOIN LATERAL (
 				SELECT MIN(ctle.ENTRY_TIMESTAMP) FIRST_SEEN,
