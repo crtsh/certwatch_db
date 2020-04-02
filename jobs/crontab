@@ -6,7 +6,7 @@
 */10 * * * *	~/app_monitor.sh ~/certwatch/crl_monitor/bin/crl_monitor
 */10 * * * *	~/app_monitor.sh ~/certwatch/jobs/determine_ca_trust_purposes.sh
 */10 * * * *	~/app_monitor.sh ~/certwatch/google/update_google_uptime.sh
-*/10 * * * *	~/app_monitor.sh ~/certwatch/ccadb/update_ccadb_certificates.sh
+2-59/10 * * * *	~/app_monitor.sh ~/certwatch/ccadb/update_ccadb_certificates.sh
 
 # Every one hour.
 0 * * * *	~/app_monitor.sh ~/certwatch/jobs/regular_maintenance.sh
