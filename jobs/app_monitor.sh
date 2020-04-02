@@ -1,5 +1,6 @@
 #!/bin/bash
-pidof $1
+screen -S `basename "$1"` -Q select . >/dev/null
+#pidof $1 >/dev/null
 result=$?
 if [ "${result}" -ne "0" ] ; then
   cd `dirname "$1"`
