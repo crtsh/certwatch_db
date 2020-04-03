@@ -3443,7 +3443,7 @@ Content-Type: text/plain; charset=UTF-8
 						'                      AND plainto_tsquery($2) @@ to_tsvector(cai.NAME_VALUE)' || chr(10);
 				ELSIF t_match = 'FTS' THEN
 					t_query := t_query ||
-							'                  AND to_tsquery($1) @@ to_tsvector(cai.NAME_VALUE)' || chr(10);
+							'                  AND to_tsquery($2) @@ to_tsvector(cai.NAME_VALUE)' || chr(10);
 				ELSIF t_match != 'Any' THEN
 					t_query := t_query ||
 						'                      AND cai.NAME_VALUE ' || t_match || ' ';
