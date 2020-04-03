@@ -4,8 +4,7 @@ AS $$
 DECLARE
 	caCert_cursor		CURSOR FOR
 							SELECT x509_subjectName(net.DER_X509) SUBJECT_NAME,
-									x509_publicKey(net.DER_X509) PUBLIC_KEY,
-									NULL::text BRAND
+									x509_publicKey(net.DER_X509) PUBLIC_KEY
 								FROM newentries_temp net
 								WHERE net.NEW_AND_CAN_ISSUE_CERTS
 								FOR UPDATE;
@@ -15,13 +14,12 @@ DECLARE
 									net.ISSUER_CA_ID, NULL::boolean LINTING_APPLIES,
 									net.NEW_AND_CAN_ISSUE_CERTS
 								FROM newentries_temp net
-								WHERE net.NEW_CERT_COUNT = 1
+								WHERE net.NUM_ISSUED_INDEX > 0
 									AND net.ISSUER_CA_ID IS NULL
 								FOR UPDATE;
 
 	t_caID				ca.ID%TYPE;
 	l_ca				RECORD;
-	t_now				timestamp;
 	t_isNewCA			boolean;
 BEGIN
 	-- Linting requirements flow down from the issuer CA.
@@ -33,11 +31,13 @@ BEGIN
 			AND ca.LINTING_APPLIES = 't';
 
 	-- Determine which certificates are already known.
+	-- Optimization: Compare x509_notAfter() to avoid wasting time checking the wrong "certificate" partitions.
 	UPDATE newentries_temp net
 		SET CERTIFICATE_ID = c.ID,
-			NEW_CERT_COUNT = 0
+			NUM_ISSUED_INDEX = 0
 		FROM certificate c
-		WHERE net.SHA256_X509 = digest(c.CERTIFICATE, 'sha256');
+		WHERE net.SHA256_X509 = digest(c.CERTIFICATE, 'sha256')
+			AND coalesce(x509_notAfter(net.DER_X509), 'infinity'::timestamp) = coalesce(x509_notAfter(c.CERTIFICATE), 'infinity'::timestamp);
 
 	-- Assign IDs for the certificates that are new.
 	UPDATE newentries_temp net
@@ -47,7 +47,7 @@ BEGIN
 				SELECT net2.SHA256_X509,
 						nextval('certificate_id_seq'::regclass) NEW_CERTIFICATE_ID
 					FROM newentries_temp net2
-					WHERE net2.NEW_CERT_COUNT = 1
+					WHERE net2.NUM_ISSUED_INDEX > 0
 					GROUP BY net2.SHA256_X509
 			) sub
 		WHERE net.SHA256_X509 = sub.SHA256_X509;
@@ -55,7 +55,6 @@ BEGIN
 	-- If this is a CA certificate, find (or create) the Subject CA record.
 	FOR l_caCert IN caCert_cursor LOOP
 		IF l_caCert.PUBLIC_KEY IS NULL THEN
-			l_caCert.BRAND := 'Bad Public Key';
 			l_caCert.PUBLIC_KEY := E'\\x00';
 		END IF;
 
@@ -67,10 +66,10 @@ BEGIN
 				AND ca.PUBLIC_KEY IN (l_caCert.PUBLIC_KEY, E'\\x00');
 		IF t_caID IS NULL THEN
 			INSERT INTO ca (
-					NAME, PUBLIC_KEY, LINTING_APPLIES, BRAND
+					NAME, PUBLIC_KEY, LINTING_APPLIES
 				)
 				VALUES (
-					l_caCert.SUBJECT_NAME, l_caCert.PUBLIC_KEY, 't', l_caCert.BRAND
+					l_caCert.SUBJECT_NAME, l_caCert.PUBLIC_KEY, 't'
 				)
 				RETURNING ca.ID
 					INTO t_caID;
@@ -105,20 +104,13 @@ BEGIN
 			WHERE CURRENT OF findIssuer_cursor;
 	END LOOP;
 
-	t_now := statement_timestamp() AT TIME ZONE 'UTC';
 	INSERT INTO certificate (
-			ID, CERTIFICATE, ISSUER_CA_ID,
-			CABLINT_CACHED_AT,
-			X509LINT_CACHED_AT,
-			ZLINT_CACHED_AT
+			ID, ISSUER_CA_ID, CERTIFICATE
 		)
-		SELECT net.CERTIFICATE_ID, net.DER_X509, net.ISSUER_CA_ID,
-				CASE WHEN bool_or(net.LINTING_APPLIES) THEN t_now ELSE NULL END,
-				CASE WHEN bool_or(net.LINTING_APPLIES) THEN t_now ELSE NULL END,
-				CASE WHEN bool_or(net.LINTING_APPLIES) THEN t_now ELSE NULL END
+		SELECT net.CERTIFICATE_ID, net.ISSUER_CA_ID, net.DER_X509
 			FROM newentries_temp net
-			WHERE net.NEW_CERT_COUNT = 1
-			GROUP BY net.CERTIFICATE_ID, net.DER_X509, net.ISSUER_CA_ID;
+			WHERE net.NUM_ISSUED_INDEX > 0
+			GROUP BY net.CERTIFICATE_ID, net.ISSUER_CA_ID, net.DER_X509;
 
 	INSERT INTO ca_certificate (
 			CERTIFICATE_ID, CA_ID
@@ -133,54 +125,6 @@ BEGIN
 		SELECT net.CERTIFICATE_ID, net.CT_LOG_ID, net.ENTRY_ID, net.ENTRY_TIMESTAMP
 			FROM newentries_temp net;
 
-	INSERT INTO certificate_identity (
-			CERTIFICATE_ID, ISSUER_CA_ID, NAME_TYPE, NAME_VALUE
-		)
-		SELECT net.CERTIFICATE_ID,
-				max(net.ISSUER_CA_ID),
-				sub.NAME_TYPE::name_type,
-				min(encode(sub.RAW_VALUE, 'escape')) NAME_VALUE
-			FROM newentries_temp net
-					LEFT JOIN LATERAL (
-						SELECT CASE x.ATTRIBUTE_OID
-									WHEN '2.5.4.3' THEN 'commonName'
-									WHEN '2.5.4.10' THEN 'organizationName'
-									WHEN '2.5.4.11' THEN 'organizationalUnitName'
-									WHEN '1.2.840.113549.1.9.1' THEN 'emailAddress'
-									ELSE NULL
-								END NAME_TYPE,
-								x.RAW_VALUE
-							FROM x509_nameAttributes_raw(net.DER_X509, 't') x
-						UNION
-						SELECT CASE x.TYPE_NUM
-									WHEN '1' THEN 'rfc822Name'
-									WHEN '2' THEN 'dNSName'
-									WHEN '7' THEN 'iPAddress'
-									ELSE NULL
-								END NAME_TYPE,
-								x.RAW_VALUE
-							FROM x509_altNames_raw(net.DER_X509, 't') x
-				) sub ON TRUE
-			WHERE net.NEW_CERT_COUNT = 1
-				AND sub.NAME_TYPE IS NOT NULL
-			GROUP BY net.CERTIFICATE_ID, NAME_TYPE, lower(encode(sub.RAW_VALUE, 'escape'));
-
-	PERFORM lint_new_cert(net.ISSUER_CA_ID, net.CERTIFICATE_ID::integer, 0, net.DER_X509, 'cablint'),
-			lint_new_cert(
-				net.ISSUER_CA_ID,
-				net.CERTIFICATE_ID::integer,
-				CASE WHEN net.SUBJECT_CA_ID IS NULL THEN 0
-					WHEN net.SUBJECT_CA_ID = net.ISSUER_CA_ID THEN 2
-					ELSE 1
-				END,
-				net.DER_X509,
-				'x509lint'
-			),
-			lint_new_cert(net.ISSUER_CA_ID, net.CERTIFICATE_ID::integer, 0, net.DER_X509, 'zlint')
-		FROM newentries_temp net
-		WHERE net.NEW_CERT_COUNT = 1
-			AND net.LINTING_APPLIES;
-
 	UPDATE ca
 		SET LINTING_APPLIES = 'f'
 		FROM newentries_temp net
@@ -189,23 +133,33 @@ BEGIN
 			AND net.SUBJECT_CA_ID = ca.ID;
 
 	UPDATE ca
-		SET NO_OF_CERTS_ISSUED = NO_OF_CERTS_ISSUED + sub.NEW_CERT_COUNT
+		SET NUM_ISSUED[1] = coalesce(NUM_ISSUED[1], 0) + sub.CERTS_ISSUED,
+			NUM_ISSUED[2] = coalesce(NUM_ISSUED[2], 0) + sub.PRECERTS_ISSUED,
+			NUM_EXPIRED[1] = coalesce(NUM_EXPIRED[1], 0) + sub.CERTS_EXPIRED,
+			NUM_EXPIRED[2] = coalesce(NUM_EXPIRED[2], 0) + sub.PRECERTS_EXPIRED,
+			NEXT_NOT_AFTER = sub.NEXT_NOT_AFTER
 		FROM (
-			SELECT net.ISSUER_CA_ID, sum(net.NEW_CERT_COUNT) NEW_CERT_COUNT
-				FROM newentries_temp net
+			SELECT net.ISSUER_CA_ID,
+					sum(CASE WHEN net.NUM_ISSUED_INDEX = 1 THEN 1 ELSE 0 END) CERTS_ISSUED,
+					sum(CASE WHEN net.NUM_ISSUED_INDEX = 2 THEN 1 ELSE 0 END) PRECERTS_ISSUED,
+					sum(CASE WHEN (net.NUM_ISSUED_INDEX = 1) AND (coalesce(x509_notAfter(net.DER_X509), 'infinity'::timestamp) <= coalesce(ca.LAST_NOT_AFTER, '-infinity'::timestamp)) THEN 1 ELSE 0 END) CERTS_EXPIRED,
+					sum(CASE WHEN (net.NUM_ISSUED_INDEX = 2) AND (coalesce(x509_notAfter(net.DER_X509), 'infinity'::timestamp) <= coalesce(ca.LAST_NOT_AFTER, '-infinity'::timestamp)) THEN 1 ELSE 0 END) PRECERTS_EXPIRED,
+					min(CASE WHEN (coalesce(x509_notAfter(net.DER_X509), 'infinity'::timestamp) <= coalesce(ca.LAST_NOT_AFTER, '-infinity'::timestamp)) THEN ca.NEXT_NOT_AFTER ELSE least(coalesce(ca.NEXT_NOT_AFTER, 'infinity'::timestamp), coalesce(x509_notAfter(net.DER_X509), 'infinity'::timestamp)) END) NEXT_NOT_AFTER
+				FROM newentries_temp net, ca
+				WHERE net.ISSUER_CA_ID = ca.ID
+					AND net.NUM_ISSUED_INDEX > 0
 				GROUP BY net.ISSUER_CA_ID
-				HAVING sum(net.NEW_CERT_COUNT) > 0
 			) sub
 		WHERE ca.ID = sub.ISSUER_CA_ID;
 
 	INSERT INTO crl (
 			CA_ID, DISTRIBUTION_POINT_URL, NEXT_CHECK_DUE, IS_ACTIVE
 		)
-		SELECT sub.ISSUER_CA_ID, sub.DISTRIBUTION_POINT_URL, statement_timestamp() AT TIME ZONE 'UTC', TRUE
+		SELECT sub.ISSUER_CA_ID, sub.DISTRIBUTION_POINT_URL, now() AT TIME ZONE 'UTC', TRUE
 			FROM (
 					SELECT net.ISSUER_CA_ID, trim(x509_crlDistributionPoints(net.DER_X509)) DISTRIBUTION_POINT_URL
 						FROM newentries_temp net
-						WHERE net.NEW_CERT_COUNT = 1
+						WHERE net.NUM_ISSUED_INDEX > 0
 						GROUP BY net.ISSUER_CA_ID, DISTRIBUTION_POINT_URL
 				) sub
 			WHERE NOT EXISTS (
@@ -218,11 +172,11 @@ BEGIN
 	INSERT INTO ocsp_responder (
 			CA_ID, URL, NEXT_CHECKS_DUE
 		)
-		SELECT sub.ISSUER_CA_ID, sub.URL, statement_timestamp() AT TIME ZONE 'UTC'
+		SELECT sub.ISSUER_CA_ID, sub.URL, now() AT TIME ZONE 'UTC'
 			FROM (
 					SELECT net.ISSUER_CA_ID, trim(x509_authorityInfoAccess(net.DER_X509, 1)) URL
 						FROM newentries_temp net
-						WHERE net.NEW_CERT_COUNT = 1
+						WHERE net.NUM_ISSUED_INDEX > 0
 						GROUP BY net.ISSUER_CA_ID, URL
 				) sub
 			WHERE NOT EXISTS (

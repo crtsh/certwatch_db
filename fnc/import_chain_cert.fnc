@@ -4,14 +4,15 @@ CREATE OR REPLACE FUNCTION import_chain_cert(
 ) RETURNS ca.ID%TYPE
 AS $$
 DECLARE
+	t_notAfter			timestamp;
 	t_certificateID		certificate.ID%TYPE;
 	t_issuerCAID		certificate.ISSUER_CA_ID%TYPE	:= -1;
 	t_name				ca.NAME%TYPE;
-	t_brand				ca.BRAND%TYPE;
 	t_publicKey			ca.PUBLIC_KEY%TYPE;
 	t_caID				ca.ID%TYPE;
 	t_is_new_ca			boolean							:= FALSE;
 	t_lintingApplies	ca.LINTING_APPLIES%TYPE			:= TRUE;
+	t_countIndex		smallint						:= 1;		-- Certificate.
 	l_ca				RECORD;
 	l_cdp				RECORD;
 	l_aiaOCSP			RECORD;
@@ -20,21 +21,22 @@ BEGIN
 		RETURN NULL;
 	END IF;
 
+	t_notAfter := coalesce(x509_notAfter(ca_cert_data), 'infinity'::timestamp);
+
 	SELECT c.ID, cac.CA_ID
 		INTO t_certificateID, t_caID
 		FROM certificate c
 				LEFT OUTER JOIN ca_certificate cac ON (
 					c.ID = cac.CERTIFICATE_ID
 				)
-		WHERE digest(c.CERTIFICATE, 'sha256')
-					= digest(ca_cert_data, 'sha256');
+		WHERE digest(ca_cert_data, 'sha256') = digest(c.CERTIFICATE, 'sha256')
+			AND t_notAfter = coalesce(x509_notAfter(c.CERTIFICATE), 'infinity'::timestamp);
 	IF t_caID IS NOT NULL THEN
 		RETURN t_caID;
 	ELSE
 		t_name := x509_subjectName(ca_cert_data);
 		t_publicKey := x509_publicKey(ca_cert_data);
 		IF t_publicKey IS NULL THEN
-			t_brand := 'Bad Public Key';
 			t_publicKey := E'\\x00';
 		END IF;
 
@@ -45,10 +47,10 @@ BEGIN
 				AND ca.PUBLIC_KEY IN (t_publicKey, E'\\x00');
 		IF t_caID IS NULL THEN
 			INSERT INTO ca (
-					NAME, PUBLIC_KEY, LINTING_APPLIES, BRAND
+					NAME, PUBLIC_KEY, LINTING_APPLIES
 				)
 				VALUES (
-					t_name, t_publicKey, t_lintingApplies, t_brand
+					t_name, t_publicKey, t_lintingApplies
 				)
 				RETURNING ca.ID
 					INTO t_caID;
@@ -90,38 +92,41 @@ BEGIN
 			RETURNING ID
 				INTO t_certificateID;
 
+		IF x509_hasExtension(ca_cert_data, '1.3.6.1.4.1.11129.2.4.3', TRUE) THEN
+			t_countIndex := 2;		-- Precertificate (RFC6962).
+		END IF;
 		UPDATE ca
-			SET NO_OF_CERTS_ISSUED = NO_OF_CERTS_ISSUED + 1
+			SET NUM_ISSUED[t_countIndex] = coalesce(NUM_ISSUED[t_countIndex], 0) + 1,
+				NUM_EXPIRED[t_countIndex] = coalesce(NUM_EXPIRED[t_countIndex], 0) + CASE WHEN (t_notAfter <= coalesce(LAST_NOT_AFTER, '-infinity'::timestamp)) THEN 1 ELSE 0 END,
+				NEXT_NOT_AFTER = CASE WHEN (t_notAfter <= coalesce(LAST_NOT_AFTER, '-infinity'::timestamp)) THEN NEXT_NOT_AFTER ELSE least(coalesce(NEXT_NOT_AFTER, 'infinity'::timestamp), t_notAfter) END
 			WHERE ID = t_issuerCAID;
 
-		PERFORM extract_cert_names(t_certificateID, t_issuerCAID);
-
-		IF t_lintingApplies THEN
+/*		IF t_lintingApplies THEN
 			PERFORM lint_cached(t_certificateID, 'cablint');
 			PERFORM lint_cached(t_certificateID, 'x509lint');
 			PERFORM lint_cached(t_certificateID, 'zlint');
-		END IF;
+		END IF;*/
 
 		FOR l_cdp IN (
-					SELECT x509_crlDistributionPoints(ca_cert_data) URL
-				) LOOP
+			SELECT x509_crlDistributionPoints(ca_cert_data) URL
+		) LOOP
 			INSERT INTO crl (
 					CA_ID, DISTRIBUTION_POINT_URL, NEXT_CHECK_DUE, IS_ACTIVE
 				)
 				VALUES (
-					t_issuerCAID, trim(l_cdp.URL), statement_timestamp() AT TIME ZONE 'UTC', TRUE
+					t_issuerCAID, trim(l_cdp.URL), now() AT TIME ZONE 'UTC', TRUE
 				)
 				ON CONFLICT DO NOTHING;
 		END LOOP;
 
 		FOR l_aiaOCSP IN (
-					SELECT x509_authorityInfoAccess(ca_cert_data, 1) URL
-				) LOOP
+			SELECT x509_authorityInfoAccess(ca_cert_data, 1) URL
+		) LOOP
 			INSERT INTO ocsp_responder (
 					CA_ID, URL, NEXT_CHECKS_DUE
 				)
 				VALUES (
-					t_issuerCAID, l_aiaOCSP.URL, statement_timestamp() AT TIME ZONE 'UTC'
+					t_issuerCAID, l_aiaOCSP.URL, now() AT TIME ZONE 'UTC'
 				)
 				ON CONFLICT DO NOTHING;
 		END LOOP;
