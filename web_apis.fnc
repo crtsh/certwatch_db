@@ -65,6 +65,7 @@ DECLARE
 	t_paramNo			integer;
 	t_paramName			text;
 	t_value				text;
+	t_value2			text;
 	t_type				text			:= 'Simple';
 	t_cmd				text;
 	t_bytea				bytea;
@@ -84,7 +85,8 @@ DECLARE
 	t_caName			ca.NAME%TYPE;
 	t_serialNumber		bytea;
 	t_spkiSHA256		bytea;
-	t_nameType			name_type;
+	t_nameType			text;
+	t_nameType_oid		text;
 	t_text				text;
 	t_offset			integer;
 	t_pos1				integer;
@@ -99,8 +101,10 @@ DECLARE
 	t_where				text;
 	t_nameValue			text;
 	t_certID_field		text;
+	t_entryTimestamp_field	text;
 	t_query				text;
 	t_sort				integer;
+	t_needMinEntryTimestamp	boolean;
 	t_groupBy			text			:= 'none';
 	t_groupByParameter	text			:= 'none';
 	t_direction			text;
@@ -130,7 +134,6 @@ DECLARE
 	t_ctp3				ca_trust_purpose%ROWTYPE;
 	t_useReverseIndex	boolean			:= FALSE;
 	t_joinToCertificate_table	text;
-	t_joinToCTLogEntry	text;
 	t_showIdentity		boolean;
 	t_minNotBefore		date;
 	t_minNotBeforeString	text;
@@ -141,6 +144,8 @@ DECLARE
 	t_searchProvider	text;
 	t_issuerCAID		certificate.ISSUER_CA_ID%TYPE;
 	t_issuerCAID_table	text;
+	t_notBefore_field	text;
+	t_notAfter_field	text;
 	t_feedUpdated		timestamp;
 	t_caPublicKey		ca.PUBLIC_KEY%TYPE;
 	t_count				integer;
@@ -259,7 +264,7 @@ BEGIN
 		t_outputType := 'json';
 		t_isJSONOutputSupported := TRUE;
 	ELSIF lower(t_outputType) IN ('revoked-intermediates', 'mozilla-certvalidations', 'mozilla-certvalidations-by-root', 'mozilla-certvalidations-by-owner', 'mozilla-certvalidations-by-version',
-									'mozilla-disclosures', 'mozilla-onecrl', 'microsoft-disclosures', 'ocsp-responders', 'ocsp-response', 'redacted-precertificates', 'test-websites') THEN
+									'mozilla-disclosures', 'mozilla-onecrl', 'microsoft-disclosures', 'ocsp-responders', 'ocsp-response', 'test-websites') THEN
 		t_type := lower(t_outputType);
 		t_title := t_type;
 		t_outputType := 'html';
@@ -308,21 +313,28 @@ Content-Type: application/json
 		t_value := encode(t_bytea, 'hex');
 		t_title := 'SKI#' || t_value;
 	ELSIF t_type = 'Identity' THEN
-		t_nameType := NULL;
+		NULL;
 	ELSIF t_type = 'Common Name' THEN
 		t_nameType := 'commonName';
+		t_nameType_oid := '2.5.4.3';
 	ELSIF t_type = 'Email Address' THEN
 		t_nameType := 'emailAddress';
+		t_nameType_oid := '1.2.840.113549.1.9.1';
 	ELSIF t_type = 'Organizational Unit Name' THEN
 		t_nameType := 'organizationalUnitName';
+		t_nameType_oid := '2.5.4.11';
 	ELSIF t_type = 'Organization Name' THEN
 		t_nameType := 'organizationName';
+		t_nameType_oid := '2.5.4.10';
 	ELSIF t_type = 'Domain Name' THEN
 		t_nameType := 'dNSName';
+		t_nameType_oid := 'san:dNSName';
 	ELSIF t_type = 'Email Address (SAN)' THEN
 		t_nameType := 'rfc822Name';
+		t_nameType_oid := 'san:rfc822Name';
 	ELSIF t_type = 'IP Address' THEN
 		t_nameType := 'iPAddress';
+		t_nameType_oid := 'san:iPAddress';
 	ELSIF lower(t_type) LIKE '%lint' THEN
 		IF t_type = 'Lint' THEN
 			t_linters := 'cablint,x509lint,zlint';
@@ -744,9 +756,9 @@ Content-Type: application/json
           <BR><BR><BR><BR><HR><BR>
           <SPAN class="heading">Select linting options:</SPAN>
           <BR><SELECT name="linter" size="3">
-            <OPTION value="cablint" selected>cablint</OPTION>
+            <OPTION value="cablint">cablint</OPTION>
             <OPTION value="x509lint">x509lint</OPTION>
-            <OPTION value="zlint">zlint</OPTION>
+            <OPTION value="zlint" selected>zlint</OPTION>
             <OPTION value="lint">ALL</OPTION>
           </SELECT>
           <SELECT name="linttype" size="3">
@@ -796,7 +808,6 @@ Content-Type: application/json
               <TD>
                 <A href="/monitored-logs">Monitored Logs</A>
                 <BR><A href="/gen-add-chain">Certificate Submission Assistant</A>
-                <BR><A href="/redacted-precertificates">"Redacted" Precertificates</A>
               </TD>
             </TR>
           </TABLE>
@@ -1069,74 +1080,6 @@ Content-Type: application/json
 		t_output := t_output || '
 </TABLE>';
 
-	ELSIF t_type = 'redacted-precertificates' THEN
-		t_output := t_output ||
-'  <SPAN class="whiteongrey">"Redacted" Precertificates</SPAN>
-  <BR><SPAN class="small">Generated at ' || TO_CHAR(statement_timestamp() AT TIME ZONE 'UTC', 'YYYY-MM-DD HH24:MI:SS') || ' UTC</SPAN>
-<BR><BR>
-';
-
-		t_temp := '';
-		FOR l_record IN (
-					SELECT pc.ID PRECERT_ID,
-							array_agg(pci.NAME_VALUE) REDACTED_LABELS,
-							c.ID CERT_ID,
-							pci.ISSUER_CA_ID,
-							ca.NAME  ISSUER_NAME
-						FROM certificate_identity pci, ca,
-							certificate pc
-								LEFT OUTER JOIN certificate c ON (
-									pc.ID != c.ID
-									AND pc.ISSUER_CA_ID = c.ISSUER_CA_ID
-									AND x509_serialNumber(pc.CERTIFICATE) = x509_serialNumber(c.CERTIFICATE)
-									AND c.CERTIFICATE IS NOT NULL
-								)
-						WHERE lower(pci.NAME_VALUE) LIKE '?%'
-							AND pci.NAME_TYPE IN ('dNSName', 'commonName')
-							AND pci.ISSUER_CA_ID = ca.ID
-							AND pci.CERTIFICATE_ID = pc.ID
-						GROUP BY pc.ID, c.ID, pci.ISSUER_CA_ID, ca.NAME
-						ORDER BY pc.ID DESC
-				) LOOP
-			t_temp := t_temp ||
-'  <TR>
-    <TD><A href="/?id=' || l_record.PRECERT_ID || '">' || l_record.PRECERT_ID || '</A></TD>
-    <TD>' || array_to_string(l_record.REDACTED_LABELS, '<BR>') || '</TD>
-';
-			IF l_record.CERT_ID IS NULL THEN
-				t_temp := t_temp ||
-'    <TD>&nbsp;</TD>
-    <TD>&nbsp;</TD>
-    <TD>&nbsp;</TD>
-';
-			ELSE
-				SELECT string_agg(ci.NAME_VALUE, '<BR>')
-					INTO t_temp2
-					FROM certificate_identity ci
-					WHERE ci.CERTIFICATE_ID = l_record.CERT_ID
-						AND ci.NAME_TYPE IN ('dNSName', 'commonName');
-				t_temp := t_temp ||
-'    <TD><A href="/?id=' || l_record.CERT_ID || '">' || l_record.CERT_ID || '</A></TD>
-    <TD>' || t_temp2 || '</TD>
-    <TD><A href="/?id=' || l_record.ISSUER_CA_ID || '">' || l_record.ISSUER_NAME || '</A></TD>
-';
-			END IF;
-			t_temp := t_temp ||
-'  </TR>
-';
-		END LOOP;
-		t_output := t_output ||
-'<TABLE>
-  <TR>
-    <TH>Precertificate</TH>
-    <TH>Redacted Labels</TH>
-    <TH>Certificate</TH>
-    <TH>Unredacted Labels</TH>
-    <TH>Issuer Name</TH>
-  </TR>
-'  || t_temp || '
-</TABLE>';
-
 	ELSIF t_type = 'gen-add-chain' THEN
 		t_temp := get_parameter('b64cert', paramNames, paramValues);
 		t_onlyOneChain := lower(coalesce(get_parameter('onlyonechain', paramNames, paramValues), 'n')) = 'y';
@@ -1147,7 +1090,7 @@ Content-Type: application/json
 <BR><BR>2. Press the button to generate JSON that you can then submit to a log''s /ct/v1/add-chain API.
 <BR>(crt.sh will discover the trust chain for you).
 <BR><BR><FORM method="post" name="form1">
-  <TEXTAREA name="b64cert" rows=25 cols=64></TEXTAREA>
+  <TEXTAREA name="b64cert" rows=25 cols=65></TEXTAREA>
   <BR><BR><INPUT type="submit" class="button" value="Generate JSON">
 </FORM>
 <BR><BR><SPAN class="small">Please note: This tool currently finds chains that are trusted by the Mozilla and/or Microsoft and/or Apple root programs.
@@ -3056,18 +2999,22 @@ Content-Type: text/plain; charset=UTF-8
 ';
 			t_text := NULL;
 			FOR l_record IN (
-						SELECT x509_subjectName(c.CERTIFICATE)	SUBJECT_NAME,
-								cac.CA_ID
-							FROM certificate c, ca_certificate cac
-								LEFT OUTER JOIN ca ON (cac.CA_ID = ca.ID)
-							WHERE x509_canIssueCerts(c.CERTIFICATE)
-								AND c.ISSUER_CA_ID = t_caID
-								AND c.ID = cac.CERTIFICATE_ID
-								AND cac.CA_ID != t_caID
-							GROUP BY x509_subjectName(c.CERTIFICATE),
-									cac.CA_ID
-							ORDER BY x509_subjectName(c.CERTIFICATE)
-					) LOOP
+				WITH child_certificate AS MATERIALIZED (
+					SELECT c.ID, x509_subjectName(c.CERTIFICATE) SUBJECT_NAME
+						FROM certificate c
+						WHERE c.ISSUER_CA_ID = t_caID
+							AND x509_canIssueCerts(c.CERTIFICATE)
+				)
+				SELECT child_certificate.SUBJECT_NAME,
+						cac.CA_ID
+					FROM child_certificate,
+						ca_certificate cac
+							LEFT OUTER JOIN ca ON (cac.CA_ID = ca.ID)
+					WHERE child_certificate.ID = cac.CERTIFICATE_ID
+						AND cac.CA_ID != t_caID
+					GROUP BY child_certificate.SUBJECT_NAME, cac.CA_ID
+					ORDER BY child_certificate.SUBJECT_NAME
+			) LOOP
 				IF t_text IS NULL THEN
 					t_text := '
 <TABLE class="options" style="margin-left:0px">
@@ -3255,46 +3202,52 @@ Content-Type: text/plain; charset=UTF-8
 			END IF;
 		END IF;
 
+		IF substr(t_value, 1, 2) = '%.' THEN
+			t_value2 := substr(t_value, 3);
+		ELSIF position('%' IN t_value) > 0 THEN
+			t_value2 := replace(t_value, '%', '');
+		ELSE
+			t_value2 := t_value;
+		END IF;
+
 		-- Search for (potentially) multiple certificates.
 		IF t_caID IS NOT NULL THEN
 			-- Show all of the certs for 1 identity issued by 1 CA.
-			t_query := 'SELECT c.ID, x509_subjectName(c.CERTIFICATE) SUBJECT_NAME,' || chr(10) ||
-						'		x509_notBefore(c.CERTIFICATE) NOT_BEFORE,' || chr(10) ||
-						'		x509_notAfter(c.CERTIFICATE) NOT_AFTER,' || chr(10) ||
-						'		c.ISSUER_CA_ID' || chr(10) ||
-						'	FROM certificate c' || chr(10);
-			IF t_type IN (
-						'Serial Number', 'Subject Key Identifier',
-						'SHA-1(SubjectPublicKeyInfo)', 'SHA-256(SubjectPublicKeyInfo)', 'SHA-1(Subject)'
-					) THEN
+			IF (t_value = '%') OR t_type IN (
+				'Serial Number', 'Subject Key Identifier',
+				'SHA-1(SubjectPublicKeyInfo)', 'SHA-256(SubjectPublicKeyInfo)', 'SHA-1(Subject)'
+			) THEN
+				t_query :=
+						'SELECT c.ID,' || chr(10) ||
+						'       c.ISSUER_CA_ID,' || chr(10) ||
+						'       x509_subjectName(c.CERTIFICATE) SUBJECT_NAME,' || chr(10) ||
+						'       x509_notBefore(c.CERTIFICATE) NOT_BEFORE,' || chr(10) ||
+						'       x509_notAfter(c.CERTIFICATE) NOT_AFTER' || chr(10) ||
+						'    FROM certificate c' || chr(10) ||
+						'    WHERE c.ISSUER_CA_ID = $1' || chr(10);
 				IF t_type = 'Serial Number' THEN
 					t_query := t_query ||
-						'	WHERE x509_serialNumber(c.CERTIFICATE) = decode($2, ''hex'')' || chr(10);
+						'        AND x509_serialNumber(c.CERTIFICATE) = decode($2, ''hex'')' || chr(10);
 				ELSIF t_type = 'Subject Key Identifier' THEN
 					t_query := t_query ||
-						'	WHERE x509_subjectKeyIdentifier(c.CERTIFICATE) = decode($2, ''hex'')' || chr(10);
+						'        AND x509_subjectKeyIdentifier(c.CERTIFICATE) = decode($2, ''hex'')' || chr(10);
 				ELSIF t_type = 'SHA-1(SubjectPublicKeyInfo)' THEN
 					t_query := t_query ||
-						'	WHERE digest(x509_publickey(c.CERTIFICATE), ''sha1'') = decode($2, ''hex'')' || chr(10);
+						'        AND digest(x509_publickey(c.CERTIFICATE), ''sha1'') = decode($2, ''hex'')' || chr(10);
 				ELSIF t_type = 'SHA-256(SubjectPublicKeyInfo)' THEN
 					t_query := t_query ||
-						'	WHERE digest(x509_publickey(c.CERTIFICATE), ''sha256'') = decode($2, ''hex'')' || chr(10);
+						'        AND digest(x509_publickey(c.CERTIFICATE), ''sha256'') = decode($2, ''hex'')' || chr(10);
 				ELSIF t_type = 'SHA-1(Subject)' THEN
 					t_query := t_query ||
-						'	WHERE digest(x509_name(c.CERTIFICATE), ''sha1'') = decode($2, ''hex'')' || chr(10);
+						'        AND digest(x509_name(c.CERTIFICATE), ''sha1'') = decode($2, ''hex'')' || chr(10);
 				END IF;
-				t_query := t_query ||
-						'		AND c.ISSUER_CA_ID = $1' || chr(10);
-			ELSIF (t_type = 'Identity') AND (t_value = '%') THEN
-				t_query := t_query ||
-						'	WHERE c.ISSUER_CA_ID = $1' || chr(10);
 			ELSIF lower(t_type) LIKE '%lint' THEN
 				t_query := t_query ||
 						'		, lint_cert_issue lci, lint_issue li' || chr(10) ||
 						'	WHERE c.ISSUER_CA_ID = $1::integer' || chr(10) ||
 						'		AND c.ID = lci.CERTIFICATE_ID' || chr(10) ||
 						'		AND lci.ISSUER_CA_ID = $1::integer' || chr(10) ||
-						'		AND lci.NOT_BEFORE_DATE >= $3' || chr(10) ||
+						'		AND lci.NOT_BEFORE_DATE >= $4' || chr(10) ||
 						'		AND lci.LINT_ISSUE_ID = $2::integer' || chr(10) ||
 						'		AND lci.LINT_ISSUE_ID = li.ID' || chr(10);
 				IF t_linter IS NOT NULL THEN
@@ -3302,47 +3255,66 @@ Content-Type: text/plain; charset=UTF-8
 						'		AND li.LINTER = ''' || t_linter || '''' || chr(10);
 				END IF;
 			ELSE
-				t_query := t_query ||
-						'	WHERE c.ID IN (' || chr(10) ||
-						'		SELECT DISTINCT ci.CERTIFICATE_ID' || chr(10) ||
-						'			FROM certificate_identity ci' || chr(10) ||
-						'			WHERE ci.ISSUER_CA_ID = $1' || chr(10);
-				IF t_useReverseIndex THEN
+				t_query :=
+						'WITH ci AS MATERIALIZED (' || chr(10) ||
+						'    SELECT cai.CERTIFICATE_ID ID,' || chr(10) ||
+						'           cai.ISSUER_CA_ID,' || chr(10) ||
+						'           x509_subjectName(cai.CERTIFICATE) SUBJECT_NAME,' || chr(10) ||
+						'           x509_notBefore(cai.CERTIFICATE) NOT_BEFORE,' || chr(10) ||
+						'           x509_notAfter(cai.CERTIFICATE) NOT_AFTER' || chr(10) ||
+						'        FROM certificate_and_identities cai' || chr(10) ||
+						'        WHERE websearch_to_tsquery($3) @@ identities(cai.CERTIFICATE)' || chr(10);
+				IF t_value = t_value2 THEN
 					t_query := t_query ||
-						'				AND reverse(lower(ci.NAME_VALUE)) LIKE reverse(lower($2))' || chr(10);
+						'            AND lower(cai.NAME_VALUE) = lower($3)' || chr(10);
 				ELSE
 					t_query := t_query ||
-						'				AND lower(ci.NAME_VALUE) LIKE lower($2)' || chr(10);
+						'            AND (' || chr(10) ||
+						'                (lower(cai.NAME_VALUE) = lower($3))' || chr(10) ||
+						'                OR (cai.NAME_VALUE ILIKE $2)' || chr(10) ||
+						'            )' || chr(10);
 				END IF;
-
 				IF t_type != 'Identity' THEN
-					t_query := t_query || ' ' ||
-						'				AND ci.NAME_TYPE = ' || quote_literal(t_nameType) || chr(10);
+					t_query := t_query ||
+						'            AND cai.NAME_TYPE = ' || quote_literal(t_nameType_oid) || ' -- ' || t_nameType || chr(10);
+				END IF;
+				IF t_excludeExpired IS NOT NULL THEN
+					t_query := t_query ||
+						'            AND coalesce(x509_notAfter(cai.CERTIFICATE), ''infinity''::timestamp) > now() AT TIME ZONE ''UTC''' || chr(10);
+					t_excludeExpired := NULL;
 				END IF;
 				t_query := t_query ||
-						'	)' || chr(10);
+						'    GROUP BY cai.CERTIFICATE_ID, cai.ISSUER_CA_ID, cai.CERTIFICATE' || chr(10) ||
+						')' || chr(10) ||
+						'SELECT ci.ID,' || chr(10) ||
+						'       ci.ISSUER_CA_ID,' || chr(10) ||
+						'       ci.SUBJECT_NAME,' || chr(10) ||
+						'       ci.NOT_BEFORE,' || chr(10) ||
+						'       ci.NOT_AFTER' || chr(10) ||
+						'    FROM ci' || chr(10) ||
+						'    WHERE ci.ISSUER_CA_ID = $1' || chr(10);
 			END IF;
+
 			IF t_excludeExpired IS NOT NULL THEN
 				t_query := t_query ||
-						'		AND x509_notAfter(c.CERTIFICATE) > statement_timestamp()' || chr(10);
+						'        AND coalesce(x509_notAfter(c.CERTIFICATE), ''infinity''::timestamp) > now() AT TIME ZONE ''UTC''' || chr(10);
 			END IF;
 			IF lower(t_type) LIKE '%lint' THEN
 				t_query := t_query ||
-						'	GROUP BY c.ID, c.ISSUER_CA_ID, SUBJECT_NAME, NOT_BEFORE, NOT_AFTER' || chr(10);
+						'    GROUP BY c.ID, c.ISSUER_CA_ID, SUBJECT_NAME, NOT_BEFORE, NOT_AFTER' || chr(10);
 			END IF;
 			t_query := t_query ||
-						'	ORDER BY NOT_BEFORE DESC';
+						'    ORDER BY NOT_BEFORE DESC';
 			IF t_pageNo IS NOT NULL THEN
 				t_query := t_query || chr(10) ||
-						'	OFFSET ' || ((t_pageNo - 1) * t_resultsPerPage)::text || chr(10) ||
-						'	LIMIT ' || t_resultsPerPage::text;
+						'    OFFSET ' || ((t_pageNo - 1) * t_resultsPerPage)::text || chr(10) ||
+						'    LIMIT ' || t_resultsPerPage::text;
 			END IF;
 
 			t_text := '';
-
 			t_count := 0;
 			FOR l_record IN EXECUTE t_query
-							USING t_caID, t_value, t_minNotBefore LOOP
+							USING t_caID, t_value, t_value2, t_minNotBefore LOOP
 				t_count := t_count + 1;
 				t_text := t_text ||
 '  <TR>
@@ -3360,14 +3332,14 @@ Content-Type: text/plain; charset=UTF-8
 
 			IF t_pageNo IS NOT NULL THEN
 				IF (t_value = '%') AND (t_excludeExpired IS NULL) THEN
-					SELECT ca.NO_OF_CERTS_ISSUED
+					SELECT coalesce(ca.NUM_ISSUED[1], 0) + coalesce(ca.NUM_ISSUED[2], 0)
 						INTO t_count
 						FROM ca
 						WHERE ca.ID = t_caID;
 				ELSE
-					t_temp := 'SELECT count(*) FROM (' || chr(10) || substring(t_query from '^.*	ORDER BY');
-					t_temp := substr(t_temp, 1, length(t_temp) - length('	ORDER BY')) || ') sub';
-					EXECUTE t_temp INTO t_count USING t_caID, t_value, t_minNotBefore;
+					t_temp := 'SELECT count(*) FROM (' || chr(10) || substring(t_query from '^.*    ORDER BY');
+					t_temp := substr(t_temp, 1, length(t_temp) - length('    ORDER BY')) || ') sub';
+					EXECUTE t_temp INTO t_count USING t_caID, t_value, t_value2, t_minNotBefore;
 				END IF;
 			END IF;
 
@@ -3437,29 +3409,27 @@ Content-Type: text/plain; charset=UTF-8
 <BR><BR>Value not permitted: ''%''';
 			END IF;
 
-			t_select := 	'SELECT __issuer_ca_id_table__.ISSUER_CA_ID,' || chr(10) ||
+			t_needMinEntryTimestamp := TRUE;
+
+			t_select :=		'SELECT __issuer_ca_id_table__.ISSUER_CA_ID,' || chr(10) ||
 							'        NULL::text ISSUER_NAME,' || chr(10) ||
-							'        __name_value__ NAME_VALUE,' || chr(10) ||
-							'        min(__cert_id_field__) MIN_CERT_ID,' || chr(10);
-			t_from := 		'    FROM';
-			t_where :=		'    WHERE';
+							'        __name_value__ NAME_VALUE,' || chr(10);
+			t_from := 		'    FROM ';
+			t_where := '';
 			IF coalesce(t_groupBy, '') = 'none' THEN
 				t_select := t_select ||
-							'        min(ctle.ENTRY_TIMESTAMP) MIN_ENTRY_TIMESTAMP,' || chr(10) ||
-							'        x509_notBefore(c.CERTIFICATE) NOT_BEFORE,' || chr(10) ||
-							'        x509_notAfter(c.CERTIFICATE) NOT_AFTER';
-				t_from := t_from || ',' || chr(10) ||
-							'        ct_log_entry ctle';
-				t_where := t_where || chr(10) ||
-							'        AND __ctle_cert_id__ = ctle.CERTIFICATE_ID';
-				t_joinToCTLogEntry := 'c.ID';
+							'        __cert_id_field__,' || chr(10) ||
+							'        __entry_timestamp_field__,' || chr(10) ||
+							'        __not_before_field__,' || chr(10) ||
+							'        __not_after_field__';
+				t_notBefore_field := 'x509_notBefore(c.CERTIFICATE) NOT_BEFORE';
+				t_notAfter_field := 'x509_notAfter(c.CERTIFICATE) NOT_AFTER';
 
-				t_query :=	'    GROUP BY c.ID, __issuer_ca_id_table__.ISSUER_CA_ID, ISSUER_NAME, NAME_VALUE' || chr(10) ||
-							'    ORDER BY ';
+				t_query :=	'    ORDER BY ';
 				IF t_sort = 0 THEN
-					t_query := t_query || 'MIN_CERT_ID ' || t_orderBy;
+					t_query := t_query || 'ID ' || t_orderBy;
 				ELSIF t_sort = 1 THEN
-					t_query := t_query || 'MIN_ENTRY_TIMESTAMP ' || t_orderBy || ', NAME_VALUE, ISSUER_NAME';
+					t_query := t_query || '__entry_timestamp_field__ ' || t_orderBy;
 				ELSIF t_sort = 2 THEN
 					t_query := t_query || 'NOT_BEFORE ' || t_orderBy || ', NAME_VALUE, ISSUER_NAME';
 				ELSIF t_sort = 4 THEN
@@ -3470,7 +3440,10 @@ Content-Type: text/plain; charset=UTF-8
 			ELSE
 				-- Group certs for the same identity issued by the same CA.
 				t_select := t_select ||
+							'        min(__cert_id_field__) ID,' || chr(10) ||
 							'        count(DISTINCT __cert_id_field__) NUM_CERTS';
+				t_notBefore_field := '';
+				t_notAfter_field := '';
 
 				t_query :=	'    GROUP BY __issuer_ca_id_table__.ISSUER_CA_ID, ISSUER_NAME, NAME_VALUE' || chr(10) ||
 							'    ORDER BY ';
@@ -3482,137 +3455,156 @@ Content-Type: text/plain; charset=UTF-8
 			END IF;
 
 			IF t_type = 'CT Entry ID' THEN
-				IF coalesce(t_groupBy, '') != 'none' THEN
-					t_from := t_from || ',' || chr(10) ||
-							'        ct_log_entry ctle';
-				END IF;
-				t_from := t_from || ',' || chr(10) ||
+				t_needMinEntryTimestamp := FALSE;
+
+				t_from := t_from || 'ct_log_entry ctle,' || chr(10) ||
 							'        ct_log ctl';
 				t_issuerCAID_table := 'c';
 				t_nameValue := 'ctl.NAME';
 				t_certID_field := 'c.ID';
+				t_entryTimestamp_field := 'ctle.ENTRY_TIMESTAMP';
 				t_joinToCertificate_table := 'ctle';
-				t_where := t_where || chr(10) ||
-							'        AND ctle.ENTRY_ID = $1::bigint' || chr(10) ||
-							'        AND ctle.CT_LOG_ID = ctl.ID';
+				t_where :=	'ctle.ENTRY_ID = $1::bigint' || chr(10) ||
+							'ctle.CT_LOG_ID = ctl.ID';
 			ELSIF t_type = 'Serial Number' THEN
-				t_from := t_from || ',' || chr(10) ||
-							'        certificate c';
+				t_from := t_from || 'certificate c' || chr(10);
 				t_issuerCAID_table := 'c';
 				t_nameValue := 'encode(x509_serialNumber(c.CERTIFICATE), ''hex'')';
 				t_certID_field := 'c.ID';
-				t_where := t_where || chr(10) ||
-							'        AND x509_serialNumber(c.CERTIFICATE) = decode($1, ''hex'')';
+				t_entryTimestamp_field := 'le.ENTRY_TIMESTAMP';
+				t_where :=	'x509_serialNumber(c.CERTIFICATE) = decode($1, ''hex'')';
 			ELSIF t_type = 'Subject Key Identifier' THEN
-				t_from := t_from || ',' || chr(10) ||
-							'        certificate c';
+				t_from := t_from || 'certificate c' || chr(10);
 				t_issuerCAID_table := 'c';
 				t_nameValue := 'encode(x509_subjectKeyIdentifier(c.CERTIFICATE), ''hex'')';
 				t_certID_field := 'c.ID';
-				t_where := t_where || chr(10) ||
-							'        AND x509_subjectKeyIdentifier(c.CERTIFICATE) = decode($1, ''hex'')';
+				t_entryTimestamp_field := 'le.ENTRY_TIMESTAMP';
+				t_where :=	'x509_subjectKeyIdentifier(c.CERTIFICATE) = decode($1, ''hex'')';
 			ELSIF t_type = 'SHA-1(SubjectPublicKeyInfo)' THEN
-				t_from := t_from || ',' || chr(10) ||
-							'        certificate c';
+				t_from := t_from || 'certificate c' || chr(10);
 				t_issuerCAID_table := 'c';
 				t_nameValue := 'encode(digest(x509_publickey(c.CERTIFICATE), ''sha1''), ''hex'')';
 				t_certID_field := 'c.ID';
-				t_where := t_where || chr(10) ||
-							'        AND digest(x509_publickey(c.CERTIFICATE), ''sha1'') = decode($1, ''hex'')';
+				t_entryTimestamp_field := 'le.ENTRY_TIMESTAMP';
+				t_where :=	'digest(x509_publickey(c.CERTIFICATE), ''sha1'') = decode($1, ''hex'')';
 			ELSIF t_type = 'SHA-256(SubjectPublicKeyInfo)' THEN
-				t_from := t_from || ',' || chr(10) ||
-							'        certificate c';
+				t_from := t_from || 'certificate c' || chr(10);
 				t_issuerCAID_table := 'c';
 				t_nameValue := 'encode(digest(x509_publickey(c.CERTIFICATE), ''sha256''), ''hex'')';
 				t_certID_field := 'c.ID';
-				t_where := t_where || chr(10) ||
-							'        AND digest(x509_publickey(c.CERTIFICATE), ''sha256'') = decode($1, ''hex'')';
+				t_entryTimestamp_field := 'le.ENTRY_TIMESTAMP';
+				t_where :=	'digest(x509_publickey(c.CERTIFICATE), ''sha256'') = decode($1, ''hex'')';
 			ELSIF t_type = 'SHA-1(Subject)' THEN
-				t_from := t_from || ',' || chr(10) ||
-							'        certificate c';
+				t_from := t_from || 'certificate c' || chr(10);
 				t_issuerCAID_table := 'c';
 				t_nameValue := 'encode(digest(x509_name(c.CERTIFICATE), ''sha1''), ''hex'')';
 				t_certID_field := 'c.ID';
-				t_where := t_where || chr(10) ||
-							'        AND digest(x509_name(c.CERTIFICATE), ''sha1'') = decode($1, ''hex'')';
+				t_entryTimestamp_field := 'le.ENTRY_TIMESTAMP';
+				t_where :=	'digest(x509_name(c.CERTIFICATE), ''sha1'') = decode($1, ''hex'')';
 			ELSIF lower(t_type) LIKE '%lint' THEN
-				t_from := t_from || ',' || chr(10) ||
-							'        lint_issue li,' || chr(10) ||
-							'        lint_cert_issue lci';
-				t_issuerCAID_table := 'lci';
+				t_from := t_from || 'lint_issue li,' || chr(10) ||
+							'        lint_cert_issue lci' || chr(10);
+				t_issuerCAID_table := 'c';
 				t_nameValue := 'lci.LINT_ISSUE_ID::text';
-				IF coalesce(t_groupBy, '') = 'none' THEN
-					t_certID_field := 'c.ID';
-					t_joinToCertificate_table := 'lci';
-				ELSE
-					t_certID_field := 'lci.CERTIFICATE_ID';
-					IF t_excludeExpired IS NOT NULL THEN
-						t_joinToCertificate_table := 'lci';
-					END IF;
-				END IF;
-				t_where := t_where || chr(10) ||
-							'        AND lci.LINT_ISSUE_ID = $1::integer' || chr(10) ||
-							'        AND lci.NOT_BEFORE_DATE >= $2' || chr(10) ||
-							'        AND lci.LINT_ISSUE_ID = li.ID' || chr(10) ||
-							'        AND ca.LINTING_APPLIES';
+				t_certID_field := 'lci.CERTIFICATE_ID';
+				t_joinToCertificate_table := 'lci';
+				t_entryTimestamp_field := 'le.ENTRY_TIMESTAMP';
+				t_where :=  'lci.LINT_ISSUE_ID = $1::integer' || chr(10) ||
+							'lci.NOT_BEFORE_DATE >= $3' || chr(10) ||
+							'lci.CERTIFICATE_ID = c.ID' || chr(10) ||
+							'lci.LINT_ISSUE_ID = li.ID';
 				IF t_linter IS NOT NULL THEN
 					t_where := t_where || chr(10) ||
-							'        AND li.LINTER = ''' || t_linter || '''';
+							'li.LINTER = ''' || t_linter || '''';
 				END IF;
 			ELSE
-				t_from := t_from || ',' || chr(10) ||
-							'        certificate_identity ci';
-				t_issuerCAID_table := 'ci';
-				t_nameValue := 'ci.NAME_VALUE';
-				IF coalesce(t_groupBy, '') = 'none' THEN
-					t_certID_field := 'c.ID';
-					t_joinToCertificate_table := 'ci';
+				t_temp :=	'WITH ci AS (' || chr(10) ||
+							'    SELECT min(cai.CERTIFICATE_ID) ID,' || chr(10) ||
+							'           min(cai.ISSUER_CA_ID) ISSUER_CA_ID,' || chr(10) ||
+							'           array_agg(DISTINCT cai.NAME_VALUE) NAME_VALUES,' || chr(10) ||
+							'           x509_subjectName(cai.CERTIFICATE) SUBJECT_NAME,' || chr(10) ||
+							'           x509_notBefore(cai.CERTIFICATE) NOT_BEFORE,' || chr(10) ||
+							'           x509_notAfter(cai.CERTIFICATE) NOT_AFTER' || chr(10) ||
+							'        FROM certificate_and_identities cai' || chr(10) ||
+							'        WHERE websearch_to_tsquery($2) @@ identities(cai.CERTIFICATE)' || chr(10);
+				IF t_value = t_value2 THEN
+					t_temp := t_temp ||
+							'            AND lower(cai.NAME_VALUE) = lower($2)' || chr(10);
 				ELSE
-					t_certID_field := 'ci.CERTIFICATE_ID';
-					IF t_excludeExpired IS NOT NULL THEN
-						t_joinToCertificate_table := 'ci';
-					END IF;
-				END IF;
-				IF t_useReverseIndex THEN
-					t_where := t_where || chr(10) ||
-							'        AND reverse(lower(ci.NAME_VALUE)) LIKE reverse(lower($1))';
-				ELSE
-					t_where := t_where || chr(10) ||
-							'        AND lower(ci.NAME_VALUE) LIKE lower($1)';
+					t_temp := t_temp ||
+							'            AND (' || chr(10) ||
+							'                (lower(cai.NAME_VALUE) = lower($2))' || chr(10) ||
+							'                OR (cai.NAME_VALUE ILIKE $1)' || chr(10) ||
+							'            )' || chr(10);
 				END IF;
 				IF t_type != 'Identity' THEN
-					t_where := t_where || chr(10) ||
-							'        AND ci.NAME_TYPE = ' || quote_literal(t_nameType);
+					t_temp := t_temp ||
+							'            AND cai.NAME_TYPE = ' || quote_literal(t_nameType_oid) || ' -- ' || t_nameType || chr(10);
 				END IF;
+				IF t_excludeExpired IS NOT NULL THEN
+					t_temp := t_temp || chr(10) ||
+							'            AND coalesce(x509_notAfter(cai.CERTIFICATE), ''infinity''::timestamp) > now() AT TIME ZONE ''UTC''';
+					t_excludeExpired := NULL;
+				END IF;
+				IF t_excludeCAsString IS NOT NULL THEN
+					t_temp := t_temp || chr(10) ||
+							'            AND cai.ISSUER_CA_ID NOT IN (' || array_to_string(t_excludeCAs, ',') || ')';
+					t_excludeCAsString := NULL;
+				END IF;
+
+				t_select := t_temp ||
+							'        GROUP BY cai.CERTIFICATE' || chr(10) ||
+							')' || chr(10) ||
+							t_select;
+				t_entryTimestamp_field := 'le.ENTRY_TIMESTAMP';
+				t_notBefore_field := 'ci.NOT_BEFORE';
+				t_notAfter_field := 'ci.NOT_AFTER';
+				t_from := t_from || 'ci' || chr(10);
+				t_issuerCAID_table := 'ci';
+				t_nameValue := 'array_to_string(ci.NAME_VALUES, chr(10))';
+				t_certID_field := 'ci.ID';
+			END IF;
+
+			IF t_needMinEntryTimestamp THEN
+				t_from := t_from ||
+							'            LEFT JOIN LATERAL (' || chr(10) ||
+							'                SELECT min(ctle.ENTRY_TIMESTAMP) ENTRY_TIMESTAMP' || chr(10) ||
+							'                    FROM ct_log_entry ctle' || chr(10) ||
+							'                    WHERE ctle.CERTIFICATE_ID = __cert_id_field__' || chr(10) ||
+							'            ) le ON TRUE';
 			END IF;
 
 			IF t_joinToCertificate_table IS NOT NULL THEN
 				t_from := t_from || ',' || chr(10) ||
 							'        certificate c';
 				t_where := t_where || chr(10) ||
-							'        AND ' || t_joinToCertificate_table || '.CERTIFICATE_ID = c.ID';
+							t_joinToCertificate_table || '.CERTIFICATE_ID = c.ID';
 			END IF;
 
 			IF t_excludeExpired IS NOT NULL THEN
 				t_where := t_where || chr(10) ||
-							'        AND x509_notAfter(c.CERTIFICATE) > statement_timestamp()';
+							'coalesce(x509_notAfter(c.CERTIFICATE), ''infinity''::timestamp) > now() AT TIME ZONE ''UTC''';
 			END IF;
 			IF t_excludeCAsString IS NOT NULL THEN
 				t_where := t_where || chr(10) ||
 							'        AND ' || t_issuerCAID_table || '.ISSUER_CA_ID NOT IN (' || array_to_string(t_excludeCAs, ',') || ')';
 			END IF;
 
+			IF t_where != '' THEN
+				t_where := '    WHERE ' || replace(trim(chr(10) from t_where), chr(10), chr(10) || '        AND ') || chr(10);
+			END IF;
+
 			t_query := t_select || chr(10)
-					|| replace(t_from, 'FROM,' || chr(10) || '       ', 'FROM') || chr(10)
-					|| replace(t_where, 'WHERE' || chr(10) || '        AND', 'WHERE') || chr(10)
+					|| t_from || chr(10)
+					|| t_where
 					|| t_query;
 
 			t_query := replace(t_query, '__issuer_ca_id_table__', t_issuerCAID_table);
 			t_query := replace(t_query, '__name_value__', t_nameValue);
 			t_query := replace(t_query, '__cert_id_field__', t_certID_field);
-			IF t_joinToCTLogEntry IS NOT NULL THEN
-				t_query := replace(t_query, '__ctle_cert_id__', t_joinToCTLogEntry);
-			END IF;
+			t_query := replace(t_query, '__entry_timestamp_field__', t_entryTimestamp_field);
+			t_query := replace(t_query, '__not_before_field__', t_notBefore_field);
+			t_query := replace(t_query, '__not_after_field__', t_notAfter_field);
 
 			t_showIdentity := (position('%' IN t_value) > 0) OR (t_type = 'CT Entry ID');
 
@@ -3624,7 +3616,7 @@ Content-Type: text/plain; charset=UTF-8
 			t_summary := '';
 			t_temp3 := '';
 			FOR l_record IN EXECUTE t_query
-							USING t_value, t_minNotBefore LOOP
+							USING t_value, t_value2, t_minNotBefore LOOP
 				SELECT ca.NAME
 					INTO l_record.ISSUER_NAME
 					FROM ca
@@ -3632,12 +3624,12 @@ Content-Type: text/plain; charset=UTF-8
 
 				t_temp2 := '';
 				IF t_outputType = 'atom' THEN
-					IF coalesce(t_certificateID, -l_record.MIN_CERT_ID) != l_record.MIN_CERT_ID THEN
+					IF coalesce(t_certificateID, -l_record.ID) != l_record.ID THEN
 						IF lower(t_type) NOT LIKE '%lint' THEN
 							t_text := replace(t_text, '__entry_summary__', t_summary);
 						END IF;
 						t_summary := l_record.NAME_VALUE;
-						t_certificateID := l_record.MIN_CERT_ID;
+						t_certificateID := l_record.ID;
 					ELSE
 						t_summary := t_summary || ' &amp;nbsp; ' || l_record.NAME_VALUE;
 						CONTINUE;
@@ -3649,13 +3641,13 @@ Content-Type: text/plain; charset=UTF-8
 						INTO t_temp,
 							t_certificate
 						FROM certificate c
-						WHERE c.ID = l_record.MIN_CERT_ID;
+						WHERE c.ID = l_record.ID;
 					t_b64Certificate := replace(encode(t_certificate, 'base64'), chr(10), '');
-					t_feedUpdated := greatest(t_feedUpdated, l_record.MIN_ENTRY_TIMESTAMP);
+					t_feedUpdated := greatest(t_feedUpdated, l_record.ENTRY_TIMESTAMP);
 					t_temp2 := t_temp2 ||
 '  <entry>
-    <id>https://crt.sh/?id=' || l_record.MIN_CERT_ID || '#' || t_cmd || ';' || t_value || '</id>
-    <link rel="alternate" type="text/html" href="https://crt.sh/?id=' || l_record.MIN_CERT_ID || '"/>
+    <id>https://crt.sh/?id=' || l_record.ID || '#' || t_cmd || ';' || t_value || '</id>
+    <link rel="alternate" type="text/html" href="https://crt.sh/?id=' || l_record.ID || '"/>
     <summary type="html">__entry_summary__&lt;br&gt;&lt;br&gt;&lt;div style="font:8pt monospace"&gt;-----BEGIN CERTIFICATE-----';
 					WHILE length(t_b64Certificate) > 0 LOOP
 						t_temp2 := t_temp2 || '&lt;br&gt;' || substring(
@@ -3677,7 +3669,7 @@ Content-Type: text/plain; charset=UTF-8
 			|| '; Valid from ' || to_char(l_record.NOT_BEFORE, 'YYYY-MM-DD') || ' to '
 			|| t_temp || '</title>
     <published>' || to_char(l_record.NOT_BEFORE, 'YYYY-MM-DD"T"HH24:MI:SS"Z"') || '</published>
-    <updated>' || to_char(l_record.MIN_ENTRY_TIMESTAMP, 'YYYY-MM-DD"T"HH24:MI:SS"Z"') || '</updated>
+    <updated>' || to_char(l_record.ENTRY_TIMESTAMP, 'YYYY-MM-DD"T"HH24:MI:SS"Z"') || '</updated>
   </entry>
 ';
 				ELSIF t_outputType = 'json' THEN
@@ -3688,16 +3680,16 @@ Content-Type: text/plain; charset=UTF-8
 '  <TR>
     <TD style="text-align:center">';
 					IF coalesce(t_groupBy, '') = 'none' THEN
-						t_temp2 := t_temp2 || '<A href="?id=' || l_record.MIN_CERT_ID::text || t_opt || '">' || l_record.MIN_CERT_ID::text || '</A></TD>
-    <TD style="text-align:center">' || to_char(l_record.MIN_ENTRY_TIMESTAMP, 'YYYY-MM-DD') || '</TD>
-    <TD style="text-align:center">' || to_char(l_record.NOT_BEFORE, 'YYYY-MM-DD') || '</TD>
-    <TD style="text-align:center">' || to_char(l_record.NOT_AFTER, 'YYYY-MM-DD');
+						t_temp2 := t_temp2 || '<A href="?id=' || l_record.ID::text || t_opt || '">' || l_record.ID::text || '</A></TD>
+    <TD style="text-align:center;white-space:nowrap">' || to_char(l_record.ENTRY_TIMESTAMP, 'YYYY-MM-DD') || '</TD>
+    <TD style="text-align:center;white-space:nowrap">' || to_char(l_record.NOT_BEFORE, 'YYYY-MM-DD') || '</TD>
+    <TD style="text-align:center;white-space:nowrap">' || to_char(l_record.NOT_AFTER, 'YYYY-MM-DD');
 					ELSIF (l_record.NUM_CERTS = 1)
-							AND (l_record.MIN_CERT_ID IS NOT NULL) THEN
-						t_temp2 := t_temp2 || '<A href="?id=' || l_record.MIN_CERT_ID::text || t_opt || '">'
+							AND (l_record.ID IS NOT NULL) THEN
+						t_temp2 := t_temp2 || '<A href="?id=' || l_record.ID::text || t_opt || '">'
 															|| l_record.NUM_CERTS::text || '</A>';
 					ELSIF (l_record.ISSUER_CA_ID IS NOT NULL)
-							AND (l_record.MIN_CERT_ID IS NOT NULL) THEN
+							AND (l_record.ID IS NOT NULL) THEN
 						t_temp2 := t_temp2 || '<A href="?' || urlEncode(t_cmd) || '=' || urlEncode(l_record.NAME_VALUE)
 												|| '&iCAID=' || l_record.ISSUER_CA_ID::text || t_minNotBeforeString
 												|| coalesce(t_excludeExpired, '') || t_opt || '">'
@@ -3708,7 +3700,7 @@ Content-Type: text/plain; charset=UTF-8
 					t_temp2 := t_temp2 || '</TD>
     <TD>';
 					IF t_showIdentity THEN
-						t_temp2 := t_temp2 || html_escape(l_record.NAME_VALUE) || '</TD>
+						t_temp2 := t_temp2 || replace(html_escape(l_record.NAME_VALUE), chr(10), '<BR>') || '</TD>
     <TD>';
 					END IF;
 					IF l_record.ISSUER_CA_ID IS NOT NULL THEN
@@ -4269,7 +4261,7 @@ Content-Type: text/html; charset=UTF-8
 ';
 		IF upper(coalesce(get_parameter('showSQL', paramNames, paramValues), 'N')) = 'Y' THEN
 			IF t_query IS NOT NULL THEN
-				t_output := t_output || '<BR><BR><TEXTAREA cols="80" rows="25">' || t_query || ';</TEXTAREA>';
+				t_output := t_output || '<BR><BR><TEXTAREA cols="100" rows="30">' || t_query || ';</TEXTAREA>';
 			END IF;
 		END IF;
 		t_output := t_output || '
