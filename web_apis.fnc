@@ -65,7 +65,6 @@ DECLARE
 	t_paramNo			integer;
 	t_paramName			text;
 	t_value				text;
-	t_value2			text;
 	t_type				text			:= 'Simple';
 	t_cmd				text;
 	t_bytea				bytea;
@@ -113,7 +112,6 @@ DECLARE
 	t_issuerO			text;
 	t_issuerOParameter	text;
 	t_orderBy			text			:= 'ASC';
-	t_matchType			text			:= '=';
 	t_opt				text;
 	t_maxAge			timestamp without time zone;
 	t_cacheResponse		boolean			:= FALSE;
@@ -141,6 +139,8 @@ DECLARE
 	t_excludeAffectedCerts	text;
 	t_excludeCAs		integer[];
 	t_excludeCAsString	text;
+	t_match				text;
+	t_tsqueryFunction	text;
 	t_searchProvider	text;
 	t_issuerCAID		certificate.ISSUER_CA_ID%TYPE;
 	t_issuerCAID_table	text;
@@ -161,6 +161,7 @@ DECLARE
 	t_date				date;
 	t_onlyOneChain		boolean;
 	t_isJSONOutputSupported    boolean	:= FALSE;
+	t_showSQL			boolean			:= FALSE;
 BEGIN
 	FOR t_paramNo IN 1..array_length(c_params, 1) LOOP
 		IF t_cmd IS NULL THEN
@@ -287,6 +288,42 @@ Content-Type: application/json
 		RAISE no_data_found USING MESSAGE = 'Unsupported output type: ' || html_escape(t_outputType);
 	END IF;
 
+	t_temp := upper(get_parameter('match', paramNames, paramValues));
+	IF t_temp IS NULL THEN
+		IF (position(' -' in coalesce(t_value, '')) > 0)
+				OR (position(' +' in coalesce(t_value, '')) > 0)
+				OR (position(' OR ' in upper(coalesce(t_value, ''))) > 0)
+				OR (position(' AND ' in upper(coalesce(t_value, ''))) > 0) THEN
+			t_match := 'Any';
+		ELSIF position(' ' in coalesce(t_value, '')) > 0 THEN
+			t_match := 'Single';
+		ELSIF (t_value LIKE '%:*') AND (t_value NOT LIKE '% %') THEN
+			t_match := 'FTS';
+		ELSE
+			t_match := 'ILIKE';
+		END IF;
+	ELSIF t_temp = 'ANY' THEN
+		t_match := 'Any';
+	ELSIF t_temp = 'SINGLE' THEN
+		t_match := 'Single';
+	ELSIF t_temp = 'ILIKE' THEN
+		t_match := 'ILIKE';
+	ELSIF t_temp = 'LIKE' THEN
+		t_match := 'LIKE';
+	ELSIF t_temp = 'FTS' THEN
+		t_match := 'FTS';
+	ELSE
+		t_match := '=';
+	END IF;
+
+	IF t_match = 'Any' THEN
+		t_tsqueryFunction := 'websearch_to_tsquery';
+	ELSIF t_match = 'FTS' THEN
+		t_tsqueryFunction := 'to_tsquery';
+	ELSE
+		t_tsqueryFunction := 'plainto_tsquery';
+	END IF;
+
 	IF coalesce(t_type, 'Simple') = 'Simple' THEN
 		t_type := 'Simple';
 		t_outputType := 'html';
@@ -302,16 +339,23 @@ Content-Type: application/json
 				'SHA-1(Subject)'
 			) THEN
 		t_value := encode(t_bytea, 'hex');
+		t_match := '=';
 	ELSIF t_type = 'CT Entry ID' THEN
 		t_title := 'CT:' || t_value;
-	ELSIF t_type IN ('CA ID', 'CA Name') THEN
+		t_match := '=';
+	ELSIF t_type = 'CA ID' THEN
+		t_title := 'CA:' || t_value;
+		t_match := '=';
+	ELSIF t_type = 'CA Name' THEN
 		t_title := 'CA:' || t_value;
 	ELSIF t_type = 'Serial Number' THEN
 		t_value := encode(t_bytea, 'hex');
 		t_title := 'Serial#' || t_value;
+		t_match := '=';
 	ELSIF t_type = 'Subject Key Identifier' THEN
 		t_value := encode(t_bytea, 'hex');
 		t_title := 'SKI#' || t_value;
+		t_match := '=';
 	ELSIF t_type = 'Identity' THEN
 		NULL;
 	ELSIF t_type = 'Common Name' THEN
@@ -352,6 +396,7 @@ Content-Type: application/json
 			WHEN OTHERS THEN
 				t_type := t_type || ': Summary';
 		END;
+		t_match := '=';
 	END IF;
 
 	IF t_title IS NULL THEN
@@ -360,7 +405,7 @@ Content-Type: application/json
 
 	t_temp := get_parameter('minNotBefore', paramNames, paramValues);
 	IF t_temp IS NULL THEN
-		t_minNotBefore := (statement_timestamp() at time zone 'UTC' - interval '1 week')::date;
+		t_minNotBefore := (now() AT TIME ZONE 'UTC' - interval '1 week')::date;
 		t_minNotBeforeString := '';
 	ELSE
 		t_minNotBefore := t_temp::date;
@@ -380,6 +425,10 @@ Content-Type: application/json
 	t_opt := coalesce(get_parameter('opt', paramNames, paramValues), '');
 	IF t_opt != '' THEN
 		t_opt := html_escape(t_opt) || ',';
+	END IF;
+
+	IF upper(coalesce(get_parameter('showSQL', paramNames, paramValues), 'N')) = 'Y' THEN
+		t_showSQL := TRUE;
 	END IF;
 
 	IF t_outputType IN ('html', 'json') THEN
@@ -425,7 +474,7 @@ Content-Type: application/json
 	IF t_useCachedResponse THEN
 		t_count := coalesce(get_parameter('maxage', paramNames, paramValues), '172800')::integer;
 		t_cacheResponse := (t_count = 0);
-		t_maxAge := statement_timestamp() AT TIME ZONE 'UTC' - (interval '1 second' * t_count);
+		t_maxAge := now() AT TIME ZONE 'UTC' - (interval '1 second' * t_count);
 		SELECT cr.RESPONSE_BODY
 			INTO t_output
 			FROM cached_response cr
@@ -617,7 +666,6 @@ Content-Type: application/json
   <BR><BR><BR><BR>
   Enter an <B>Identity</B> (Domain Name, Organization Name, etc),
   <BR>a <B>Certificate Fingerprint</B> (SHA-1 or SHA-256) or a <B>crt.sh ID</B>:
-  <BR><SPAN class="small" style="color:#BBBBBB">(% = wildcard)</SPAN>
   <BR><BR>
   <FORM name="search_form" method="GET" onsubmit="return (this.q.value != '')">
     <INPUT type="text" class="input" name="q" size="64" maxlength="255">
@@ -691,15 +739,18 @@ Content-Type: application/json
         t_url = "?" + encodeURIComponent(type) + "=" + encodeURIComponent(value).replace(/%20/g, "+");
         if (document.search_form.excludeExpired.checked)
           t_url += "&exclude=expired";
-        if (document.search_form.searchCensys.checked)
-          t_url += "&search=censys";
+        with (document.search_form) {
+          if (match.options[match.selectedIndex].value != "")
+            t_url += "&match=" + match.options[match.selectedIndex].value;
+        }
+        if (document.search_form.showSQL.checked)
+          t_url += "&showSQL=Y";
       }
       window.location = t_url;
     }
   </SCRIPT>
   <FORM name="search_form" method="GET" onsubmit="return false">
     Enter search term:
-    <SPAN class="small" style="position:absolute;padding-top:3px;color:#BBBBBB">&nbsp;(% = wildcard)</SPAN>
     <BR><BR>
     <INPUT type="text" class="input" name="q" size="64" maxlength="255">
     <BR><BR><BR>
@@ -734,13 +785,28 @@ Content-Type: application/json
         <TD style="border:none;width:40px">&nbsp;</TD>
         <TD style="border:none;text-align:center">
           <SPAN class="heading">Select search options:</SPAN>
-          <BR><DIV style="border:1px solid #AAAAAA;margin-bottom:5px;padding:5px 0px;text-align:left">
-            <INPUT type="checkbox" name="excludeExpired"';
+          <BR><DIV style="border:1px solid #AAAAAA;margin-bottom:5px;padding:4px 2px;text-align:left">
+            &nbsp;<SELECT name="match">
+              <OPTION value="" selected>Autoselect</OPTION>
+              <OPTION value="=">=</OPTION>
+              <OPTION value="ILIKE">ILIKE</OPTION>
+              <OPTION value="LIKE">LIKE</OPTION>
+              <OPTION value="single">Single</OPTION>
+              <OPTION value="any">Any</OPTION>
+              <OPTION value="FTS">Full Text Search</OPTION>
+            </SELECT> Identity matching
+            <BR><INPUT type="checkbox" name="excludeExpired"';
 		IF t_excludeExpired IS NOT NULL THEN
 			t_output := t_output || ' checked';
 		END IF;
 		t_output := t_output || '> Exclude expired certificates?
-            <BR><INPUT type="checkbox" name="searchCensys"';
+            <BR><INPUT type="checkbox" name="showSQL"';
+		IF t_showSQL THEN
+			t_output := t_output || ' checked';
+		END IF;
+		t_output := t_output || '> Show SQL?
+            <HR>
+            &nbsp;Or, <INPUT type="checkbox" name="searchCensys"';
 		IF coalesce(t_searchProvider, '') = '&search=censys' THEN
 			t_output := t_output || ' checked';
 		END IF;
@@ -753,28 +819,26 @@ Content-Type: application/json
             &nbsp; &nbsp; &nbsp;
             <A style="font-size:8pt;vertical-align:sub" href="?">Simple...</A>
           </SPAN>
-          <BR><BR><BR><BR><HR><BR>
+          <BR><BR><BR><HR><BR>
           <SPAN class="heading">Select linting options:</SPAN>
-          <BR><SELECT name="linter" size="3">
+          <BR><SELECT name="linter" size="4">
             <OPTION value="cablint">cablint</OPTION>
             <OPTION value="x509lint">x509lint</OPTION>
             <OPTION value="zlint" selected>zlint</OPTION>
             <OPTION value="lint">ALL</OPTION>
           </SELECT>
-          <SELECT name="linttype" size="3">
+          <SELECT name="linttype" size="4">
             <OPTION value="1 week" selected>1-week Summary</OPTION>
             <OPTION value="issues">Issues</OPTION>
           </SELECT>
           <BR><BR>
           <INPUT type="submit" class="button" value="Lint"
                  onClick="doSearch(document.search_form.linter.value,document.search_form.linttype.value)">
-          <BR><BR><A href="/linttbscert">TBSCertificate Linter</A>
-          <BR><A href="/lintcert">Certificate Linter</A>
         </TD>
       </TR>
       <TR>
         <TD colspan="3" style="border:none">
-          <BR><BR><HR><SPAN class="heading">Other crt.sh pages:</SPAN><BR><BR>
+          <BR><BR><HR>
         </TD>
       </TR>
       <TR>
@@ -787,15 +851,8 @@ Content-Type: application/json
                 <BR><A href="/revoked-intermediates">Revoked Intermediates</A>
                 <BR><A href="/ocsp-responders">OCSP Responders</A>
                 <BR><A href="/test-websites">Test Websites</A>
-              </TD>
-              </TD>
-            </TR>
-            <TR>
-              <TD>Mozilla</TD>
-              <TD>
-                <A href="/mozilla-disclosures">CA Certificate Disclosures</A>
-                <BR><A href="/mozilla-certvalidations">Certificate Validations</A>
-                <BR><A href="/mozilla-onecrl">OneCRL</A>
+                <BR><A href="/linttbscert">TBSCertificate Linter</A>
+                <BR><A href="/lintcert">Certificate Linter</A>
               </TD>
             </TR>
           </TABLE>
@@ -808,6 +865,14 @@ Content-Type: application/json
               <TD>
                 <A href="/monitored-logs">Monitored Logs</A>
                 <BR><A href="/gen-add-chain">Certificate Submission Assistant</A>
+              </TD>
+            </TR>
+            <TR>
+              <TD>Mozilla</TD>
+              <TD>
+                <A href="/mozilla-disclosures">CA Certificate Disclosures</A>
+                <BR><A href="/mozilla-certvalidations">Certificate Validations</A>
+                <BR><A href="/mozilla-onecrl">OneCRL</A>
               </TD>
             </TR>
           </TABLE>
@@ -867,9 +932,9 @@ Content-Type: application/json
 '  <SPAN class="whiteongrey">Monitored Logs</SPAN>
   <BR>
   <TABLE>
-    <TR><TD colspan="10" class="heading">CT Logs currently monitored';
+    <TR><TD colspan="11" class="heading">CT Logs currently monitored';
 		IF t_temp = 'chromium' THEN
-			t_output := t_output || ' (that are recognized by Chromium)';
+			t_output := t_output || ' (that are Usable with Chromium-based browsers)';
 		END IF;
 		t_output := t_output || ':</TD></TR>
     <TR>
@@ -877,16 +942,18 @@ Content-Type: application/json
       <TH rowspan="2">URL</TH>
       <TH rowspan="2">MMD<BR><SPAN class="small">(hrs)</SPAN></TH>
       <TH rowspan="2">Latest STH<BR><SPAN class="small">(UTC)</SPAN></TH>
-      <TH colspan="2">Entries</TH>
+      <TH colspan="3">Entries</TH>
       <TH rowspan="2">Last Contacted<BR><SPAN class="small">(UTC)</SPAN></TH>
-      <TH colspan="2">Google</TH>
-      <TH colspan="1">Apple</TH>
+      <TH>Google</TH>
+      <TH><A href="monitored-logs?recognizedBy=Chromium">Chromium</A></TH>
+      <TH>Apple</TH>
     </TR>
     <TR>
       <TH>Tree Size</TH>
       <TH>Backlog</TH>
+      <TH>Latest Entry Age</TH>
       <TH>Uptime %</TH>
-      <TH><A href="monitored-logs?recognizedBy=Chromium">In Chrome?</A></TH>
+      <TH>Status (added)</TH>
       <TH>Status (since)</TH>
     </TR>';
 		FOR l_record IN (
@@ -894,18 +961,19 @@ Content-Type: application/json
 							coalesce(ctlo.DISPLAY_STRING, ctl.OPERATOR) AS OPERATOR,
 							ctl.URL, ctl.TREE_SIZE,
 							(coalesce(ctl.TREE_SIZE, 0) - latest.ENTRY_ID - 1) AS BACKLOG,
+							(now() - latest2.ENTRY_TIMESTAMP) AS BACKLOG_TIME,
 							ctl.LATEST_UPDATE, ctl.LATEST_STH_TIMESTAMP, ctl.MMD_IN_SECONDS,
-							CASE WHEN coalesce(ctl.LATEST_STH_TIMESTAMP + (ctl.MMD_IN_SECONDS || ' seconds')::interval, statement_timestamp()) <= statement_timestamp()
+							CASE WHEN coalesce(ctl.LATEST_STH_TIMESTAMP + (ctl.MMD_IN_SECONDS || ' seconds')::interval, now() AT TIME ZONE 'UTC') <= now() AT TIME ZONE 'UTC'
 								THEN ' style="color:#FF0000"'
 								ELSE ''
 							END FONT_STYLE,
-							ctl.INCLUDED_IN_CHROME, ctl.CHROME_ISSUE_NUMBER, ctl.NON_INCLUSION_STATUS,
+							ctl.CHROME_VERSION_ADDED, ctl.CHROME_ISSUE_NUMBER, ctl.CHROME_INCLUSION_STATUS,
 							ctl.CHROME_FINAL_TREE_SIZE, ctl.CHROME_DISQUALIFIED_AT, ctl.GOOGLE_UPTIME,
 							CASE WHEN coalesce(ctl.GOOGLE_UPTIME::numeric, 100) < 99
 								THEN ';color:#FF0000'
 								ELSE ''
 							END UPTIME_FONT_STYLE,
-							ctl.INCLUDED_IN_MACOS, ctl.APPLE_LAST_STATE_CHANGE
+							ctl.APPLE_INCLUSION_STATUS, ctl.APPLE_LAST_STATUS_CHANGE
 						FROM ct_log ctl
 								LEFT OUTER JOIN ct_log_operator ctlo ON (ctl.OPERATOR = ctlo.OPERATOR)
 								LEFT JOIN LATERAL (
@@ -913,21 +981,16 @@ Content-Type: application/json
 										FROM ct_log_entry ctle
 										WHERE ctle.CT_LOG_ID = ctl.ID
 								) latest ON TRUE
+								LEFT JOIN LATERAL (
+									SELECT ctle2.ENTRY_TIMESTAMP
+										FROM ct_log_entry ctle2
+										WHERE ctle2.CT_LOG_ID = ctl.ID
+											AND ctle2.ENTRY_ID = latest.ENTRY_ID
+								) latest2 ON TRUE
 						WHERE ctl.IS_ACTIVE
 						ORDER BY ctl.TREE_SIZE DESC NULLS LAST
 				) LOOP
-			IF (t_temp = 'chromium') AND (
-						(l_record.INCLUDED_IN_CHROME IS NULL)
-						OR (coalesce(l_record.NON_INCLUSION_STATUS, '') = 'Removed')
-						OR (
-							(coalesce(l_record.NON_INCLUSION_STATUS, '') = 'Disqualified')
-							AND (l_record.CHROME_DISQUALIFIED_AT IS NULL)
-						)
-						OR (
-							(coalesce(l_record.NON_INCLUSION_STATUS, '') = 'Frozen')
-							AND (l_record.CHROME_FINAL_TREE_SIZE IS NULL)
-						)
-					) THEN
+			IF (t_temp = 'chromium') AND (coalesce(l_record.CHROME_INCLUSION_STATUS, '') != 'Usable') THEN
 				CONTINUE;
 			END IF;
 
@@ -939,32 +1002,30 @@ Content-Type: application/json
       <TD' || l_record.FONT_STYLE || '>' || coalesce(to_char(l_record.LATEST_STH_TIMESTAMP, 'YYYY-MM-DD HH24:MI:SS'), '') || '</TD>
       <TD' || l_record.FONT_STYLE || '>' || coalesce(l_record.TREE_SIZE::text, '') || '</TD>
       <TD' || l_record.FONT_STYLE || '>' || l_record.BACKLOG::text || '</TD>
+      <TD' || l_record.FONT_STYLE || '>' || date_trunc('second', l_record.BACKLOG_TIME)::text || '</TD>
       <TD' || l_record.FONT_STYLE || '>' || coalesce(to_char(l_record.LATEST_UPDATE, 'YYYY-MM-DD HH24:MI:SS'), '') || '</TD>
       <TD style="text-align:right' || l_record.UPTIME_FONT_STYLE || '">' || coalesce(l_record.GOOGLE_UPTIME, '') || '</TD>
-      <TD>
-';
+      <TD>';
 			IF l_record.CHROME_ISSUE_NUMBER IS NOT NULL THEN
 				t_output := t_output || '<A href="https://code.google.com/p/chromium/issues/detail?id='
 									|| l_record.CHROME_ISSUE_NUMBER::text || '" target="_blank">';
-				IF l_record.INCLUDED_IN_CHROME IS NOT NULL THEN
-					t_output := t_output || coalesce(l_record.NON_INCLUSION_STATUS, 'M' || l_record.INCLUDED_IN_CHROME::text) || '</A>';
-					IF l_record.CHROME_FINAL_TREE_SIZE IS NOT NULL THEN
-						t_output := t_output || ' <SPAN class="small">(' || l_record.CHROME_FINAL_TREE_SIZE::text || ')</SPAN>';
-					ELSIF l_record.CHROME_DISQUALIFIED_AT IS NOT NULL THEN
-						t_output := t_output || ' <SPAN class="small">(' || to_char(l_record.CHROME_DISQUALIFIED_AT, 'YYYY-MM-DD HH24:MI:SS') || ')</SPAN>';
-					END IF;
-					t_output := t_output || chr(10);
-				ELSE
-					t_output := t_output || coalesce(l_record.NON_INCLUSION_STATUS, 'Pending') || '</A>' || chr(10);
-				END IF;
-			ELSIF l_record.NON_INCLUSION_STATUS IS NOT NULL THEN
-				t_output := t_output || l_record.NON_INCLUSION_STATUS;
+			END IF;
+			t_output := t_output || coalesce(l_record.CHROME_INCLUSION_STATUS, 'Pending');
+			IF l_record.CHROME_ISSUE_NUMBER IS NOT NULL THEN
+				t_output := t_output || '</A>';
+			END IF;
+			IF l_record.CHROME_FINAL_TREE_SIZE IS NOT NULL THEN
+				t_output := t_output || ' <SPAN class="small">(' || l_record.CHROME_FINAL_TREE_SIZE::text || ')</SPAN>';
+			ELSIF l_record.CHROME_DISQUALIFIED_AT IS NOT NULL THEN
+				t_output := t_output || ' <SPAN class="small">(' || to_char(l_record.CHROME_DISQUALIFIED_AT, 'YYYY-MM-DD HH24:MI:SS') || ')</SPAN>';
+			ELSIF l_record.CHROME_VERSION_ADDED IS NOT NULL THEN
+				t_output := t_output || ' (M' || l_record.CHROME_VERSION_ADDED::text || ')';
 			END IF;
 			t_output := t_output ||
 '      </TD>
-      <TD>' || coalesce(l_record.INCLUDED_IN_MACOS, '');
-			IF l_record.APPLE_LAST_STATE_CHANGE IS NOT NULL THEN
-				t_output := t_output || ' <SPAN class="small">(' || to_char(l_record.APPLE_LAST_STATE_CHANGE, 'YYYY-MM-DD HH24:MI:SS') || ')</SPAN>';
+      <TD>' || coalesce(l_record.APPLE_INCLUSION_STATUS, '');
+			IF l_record.APPLE_LAST_STATUS_CHANGE IS NOT NULL THEN
+				t_output := t_output || ' <SPAN class="small">(' || to_char(l_record.APPLE_LAST_STATUS_CHANGE, 'YYYY-MM-DD HH24:MI:SS') || ')</SPAN>';
 			END IF;
 			t_output := t_output || '</TD>
     </TR>';
@@ -990,9 +1051,9 @@ Content-Type: application/json
     </TR>
   </TABLE>
   <TABLE>
-    <TR><TD colspan="10" class="heading">CT Logs no longer monitored';
+    <TR><TD colspan="9" class="heading">CT Logs no longer monitored';
 		IF t_temp = 'chromium' THEN
-			t_output := t_output || ' (that are recognized by Chromium)';
+			t_output := t_output || ' (that are no longer Usable with Chromium-based browsers)';
 		END IF;
 		t_output := t_output || ':</TD></TR>
     <TR>
@@ -1002,12 +1063,13 @@ Content-Type: application/json
       <TH rowspan="2">Latest STH<BR><SPAN class="small">(UTC)</SPAN></TH>
       <TH colspan="2">Entries</TH>
       <TH rowspan="2">Last Contacted<BR><SPAN class="small">(UTC)</SPAN></TH>
-      <TH rowspan="2">Google: In Chrome?</TH>
-      <TH rowspan="2">Apple: Status (since)</TH>
+      <TH rowspan="2"><A href="monitored-logs?recognizedBy=Chromium">Chromium</A> Status (Final<BR>Tree Size or Disqualified At)</TH>
+      <TH>Apple</TH>
     </TR>
     <TR>
       <TH>Tree Size</TH>
       <TH>Backlog</TH>
+      <TH>Status (since)</TH>
     </TR>';
 		FOR l_record IN (
 					SELECT ctl.ID,
@@ -1015,9 +1077,9 @@ Content-Type: application/json
 							ctl.URL, ctl.TREE_SIZE,
 							(coalesce(ctl.TREE_SIZE, 0) - latest.ENTRY_ID - 1) AS BACKLOG,
 							ctl.LATEST_UPDATE, ctl.LATEST_STH_TIMESTAMP, ctl.MMD_IN_SECONDS,
-							ctl.INCLUDED_IN_CHROME, ctl.CHROME_ISSUE_NUMBER, ctl.NON_INCLUSION_STATUS,
+							ctl.CHROME_VERSION_ADDED, ctl.CHROME_ISSUE_NUMBER, ctl.CHROME_INCLUSION_STATUS,
 							ctl.CHROME_FINAL_TREE_SIZE, ctl.CHROME_DISQUALIFIED_AT,
-							ctl.INCLUDED_IN_MACOS
+							ctl.APPLE_INCLUSION_STATUS, ctl.APPLE_LAST_STATUS_CHANGE
 						FROM ct_log ctl
 								LEFT OUTER JOIN ct_log_operator ctlo ON (ctl.OPERATOR = ctlo.OPERATOR)
 								LEFT JOIN LATERAL (
@@ -1029,18 +1091,7 @@ Content-Type: application/json
 							AND ctl.LATEST_STH_TIMESTAMP IS NOT NULL
 						ORDER BY ctl.TREE_SIZE DESC NULLS LAST
 				) LOOP
-			IF (t_temp = 'chromium') AND (
-						(l_record.INCLUDED_IN_CHROME IS NULL)
-						OR (coalesce(l_record.NON_INCLUSION_STATUS, '') = 'Removed')
-						OR (
-							(coalesce(l_record.NON_INCLUSION_STATUS, '') = 'Disqualified')
-							AND (l_record.CHROME_DISQUALIFIED_AT IS NULL)
-						)
-						OR (
-							(coalesce(l_record.NON_INCLUSION_STATUS, '') = 'Frozen')
-							AND (l_record.CHROME_FINAL_TREE_SIZE IS NULL)
-						)
-					) THEN
+			IF (t_temp = 'chromium') AND (coalesce(l_record.CHROME_INCLUSION_STATUS, '') NOT IN ('Readonly', 'Retired')) THEN
 				CONTINUE;
 			END IF;
 
@@ -1058,8 +1109,8 @@ Content-Type: application/json
 			IF l_record.CHROME_ISSUE_NUMBER IS NOT NULL THEN
 				t_output := t_output || '<A href="https://code.google.com/p/chromium/issues/detail?id='
 									|| l_record.CHROME_ISSUE_NUMBER::text || '" target="_blank">';
-				IF l_record.INCLUDED_IN_CHROME IS NOT NULL THEN
-					t_output := t_output || coalesce(l_record.NON_INCLUSION_STATUS, 'M' || l_record.INCLUDED_IN_CHROME::text) || '</A>';
+				IF l_record.CHROME_VERSION_ADDED IS NOT NULL THEN
+					t_output := t_output || coalesce(l_record.CHROME_INCLUSION_STATUS, 'M' || l_record.CHROME_VERSION_ADDED::text) || '</A>';
 					IF l_record.CHROME_FINAL_TREE_SIZE IS NOT NULL THEN
 						t_output := t_output || ' <SPAN class="small">(' || l_record.CHROME_FINAL_TREE_SIZE::text || ')</SPAN>';
 					ELSIF l_record.CHROME_DISQUALIFIED_AT IS NOT NULL THEN
@@ -1067,14 +1118,18 @@ Content-Type: application/json
 					END IF;
 					t_output := t_output || chr(10);
 				ELSE
-					t_output := t_output || coalesce(l_record.NON_INCLUSION_STATUS, 'Pending') || '</A>' || chr(10);
+					t_output := t_output || coalesce(l_record.CHROME_INCLUSION_STATUS, 'Pending') || '</A>' || chr(10);
 				END IF;
-			ELSIF l_record.NON_INCLUSION_STATUS IS NOT NULL THEN
-				t_output := t_output || l_record.NON_INCLUSION_STATUS;
+			ELSIF l_record.CHROME_INCLUSION_STATUS IS NOT NULL THEN
+				t_output := t_output || l_record.CHROME_INCLUSION_STATUS;
 			END IF;
 			t_output := t_output ||
 '      </TD>
-      <TD>' || coalesce(l_record.INCLUDED_IN_MACOS, '') || '</TD>
+      <TD>' || coalesce(l_record.APPLE_INCLUSION_STATUS, '');
+			IF l_record.APPLE_LAST_STATUS_CHANGE IS NOT NULL THEN
+				t_output := t_output || ' <SPAN class="small">(' || to_char(l_record.APPLE_LAST_STATUS_CHANGE, 'YYYY-MM-DD HH24:MI:SS') || ')</SPAN>';
+			END IF;
+			t_output := t_output || '</TD>
     </TR>';
 		END LOOP;
 		t_output := t_output || '
@@ -1420,7 +1475,7 @@ Content-Type: text/plain; charset=UTF-8
 	ELSIF t_type = 'mozilla-onecrl' THEN
 		t_output := t_output ||
 '  <SPAN class="whiteongrey">Mozilla OneCRL</SPAN>
-<BR><SPAN class="small">Generated at ' || TO_CHAR(statement_timestamp() AT TIME ZONE 'UTC', 'YYYY-MM-DD HH24:MI:SS') || ' UTC</SPAN>
+<BR><SPAN class="small">Generated at ' || TO_CHAR(now() AT TIME ZONE 'UTC', 'YYYY-MM-DD HH24:MI:SS') || ' UTC</SPAN>
 <BR><BR>
 <TABLE>
   <TR>
@@ -1943,7 +1998,7 @@ Content-Type: text/plain; charset=UTF-8
 					FROM crl
 					WHERE crl.CA_ID = t_issuerCAID
 						AND crl.ERROR_MESSAGE IS NULL
-						AND crl.NEXT_UPDATE > statement_timestamp();
+						AND crl.NEXT_UPDATE > now() AT TIME ZONE 'UTC';
 				IF t_count > 0 THEN
 					t_temp0 := 'Not Revoked</TD><TD><SPAN style="color:#888888">n/a</SPAN></TD><TD><SPAN style="color:#888888">n/a</SPAN>';
 				ELSE
@@ -2033,8 +2088,8 @@ Content-Type: text/plain; charset=UTF-8
 					null;
 				END IF;
 				t_temp4 := t_temp4 || '
-          <TD>' || to_char(statement_timestamp(), 'YYYY-MM-DD') || '&nbsp; <FONT class="small">'
-				|| to_char(statement_timestamp(), 'HH24:MI:SS UTC') || '</FONT>';
+          <TD>' || to_char(now() AT TIME ZONE 'UTC', 'YYYY-MM-DD') || '&nbsp; <FONT class="small">'
+				|| to_char(now() AT TIME ZONE 'UTC', 'HH24:MI:SS UTC') || '</FONT>';
 			ELSE
 				t_temp4 := '<A href="?id=' || t_certificateID::text || '&opt=' || t_opt || 'ocsp">Check</A></TD>
           <TD><SPAN style="color:#888888">?</SPAN></TD>
@@ -2410,7 +2465,6 @@ Content-Type: text/plain; charset=UTF-8
 
 		-- Determine whether to use a reverse index (if available).
 		IF position('%' IN t_value) != 0 THEN
-			t_matchType := 'LIKE';
 			t_useReverseIndex := (
 				position('%' IN t_value) < position('%' IN reverse(t_value))
 			);
@@ -2420,9 +2474,9 @@ Content-Type: text/plain; charset=UTF-8
 '<TABLE>
   <TR>
     <TH class="outer">Criteria</TH>
-    <TD class="outer">' || html_escape(t_type)
-						|| ' ' || html_escape(t_matchType)
-						|| ' ''' || html_escape(t_value) || '''</TD>
+    <TD class="outer">Type: ' || html_escape(t_type)
+						|| '&nbsp;&nbsp;&nbsp;&nbsp;Match: ' || html_escape(t_match)
+						|| '&nbsp;&nbsp;&nbsp;&nbsp;Search: ' || ' ''' || html_escape(t_value) || '''</TD>
   </TR>
 </TABLE>
 <BR>
@@ -2756,6 +2810,12 @@ Content-Type: text/plain; charset=UTF-8
               t_url += "&iCAID=" + document.search_form.caID.value;
             if (document.search_form.excludeExpired.checked)
               t_url += "&exclude=expired";
+            with (document.search_form) {
+              if (match.options[match.selectedIndex].value != "")
+                t_url += "&match=" + match.options[match.selectedIndex].value;
+            }
+            if (document.search_form.showSQL.checked)
+              t_url += "&showSQL=Y";
           }
           window.location = t_url;
         }
@@ -2778,7 +2838,7 @@ Content-Type: text/plain; charset=UTF-8
               </SELECT>
             </TD>
             <TD class="options" style="padding-left:20px;vertical-align:top">
-              <SPAN class="text">Enter search term:</SPAN><BR><SPAN class="small">(% = wildcard)</SPAN>
+              <SPAN class="text">Enter search term:</SPAN><BR><SPAN class="small">(% = All certificates)</SPAN>
               <BR><BR>
               <INPUT type="text" name="idvalue" class="input" size="25" style="margin-top:2px">
               <BR><BR><BR>
@@ -2787,13 +2847,28 @@ Content-Type: text/plain; charset=UTF-8
             </TD>
             <TD class="options" style="padding-left:20px;vertical-align:top">
               <SPAN class="text">Search options:</SPAN>
-              <BR><BR><DIV style="border:1px solid #AAAAAA;margin-bottom:8px;padding:5px 0px;text-align:left">
-                <INPUT type="checkbox" name="excludeExpired"';
+              <BR><BR><DIV style="border:1px solid #AAAAAA;margin-bottom:5px;padding:4px 2px;text-align:left">
+                &nbsp;<SELECT name="match">
+                  <OPTION value="" selected>Autoselect</OPTION>
+                  <OPTION value="=">=</OPTION>
+                  <OPTION value="ILIKE">ILIKE</OPTION>
+                  <OPTION value="LIKE">LIKE</OPTION>
+                  <OPTION value="single">Single</OPTION>
+                  <OPTION value="any">Any</OPTION>
+                  <OPTION value="FTS">Full Text Search</OPTION>
+                </SELECT> Identity matching
+                <BR><INPUT type="checkbox" name="excludeExpired"';
 			IF t_excludeExpired IS NOT NULL THEN
 				t_output := t_output || ' checked';
 			END IF;
 			t_output := t_output || '> Exclude expired certificates?
-                <BR><INPUT type="checkbox" name="searchCensys"';
+                <BR><INPUT type="checkbox" name="showSQL"';
+			IF t_showSQL THEN
+				t_output := t_output || ' checked';
+			END IF;
+			t_output := t_output || '> Show SQL?
+                <HR>
+                &nbsp;Or, <INPUT type="checkbox" name="searchCensys"';
 			IF coalesce(t_searchProvider, '') = '&search=censys' THEN
 				t_output := t_output || ' checked';
 			END IF;
@@ -3109,12 +3184,22 @@ Content-Type: text/plain; charset=UTF-8
 				'ZLint',
 				'Lint'
 			) THEN
-		-- Determine whether to use a reverse index (if available).
-		IF position('%' IN t_value) != 0 THEN
-			t_matchType := 'LIKE';
-			t_useReverseIndex := (
-				position('%' IN t_value) < position('%' IN reverse(t_value))
-			);
+		IF length(t_value) = 1 THEN
+			NULL;
+		ELSIF (substr(t_value, 1, 1) = '%') AND (substr(t_value, length(t_value), 1) = '%') THEN
+			t_value := substr(t_value, 2, length(t_value) - 2);
+		ELSIF substr(t_value, 1, 2) = '%.' THEN
+			t_value := substr(t_value, 3);
+		ELSIF position('%' in t_value) = length(t_value) THEN
+			IF t_value LIKE '% %' THEN
+				t_value := substr(t_value, 1, length(t_value) - 1);
+			ELSE
+				t_value := substr(t_value, 1, length(t_value) - 1) || ':*';
+				t_match := 'FTS';
+				t_tsqueryFunction := 'to_tsquery';
+			END IF;
+		ELSIF position('%' in t_value) > 0 THEN
+			RAISE no_data_found USING MESSAGE = 'Unsupported use of ''%''';
 		END IF;
 
 		t_caID := get_parameter('icaid', paramNames, paramValues)::integer;
@@ -3160,9 +3245,8 @@ Content-Type: text/plain; charset=UTF-8
 <TABLE>
   <TR>
     <TH class="outer">Criteria</TH>
-    <TD class="outer">' || html_escape(t_type)
-						|| ' ' || html_escape(t_matchType)
-						|| ' ''';
+    <TD class="outer">Type: ' || html_escape(t_type)
+						|| '&nbsp;&nbsp;&nbsp;&nbsp;Match: ' || html_escape(t_match) || '&nbsp;&nbsp;&nbsp;&nbsp;Search: ';
 			IF lower(t_type) LIKE '%lint' THEN
 				SELECT CASE li.SEVERITY
 							WHEN 'F' THEN '<SPAN class="fatal">&nbsp;FATAL:'
@@ -3176,14 +3260,13 @@ Content-Type: text/plain; charset=UTF-8
 						AND li.LINTER = coalesce(t_linter, li.LINTER);
 				t_output := t_output || t_temp;
 			ELSE
-				t_output := t_output || html_escape(t_value);
+				t_output := t_output || '''' || html_escape(t_value) || '''';
 			END IF;
-			t_output := t_output || '''';
 			IF t_caID IS NOT NULL THEN
-				t_output := t_output || '; Issuer CA ID = ' || t_caID::text;
+				t_output := t_output || '&nbsp;&nbsp;&nbsp;&nbsp;Issuer CA ID: ' || t_caID::text;
 			END IF;
 			IF t_excludeExpired IS NOT NULL THEN
-				t_output := t_output || '; Exclude expired certificates';
+				t_output := t_output || '&nbsp;&nbsp;&nbsp;&nbsp;Exclude expired certificates';
 			END IF;
 			t_output := t_output || '</TD>
   </TR>
@@ -3202,21 +3285,15 @@ Content-Type: text/plain; charset=UTF-8
 			END IF;
 		END IF;
 
-		IF substr(t_value, 1, 2) = '%.' THEN
-			t_value2 := substr(t_value, 3);
-		ELSIF position('%' IN t_value) > 0 THEN
-			t_value2 := replace(t_value, '%', '');
-		ELSE
-			t_value2 := t_value;
-		END IF;
-
 		-- Search for (potentially) multiple certificates.
 		IF t_caID IS NOT NULL THEN
 			-- Show all of the certs for 1 identity issued by 1 CA.
+			t_temp := NULL;
 			IF (t_value = '%') OR t_type IN (
 				'Serial Number', 'Subject Key Identifier',
 				'SHA-1(SubjectPublicKeyInfo)', 'SHA-256(SubjectPublicKeyInfo)', 'SHA-1(Subject)'
 			) THEN
+				t_match := NULL;
 				t_query :=
 						'SELECT c.ID,' || chr(10) ||
 						'       c.ISSUER_CA_ID,' || chr(10) ||
@@ -3224,7 +3301,7 @@ Content-Type: text/plain; charset=UTF-8
 						'       x509_notBefore(c.CERTIFICATE) NOT_BEFORE,' || chr(10) ||
 						'       x509_notAfter(c.CERTIFICATE) NOT_AFTER' || chr(10) ||
 						'    FROM certificate c' || chr(10) ||
-						'    WHERE c.ISSUER_CA_ID = $1' || chr(10);
+						'    WHERE c.ISSUER_CA_ID = $1::integer' || chr(10);
 				IF t_type = 'Serial Number' THEN
 					t_query := t_query ||
 						'        AND x509_serialNumber(c.CERTIFICATE) = decode($2, ''hex'')' || chr(10);
@@ -3242,52 +3319,71 @@ Content-Type: text/plain; charset=UTF-8
 						'        AND digest(x509_name(c.CERTIFICATE), ''sha1'') = decode($2, ''hex'')' || chr(10);
 				END IF;
 			ELSIF lower(t_type) LIKE '%lint' THEN
-				t_query := t_query ||
-						'		, lint_cert_issue lci, lint_issue li' || chr(10) ||
-						'	WHERE c.ISSUER_CA_ID = $1::integer' || chr(10) ||
-						'		AND c.ID = lci.CERTIFICATE_ID' || chr(10) ||
-						'		AND lci.ISSUER_CA_ID = $1::integer' || chr(10) ||
-						'		AND lci.NOT_BEFORE_DATE >= $4' || chr(10) ||
-						'		AND lci.LINT_ISSUE_ID = $2::integer' || chr(10) ||
-						'		AND lci.LINT_ISSUE_ID = li.ID' || chr(10);
+				t_query :=
+						'SELECT c.ID,' || chr(10) ||
+						'       c.ISSUER_CA_ID,' || chr(10) ||
+						'       x509_subjectName(c.CERTIFICATE) SUBJECT_NAME,' || chr(10) ||
+						'       x509_notBefore(c.CERTIFICATE) NOT_BEFORE,' || chr(10) ||
+						'       x509_notAfter(c.CERTIFICATE) NOT_AFTER' || chr(10) ||
+						'    FROM certificate c,' || chr(10) ||
+						'         lint_cert_issue lci, lint_issue li' || chr(10) ||
+						'    WHERE c.ISSUER_CA_ID = $1::integer' || chr(10) ||
+						'        AND c.ID = lci.CERTIFICATE_ID' || chr(10) ||
+						'        AND lci.ISSUER_CA_ID = $1::integer' || chr(10) ||
+						'        AND lci.NOT_BEFORE_DATE >= $3' || chr(10) ||
+						'        AND lci.LINT_ISSUE_ID = $2::integer' || chr(10) ||
+						'        AND lci.LINT_ISSUE_ID = li.ID' || chr(10);
 				IF t_linter IS NOT NULL THEN
 					t_query := t_query ||
-						'		AND li.LINTER = ''' || t_linter || '''' || chr(10);
+						'        AND li.LINTER = ''' || t_linter || '''' || chr(10);
 				END IF;
 			ELSE
 				t_query :=
 						'WITH ci AS MATERIALIZED (' || chr(10) ||
-						'    SELECT cai.CERTIFICATE_ID ID,' || chr(10) ||
-						'           cai.ISSUER_CA_ID,' || chr(10) ||
-						'           x509_subjectName(cai.CERTIFICATE) SUBJECT_NAME,' || chr(10) ||
-						'           x509_notBefore(cai.CERTIFICATE) NOT_BEFORE,' || chr(10) ||
-						'           x509_notAfter(cai.CERTIFICATE) NOT_AFTER' || chr(10) ||
-						'        FROM certificate_and_identities cai' || chr(10) ||
-						'        WHERE websearch_to_tsquery($3) @@ identities(cai.CERTIFICATE)' || chr(10);
-				IF t_value = t_value2 THEN
+						'    SELECT sub.CERTIFICATE_ID ID,' || chr(10) ||
+						'           sub.ISSUER_CA_ID,' || chr(10) ||
+						'           array_agg(DISTINCT sub.NAME_VALUE) NAME_VALUES,' || chr(10) ||
+						'           x509_subjectName(sub.CERTIFICATE) SUBJECT_NAME,' || chr(10) ||
+						'           x509_notBefore(sub.CERTIFICATE) NOT_BEFORE,' || chr(10) ||
+						'           x509_notAfter(sub.CERTIFICATE) NOT_AFTER' || chr(10) ||
+						'        FROM (SELECT *' || chr(10) ||
+						'                  FROM certificate_and_identities cai' || chr(10) ||
+						'                  WHERE ' || t_tsqueryFunction || '($2) @@ identities(cai.CERTIFICATE)' || chr(10);
+				IF t_match = 'Single' THEN
 					t_query := t_query ||
-						'            AND lower(cai.NAME_VALUE) = lower($3)' || chr(10);
-				ELSE
+						'                      AND plainto_tsquery($2) @@ to_tsvector(cai.NAME_VALUE)' || chr(10);
+				ELSIF t_match = 'FTS' THEN
 					t_query := t_query ||
-						'            AND (' || chr(10) ||
-						'                (lower(cai.NAME_VALUE) = lower($3))' || chr(10) ||
-						'                OR (cai.NAME_VALUE ILIKE $2)' || chr(10) ||
-						'            )' || chr(10);
+							'                  AND to_tsquery($1) @@ to_tsvector(cai.NAME_VALUE)' || chr(10);
+				ELSIF t_match != 'Any' THEN
+					t_query := t_query ||
+						'                      AND cai.NAME_VALUE ' || t_match || ' ';
+					IF t_match != '=' THEN
+						t_query := t_query || '(''%'' || ';
+					END IF;
+					t_query := t_query || '$2';
+					IF t_match != '=' THEN
+						t_query := t_query || ' || ''%'')';
+					END IF;
+					t_query := t_query || chr(10);
 				END IF;
 				IF t_type != 'Identity' THEN
 					t_query := t_query ||
-						'            AND cai.NAME_TYPE = ' || quote_literal(t_nameType_oid) || ' -- ' || t_nameType || chr(10);
+						'                      AND cai.NAME_TYPE = ' || quote_literal(t_nameType_oid) || ' -- ' || t_nameType || chr(10);
 				END IF;
 				IF t_excludeExpired IS NOT NULL THEN
 					t_query := t_query ||
-						'            AND coalesce(x509_notAfter(cai.CERTIFICATE), ''infinity''::timestamp) > now() AT TIME ZONE ''UTC''' || chr(10);
-					t_excludeExpired := NULL;
+						'                      AND coalesce(x509_notAfter(cai.CERTIFICATE), ''infinity''::timestamp) > now() AT TIME ZONE ''UTC''' || chr(10);
+					t_temp := t_excludeExpired;
 				END IF;
 				t_query := t_query ||
-						'    GROUP BY cai.CERTIFICATE_ID, cai.ISSUER_CA_ID, cai.CERTIFICATE' || chr(10) ||
+						'                  LIMIT 10000' || chr(10) ||
+						'             ) sub' || chr(10) ||
+						'    GROUP BY sub.CERTIFICATE_ID, sub.ISSUER_CA_ID, sub.CERTIFICATE' || chr(10) ||
 						')' || chr(10) ||
 						'SELECT ci.ID,' || chr(10) ||
 						'       ci.ISSUER_CA_ID,' || chr(10) ||
+						'       array_to_string(ci.NAME_VALUES, chr(10)) NAME_VALUE,' || chr(10) ||
 						'       ci.SUBJECT_NAME,' || chr(10) ||
 						'       ci.NOT_BEFORE,' || chr(10) ||
 						'       ci.NOT_AFTER' || chr(10) ||
@@ -3295,7 +3391,7 @@ Content-Type: text/plain; charset=UTF-8
 						'    WHERE ci.ISSUER_CA_ID = $1' || chr(10);
 			END IF;
 
-			IF t_excludeExpired IS NOT NULL THEN
+			IF (t_excludeExpired IS NOT NULL) AND (t_temp IS NULL) THEN
 				t_query := t_query ||
 						'        AND coalesce(x509_notAfter(c.CERTIFICATE), ''infinity''::timestamp) > now() AT TIME ZONE ''UTC''' || chr(10);
 			END IF;
@@ -3311,10 +3407,12 @@ Content-Type: text/plain; charset=UTF-8
 						'    LIMIT ' || t_resultsPerPage::text;
 			END IF;
 
+			t_showIdentity := (t_match NOT IN ('=', 'Any')) OR (t_type = 'CT Entry ID');
+
 			t_text := '';
 			t_count := 0;
 			FOR l_record IN EXECUTE t_query
-							USING t_caID, t_value, t_value2, t_minNotBefore LOOP
+							USING t_caID, t_value, t_minNotBefore LOOP
 				t_count := t_count + 1;
 				t_text := t_text ||
 '  <TR>
@@ -3325,7 +3423,14 @@ Content-Type: text/plain; charset=UTF-8
 				t_text := t_text || '">' || l_record.ID::text || '</A></TD>
     <TD style="white-space:nowrap">' || to_char(l_record.NOT_BEFORE, 'YYYY-MM-DD') || '</TD>
     <TD style="white-space:nowrap">' || to_char(l_record.NOT_AFTER, 'YYYY-MM-DD') || '</TD>
-    <TD>' || html_escape(l_record.SUBJECT_NAME) || '</TD>
+';
+				IF t_showIdentity THEN
+					t_text := t_text ||
+'    <TD>' || replace(html_escape(l_record.NAME_VALUE), chr(10), '<BR>') || '</TD>
+';
+				END IF;
+				t_text := t_text ||
+'    <TD>' || html_escape(l_record.SUBJECT_NAME) || '</TD>
   </TR>
 ';
 			END LOOP;
@@ -3339,7 +3444,7 @@ Content-Type: text/plain; charset=UTF-8
 				ELSE
 					t_temp := 'SELECT count(*) FROM (' || chr(10) || substring(t_query from '^.*    ORDER BY');
 					t_temp := substr(t_temp, 1, length(t_temp) - length('    ORDER BY')) || ') sub';
-					EXECUTE t_temp INTO t_count USING t_caID, t_value, t_value2, t_minNotBefore;
+					EXECUTE t_temp INTO t_count USING t_caID, t_value, t_minNotBefore;
 				END IF;
 			END IF;
 
@@ -3389,7 +3494,14 @@ Content-Type: text/plain; charset=UTF-8
     <TH style="white-space:nowrap">crt.sh ID</TH>
     <TH style="white-space:nowrap">Not Before</TH>
     <TH style="white-space:nowrap">Not After</TH>
-    <TH>Subject Name</TH>
+';
+				IF t_showIdentity THEN
+					t_output := t_output ||
+'    <TH>Matching&nbsp;Identities</TH>
+';
+				END IF;
+				t_output := t_output ||
+'    <TH>Subject Name</TH>
   </TR>
 ' || t_text ||
 '</TABLE>
@@ -3402,6 +3514,7 @@ Content-Type: text/plain; charset=UTF-8
   </TR>
 </TABLE>
 ';
+
 		ELSE
 			IF trim(t_value, '%') = '' THEN
 				RAISE no_data_found
@@ -3412,13 +3525,13 @@ Content-Type: text/plain; charset=UTF-8
 			t_needMinEntryTimestamp := TRUE;
 
 			t_select :=		'SELECT __issuer_ca_id_table__.ISSUER_CA_ID,' || chr(10) ||
-							'        NULL::text ISSUER_NAME,' || chr(10) ||
+							'        ca.NAME ISSUER_NAME,' || chr(10) ||
 							'        __name_value__ NAME_VALUE,' || chr(10);
 			t_from := 		'    FROM ';
 			t_where := '';
 			IF coalesce(t_groupBy, '') = 'none' THEN
 				t_select := t_select ||
-							'        __cert_id_field__,' || chr(10) ||
+							'        __cert_id_field__ ID,' || chr(10) ||
 							'        __entry_timestamp_field__,' || chr(10) ||
 							'        __not_before_field__,' || chr(10) ||
 							'        __not_after_field__';
@@ -3445,7 +3558,7 @@ Content-Type: text/plain; charset=UTF-8
 				t_notBefore_field := '';
 				t_notAfter_field := '';
 
-				t_query :=	'    GROUP BY __issuer_ca_id_table__.ISSUER_CA_ID, ISSUER_NAME, NAME_VALUE' || chr(10) ||
+				t_query :=	'    GROUP BY __issuer_ca_id_table__.ISSUER_CA_ID, ISSUER_NAME' || chr(10) ||
 							'    ORDER BY ';
 				IF t_sort = 3 THEN
 					t_query := t_query || 'ISSUER_NAME ' || t_orderBy || ', NAME_VALUE, NUM_CERTS';
@@ -3454,11 +3567,12 @@ Content-Type: text/plain; charset=UTF-8
 				END IF;
 			END IF;
 
+			t_temp := NULL;
 			IF t_type = 'CT Entry ID' THEN
 				t_needMinEntryTimestamp := FALSE;
 
 				t_from := t_from || 'ct_log_entry ctle,' || chr(10) ||
-							'        ct_log ctl';
+							'         ct_log ctl';
 				t_issuerCAID_table := 'c';
 				t_nameValue := 'ctl.NAME';
 				t_certID_field := 'c.ID';
@@ -3467,35 +3581,35 @@ Content-Type: text/plain; charset=UTF-8
 				t_where :=	'ctle.ENTRY_ID = $1::bigint' || chr(10) ||
 							'ctle.CT_LOG_ID = ctl.ID';
 			ELSIF t_type = 'Serial Number' THEN
-				t_from := t_from || 'certificate c' || chr(10);
+				t_from := t_from || 'certificate c';
 				t_issuerCAID_table := 'c';
 				t_nameValue := 'encode(x509_serialNumber(c.CERTIFICATE), ''hex'')';
 				t_certID_field := 'c.ID';
 				t_entryTimestamp_field := 'le.ENTRY_TIMESTAMP';
 				t_where :=	'x509_serialNumber(c.CERTIFICATE) = decode($1, ''hex'')';
 			ELSIF t_type = 'Subject Key Identifier' THEN
-				t_from := t_from || 'certificate c' || chr(10);
+				t_from := t_from || 'certificate c';
 				t_issuerCAID_table := 'c';
 				t_nameValue := 'encode(x509_subjectKeyIdentifier(c.CERTIFICATE), ''hex'')';
 				t_certID_field := 'c.ID';
 				t_entryTimestamp_field := 'le.ENTRY_TIMESTAMP';
 				t_where :=	'x509_subjectKeyIdentifier(c.CERTIFICATE) = decode($1, ''hex'')';
 			ELSIF t_type = 'SHA-1(SubjectPublicKeyInfo)' THEN
-				t_from := t_from || 'certificate c' || chr(10);
+				t_from := t_from || 'certificate c';
 				t_issuerCAID_table := 'c';
 				t_nameValue := 'encode(digest(x509_publickey(c.CERTIFICATE), ''sha1''), ''hex'')';
 				t_certID_field := 'c.ID';
 				t_entryTimestamp_field := 'le.ENTRY_TIMESTAMP';
 				t_where :=	'digest(x509_publickey(c.CERTIFICATE), ''sha1'') = decode($1, ''hex'')';
 			ELSIF t_type = 'SHA-256(SubjectPublicKeyInfo)' THEN
-				t_from := t_from || 'certificate c' || chr(10);
+				t_from := t_from || 'certificate c';
 				t_issuerCAID_table := 'c';
 				t_nameValue := 'encode(digest(x509_publickey(c.CERTIFICATE), ''sha256''), ''hex'')';
 				t_certID_field := 'c.ID';
 				t_entryTimestamp_field := 'le.ENTRY_TIMESTAMP';
 				t_where :=	'digest(x509_publickey(c.CERTIFICATE), ''sha256'') = decode($1, ''hex'')';
 			ELSIF t_type = 'SHA-1(Subject)' THEN
-				t_from := t_from || 'certificate c' || chr(10);
+				t_from := t_from || 'certificate c';
 				t_issuerCAID_table := 'c';
 				t_nameValue := 'encode(digest(x509_name(c.CERTIFICATE), ''sha1''), ''hex'')';
 				t_certID_field := 'c.ID';
@@ -3503,14 +3617,14 @@ Content-Type: text/plain; charset=UTF-8
 				t_where :=	'digest(x509_name(c.CERTIFICATE), ''sha1'') = decode($1, ''hex'')';
 			ELSIF lower(t_type) LIKE '%lint' THEN
 				t_from := t_from || 'lint_issue li,' || chr(10) ||
-							'        lint_cert_issue lci' || chr(10);
+							'         lint_cert_issue lci';
 				t_issuerCAID_table := 'c';
 				t_nameValue := 'lci.LINT_ISSUE_ID::text';
 				t_certID_field := 'lci.CERTIFICATE_ID';
 				t_joinToCertificate_table := 'lci';
 				t_entryTimestamp_field := 'le.ENTRY_TIMESTAMP';
 				t_where :=  'lci.LINT_ISSUE_ID = $1::integer' || chr(10) ||
-							'lci.NOT_BEFORE_DATE >= $3' || chr(10) ||
+							'lci.NOT_BEFORE_DATE >= $2' || chr(10) ||
 							'lci.CERTIFICATE_ID = c.ID' || chr(10) ||
 							'lci.LINT_ISSUE_ID = li.ID';
 				IF t_linter IS NOT NULL THEN
@@ -3519,54 +3633,63 @@ Content-Type: text/plain; charset=UTF-8
 				END IF;
 			ELSE
 				t_temp :=	'WITH ci AS (' || chr(10) ||
-							'    SELECT min(cai.CERTIFICATE_ID) ID,' || chr(10) ||
-							'           min(cai.ISSUER_CA_ID) ISSUER_CA_ID,' || chr(10) ||
-							'           array_agg(DISTINCT cai.NAME_VALUE) NAME_VALUES,' || chr(10) ||
-							'           x509_subjectName(cai.CERTIFICATE) SUBJECT_NAME,' || chr(10) ||
-							'           x509_notBefore(cai.CERTIFICATE) NOT_BEFORE,' || chr(10) ||
-							'           x509_notAfter(cai.CERTIFICATE) NOT_AFTER' || chr(10) ||
-							'        FROM certificate_and_identities cai' || chr(10) ||
-							'        WHERE websearch_to_tsquery($2) @@ identities(cai.CERTIFICATE)' || chr(10);
-				IF t_value = t_value2 THEN
+							'    SELECT min(sub.CERTIFICATE_ID) ID,' || chr(10) ||
+							'           min(sub.ISSUER_CA_ID) ISSUER_CA_ID,' || chr(10) ||
+							'           array_agg(DISTINCT sub.NAME_VALUE) NAME_VALUES,' || chr(10) ||
+							'           x509_subjectName(sub.CERTIFICATE) SUBJECT_NAME,' || chr(10) ||
+							'           x509_notBefore(sub.CERTIFICATE) NOT_BEFORE,' || chr(10) ||
+							'           x509_notAfter(sub.CERTIFICATE) NOT_AFTER' || chr(10) ||
+							'        FROM (SELECT *' || chr(10) ||
+							'                  FROM certificate_and_identities cai' || chr(10) ||
+							'                  WHERE ' || t_tsqueryFunction || '($1) @@ identities(cai.CERTIFICATE)' || chr(10);
+				IF t_match = 'Single' THEN
 					t_temp := t_temp ||
-							'            AND lower(cai.NAME_VALUE) = lower($2)' || chr(10);
-				ELSE
+							'                      AND plainto_tsquery($1) @@ to_tsvector(cai.NAME_VALUE)' || chr(10);
+				ELSIF t_match = 'FTS' THEN
 					t_temp := t_temp ||
-							'            AND (' || chr(10) ||
-							'                (lower(cai.NAME_VALUE) = lower($2))' || chr(10) ||
-							'                OR (cai.NAME_VALUE ILIKE $1)' || chr(10) ||
-							'            )' || chr(10);
+							'                      AND to_tsquery($1) @@ to_tsvector(cai.NAME_VALUE)' || chr(10);
+				ELSIF t_match != 'Any' THEN
+					t_temp := t_temp ||
+							'                      AND cai.NAME_VALUE ' || t_match || ' ';
+					IF t_match != '=' THEN
+						t_temp := t_temp || '(''%'' || ';
+					END IF;
+					t_temp := t_temp || '$1';
+					IF t_match != '=' THEN
+						t_temp := t_temp || ' || ''%'')';
+					END IF;
+					t_temp := t_temp || chr(10);
 				END IF;
 				IF t_type != 'Identity' THEN
 					t_temp := t_temp ||
-							'            AND cai.NAME_TYPE = ' || quote_literal(t_nameType_oid) || ' -- ' || t_nameType || chr(10);
+							'                      AND cai.NAME_TYPE = ' || quote_literal(t_nameType_oid) || ' -- ' || t_nameType || chr(10);
 				END IF;
 				IF t_excludeExpired IS NOT NULL THEN
-					t_temp := t_temp || chr(10) ||
-							'            AND coalesce(x509_notAfter(cai.CERTIFICATE), ''infinity''::timestamp) > now() AT TIME ZONE ''UTC''';
-					t_excludeExpired := NULL;
+					t_temp := t_temp ||
+							'                      AND coalesce(x509_notAfter(cai.CERTIFICATE), ''infinity''::timestamp) > now() AT TIME ZONE ''UTC''' || chr(10);
 				END IF;
 				IF t_excludeCAsString IS NOT NULL THEN
-					t_temp := t_temp || chr(10) ||
-							'            AND cai.ISSUER_CA_ID NOT IN (' || array_to_string(t_excludeCAs, ',') || ')';
-					t_excludeCAsString := NULL;
+					t_temp := t_temp ||
+							'                      AND cai.ISSUER_CA_ID NOT IN (' || array_to_string(t_excludeCAs, ',') || ')' || chr(10);
 				END IF;
 
 				t_select := t_temp ||
-							'        GROUP BY cai.CERTIFICATE' || chr(10) ||
+							'                  LIMIT 10000' || chr(10) ||
+							'             ) sub' || chr(10) ||
+							'        GROUP BY sub.CERTIFICATE' || chr(10) ||
 							')' || chr(10) ||
 							t_select;
 				t_entryTimestamp_field := 'le.ENTRY_TIMESTAMP';
 				t_notBefore_field := 'ci.NOT_BEFORE';
 				t_notAfter_field := 'ci.NOT_AFTER';
-				t_from := t_from || 'ci' || chr(10);
+				t_from := t_from || 'ci';
 				t_issuerCAID_table := 'ci';
 				t_nameValue := 'array_to_string(ci.NAME_VALUES, chr(10))';
 				t_certID_field := 'ci.ID';
 			END IF;
 
 			IF t_needMinEntryTimestamp THEN
-				t_from := t_from ||
+				t_from := t_from || chr(10) ||
 							'            LEFT JOIN LATERAL (' || chr(10) ||
 							'                SELECT min(ctle.ENTRY_TIMESTAMP) ENTRY_TIMESTAMP' || chr(10) ||
 							'                    FROM ct_log_entry ctle' || chr(10) ||
@@ -3576,22 +3699,34 @@ Content-Type: text/plain; charset=UTF-8
 
 			IF t_joinToCertificate_table IS NOT NULL THEN
 				t_from := t_from || ',' || chr(10) ||
-							'        certificate c';
+							'         certificate c';
 				t_where := t_where || chr(10) ||
 							t_joinToCertificate_table || '.CERTIFICATE_ID = c.ID';
 			END IF;
 
-			IF t_excludeExpired IS NOT NULL THEN
+			t_from := t_from || ',' || chr(10) ||
+							'         ca';
+			t_where := t_where || chr(10) ||
+							t_issuerCAID_table || '.ISSUER_CA_ID = ca.ID';
+
+			IF (t_excludeExpired IS NOT NULL) AND (t_temp IS NULL) THEN
 				t_where := t_where || chr(10) ||
 							'coalesce(x509_notAfter(c.CERTIFICATE), ''infinity''::timestamp) > now() AT TIME ZONE ''UTC''';
 			END IF;
-			IF t_excludeCAsString IS NOT NULL THEN
+			IF (t_excludeCAsString IS NOT NULL) AND (t_temp IS NULL) THEN
 				t_where := t_where || chr(10) ||
-							'        AND ' || t_issuerCAID_table || '.ISSUER_CA_ID NOT IN (' || array_to_string(t_excludeCAs, ',') || ')';
+							t_issuerCAID_table || '.ISSUER_CA_ID NOT IN (' || array_to_string(t_excludeCAs, ',') || ')';
 			END IF;
 
 			IF t_where != '' THEN
 				t_where := '    WHERE ' || replace(trim(chr(10) from t_where), chr(10), chr(10) || '        AND ') || chr(10);
+			END IF;
+
+			IF coalesce(t_groupBy, '') != 'none' THEN
+				t_nameValue := '''''';
+				t_showIdentity := FALSE;
+			ELSE
+				t_showIdentity := (t_match NOT IN ('=', 'Any')) OR (t_type = 'CT Entry ID');
 			END IF;
 
 			t_query := t_select || chr(10)
@@ -3606,8 +3741,6 @@ Content-Type: text/plain; charset=UTF-8
 			t_query := replace(t_query, '__not_before_field__', t_notBefore_field);
 			t_query := replace(t_query, '__not_after_field__', t_notAfter_field);
 
-			t_showIdentity := (position('%' IN t_value) > 0) OR (t_type = 'CT Entry ID');
-
 			IF t_outputType = 'json' THEN
 				t_output := t_output || '[';
 			END IF;
@@ -3616,12 +3749,7 @@ Content-Type: text/plain; charset=UTF-8
 			t_summary := '';
 			t_temp3 := '';
 			FOR l_record IN EXECUTE t_query
-							USING t_value, t_value2, t_minNotBefore LOOP
-				SELECT ca.NAME
-					INTO l_record.ISSUER_NAME
-					FROM ca
-					WHERE ca.ID = l_record.ISSUER_CA_ID;
-
+							USING t_value, t_minNotBefore LOOP
 				t_temp2 := '';
 				IF t_outputType = 'atom' THEN
 					IF coalesce(t_certificateID, -l_record.ID) != l_record.ID THEN
@@ -3690,7 +3818,7 @@ Content-Type: text/plain; charset=UTF-8
 															|| l_record.NUM_CERTS::text || '</A>';
 					ELSIF (l_record.ISSUER_CA_ID IS NOT NULL)
 							AND (l_record.ID IS NOT NULL) THEN
-						t_temp2 := t_temp2 || '<A href="?' || urlEncode(t_cmd) || '=' || urlEncode(l_record.NAME_VALUE)
+						t_temp2 := t_temp2 || '<A href="?' || urlEncode(t_cmd) || '=' || urlEncode(t_value)
 												|| '&iCAID=' || l_record.ISSUER_CA_ID::text || t_minNotBeforeString
 												|| coalesce(t_excludeExpired, '') || t_opt || '">'
 											|| l_record.NUM_CERTS::text || '</A>';
@@ -3769,7 +3897,7 @@ Content-Type: application/atom+xml
 					t_output := t_output || '; ' || substring(t_minNotBeforeString from 2);
 				END IF;
 				t_output := t_output || '</title>
-  <updated>' || to_char(coalesce(t_feedUpdated, statement_timestamp()), 'YYYY-MM-DD"T"HH24:MI:SS"Z"') || '</updated>
+  <updated>' || to_char(coalesce(t_feedUpdated, now() AT TIME ZONE 'UTC'), 'YYYY-MM-DD"T"HH24:MI:SS"Z"') || '</updated>
 ' || replace(t_text, '__entry_summary__', t_summary) ||
 '</feed>';
 			ELSIF t_outputType = 'html' THEN
@@ -3835,7 +3963,7 @@ Content-Type: application/atom+xml
 ';
 						ELSE
 							t_output := t_output ||
-'    <TH>Identity</TH>
+'    <TH>Matching Identities</TH>
 ';
 						END IF;
 					END IF;
@@ -3874,6 +4002,8 @@ Content-Type: application/atom+xml
 		END IF;
 
 	ELSIF lower(t_type) LIKE '%lint: summary' THEN
+		t_cacheControlMaxAge := -1;
+
 		IF t_sort NOT BETWEEN 1 AND 18 THEN
 			t_sort := 1;
 		END IF;
@@ -3890,11 +4020,7 @@ Content-Type: application/atom+xml
 ';
 		END IF;
 
-		IF t_value != '1 week' THEN
-			t_output := t_output ||
-'  <BR><BR>Sorry, only "1 week" statistics are currently supported.
-';
-		ELSIF t_groupBy NOT IN ('', 'IssuerO') THEN
+		IF t_groupBy NOT IN ('', 'IssuerO') THEN
 			t_output := t_output ||
 '  <BR><BR>Sorry, "IssuerO" is the only currently supported value for "group".
 ';
@@ -3918,7 +4044,7 @@ Content-Type: application/atom+xml
 				t_output := t_output ||
 '  </SPAN>
   <BR><BR>
-  For certificates with <B>notBefore >= ' || to_char(date_trunc('day', statement_timestamp() - interval '1 week'), 'YYYY-MM-DD') || '</B>';
+  For certificates with <B>notBefore >= ' || to_char((now() AT TIME ZONE 'UTC')::date - t_value::interval, 'YYYY-MM-DD') || '</B>';
 				IF t_issuerO IS NOT NULL THEN
 					t_output := t_output || ' and <B>"Issuer O" LIKE ''' || t_issuerO || '''</B>';
 				END IF;
@@ -3938,54 +4064,31 @@ Content-Type: application/atom+xml
 					END IF;
 				END IF;
 				t_output := t_output || '</TH>
-      <TH rowspan="2"><A href="?' || urlEncode(t_cmd) || '=' || urlEncode(t_value) || '&dir=' || t_oppositeDirection || '&sort=3' || t_groupByParameter || t_issuerOParameter || '"># Certs<BR>Issued</A>';
+      <TH rowspan="2"><A href="?' || urlEncode(t_cmd) || '=' || urlEncode(t_value) || '&dir=' || t_oppositeDirection || '&sort=3' || t_groupByParameter || t_issuerOParameter || '"># Certs</A>';
 				IF t_sort = 3 THEN
 					t_output := t_output || ' ' || t_dirSymbol;
 				END IF;
 				t_output := t_output || '</TH>
-      <TH colspan="2"><A title="These errors are fatal to the checks and prevent most further checks from being executed.  These are extremely bad errors."><SPAN class="fatal">&nbsp;FATAL&nbsp;</SPAN></A></TH>
-      <TH colspan="2"><A title="These are issues where the certificate is not compliant with the standard."><SPAN class="error">&nbsp;ERROR&nbsp;</SPAN></A></TH>
-      <TH colspan="2"><A title="These are issues where a standard recommends differently but the standard uses terms such as ''SHOULD'' or ''MAY''."><SPAN class="warning">&nbsp;WARNING&nbsp;</SPAN></A></TH>
-      <TH colspan="2"><A title="FATAL + ERROR + WARNING">ALL</A></TH>
+      <TH colspan="4">Issues Found</TH>
     </TR>
     <TR>
-      <TH><A href="?' || urlEncode(t_cmd) || '=' || urlEncode(t_value) || '&dir=' || t_oppositeDirection || '&sort=4' || t_groupByParameter || t_issuerOParameter || '"># Certs</A>';
+      <TH><A title="These errors are fatal to the checks and prevent most further checks from being executed.  These are extremely bad errors." href="?' || urlEncode(t_cmd) || '=' || urlEncode(t_value) || '&dir=' || t_oppositeDirection || '&sort=4' || t_groupByParameter || t_issuerOParameter || '">#</A> <SPAN class="fatal">&nbsp;FATAL&nbsp;</SPAN>';
 				IF t_sort = 4 THEN
 					t_output := t_output || ' ' || t_dirSymbol;
 				END IF;
 				t_output := t_output || '</TH>
-      <TH><A href="?' || urlEncode(t_cmd) || '=' || urlEncode(t_value) || '&dir=' || t_oppositeDirection || '&sort=5' || t_groupByParameter || t_issuerOParameter || '">%</A>';
-				IF t_sort = 5 THEN
-					t_output := t_output || ' ' || t_dirSymbol;
-				END IF;
-				t_output := t_output || '</TH>
-      <TH><A href="?' || urlEncode(t_cmd) || '=' || urlEncode(t_value) || '&dir=' || t_oppositeDirection || '&sort=7' || t_groupByParameter || t_issuerOParameter || '"># Certs</A>';
+      <TH><A title="These are issues where the certificate is not compliant with the standard." href="?' || urlEncode(t_cmd) || '=' || urlEncode(t_value) || '&dir=' || t_oppositeDirection || '&sort=7' || t_groupByParameter || t_issuerOParameter || '">#</A> <SPAN class="error">&nbsp;ERROR&nbsp;</SPAN>';
 				IF t_sort = 7 THEN
 					t_output := t_output || ' ' || t_dirSymbol;
 				END IF;
 				t_output := t_output || '</TH>
-      <TH><A href="?' || urlEncode(t_cmd) || '=' || urlEncode(t_value) || '&dir=' || t_oppositeDirection || '&sort=8' || t_groupByParameter || t_issuerOParameter || '">%</A>';
-				IF t_sort = 8 THEN
-					t_output := t_output || ' ' || t_dirSymbol;
-				END IF;
-				t_output := t_output || '</TH>
-      <TH><A href="?' || urlEncode(t_cmd) || '=' || urlEncode(t_value) || '&dir=' || t_oppositeDirection || '&sort=10' || t_groupByParameter || t_issuerOParameter || '"># Certs</A>';
+      <TH><A title="These are issues where a standard recommends differently but the standard uses terms such as ''SHOULD'' or ''MAY''." href="?' || urlEncode(t_cmd) || '=' || urlEncode(t_value) || '&dir=' || t_oppositeDirection || '&sort=10' || t_groupByParameter || t_issuerOParameter || '">#</A> <SPAN class="warning">&nbsp;WARNING&nbsp;</SPAN>';
 				IF t_sort = 10 THEN
 					t_output := t_output || ' ' || t_dirSymbol;
 				END IF;
 				t_output := t_output || '</TH>
-      <TH><A href="?' || urlEncode(t_cmd) || '=' || urlEncode(t_value) || '&dir=' || t_oppositeDirection || '&sort=11' || t_groupByParameter || t_issuerOParameter || '">%</A>';
-				IF t_sort = 11 THEN
-					t_output := t_output || ' ' || t_dirSymbol;
-				END IF;
-				t_output := t_output || '</TH>
-      <TH><A href="?' || urlEncode(t_cmd) || '=' || urlEncode(t_value) || '&dir=' || t_oppositeDirection || '&sort=16' || t_groupByParameter || t_issuerOParameter || '"># Certs</A>';
+      <TH><A title="FATAL + ERROR + WARNING" href="?' || urlEncode(t_cmd) || '=' || urlEncode(t_value) || '&dir=' || t_oppositeDirection || '&sort=16' || t_groupByParameter || t_issuerOParameter || '">#</A> ALL';
 				IF t_sort = 16 THEN
-					t_output := t_output || ' ' || t_dirSymbol;
-				END IF;
-				t_output := t_output || '</TH>
-      <TH><A href="?' || urlEncode(t_cmd) || '=' || urlEncode(t_value) || '&dir=' || t_oppositeDirection || '&sort=17' || t_groupByParameter || t_issuerOParameter || '">%</A>';
-				IF t_sort = 17 THEN
 					t_output := t_output || ' ' || t_dirSymbol;
 				END IF;
 				t_output := t_output || '</TH>
@@ -3995,73 +4098,98 @@ Content-Type: application/atom+xml
 				t_output := t_output || '[';
 			END IF;
 
-			IF t_groupBy = 'IssuerO' THEN
-				t_query := 'SELECT NULL::integer ISSUER_CA_ID,' || chr(10) ||
-							'		(sum(l1s.CERTS_ISSUED))::bigint CERTS_ISSUED,' || chr(10) ||
-							'		(sum(l1s.ALL_CERTS))::bigint ALL_CERTS,' || chr(10) ||
-							'		((sum(l1s.ALL_CERTS) * 100) / sum(l1s.CERTS_ISSUED))::numeric ALL_PERC,' || chr(10) ||
-							'		(sum(l1s.FATAL_CERTS))::bigint FATAL_CERTS,' || chr(10) ||
-							'		((sum(l1s.FATAL_CERTS) * 100) / sum(l1s.CERTS_ISSUED))::numeric FATAL_PERC,' || chr(10) ||
-							'		(sum(l1s.ERROR_CERTS))::bigint ERROR_CERTS,' || chr(10) ||
-							'		((sum(l1s.ERROR_CERTS) * 100) / sum(l1s.CERTS_ISSUED))::numeric ERROR_PERC,' || chr(10) ||
-							'		(sum(l1s.WARNING_CERTS))::bigint WARNING_CERTS,' || chr(10) ||
-							'		((sum(l1s.WARNING_CERTS) * 100) / sum(l1s.CERTS_ISSUED))::numeric WARNING_PERC,' || chr(10) ||
-							'		get_ca_name_attribute(l1s.ISSUER_CA_ID, ''organizationName'') ISSUER_ORGANIZATION_NAME,' || chr(10) ||
-							'		NULL ISSUER_FRIENDLY_NAME' || chr(10);
-			ELSE
-				t_query := 'SELECT l1s.ISSUER_CA_ID::integer,' || chr(10) ||
-							'		l1s.CERTS_ISSUED::bigint,' || chr(10) ||
-							'		l1s.ALL_CERTS::bigint,' || chr(10) ||
-							'		((l1s.ALL_CERTS * 100) / l1s.CERTS_ISSUED::numeric) ALL_PERC,' || chr(10) ||
-							'		l1s.FATAL_CERTS::bigint,' || chr(10) ||
-							'		((l1s.FATAL_CERTS * 100) / l1s.CERTS_ISSUED::numeric) FATAL_PERC,' || chr(10) ||
-							'		l1s.ERROR_CERTS::bigint,' || chr(10) ||
-							'		((l1s.ERROR_CERTS * 100) / l1s.CERTS_ISSUED::numeric) ERROR_PERC,' || chr(10) ||
-							'		l1s.WARNING_CERTS::bigint,' || chr(10) ||
-							'		((l1s.WARNING_CERTS * 100) / l1s.CERTS_ISSUED::numeric) WARNING_PERC,' || chr(10) ||
-							'		get_ca_name_attribute(l1s.ISSUER_CA_ID, ''organizationName'') ISSUER_ORGANIZATION_NAME,' || chr(10) ||
-							'		get_ca_name_attribute(l1s.ISSUER_CA_ID, ''_friendlyName_'') ISSUER_FRIENDLY_NAME' || chr(10);
+			t_query := 	'WITH certs AS (' || chr(10) ||
+						'  SELECT ls.ISSUER_CA_ID, sum(ls.NO_OF_CERTS) AS CERTS_LINTED' || chr(10) ||
+						'    FROM lint_summary ls' || chr(10) ||
+						'    WHERE ls.NOT_BEFORE_DATE >= (now() AT TIME ZONE ''UTC'')::date - interval ''1 week''' || chr(10) ||
+						'      AND ls.LINT_ISSUE_ID = -1' || chr(10) ||
+						'    GROUP BY ls.ISSUER_CA_ID' || chr(10) ||
+						'), issues AS (' || chr(10) ||
+						'  SELECT ls.ISSUER_CA_ID,' || chr(10) ||
+						'         sum(CASE WHEN li.SEVERITY=''W'' THEN ls.NO_OF_CERTS ELSE 0 END) WARNING_ISSUES,' || chr(10) ||
+						'         sum(CASE WHEN li.SEVERITY=''E'' THEN ls.NO_OF_CERTS ELSE 0 END) ERROR_ISSUES,' || chr(10) ||
+						'         sum(CASE WHEN li.SEVERITY=''F'' THEN ls.NO_OF_CERTS ELSE 0 END) FATAL_ISSUES' || chr(10) ||
+						'    FROM lint_summary ls, lint_issue li' || chr(10) ||
+						'    WHERE ls.NOT_BEFORE_DATE >= (now() AT TIME ZONE ''UTC'')::date - interval ''1 week''' || chr(10) ||
+						'      AND ls.LINT_ISSUE_ID != -1' || chr(10) ||
+						'      AND ls.LINT_ISSUE_ID = li.ID' || chr(10);
+			IF t_linter IS NOT NULL THEN
+				t_query := t_query ||
+						'      AND li.LINTER = ''' || t_linter || '''' || chr(10);
 			END IF;
 			t_query := t_query ||
-							'	FROM lint_1week_summary l1s' || chr(10) ||
-							'	WHERE l1s.LINTER ';
-			IF t_linter IS NOT NULL THEN
-				t_query := t_query || '= ''' || t_linter || '''' || chr(10);
-			ELSE
-				t_query := t_query || 'IS NULL' || chr(10);
-			END IF;
-			IF t_issuerO IS NOT NULL THEN
-				t_query := t_query ||
-							'		AND get_ca_name_attribute(l1s.ISSUER_CA_ID, ''organizationName'') LIKE $1' || chr(10);
-			END IF;
-			t_query := t_query || '	';
-			IF t_groupBy = 'IssuerO' THEN
-				t_query := t_query || '	GROUP BY ISSUER_ORGANIZATION_NAME' || chr(10) ||
-							'	';
-			END IF;
+						'    GROUP BY ls.ISSUER_CA_ID' || chr(10) ||
+						')' || chr(10);
 
-			IF t_sort = 1 THEN
-				t_query := t_query || 'ORDER BY ISSUER_ORGANIZATION_NAME ' || t_orderBy || ', ISSUER_FRIENDLY_NAME';
-			ELSIF t_sort = 2 THEN
-				t_query := t_query || 'ORDER BY ISSUER_FRIENDLY_NAME ' || t_orderBy || ', ISSUER_ORGANIZATION_NAME';
-			ELSIF t_sort = 3 THEN
-				t_query := t_query || 'ORDER BY CERTS_ISSUED ' || t_orderBy || ', ISSUER_ORGANIZATION_NAME, ISSUER_FRIENDLY_NAME';
-			ELSIF t_sort = 4 THEN
-				t_query := t_query || 'ORDER BY FATAL_CERTS ' || t_orderBy || ', ISSUER_ORGANIZATION_NAME, ISSUER_FRIENDLY_NAME';
-			ELSIF t_sort = 5 THEN
-				t_query := t_query || 'ORDER BY FATAL_PERC ' || t_orderBy || ', ISSUER_ORGANIZATION_NAME, ISSUER_FRIENDLY_NAME';
-			ELSIF t_sort = 7 THEN
-				t_query := t_query || 'ORDER BY ERROR_CERTS ' || t_orderBy || ', ISSUER_ORGANIZATION_NAME, ISSUER_FRIENDLY_NAME';
-			ELSIF t_sort = 8 THEN
-				t_query := t_query || 'ORDER BY ERROR_PERC ' || t_orderBy || ', ISSUER_ORGANIZATION_NAME, ISSUER_FRIENDLY_NAME';
-			ELSIF t_sort = 10 THEN
-				t_query := t_query || 'ORDER BY WARNING_CERTS ' || t_orderBy || ', ISSUER_ORGANIZATION_NAME, ISSUER_FRIENDLY_NAME';
-			ELSIF t_sort = 11 THEN
-				t_query := t_query || 'ORDER BY WARNING_PERC ' || t_orderBy || ', ISSUER_ORGANIZATION_NAME, ISSUER_FRIENDLY_NAME';
-			ELSIF t_sort = 16 THEN
-				t_query := t_query || 'ORDER BY ALL_CERTS ' || t_orderBy || ', ISSUER_ORGANIZATION_NAME, ISSUER_FRIENDLY_NAME';
-			ELSIF t_sort = 17 THEN
-				t_query := t_query || 'ORDER BY ALL_PERC ' || t_orderBy || ', ISSUER_ORGANIZATION_NAME, ISSUER_FRIENDLY_NAME';
+			IF t_groupBy = 'IssuerO' THEN
+				t_query := t_query ||
+						'SELECT sum(certs.CERTS_LINTED)::bigint CERTS_LINTED,' || chr(10) ||
+						'       sum(coalesce(issues.WARNING_ISSUES, 0))::bigint WARNING_ISSUES,' || chr(10) ||
+						'       sum(coalesce(issues.ERROR_ISSUES, 0))::bigint ERROR_ISSUES,' || chr(10) ||
+						'       sum(coalesce(issues.FATAL_ISSUES, 0))::bigint FATAL_ISSUES,' || chr(10) ||
+						'       sum(coalesce(issues.WARNING_ISSUES::bigint + issues.ERROR_ISSUES + issues.FATAL_ISSUES, 0))::bigint ALL_ISSUES,' || chr(10) ||
+						'       get_ca_name_attribute(certs.ISSUER_CA_ID, ''organizationName'') ISSUER_ORGANIZATION_NAME,' || chr(10) ||
+						'       NULL::text ISSUER_FRIENDLY_NAME' || chr(10) ||
+						'  FROM certs' || chr(10) ||
+						'         LEFT OUTER JOIN issues ON (' || chr(10) ||
+						'           certs.ISSUER_CA_ID = issues.ISSUER_CA_ID' || chr(10) ||
+						'         )' || chr(10) ||
+						'  GROUP BY ISSUER_ORGANIZATION_NAME' || chr(10);
+				IF t_sort = 1 THEN
+					t_query := t_query ||
+							'  ORDER BY ISSUER_ORGANIZATION_NAME ' || t_orderBy;
+				ELSIF t_sort = 3 THEN
+					t_query := t_query ||
+							'  ORDER BY CERTS_LINTED ' || t_orderBy || ', ISSUER_ORGANIZATION_NAME';
+				ELSIF t_sort = 4 THEN
+					t_query := t_query ||
+							'  ORDER BY FATAL_ISSUES ' || t_orderBy || ', ISSUER_ORGANIZATION_NAME';
+				ELSIF t_sort = 7 THEN
+					t_query := t_query ||
+							'  ORDER BY ERROR_ISSUES ' || t_orderBy || ', ISSUER_ORGANIZATION_NAME';
+				ELSIF t_sort = 10 THEN
+					t_query := t_query ||
+							'  ORDER BY WARNING_ISSUES ' || t_orderBy || ', ISSUER_ORGANIZATION_NAME';
+				ELSIF t_sort = 16 THEN
+					t_query := t_query ||
+							'  ORDER BY ALL_ISSUES ' || t_orderBy || ', ISSUER_ORGANIZATION_NAME';
+				END IF;
+			ELSE
+				t_query := t_query ||
+						'SELECT certs.ISSUER_CA_ID,' || chr(10) ||
+						'       certs.CERTS_LINTED,' || chr(10) ||
+						'       coalesce(issues.WARNING_ISSUES, 0) WARNING_ISSUES,' || chr(10) ||
+						'       coalesce(issues.ERROR_ISSUES, 0) ERROR_ISSUES,' || chr(10) ||
+						'       coalesce(issues.FATAL_ISSUES, 0) FATAL_ISSUES,' || chr(10) ||
+						'       coalesce(issues.WARNING_ISSUES::bigint + issues.ERROR_ISSUES + issues.FATAL_ISSUES, 0) ALL_ISSUES,' || chr(10) ||
+						'       get_ca_name_attribute(certs.ISSUER_CA_ID, ''organizationName'') ISSUER_ORGANIZATION_NAME,' || chr(10) ||
+						'       get_ca_name_attribute(certs.ISSUER_CA_ID, ''_friendlyName_'') ISSUER_FRIENDLY_NAME' || chr(10) ||
+						'  FROM certs' || chr(10) ||
+						'         LEFT OUTER JOIN issues ON (' || chr(10) ||
+						'           certs.ISSUER_CA_ID = issues.ISSUER_CA_ID' || chr(10) ||
+						'         )' || chr(10);
+				IF t_sort = 1 THEN
+					t_query := t_query ||
+							'  ORDER BY ISSUER_ORGANIZATION_NAME ' || t_orderBy || ', ISSUER_FRIENDLY_NAME';
+				ELSIF t_sort = 2 THEN
+					t_query := t_query ||
+							'  ORDER BY ISSUER_FRIENDLY_NAME ' || t_orderBy || ', ISSUER_ORGANIZATION_NAME';
+				ELSIF t_sort = 3 THEN
+					t_query := t_query ||
+							'  ORDER BY CERTS_LINTED ' || t_orderBy || ', ISSUER_ORGANIZATION_NAME, ISSUER_FRIENDLY_NAME';
+				ELSIF t_sort = 4 THEN
+					t_query := t_query ||
+							'  ORDER BY FATAL_ISSUES ' || t_orderBy || ', ISSUER_ORGANIZATION_NAME, ISSUER_FRIENDLY_NAME';
+				ELSIF t_sort = 7 THEN
+					t_query := t_query ||
+							'  ORDER BY ERROR_ISSUES ' || t_orderBy || ', ISSUER_ORGANIZATION_NAME, ISSUER_FRIENDLY_NAME';
+				ELSIF t_sort = 10 THEN
+					t_query := t_query ||
+							'  ORDER BY WARNING_ISSUES ' || t_orderBy || ', ISSUER_ORGANIZATION_NAME, ISSUER_FRIENDLY_NAME';
+				ELSIF t_sort = 16 THEN
+					t_query := t_query ||
+							'  ORDER BY ALL_ISSUES ' || t_orderBy || ', ISSUER_ORGANIZATION_NAME, ISSUER_FRIENDLY_NAME';
+				END IF;
 			END IF;
 
 			t_temp3 := '';
@@ -4089,15 +4217,11 @@ Content-Type: application/atom+xml
 ';
 					END IF;
 					t_output := t_output ||
-'      <TD>' || l_record.CERTS_ISSUED::text || '</TD>
-      <TD>' || l_record.FATAL_CERTS::text || '</TD>
-      <TD>' || replace(round(l_record.FATAL_PERC, 2)::text, '.00', '') || '</TD>
-      <TD>' || l_record.ERROR_CERTS::text || '</TD>
-      <TD>' || replace(round(l_record.ERROR_PERC, 2)::text, '.00', '') || '</TD>
-      <TD>' || l_record.WARNING_CERTS::text || '</TD>
-      <TD>' || replace(round(l_record.WARNING_PERC, 2)::text, '.00', '') || '</TD>
-      <TD>' || l_record.ALL_CERTS::text || '</TD>
-      <TD>' || replace(round(l_record.ALL_PERC, 2)::text, '.00', '') || '</TD>
+'      <TD>' || l_record.CERTS_LINTED::text || '</TD>
+      <TD>' || l_record.FATAL_ISSUES::text || '</TD>
+      <TD>' || l_record.ERROR_ISSUES::text || '</TD>
+      <TD>' || l_record.WARNING_ISSUES::text || '</TD>
+      <TD>' || l_record.ALL_ISSUES::text || '</TD>
     </TR>
 ';
 				END IF;
@@ -4151,61 +4275,61 @@ Content-Type: application/atom+xml
 			t_output := t_output || '[';
 		END IF;
 
-		t_query := 'SELECT li.ID, li.ISSUE_TEXT,';
+		t_query :=	'SELECT li.ID, li.ISSUE_TEXT,';
 		IF t_excludeAffectedCerts IS NULL THEN
 			t_query := t_query || ' sum(ls.NO_OF_CERTS) NUM_CERTS,';
 		ELSE
 			t_query := t_query || ' -1::bigint NUM_CERTS,';
 		END IF;
 		t_query := t_query || chr(10) ||
-					'		CASE li.SEVERITY' || chr(10) ||
-					'			WHEN ''F'' THEN 1' || chr(10) ||
-					'			WHEN ''E'' THEN 2' || chr(10) ||
-					'			WHEN ''W'' THEN 3' || chr(10) ||
-					'			ELSE 4' || chr(10) ||
-					'		END ISSUE_TYPE,' || chr(10) ||
-					'		CASE li.SEVERITY' || chr(10) ||
-					'			WHEN ''F'' THEN ''FATAL''' || chr(10) ||
-					'			WHEN ''E'' THEN ''ERROR''' || chr(10) ||
-					'			WHEN ''W'' THEN ''WARNING''' || chr(10) ||
-					'			ELSE li.SEVERITY ' || chr(10) ||
-					'		END ISSUE_HEADING,' || chr(10) ||
-					'		CASE li.SEVERITY' || chr(10) ||
-					'			WHEN ''F'' THEN ''class="fatal"''' || chr(10) ||
-					'			WHEN ''E'' THEN ''class="error"''' || chr(10) ||
-					'			WHEN ''W'' THEN ''class="warning"''' || chr(10) ||
-					'			ELSE ''''' || chr(10) ||
-					'		END ISSUE_CLASS' || chr(10);
+					'       CASE li.SEVERITY' || chr(10) ||
+					'         WHEN ''F'' THEN 1' || chr(10) ||
+					'         WHEN ''E'' THEN 2' || chr(10) ||
+					'         WHEN ''W'' THEN 3' || chr(10) ||
+					'         ELSE 4' || chr(10) ||
+					'       END ISSUE_TYPE,' || chr(10) ||
+					'       CASE li.SEVERITY' || chr(10) ||
+					'         WHEN ''F'' THEN ''FATAL''' || chr(10) ||
+					'         WHEN ''E'' THEN ''ERROR''' || chr(10) ||
+					'         WHEN ''W'' THEN ''WARNING''' || chr(10) ||
+					'         ELSE li.SEVERITY ' || chr(10) ||
+					'       END ISSUE_HEADING,' || chr(10) ||
+					'       CASE li.SEVERITY' || chr(10) ||
+					'         WHEN ''F'' THEN ''class="fatal"''' || chr(10) ||
+					'         WHEN ''E'' THEN ''class="error"''' || chr(10) ||
+					'         WHEN ''W'' THEN ''class="warning"''' || chr(10) ||
+					'         ELSE ''''' || chr(10) ||
+					'       END ISSUE_CLASS' || chr(10);
 		IF t_excludeAffectedCerts IS NULL THEN
 			t_query := t_query ||
-					'	FROM lint_summary ls, lint_issue li, ca' || chr(10) ||
-					'	WHERE ls.LINT_ISSUE_ID = li.ID' || chr(10) ||
-					'		AND ls.ISSUER_CA_ID = ca.ID' || chr(10) ||
-					'		AND ca.LINTING_APPLIES' || chr(10);
+					'    FROM lint_summary ls, lint_issue li, ca' || chr(10) ||
+					'    WHERE ls.LINT_ISSUE_ID = li.ID' || chr(10) ||
+					'        AND ls.ISSUER_CA_ID = ca.ID' || chr(10) ||
+					'        AND ca.LINTING_APPLIES' || chr(10);
 			IF t_linter IS NOT NULL THEN
 				t_query := t_query ||
-					'		AND li.LINTER = ''' || t_linter || '''' || chr(10);
+					'        AND li.LINTER = ''' || t_linter || '''' || chr(10);
 			END IF;
 			t_query := t_query ||
-					'		AND ls.NOT_BEFORE_DATE >= $1' || chr(10) ||
-					'	GROUP BY li.ID, li.SEVERITY, li.ISSUE_TEXT' || chr(10);
+					'        AND ls.NOT_BEFORE_DATE >= $1' || chr(10) ||
+					'    GROUP BY li.ID, li.SEVERITY, li.ISSUE_TEXT' || chr(10);
 		ELSE
 			t_query := t_query ||
-					'	FROM lint_issue li' || chr(10);
+					'    FROM lint_issue li' || chr(10);
 			IF t_linter IS NOT NULL THEN
 				t_query := t_query ||
-					'		AND li.LINTER = ''' || t_linter || '''' || chr(10);
+					'    WHERE li.LINTER = ''' || t_linter || '''' || chr(10);
 			END IF;
 		END IF;
 		IF t_sort = 1 THEN
 			t_query := t_query ||
-					'	ORDER BY ISSUE_TYPE, li.ISSUE_TEXT ' || t_orderBy;
+					'    ORDER BY ISSUE_TYPE, li.ISSUE_TEXT ' || t_orderBy;
 		ELSIF t_sort = 2 THEN
 			t_query := t_query ||
-					'	ORDER BY li.ISSUE_TEXT ' || t_orderBy;
+					'    ORDER BY li.ISSUE_TEXT ' || t_orderBy;
 		ELSIF t_sort = 3 THEN
 			t_query := t_query ||
-					'	ORDER BY NUM_CERTS ' || t_orderBy;
+					'    ORDER BY NUM_CERTS ' || t_orderBy;
 		END IF;
 
 		t_temp3 := '';
@@ -4259,13 +4383,11 @@ Content-Type: text/html; charset=UTF-8
 ' || t_output || '
   <BR><BR><BR>
 ';
-		IF upper(coalesce(get_parameter('showSQL', paramNames, paramValues), 'N')) = 'Y' THEN
-			IF t_query IS NOT NULL THEN
-				t_output := t_output || '<BR><BR><TEXTAREA cols="100" rows="30">' || t_query || ';</TEXTAREA>';
-			END IF;
+		IF t_showSQL AND (t_query IS NOT NULL) THEN
+			t_output := t_output || '<BR><BR><TEXTAREA cols="100" rows="30">' || t_query || ';</TEXTAREA>';
 		END IF;
 		t_output := t_output || '
-  <P class="copyright">&copy; Sectigo Limited 2015-2019. All rights reserved.</P>
+  <P class="copyright">&copy; Sectigo Limited 2015-2020. All rights reserved.</P>
   <DIV>
     <A href="https://sectigo.com/"><IMG src="/sectigo_s.png"></A>
     &nbsp;<A href="https://github.com/crtsh"><IMG src="/GitHub-Mark-32px.png"></A>
@@ -4279,10 +4401,10 @@ Content-Type: text/html; charset=UTF-8
 				PAGE_NAME, GENERATED_AT, RESPONSE_BODY
 			)
 			VALUES (
-				t_type, statement_timestamp() AT TIME ZONE 'UTC', t_output
+				t_type, now() AT TIME ZONE 'UTC', t_output
 			)
 			ON CONFLICT (PAGE_NAME) DO UPDATE
-				SET GENERATED_AT = statement_timestamp() AT TIME ZONE 'UTC',
+				SET GENERATED_AT = now() AT TIME ZONE 'UTC',
 					RESPONSE_BODY = t_output;
 		RETURN 'Cached';
 	ELSE
