@@ -147,7 +147,7 @@ BEGIN
 					SELECT 1
 						FROM certificate c, ca_trust_purpose ctp
 						WHERE c.ID = cac2.CERTIFICATE_ID
-							AND x509_notAfter(c.CERTIFICATE) > statement_timestamp() AT TIME ZONE 'UTC'
+							AND coalesce(x509_notAfter(c.CERTIFICATE), 'infinity'::timestamp) > statement_timestamp() AT TIME ZONE 'UTC'
 							AND c.ISSUER_CA_ID = ctp.CA_ID
 							AND ctp.TRUST_CONTEXT_ID = trustContextID
 							AND NOT ctp.ALL_CHAINS_REVOKED_IN_SALESFORCE
@@ -188,7 +188,7 @@ BEGIN
 					SELECT 1
 						FROM certificate c, ca_trust_purpose ctp
 						WHERE c.ID = cac2.CERTIFICATE_ID
-							AND x509_notAfter(c.CERTIFICATE) > statement_timestamp() AT TIME ZONE 'UTC'
+							AND coalesce(x509_notAfter(c.CERTIFICATE), 'infinity'::timestamp) > statement_timestamp() AT TIME ZONE 'UTC'
 							AND c.ISSUER_CA_ID = ctp.CA_ID
 							AND ctp.TRUST_CONTEXT_ID = trustContextID
 							AND ctp.TRUST_PURPOSE_ID = 1
@@ -232,7 +232,7 @@ BEGIN
 					SELECT 1
 						FROM certificate c, ca_trust_purpose ctp
 						WHERE c.ID = cac2.CERTIFICATE_ID
-							AND x509_notAfter(c.CERTIFICATE) > statement_timestamp() AT TIME ZONE 'UTC'
+							AND coalesce(x509_notAfter(c.CERTIFICATE), 'infinity'::timestamp) > statement_timestamp() AT TIME ZONE 'UTC'
 							AND c.ISSUER_CA_ID = ctp.CA_ID
 							AND ctp.TRUST_CONTEXT_ID = trustContextID
 							AND ctp.TRUST_PURPOSE_ID >= 100
@@ -271,7 +271,7 @@ BEGIN
 					SELECT 1
 						FROM certificate c, ca_trust_purpose ctp
 						WHERE c.ID = cac2.CERTIFICATE_ID
-							AND x509_notAfter(c.CERTIFICATE) > statement_timestamp() AT TIME ZONE 'UTC'
+							AND coalesce(x509_notAfter(c.CERTIFICATE), 'infinity'::timestamp) > statement_timestamp() AT TIME ZONE 'UTC'
 							AND c.ISSUER_CA_ID = ctp.CA_ID
 							AND ctp.TRUST_CONTEXT_ID = trustContextID
 							AND NOT ctp.ALL_CHAINS_REVOKED_IN_SALESFORCE
