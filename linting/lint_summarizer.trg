@@ -2,7 +2,7 @@ CREATE OR REPLACE FUNCTION lint_summarizer(
 ) RETURNS TRIGGER
 AS $$
 DECLARE
-	t_noOfCerts		lint_summary.NO_OF_CERTS%TYPE;
+	t_noOfCerts				lint_summary.NO_OF_CERTS%TYPE;
 BEGIN
 	IF TG_OP = 'INSERT' THEN
 		INSERT INTO lint_summary (
