@@ -1888,7 +1888,7 @@ Content-Type: text/plain; charset=UTF-8
     <TH>EV SSL Audit</TH>
     <TH>Documents</TH>
     <TH>CCADB</TH>
-    <TH>Root Owner / Certificate</TH>
+    <TH>Owner / Certificate</TH>
   </TR>
 ';
 					END IF;
@@ -1944,8 +1944,12 @@ Content-Type: text/plain; charset=UTF-8
 					IF l_record.INCLUDED_CERTIFICATE_ID IS NULL THEN
 						t_temp := t_temp || coalesce(html_escape(l_record.INCLUDED_CERTIFICATE_OWNER), '&nbsp;');
 					ELSE
-						t_temp := t_temp || '<A href="/?id=' || l_record.INCLUDED_CERTIFICATE_ID::text || '">' || coalesce(html_escape(l_record.INCLUDED_CERTIFICATE_OWNER), '&nbsp;') || '</A>';
+						t_temp := t_temp || '<A href="/?id=' || l_record.INCLUDED_CERTIFICATE_ID::text || '">Root</A> CA: ' || coalesce(html_escape(l_record.INCLUDED_CERTIFICATE_OWNER), '&nbsp;') || '
+      <BR>This CA: ' || coalesce(html_escape(coalesce(nullif(trim(l_record.SUBORDINATE_CA_OWNER), ''), l_record.INCLUDED_CERTIFICATE_OWNER)), '&nbsp;');
 					END IF;
+					t_temp := t_temp || '</TD>
+  </TR>
+';
 					IF l_record.CERT_RECORD_TYPE = 'Root Certificate' THEN
 						t_temp2 :=
 '  <TR>
@@ -1959,9 +1963,8 @@ Content-Type: text/plain; charset=UTF-8
 					END IF;
 				END LOOP;
 				IF t_temp IS NOT NULL THEN
-					t_temp := t_temp || '</TD>
-  </TR>
-</TABLE>';
+					t_temp := t_temp ||
+'</TABLE>';
 				ELSE
 					t_temp := 'Not Disclosed';
 				END IF;
