@@ -1019,7 +1019,7 @@ Content-Type: application/json
 							coalesce(ctlo.DISPLAY_STRING, ctl.OPERATOR) AS OPERATOR,
 							ctl.URL, ctl.TREE_SIZE,
 							(coalesce(ctl.TREE_SIZE, 0) - latest.ENTRY_ID - 1) AS BACKLOG,
-							(now() - latest2.ENTRY_TIMESTAMP) AS BACKLOG_TIME,
+							((now() AT TIME ZONE 'UTC') - coalesce(latest2.ENTRY_TIMESTAMP, now() AT TIME ZONE 'UTC')) AS BACKLOG_TIME,
 							ctl.LATEST_UPDATE, ctl.LATEST_STH_TIMESTAMP, ctl.MMD_IN_SECONDS,
 							CASE WHEN coalesce(ctl.LATEST_STH_TIMESTAMP + (ctl.MMD_IN_SECONDS || ' seconds')::interval, now() AT TIME ZONE 'UTC') <= now() AT TIME ZONE 'UTC'
 								THEN ' style="color:#FF0000"'
