@@ -1,4 +1,4 @@
-\timing
+\timing on
 
 BEGIN WORK;
 
