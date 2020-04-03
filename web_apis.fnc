@@ -30,6 +30,7 @@ DECLARE
 		'sha1', 'SHA-1(Certificate)', NULL,
 		'sha256', 'SHA-256(Certificate)', NULL,
 		'asn1', 'Certificate ASN.1', NULL,
+		'pv', 'pv-certificate-viewer', NULL,
 		'ctid', 'CT Entry ID', NULL,
 		'ca', 'CA ID', 'CA Name', NULL,
 		'caid', 'CA ID', NULL,
@@ -200,7 +201,7 @@ BEGIN
 
 			IF t_type = 'Download Certificate' THEN
 				RETURN download_cert(t_value);
-			ELSIF t_type IN ('ID', 'Certificate ASN.1', 'CA ID') THEN
+			ELSIF t_type IN ('ID', 'Certificate ASN.1', 'pv-certificate-viewer', 'CA ID') THEN
 				BEGIN
 					EXIT WHEN t_value::bigint IS NOT NULL;
 				EXCEPTION
@@ -504,6 +505,12 @@ Content-Type: application/json
 				OR ((t_type = 'ocsp-response') AND (coalesce(get_parameter('type', paramNames, paramValues), 'dump') = 'asn1')) THEN
 			t_output := t_output ||
 '  <LINK rel="stylesheet" href="/asn1js/index.css" type="text/css">
+';
+		ELSIF t_type = 'pv-certificate-viewer' THEN
+			t_output := t_output ||
+'  <SCRIPT type="module" src="//peculiarventures.github.io/pv-certificates-viewer/build/pv-certificates-viewer.esm.js"></SCRIPT>
+  <SCRIPT nomodule src="//peculiarventures.github.io/pv-certificates-viewer/build/pv-certificates-viewer.js"></SCRIPT>
+  <LINK rel="stylesheet" href="//peculiarventures.github.io/pv-certificates-viewer/build/pv-certificates-viewer.css">
 ';
 		ELSIF t_type = 'mozilla-certvalidations' THEN
 			t_output := t_output ||
@@ -1569,7 +1576,8 @@ Content-Type: text/plain; charset=UTF-8
 				'ID',
 				'SHA-1(Certificate)',
 				'SHA-256(Certificate)',
-				'Certificate ASN.1'
+				'Certificate ASN.1',
+				'pv-certificate-viewer'
 			)
 			OR (
 				(lower(',' || t_opt) LIKE '%,firstresult,%')
@@ -1583,7 +1591,7 @@ Content-Type: text/plain; charset=UTF-8
 		t_certSummary := 'Leaf certificate';
 
 		-- Search for a specific Certificate.
-		IF t_type IN ('ID', 'Certificate ASN.1') THEN
+		IF t_type IN ('ID', 'Certificate ASN.1', 'pv-certificate-viewer') THEN
 			SELECT c.ID, x509_print(c.CERTIFICATE, NULL, 196608), ca.ID, cac.CA_ID,
 					digest(c.CERTIFICATE, 'sha1'::text),
 					digest(c.CERTIFICATE, 'sha256'::text),
@@ -2354,7 +2362,7 @@ Content-Type: text/plain; charset=UTF-8
 
 		IF t_type = 'Certificate ASN.1' THEN
 			t_output := t_output ||
-'    <TH class="outer"><A href="?id=' || t_certificateID::text || '">Certificate</A> | ASN.1
+'    <TH class="outer"><A href="?id=' || t_certificateID::text || '">Certificate</A> | ASN.1 | <A href="?pv=' || t_certificateID::text || '">pv</A>
       <BR><BR><SPAN class="small">Powered by <A href="//lapo.it/asn1js/" target="_blank">asn1js</A><BR>
 ';
 			IF t_showMetadata THEN
@@ -2417,9 +2425,52 @@ Content-Type: text/plain; charset=UTF-8
         }
       </SCRIPT>
 ';
+
+		ELSIF t_type = 'pv-certificate-viewer' THEN
+			t_output := t_output ||
+'    <TH class="outer"><A href="?id=' || t_certificateID::text || '">Certificate</A> | <A href="?asn1=' || t_certificateID::text || '">ASN.1</A> | pv
+      <BR><BR><SPAN class="small">Powered by <A href="//github.com/PeculiarVentures/pv-certificates-viewer" target="_blank">pv-certificates-viewer</A><BR>
+';
+			IF t_showMetadata THEN
+				t_output := t_output ||
+'      <BR><BR><A href="?pv=' || t_certificateID::text || '&opt=' || t_opt || 'nometadata">Hide metadata</A>
+';
+			ELSE
+				IF t_opt = 'nometadata,' THEN
+					t_temp := '';
+				ELSE
+					t_temp := '&opt=' || rtrim(replace(t_opt, 'nometadata,', ''), ',');
+				END IF;
+				t_output := t_output ||
+'      <BR><BR><A href="?pv=' || t_certificateID::text || t_temp || '">Show metadata</A>
+';
+			END IF;
+			IF NOT t_showCABLint THEN
+				t_output := t_output ||
+'      <BR><BR><A href="?pv=' || t_certificateID::text || '&opt=' || t_opt || 'cablint">Run cablint</A>
+';
+			END IF;
+			IF NOT t_showX509Lint THEN
+				t_output := t_output ||
+'      <BR><BR><A href="?pv=' || t_certificateID::text || '&opt=' || t_opt || 'x509lint">Run x509lint</A>
+';
+			END IF;
+			IF NOT t_showZLint THEN
+				t_output := t_output ||
+'      <BR><BR><A href="?pv=' || t_certificateID::text || '&opt=' || t_opt || 'zlint">Run zlint</A>
+';
+			END IF;
+			t_output := t_output ||
+'      <BR><BR><BR>Download Certificate: <A href="?d=' || t_certificateID::text || '">PEM</A>
+      </SPAN>
+    </TH>
+    <TD>
+      <pv-certificate-viewer certificate="' || replace(encode(t_certificate, 'base64'), chr(10), '') || '" />
+';
+
 		ELSE
 			t_output := t_output ||
-'    <TH class="outer">Certificate | <A href="?asn1=' || t_certificateID::text || '">ASN.1</A>
+'    <TH class="outer">Certificate | <A href="?asn1=' || t_certificateID::text || '">ASN.1</A> | <A href="?pv=' || t_certificateID::text || '">pv</A>
       <SPAN class="small"><BR>
 ';
 			IF t_showMetadata THEN
