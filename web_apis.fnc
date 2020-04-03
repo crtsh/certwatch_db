@@ -508,9 +508,9 @@ Content-Type: application/json
 ';
 		ELSIF t_type = 'pv-certificate-viewer' THEN
 			t_output := t_output ||
-'  <SCRIPT type="module" src="//peculiarventures.github.io/pv-certificates-viewer/build/pv-certificates-viewer.esm.js"></SCRIPT>
-  <SCRIPT nomodule src="//peculiarventures.github.io/pv-certificates-viewer/build/pv-certificates-viewer.js"></SCRIPT>
-  <LINK rel="stylesheet" href="//peculiarventures.github.io/pv-certificates-viewer/build/pv-certificates-viewer.css">
+'  <SCRIPT type="module" src="//understandingwebpki.com/build/pv-certificates-viewer.esm.js"></SCRIPT>
+  <SCRIPT nomodule src="//understandingwebpki.com/build/pv-certificates-viewer.js"></SCRIPT>
+  <LINK rel="stylesheet" href="//understandingwebpki.com/build/pv-certificates-viewer.css">
 ';
 		ELSIF t_type = 'mozilla-certvalidations' THEN
 			t_output := t_output ||
