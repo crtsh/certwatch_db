@@ -55,7 +55,9 @@ BEGIN
 		crev.ISSUER_CA_ID ISSUER_CA_ID_REVOKED, x509_serialNumber(crev.CERTIFICATE) SERIAL_NUMBER_REVOKED
 	FROM ccadb_certificate cc
 			LEFT OUTER JOIN certificate crev ON (cc.TEST_WEBSITE_REVOKED_CERTIFICATE_ID = crev.ID)
-	WHERE cc.CERT_RECORD_TYPE = ''Root Certificate''';
+			LEFT OUTER JOIN certificate c ON (cc.CERTIFICATE_ID = c.ID)
+	WHERE cc.CERT_RECORD_TYPE = ''Root Certificate''
+		AND coalesce(x509_notAfter(c.CERTIFICATE), ''infinity''::timestamp) > now() AT TIME ZONE ''UTC''';
 	IF trustedBy IS NOT NULL THEN
 		t_query := t_query || '
 		AND EXISTS (
