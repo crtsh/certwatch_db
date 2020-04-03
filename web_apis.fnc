@@ -2465,7 +2465,12 @@ Content-Type: text/plain; charset=UTF-8
       </SPAN>
     </TH>
     <TD>
-      <pv-certificate-viewer certificate="' || replace(encode(t_certificate, 'base64'), chr(10), '') || '" />
+      <pv-certificate-viewer
+        certificate="' || replace(encode(t_certificate, 'base64'), chr(10), '') || '"
+        issuer-dn-link="?caid=' || t_issuerCAID::text || '"
+        auth-key-id-parent-link="?ski={{authKeyId}}"
+        subject-key-id-siblings-link="?ski={{subjectKeyId}}"
+      />
 ';
 
 		ELSE
