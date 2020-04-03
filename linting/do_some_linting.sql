@@ -9,9 +9,9 @@ $$DECLARE
 	t_zlintID						linter_version.ID%TYPE;
 	t_certificateID1				certificate.ID%TYPE;
 	t_certificateID2				certificate.ID%TYPE;
-	c_lintingBatchSize	CONSTANT	integer		:= 8192;
-	t_totalNewCertsLinted			integer		:= 0;
-	t_totalOldCertsLinted			integer		:= 0;
+	t_maxCertificateID				certificate.ID%TYPE;
+	t_minCertificateID				certificate.ID%TYPE;
+	c_lintingBatchSize	CONSTANT	integer		:= 10000;
 	l_issuer						RECORD;
 BEGIN
 	SELECT lv.ID
@@ -42,18 +42,18 @@ BEGIN
 	END IF;
 
 	SELECT max(c.ID)
-		INTO t_certificateID2
+		INTO t_maxCertificateID
 		FROM certificate c;
-	IF t_certificateID2 IS NULL THEN
+	IF t_maxCertificateID IS NULL THEN
 		RAISE EXCEPTION '"certificate" table is empty';
 	END IF;
 
 	IF t_certificateID1 IS NULL THEN
-		t_certificateID1 := t_certificateID2 - c_lintingBatchSize - 1;
+		t_certificateID1 := greatest(t_maxCertificateID - c_lintingBatchSize + 1, 1);
 	ELSE
 		t_certificateID1 := t_certificateID1 + 1;
-		t_certificateID2 := least(t_certificateID2, t_certificateID1 + c_lintingBatchSize - 1);
 	END IF;
+	t_certificateID2 := least(t_maxCertificateID, t_certificateID1 + c_lintingBatchSize - 1);
 
 	IF t_certificateID1 < t_certificateID2 THEN
 		PERFORM lint_new_cert(c.ID, c.ISSUER_CA_ID, c.CERTIFICATE, 0, 'cablint'),
@@ -76,7 +76,6 @@ BEGIN
 			WHERE c.ID BETWEEN t_certificateID1 AND t_certificateID2
 				AND c.ISSUER_CA_ID = ca.ID
 				AND ca.LINTING_APPLIES;
-		GET DIAGNOSTICS t_totalNewCertsLinted = ROW_COUNT;
 
 		UPDATE linter_version
 			SET MIN_CERTIFICATE_ID = coalesce(MIN_CERTIFICATE_ID, t_certificateID1),
@@ -102,11 +101,107 @@ BEGIN
 		END LOOP;
 	END IF;
 
-	-- TODO: (Re-)lint a batch of older "certificate" records.
+	-- (Re-)lint some older "certificate" records.
+	SELECT coalesce(lv.MIN_CERTIFICATE_ID, 1) - 1
+		INTO t_certificateID2
+		FROM linter_version lv
+		WHERE lv.ID = t_cablintID;
+	IF coalesce(t_certificateID2, 1) > 0 THEN
+		t_certificateID1 := greatest(t_certificateID2 - c_lintingBatchSize + 1, 1);
 
-	-- TODO: Update any older linter_version records whose MIN..MAX_CERTIFICATE_ID ranges overlap those of the latest linter_version records.
+		DELETE FROM lint_cert_issue
+			USING lint_issue li
+			WHERE CERTIFICATE_ID BETWEEN t_certificateID1 AND t_certificateID2
+				AND LINT_ISSUE_ID = li.ID
+				AND li.LINTER = 'cablint';
 
-	-- TODO: Delete any no longer needed (because MIN..MAX_CERTIFICATE_ID is <=0) linter_version records.
+		PERFORM lint_new_cert(c.ID, c.ISSUER_CA_ID, c.CERTIFICATE, 0, 'cablint')
+			FROM certificate c, ca
+			WHERE c.ID BETWEEN t_certificateID1 AND t_certificateID2
+				AND c.ISSUER_CA_ID = ca.ID
+				AND ca.LINTING_APPLIES;
 
-	RAISE NOTICE 'New certs linted: %    Old certs (re-)linted: %', t_totalNewCertsLinted, t_totalOldCertsLinted;
+		UPDATE linter_version
+			SET MIN_CERTIFICATE_ID = t_certificateID1
+			WHERE ID = t_cablintID;
+
+		UPDATE linter_version
+			SET MAX_CERTIFICATE_ID = t_certificateID1 - 1
+			WHERE ID != t_cablintID
+				AND LINTER = 'cablint';
+	END IF;
+
+	SELECT coalesce(lv.MIN_CERTIFICATE_ID, 1) - 1
+		INTO t_certificateID2
+		FROM linter_version lv
+		WHERE lv.ID = t_x509lintID;
+	IF coalesce(t_certificateID2, 1) > 0 THEN
+		t_certificateID1 := greatest(t_certificateID2 - c_lintingBatchSize + 1, 1);
+
+		DELETE FROM lint_cert_issue
+			USING lint_issue li
+			WHERE CERTIFICATE_ID BETWEEN t_certificateID1 AND t_certificateID2
+				AND LINT_ISSUE_ID = li.ID
+				AND li.LINTER = 'x509lint';
+
+		PERFORM lint_new_cert(
+					c.ID,
+					c.ISSUER_CA_ID,
+					c.CERTIFICATE,
+					CASE WHEN cac.CA_ID IS NULL THEN 0			-- Leaf certificate.
+						WHEN cac.CA_ID = c.ISSUER_CA_ID THEN 2	-- Root certificate.
+						ELSE 1									-- Intermediate certificate.
+					END,
+					'x509lint'
+				)
+			FROM certificate c
+					LEFT OUTER JOIN ca_certificate cac ON (
+						c.ID = cac.CERTIFICATE_ID
+					),
+				ca
+			WHERE c.ID BETWEEN t_certificateID1 AND t_certificateID2
+				AND c.ISSUER_CA_ID = ca.ID
+				AND ca.LINTING_APPLIES;
+
+		UPDATE linter_version
+			SET MIN_CERTIFICATE_ID = t_certificateID1
+			WHERE ID = t_x509lintID;
+
+		UPDATE linter_version
+			SET MAX_CERTIFICATE_ID = t_certificateID1 - 1
+			WHERE ID != t_x509lintID
+				AND LINTER = 'x509lint';
+	END IF;
+
+	SELECT coalesce(lv.MIN_CERTIFICATE_ID, 1) - 1
+		INTO t_certificateID2
+		FROM linter_version lv
+		WHERE lv.ID = t_zlintID;
+	IF coalesce(t_certificateID2, 1) > 0 THEN
+		t_certificateID1 := greatest(t_certificateID2 - c_lintingBatchSize + 1, 1);
+
+		DELETE FROM lint_cert_issue
+			USING lint_issue li
+			WHERE CERTIFICATE_ID BETWEEN t_certificateID1 AND t_certificateID2
+				AND LINT_ISSUE_ID = li.ID
+				AND li.LINTER = 'zlint';
+
+		PERFORM lint_new_cert(c.ID, c.ISSUER_CA_ID, c.CERTIFICATE, 0, 'zlint')
+			FROM certificate c, ca
+			WHERE c.ID BETWEEN t_certificateID1 AND t_certificateID2
+				AND c.ISSUER_CA_ID = ca.ID
+				AND ca.LINTING_APPLIES;
+
+		UPDATE linter_version
+			SET MIN_CERTIFICATE_ID = t_certificateID1
+			WHERE ID = t_zlintID;
+
+		UPDATE linter_version
+			SET MAX_CERTIFICATE_ID = t_certificateID1 - 1
+			WHERE ID != t_zlintID
+				AND LINTER = 'zlint';
+	END IF;
+
+	DELETE FROM linter_version
+		WHERE MAX_CERTIFICATE_ID < MIN_CERTIFICATE_ID;
 END$$;
