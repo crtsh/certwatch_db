@@ -2899,19 +2899,19 @@ Content-Type: text/plain; charset=UTF-8
                 </TR>
                 <TR>
                   <TD style="text-align:center">Certificates</TD>
-                  <TD style="text-align:right">' || (coalesce(t_numIssued[1], 0) - coalesce(t_numExpired[1]))::text || '</TD>
+                  <TD style="text-align:right">' || (coalesce(t_numIssued[1], 0) - coalesce(t_numExpired[1], 0))::text || '</TD>
                   <TD style="text-align:right">' || coalesce(t_numExpired[1], 0)::text || '</TD>
                   <TD style="text-align:right">' || coalesce(t_numIssued[1], 0)::text || '</TD>
                 </TR>
                 <TR>
                   <TD style="text-align:center">Precertificates</TD>
-                  <TD style="text-align:right">' || (coalesce(t_numIssued[2], 0) - coalesce(t_numExpired[2]))::text || '</TD>
+                  <TD style="text-align:right">' || (coalesce(t_numIssued[2], 0) - coalesce(t_numExpired[2], 0))::text || '</TD>
                   <TD style="text-align:right">' || coalesce(t_numExpired[2], 0)::text || '</TD>
                   <TD style="text-align:right">' || coalesce(t_numIssued[2], 0)::text || '</TD>
                 </TR>
                 <TR>
                   <TD style="text-align:center">TOTAL</TD>
-                  <TD style="text-align:right">' || ((coalesce(t_numIssued[1], 0) - coalesce(t_numExpired[1]) + coalesce(t_numIssued[2], 0)) - coalesce(t_numExpired[2]))::text || '</TD>
+                  <TD style="text-align:right">' || ((coalesce(t_numIssued[1], 0) - coalesce(t_numExpired[1], 0) + coalesce(t_numIssued[2], 0)) - coalesce(t_numExpired[2], 0))::text || '</TD>
                   <TD style="text-align:right">' || (coalesce(t_numExpired[1], 0) + coalesce(t_numExpired[2], 0))::text || '</TD>
                   <TD style="text-align:right">' || (coalesce(t_numIssued[1], 0) + coalesce(t_numIssued[2], 0))::text || '</TD>
                 </TR>
