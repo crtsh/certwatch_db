@@ -41,17 +41,6 @@ DROP FUNCTION download_cert(
 	cert_id					text
 );
 
-DROP FUNCTION lint_cached(
-	cert_id					certificate.ID%TYPE,
-	v_linter				linter_type
-);
-
-
-DROP TRIGGER lint_summarizer;
-
-DROP FUNCTION lint_summarizer(
-);
-
 
 DROP TABLE cached_response;
 
@@ -92,6 +81,28 @@ DROP TABLE applicable_purpose;
 DROP TABLE trust_purpose;
 
 DROP TABLE trust_context;
+
+DROP TRIGGER lint_summarizer;
+
+DROP FUNCTION lint_summarizer(
+);
+
+DROP FUNCTION lint_tbscertificate(
+	tbscert					bytea
+);
+
+DROP FUNCTION lint_certificate(
+	cert					bytea,
+	has_dummy_signature		boolean
+);
+
+DROP FUNCTION lint_new_cert(
+	_cert_id				certificate.ID%TYPE,
+	_issuer_ca_id			ca.ID%TYPE,
+	_certificate			certificate.CERTIFICATE%TYPE,
+	_cert_type				integer,
+	_linter					linter_type
+);
 
 DROP TABLE lint_summary;
 

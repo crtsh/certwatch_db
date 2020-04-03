@@ -131,9 +131,33 @@ CREATE INDEX c_identities ON certificate USING GIN (identities(CERTIFICATE));
 \i fnc/update_expirations.fnc
 
 CREATE TRIGGER cert_counter
-	AFTER INSERT OR UPDATE OR DELETE ON certificate
+	AFTER UPDATE OR DELETE ON certificate
 	FOR EACH ROW
 	EXECUTE PROCEDURE cert_counter();
+
+
+CREATE VIEW certificate_and_identities AS
+SELECT c.ID CERTIFICATE_ID, c.CERTIFICATE, ci.NAME_TYPE, ci.NAME_VALUE, c.ISSUER_CA_ID
+	FROM certificate c
+			LEFT JOIN LATERAL (
+				SELECT encode(RAW_VALUE, 'escape') AS NAME_VALUE,
+						ATTRIBUTE_OID AS NAME_TYPE
+					FROM x509_nameAttributes_raw(c.CERTIFICATE)
+				UNION
+				SELECT encode(RAW_VALUE, 'escape') AS NAME_VALUE,
+						'san:' || CASE TYPE_NUM
+							WHEN 0 THEN 'otherName'
+							WHEN 1 THEN 'rfc822Name'
+							WHEN 2 THEN 'dNSName'
+							WHEN 3 THEN 'x400Address'
+							WHEN 4 THEN 'directoryName'
+							WHEN 5 THEN 'ediPartyName'
+							WHEN 6 THEN 'uniformResourceIdentifier'
+							WHEN 7 THEN 'iPAddress'
+							WHEN 8 THEN 'registeredID'
+						END AS NAME_TYPE
+					FROM x509_altNames_raw(c.CERTIFICATE)
+			) ci ON TRUE;
 
 
 CREATE TABLE invalid_certificate (
@@ -236,12 +260,12 @@ CREATE TABLE ct_log (
 	BATCH_SIZE				integer,
 	CHUNK_SIZE				integer,
 	GOOGLE_UPTIME			text,
-	INCLUDED_IN_CHROME		integer,
-	NON_INCLUSION_STATUS	text,
+	CHROME_VERSION_ADDED	integer,
+	CHROME_INCLUSION_STATUS	text,
 	CHROME_ISSUE_NUMBER		integer,
 	CHROME_FINAL_TREE_SIZE	integer,
 	CHROME_DISQUALIFIED_AT	timestamp,
-	INCLUDED_IN_MACOS		text,
+	APPLE_INCLUSION_STATUS	text,
 	APPLE_LAST_STATE_CHANGE	timestamp,
 	CONSTRAINT ctl_pk
 		PRIMARY KEY (ID),
@@ -299,6 +323,8 @@ CREATE INDEX ctle_e ON ct_log_entry (ENTRY_ID);
 
 CREATE INDEX ctle_t ON ct_log_entry (ENTRY_TIMESTAMP);
 
+CREATE INDEX ctle_le ON ct_log_entry (CT_LOG_ID, ENTRY_ID DESC);
+
 
 CREATE TYPE linter_type AS ENUM (
 	'cablint', 'x509lint', 'zlint'
@@ -307,6 +333,7 @@ CREATE TYPE linter_type AS ENUM (
 CREATE TABLE linter_version (
 	ID					integer,
 	MIN_CERTIFICATE_ID	bigint,
+	MAX_CERTIFICATE_ID	bigint,
 	DEPLOYED_AT			timestamp,
 	LINTER				linter_type,
 	VERSION_STRING		text,
@@ -330,19 +357,25 @@ CREATE TABLE lint_issue (
 		UNIQUE (LINTER, SEVERITY, ISSUE_TEXT)
 );
 
+INSERT INTO lint_issue (ID, ISSUE_TEXT) VALUES (-1, 'Daily Certificate Count');
+
 CREATE TABLE lint_cert_issue (
 	CERTIFICATE_ID		bigint,
 	LINT_ISSUE_ID		integer,
+	ISSUER_CA_ID		integer,
+	NOT_BEFORE_DATE		date,
 	CONSTRAINT lci_pk
-		PRIMARY KEY (CERTIFICATE_ID, LINT_ISSUE_ID),
+		PRIMARY KEY (ISSUER_CA_ID, LINT_ISSUE_ID, NOT_BEFORE_DATE, CERTIFICATE_ID),
 	CONSTRAINT lci_li_fk
 		FOREIGN KEY (LINT_ISSUE_ID)
-		REFERENCES lint_issue(ID)
+		REFERENCES lint_issue(ID),
+	CONSTRAINT lci_ca_fk
+		FOREIGN KEY (ISSUER_CA_ID)
+		REFERENCES ca(ID)
 );
 
 CREATE INDEX lci_c
 	ON lint_cert_issue (CERTIFICATE_ID);
-
 
 CREATE TABLE lint_summary (
 	LINT_ISSUE_ID	integer,
@@ -656,7 +689,6 @@ CREATE TABLE ccadb_certificate(
 	INCLUDED_CERTIFICATE_ID			bigint,
 	INCLUDED_CERTIFICATE_OWNER		text,
 	CA_OWNER						text,
-	SUBORDINATE_CA_OWNER			text,
 	CERT_NAME						text,
 	PARENT_CERT_NAME				text,
 	CERT_RECORD_TYPE				text,
@@ -708,7 +740,9 @@ CREATE TABLE ccadb_certificate(
 	TEST_WEBSITE_REVOKED_STATUS		text,
 	TEST_WEBSITE_VALID_CERTIFICATE_ID	bigint,
 	TEST_WEBSITE_EXPIRED_CERTIFICATE_ID	bigint,
-	TEST_WEBSITE_REVOKED_CERTIFICATE_ID	bigint
+	TEST_WEBSITE_REVOKED_CERTIFICATE_ID	bigint,
+	TEST_WEBSITES_CHECKED			boolean,
+	SUBORDINATE_CA_OWNER			text	
 );
 
 CREATE INDEX cc_c
@@ -857,58 +891,83 @@ CREATE TABLE cached_response (
 );
 
 
+GRANT SELECT ON ca TO guest;
 GRANT SELECT ON ca TO crtsh;
 
 GRANT USAGE ON ca_id_seq TO crtsh;
 
+GRANT SELECT ON certificate TO guest;
 GRANT SELECT ON certificate TO crtsh;
 
 GRANT USAGE ON certificate_id_seq TO crtsh;
 
+GRANT SELECT ON certificate_and_identities TO guest;
+GRANT SELECT ON certificate_and_identities TO crtsh;
+
+GRANT SELECT ON invalid_certificate TO guest;
 GRANT SELECT ON invalid_certificate TO crtsh;
 
-GRANT SELECT ON certificate_identity TO crtsh;
-
+GRANT SELECT ON ca_certificate TO guest;
 GRANT SELECT ON ca_certificate TO crtsh;
 
+GRANT SELECT ON crl TO guest;
 GRANT SELECT ON crl TO crtsh;
 
+GRANT SELECT ON crl_revoked TO guest;
 GRANT SELECT ON crl_revoked TO crtsh;
 
+GRANT SELECT ON ocsp_responder TO guest;
 GRANT SELECT ON ocsp_responder TO crtsh;
 
+GRANT SELECT ON ct_log TO guest;
 GRANT SELECT ON ct_log TO crtsh;
 
+GRANT SELECT ON ct_log_operator TO guest;
 GRANT SELECT ON ct_log_operator TO crtsh;
 
+GRANT SELECT ON ct_log_entry TO guest;
 GRANT SELECT ON ct_log_entry TO crtsh;
 
+GRANT SELECT ON lint_issue TO guest;
 GRANT SELECT ON lint_issue TO crtsh;
 
+GRANT SELECT ON lint_cert_issue TO guest;
 GRANT SELECT ON lint_cert_issue TO crtsh;
 
+GRANT SELECT ON lint_summary TO guest;
 GRANT SELECT ON lint_summary TO crtsh;
 
+GRANT SELECT ON trust_context TO guest;
 GRANT SELECT ON trust_context TO crtsh;
 
+GRANT SELECT ON trust_purpose TO guest;
 GRANT SELECT ON trust_purpose TO crtsh;
 
+GRANT SELECT ON root_trust_purpose TO guest;
 GRANT SELECT ON root_trust_purpose TO crtsh;
 
+GRANT SELECT ON ca_trust_purpose TO guest;
 GRANT SELECT ON ca_trust_purpose TO crtsh;
 
+GRANT SELECT ON applicable_purpose TO guest;
 GRANT SELECT ON applicable_purpose TO crtsh;
 
+GRANT SELECT ON ccadb_certificate TO guest;
 GRANT SELECT ON ccadb_certificate TO crtsh;
 
+GRANT SELECT ON ccadb_caowner TO guest;
 GRANT SELECT ON ccadb_caowner TO crtsh;
 
+GRANT SELECT ON debian_weak_key TO guest;
 GRANT SELECT ON debian_weak_key TO crtsh;
 
+GRANT SELECT ON microsoft_disallowedcert TO guest;
 GRANT SELECT ON microsoft_disallowedcert TO crtsh;
 
+GRANT SELECT ON mozilla_onecrl TO guest;
 GRANT SELECT ON mozilla_onecrl TO crtsh;
 
+GRANT SELECT ON google_revoked TO guest;
 GRANT SELECT ON google_revoked TO crtsh;
 
 GRANT SELECT ON mozilla_cert_validation_success_import TO crtsh;
@@ -917,6 +976,7 @@ GRANT SELECT ON mozilla_cert_validation_success TO crtsh;
 
 GRANT SELECT ON mozilla_root_hashes TO crtsh;
 
+GRANT SELECT ON cached_response TO guest;
 GRANT SELECT ON cached_response TO crtsh;
 
 
@@ -946,6 +1006,9 @@ SELECT NULL::bigint		CERTIFICATE_ID,
 		NULL::text		NAME_VALUE,
 		NULL::integer	ISSUER_CA_ID
 	FROM ci_error_message();
+
+GRANT SELECT ON certificate_identity TO guest;
+
 
 CREATE VIEW certificate_lifecycle AS
 SELECT c.ID CERTIFICATE_ID,
@@ -985,3 +1048,5 @@ SELECT c.ID CERTIFICATE_ID,
 					WHERE lci.CERTIFICATE_ID = c.ID
 					GROUP BY lci.CERTIFICATE_ID
 			) lci ON TRUE;
+
+GRANT SELECT ON certificate_lifecycle TO guest;
