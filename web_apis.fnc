@@ -268,7 +268,7 @@ BEGIN
 		t_outputType := 'json';
 		t_isJSONOutputSupported := TRUE;
 	ELSIF lower(t_outputType) IN ('revoked-intermediates', 'mozilla-certvalidations', 'mozilla-certvalidations-by-root', 'mozilla-certvalidations-by-owner', 'mozilla-certvalidations-by-version',
-									'mozilla-disclosures', 'mozilla-onecrl', 'microsoft-disclosures', 'ocsp-responders', 'ocsp-response', 'test-websites') THEN
+									'mozilla-disclosures', 'mozilla-onecrl', 'microsoft-disclosures', 'ocsp-responders', 'ocsp-response', 'test-websites', 'cert-populations') THEN
 		t_type := lower(t_outputType);
 		t_title := t_type;
 		t_outputType := 'html';
@@ -892,6 +892,55 @@ Content-Type: application/json
   <SCRIPT type="text/javascript">
     document.search_form.q.focus();
   </SCRIPT>';
+
+	ELSIF t_type = 'cert-populations' THEN
+		t_cacheControlMaxAge := -1;
+		t_output := t_output ||
+'  <SPAN class="whiteongrey">Certificate Populations</SPAN>
+  <BR><BR>
+  <TABLE>
+    <TR>
+      <TH rowspan="2">CA Owner</TH>
+      <TH colspan="2">Certificates</TH>
+      <TH colspan="2">Precertificates</TH>
+    </TR>
+    <TR>
+      <TH>ALL</TH>
+      <TH>Unexpired</TH>
+      <TH>ALL</TH>
+      <TH>Unexpired</TH>
+    </TR>
+';
+		FOR l_record IN (
+			SELECT sub.OWNER,
+					sum(coalesce(sub.NUM_ISSUED[1], 0)) CERT_POPULATION,
+					(sum(coalesce(sub.NUM_ISSUED[1], 0)) - sum(coalesce(sub.NUM_EXPIRED[1], 0))) CERT_POPULATION_UNEXPIRED,
+					sum(coalesce(sub.NUM_ISSUED[2], 0)) PRECERT_POPULATION,
+					(sum(coalesce(sub.NUM_ISSUED[2], 0)) - sum(coalesce(sub.NUM_EXPIRED[2], 0))) PRECERT_POPULATION_UNEXPIRED
+				FROM (
+						SELECT max(coalesce(coalesce(nullif(trim(cc.SUBORDINATE_CA_OWNER), ''), nullif(trim(cc.CA_OWNER), '')), cc.INCLUDED_CERTIFICATE_OWNER)) as OWNER,
+								ca.NUM_ISSUED, ca.NUM_EXPIRED
+							FROM ccadb_certificate cc, ca_certificate cac, ca
+							WHERE cc.CERTIFICATE_ID = cac.CERTIFICATE_ID
+								AND cac.CA_ID = ca.ID
+							GROUP BY ca.ID
+					) sub
+				GROUP BY sub.OWNER
+				ORDER BY CERT_POPULATION DESC
+		) LOOP
+			t_output := t_output ||
+'    <TR>
+      <TD>' || coalesce(l_record.OWNER, '?') || '</TD>
+      <TD style="text-align:right">' || to_char(l_record.CERT_POPULATION, '999G999G999G999G999') || '</TD>
+      <TD style="text-align:right">' || to_char(l_record.CERT_POPULATION_UNEXPIRED, '999G999G999G999G999') || '</TD>
+      <TD style="text-align:right">' || to_char(l_record.PRECERT_POPULATION, '999G999G999G999G999') || '</TD>
+      <TD style="text-align:right">' || to_char(l_record.PRECERT_POPULATION_UNEXPIRED, '999G999G999G999G999') || '</TD>
+    </TR>
+';
+		END LOOP;
+		t_output := t_output ||
+'</TABLE>
+';
 
 	ELSIF t_type = 'forum' THEN
 		t_output := t_output ||
@@ -1517,14 +1566,14 @@ Content-Type: text/plain; charset=UTF-8
 		t_output := t_output || '</TD>
     <TD style="white-space:nowrap">' || coalesce(TO_CHAR(l_record.CREATED, 'YYYY-MM-DD'), 'Unspecified') || '</TD>
     <TD style="white-space:nowrap">' || coalesce(TO_CHAR(l_record.LAST_MODIFIED, 'YYYY-MM-DD'), 'Unspecified') || '</TD>
-    <TD>' || l_record.SUMMARY || '</TD>
+    <TD>' || coalesce(l_record.SUMMARY, '&nbsp;')|| '</TD>
     <TD><A href="' || l_record.BUG_URL || '" target="_blank">' || substring(l_record.BUG_URL from '[0-9]*$') || '</A></TD>
-    <TD>' || encode(l_record.SERIAL_NUMBER, 'hex') || '</TD>
+    <TD>' || coalesce(encode(l_record.SERIAL_NUMBER, 'hex'), '&nbsp;') || '</TD>
     <TD>';
 		IF l_record.ISSUER_CA_ID IS NOT NULL THEN
 			t_output := t_output || '<A href="/?caID=' || l_record.ISSUER_CA_ID::text || '" style="white-space:normal" target="_blank">';
 		END IF;
-		t_output := t_output || l_record.ISSUER_NAME_TEXT;
+		t_output := t_output || coalesce(l_record.ISSUER_NAME_TEXT, '&nbsp;');
 		IF l_record.ISSUER_CA_ID IS NOT NULL THEN
 			t_output := t_output || '</A>';
 		END IF;
