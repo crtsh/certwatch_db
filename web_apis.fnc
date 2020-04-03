@@ -1056,7 +1056,7 @@ Content-Type: application/json
       <TD colspan="4" style="border:0px"></TD>
       <TD>TOTAL</TD>
       <TD>' || t_count::text || ' </TD>
-      <TD colspan="4" style="border:0px"></TD>
+      <TD colspan="5" style="border:0px"></TD>
     </TR>
   </TABLE>
   <TABLE>
