@@ -148,6 +148,8 @@ DECLARE
 	t_notAfter_field	text;
 	t_feedUpdated		timestamp;
 	t_caPublicKey		ca.PUBLIC_KEY%TYPE;
+	t_numIssued			ca.NUM_ISSUED%TYPE;
+	t_numExpired		ca.NUM_EXPIRED%TYPE;
 	t_count				integer;
 	t_count2			integer;
 	t_pageNo			integer;
@@ -2484,8 +2486,8 @@ Content-Type: text/plain; charset=UTF-8
 
 		-- Search for a specific CA.
 		IF t_type = 'CA ID' THEN
-			SELECT ca.ID, ca.NAME, ca.PUBLIC_KEY
-				INTO t_caID, t_caName, t_caPublicKey
+			SELECT ca.ID, ca.NAME, ca.PUBLIC_KEY, ca.NUM_ISSUED, ca.NUM_EXPIRED
+				INTO t_caID, t_caName, t_caPublicKey, t_numIssued, t_numExpired
 				FROM ca
 				WHERE ca.ID = t_value::integer;
 
@@ -2824,6 +2826,34 @@ Content-Type: text/plain; charset=UTF-8
         <INPUT type="hidden" name="caID" value="' || t_caID::text || '">
         <TABLE class="options" style="margin-left:0px">
           <TR>
+            <TD class="options" style="padding-right:20px;vertical-align:top">
+              <TABLE class="options" style="margin-left:0px">
+                <TR>
+                  <TH>Population</TH>
+                  <TD style="text-align:center">Unexpired</TD>
+                  <TD style="text-align:center">Expired</TD>
+                  <TD style="text-align:center">TOTAL</TD>
+                </TR>
+                <TR>
+                  <TD style="text-align:center">Certificates</TD>
+                  <TD style="text-align:right">' || (coalesce(t_numIssued[1], 0) - coalesce(t_numExpired[1]))::text || '</TD>
+                  <TD style="text-align:right">' || coalesce(t_numExpired[1], 0)::text || '</TD>
+                  <TD style="text-align:right">' || coalesce(t_numIssued[1], 0)::text || '</TD>
+                </TR>
+                <TR>
+                  <TD style="text-align:center">Precertificates</TD>
+                  <TD style="text-align:right">' || (coalesce(t_numIssued[2], 0) - coalesce(t_numExpired[2]))::text || '</TD>
+                  <TD style="text-align:right">' || coalesce(t_numExpired[2], 0)::text || '</TD>
+                  <TD style="text-align:right">' || coalesce(t_numIssued[2], 0)::text || '</TD>
+                </TR>
+                <TR>
+                  <TD style="text-align:center">TOTAL</TD>
+                  <TD style="text-align:right">' || ((coalesce(t_numIssued[1], 0) - coalesce(t_numExpired[1]) + coalesce(t_numIssued[2], 0)) - coalesce(t_numExpired[2]))::text || '</TD>
+                  <TD style="text-align:right">' || (coalesce(t_numExpired[1], 0) + coalesce(t_numExpired[2], 0))::text || '</TD>
+                  <TD style="text-align:right">' || (coalesce(t_numIssued[1], 0) + coalesce(t_numIssued[2], 0))::text || '</TD>
+                </TR>
+              </TABLE>
+            </TD>
             <TD class="options">
               <SPAN class="text">Select search type:</SPAN>
               <BR><SELECT name="idtype" size="8">
