@@ -393,7 +393,6 @@ CREATE TABLE lint_summary (
 );
 
 \i linting/lint_new_cert.fnc
-\i linting/lint_cached.fnc
 \i linting/lint_certificate.fnc
 \i linting/lint_tbscertificate.fnc
 \i linting/lint_summarizer.trg
@@ -790,12 +789,14 @@ CREATE TABLE debian_weak_key (
 		PRIMARY KEY (SHA1_MODULUS)
 );
 
+
 CREATE TABLE microsoft_disallowedcert (
 	CERTIFICATE_ID		bigint,
 	DISALLOWED_HASH		bytea,
 	CONSTRAINT mdc_pk
 		PRIMARY KEY (CERTIFICATE_ID)
 );
+
 
 CREATE TYPE revocation_entry_type AS ENUM (
 	'Serial Number',
@@ -825,15 +826,6 @@ CREATE TABLE google_revoked (
 		PRIMARY KEY (CERTIFICATE_ID, ENTRY_TYPE)
 );
 
-CREATE TABLE mozilla_cert_validation_success_import (
-	SUBMISSION_DATE		date,
-	RELEASE				text,
-	VERSION				text,
-	BIN_NUMBER			smallint,
-	COUNT				bigint,
-	CONSTRAINT mcvsi_pk
-		PRIMARY KEY (SUBMISSION_DATE, BIN_NUMBER, RELEASE, VERSION)
-);
 
 CREATE TABLE mozilla_onecrl (
 	CERTIFICATE_ID		bigint,
@@ -853,6 +845,17 @@ CREATE TABLE mozilla_onecrl (
 
 CREATE INDEX mo_c
 	ON mozilla_onecrl (CERTIFICATE_ID);
+
+
+CREATE TABLE mozilla_cert_validation_success_import (
+	SUBMISSION_DATE		date,
+	RELEASE				text,
+	VERSION				text,
+	BIN_NUMBER			smallint,
+	COUNT				bigint,
+	CONSTRAINT mcvsi_pk
+		PRIMARY KEY (SUBMISSION_DATE, BIN_NUMBER, RELEASE, VERSION)
+);
 
 CREATE INDEX mcvsi_bin_date_rel_ver
 	ON mozilla_cert_validation_success_import (BIN_NUMBER, SUBMISSION_DATE, RELEASE, VERSION);
@@ -881,6 +884,7 @@ CREATE TABLE mozilla_root_hashes (
 
 CREATE INDEX mrh_c
 	ON mozilla_root_hashes (CERTIFICATE_ID);
+
 
 CREATE TABLE cached_response (
 	PAGE_NAME			text,
@@ -994,10 +998,22 @@ GRANT SELECT ON cached_response TO crtsh;
 \i fnc/import_chain_cert.fnc
 \i fnc/is_technically_constrained.fnc
 \i fnc/process_new_entries.fnc
-
-\i linting/lint_cached.fnc
-
+\i fnc/serial_number_bitlength.fnc
 \i fnc/web_apis.fnc
+
+\i ccadb/ccadb_disclosure_group.fnc
+\i ccadb/ccadb_disclosure_group_summary.fnc
+\i ccadb/ccadb_disclosure_group2.fnc
+\i ccadb/disclosure_problems.fnc
+\i ccadb/microsoft_disclosures.fnc
+\i ccadb/mozilla_disclosures.fnc
+\i libocsppq/ocsp_embedded.fnc
+\i libocsppq/ocsp_randomserial_embedded.fnc
+\i libzlintpq/zlint_embedded.fnc
+\i ocsp_responders/ocsp_responders.fnc
+\i ocsp_responders/ocsp_response.fnc
+\i revoked_intermediates/revoked_intermediates.fnc
+\i test_websites/test_websites.fnc
 
 
 CREATE VIEW certificate_identity AS
