@@ -3490,13 +3490,13 @@ Content-Type: text/plain; charset=UTF-8
 						'           x509_notAfter(sub.CERTIFICATE) NOT_AFTER' || chr(10) ||
 						'        FROM (SELECT *' || chr(10) ||
 						'                  FROM certificate_and_identities cai' || chr(10) ||
-						'                  WHERE ' || t_tsqueryFunction || '($2) @@ identities(cai.CERTIFICATE)' || chr(10);
+						'                  WHERE ' || t_tsqueryFunction || '(''certwatch'', $2) @@ identities(cai.CERTIFICATE)' || chr(10);
 				IF t_match = 'Single' THEN
 					t_query := t_query ||
-						'                      AND plainto_tsquery($2) @@ to_tsvector(cai.NAME_VALUE)' || chr(10);
+						'                      AND plainto_tsquery(''certwatch'', $2) @@ to_tsvector(''certwatch'', cai.NAME_VALUE)' || chr(10);
 				ELSIF t_match = 'FTS' THEN
 					t_query := t_query ||
-							'                  AND to_tsquery($2) @@ to_tsvector(cai.NAME_VALUE)' || chr(10);
+						'                      AND to_tsquery(''certwatch'', $2) @@ to_tsvector(''certwatch'', cai.NAME_VALUE)' || chr(10);
 				ELSIF t_match != 'Any' THEN
 					t_query := t_query ||
 						'                      AND cai.NAME_VALUE ' || t_match || ' ';
@@ -3783,13 +3783,13 @@ Content-Type: text/plain; charset=UTF-8
 							'           x509_notAfter(sub.CERTIFICATE) NOT_AFTER' || chr(10) ||
 							'        FROM (SELECT *' || chr(10) ||
 							'                  FROM certificate_and_identities cai' || chr(10) ||
-							'                  WHERE ' || t_tsqueryFunction || '($1) @@ identities(cai.CERTIFICATE)' || chr(10);
+							'                  WHERE ' || t_tsqueryFunction || '(''certwatch'', $1) @@ identities(cai.CERTIFICATE)' || chr(10);
 				IF t_match = 'Single' THEN
 					t_temp := t_temp ||
-							'                      AND plainto_tsquery($1) @@ to_tsvector(cai.NAME_VALUE)' || chr(10);
+							'                      AND plainto_tsquery(''certwatch'', $1) @@ to_tsvector(''certwatch'', cai.NAME_VALUE)' || chr(10);
 				ELSIF t_match = 'FTS' THEN
 					t_temp := t_temp ||
-							'                      AND to_tsquery($1) @@ to_tsvector(cai.NAME_VALUE)' || chr(10);
+							'                      AND to_tsquery(''certwatch'', $1) @@ to_tsvector(''certwatch'', cai.NAME_VALUE)' || chr(10);
 				ELSIF t_match != 'Any' THEN
 					t_temp := t_temp ||
 							'                      AND cai.NAME_VALUE ' || t_match || ' ';

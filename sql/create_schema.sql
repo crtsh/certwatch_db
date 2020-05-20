@@ -123,9 +123,19 @@ CREATE INDEX c_subject_sha1 ON certificate (digest(x509_name(CERTIFICATE), 'sha1
 
 CREATE INDEX c_ski ON certificate (x509_subjectKeyIdentifier(CERTIFICATE));
 
+
+CREATE TEXT SEARCH DICTIONARY certwatch (
+    TEMPLATE = pg_catalog.simple
+);
+
+CREATE TEXT SEARCH CONFIGURATION certwatch (
+    COPY = pg_catalog.simple
+);
+
 \i fnc/identities.fnc
 
 CREATE INDEX c_identities ON certificate USING GIN (identities(CERTIFICATE));
+
 
 \i fnc/cert_counter.trg
 \i fnc/update_expirations.fnc

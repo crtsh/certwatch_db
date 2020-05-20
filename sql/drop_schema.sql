@@ -274,6 +274,10 @@ DROP FUNCTION identities(
 
 DROP TABLE ca;
 
+DROP TEXT SEARCH CONFIGURATION certwatch;
+ 
+DROP TEXT SEARCH DICTIONARY certwatch;
+
 
 -- As the "postgres" user.
 
