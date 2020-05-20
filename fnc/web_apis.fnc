@@ -508,9 +508,9 @@ Content-Type: application/json
 ';
 		ELSIF t_type = 'pv-certificate-viewer' THEN
 			t_output := t_output ||
-'  <SCRIPT type="module" src="//understandingwebpki.com/build/pv-certificates-viewer.esm.js"></SCRIPT>
-  <SCRIPT nomodule src="//understandingwebpki.com/build/pv-certificates-viewer.js"></SCRIPT>
-  <LINK rel="stylesheet" href="//understandingwebpki.com/build/pv-certificates-viewer.css">
+'  <SCRIPT type="module" src="//unpkg.com/@peculiar/certificates-viewer@latest/dist/peculiar/peculiar.esm.js"></SCRIPT>
+  <SCRIPT nomodule src="//unpkg.com/@peculiar/certificates-viewer@latest/dist/peculiar/peculiar.js"></SCRIPT>
+  <LINK rel="stylesheet" href="//unpkg.com/@peculiar/certificates-viewer@latest/dist/peculiar/peculiar.css">
 ';
 		ELSIF t_type = 'mozilla-certvalidations' THEN
 			t_output := t_output ||
@@ -2518,7 +2518,7 @@ Content-Type: text/plain; charset=UTF-8
       </SPAN>
     </TH>
     <TD>
-      <pv-certificate-viewer
+      <peculiar-certificate-viewer
         certificate="' || replace(encode(t_certificate, 'base64'), chr(10), '') || '"
         issuer-dn-link="?caid=' || t_issuerCAID::text || '"
         auth-key-id-parent-link="?ski={{authKeyId}}"
