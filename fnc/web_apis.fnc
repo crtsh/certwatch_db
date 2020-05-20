@@ -2062,10 +2062,14 @@ Content-Type: text/plain; charset=UTF-8
 						AND crl.ERROR_MESSAGE IS NULL
 						AND crl.NEXT_UPDATE > now() AT TIME ZONE 'UTC';
 				IF t_count > 0 THEN
-					t_temp0 := 'Not Revoked</TD><TD><SPAN style="color:#888888">n/a</SPAN></TD><TD><SPAN style="color:#888888">n/a</SPAN>';
+					t_temp0 := 'Not Revoked';
 				ELSE
-					t_temp0 := '<SPAN style="color:#FF9400">Unknown</SPAN></TD><TD><SPAN style="color:#888888">n/a<SPAN></TD><TD><SPAN style="color:#888888">n/a<SPAN>';
+					t_temp0 := '<SPAN style="color:#FF9400">Unknown</SPAN>';
 				END IF;
+				IF x509_notAfter(t_certificate) < now() AT TIME ZONE 'UTC' THEN
+					t_temp0 := t_temp0 || ' (Expired)';
+				END IF;
+				t_temp0 := t_temp0 || '</TD><TD><SPAN style="color:#888888">n/a</SPAN></TD><TD><SPAN style="color:#888888">n/a</SPAN>';
 			END IF;
 
 			SELECT to_char(max(crl.LAST_CHECKED), 'YYYY-MM-DD') || '&nbsp; <FONT class="small">'
