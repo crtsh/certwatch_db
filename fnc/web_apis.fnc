@@ -2267,7 +2267,7 @@ Content-Type: text/plain; charset=UTF-8
 			t_output := t_output ||
 '  <TR>
     <TH class="outer">CA/B Forum lint<BR>
-      <DIV class="small" style="padding-top:3px">Powered by <A href="//github.com/awslabs/certlint" target="_blank">certlint</A></DIV>
+      <DIV class="small" style="padding-top:3px">Powered by <A href="//github.com/certlint/certlint" target="_blank">certlint</A></DIV>
     </TH>
     <TD class="text">
 ';
