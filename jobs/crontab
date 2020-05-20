@@ -14,6 +14,7 @@
 0 * * * *	~/app_monitor.sh ~/certwatch/jobs/regular_maintenance.sh
 0 * * * *	~/app_monitor.sh ~/certwatch/jobs/update_browser_revocations.sh
 0 * * * *	~/app_monitor.sh ~/certwatch/ccadb/update_caowner_information.sh
+5 * * * *	~/app_monitor.sh ~/certwatch/jobs/update_accepted_roots.sh
 
 # Every one day.
 #0 3 * * *	?

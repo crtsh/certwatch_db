@@ -237,6 +237,8 @@ DROP TABLE linter_version;
 
 DROP TYPE linter_type;
 
+DROP TABLE accepted_roots;
+
 DROP TABLE ct_log_entry;
 
 DROP TABLE ct_log_operator;

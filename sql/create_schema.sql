@@ -336,6 +336,16 @@ CREATE INDEX ctle_t ON ct_log_entry (ENTRY_TIMESTAMP);
 CREATE INDEX ctle_le ON ct_log_entry (CT_LOG_ID, ENTRY_ID DESC);
 
 
+CREATE TABLE accepted_roots (
+	CT_LOG_ID			integer,
+	CERTIFICATE_ID		bigint,
+	CONSTRAINT ar_pk
+		PRIMARY KEY (CT_LOG_ID, CERTIFICATE_ID)
+);
+
+CREATE INDEX ar_c ON accepted_roots (CERTIFICATE_ID);
+
+
 CREATE TYPE linter_type AS ENUM (
 	'cablint', 'x509lint', 'zlint'
 );
