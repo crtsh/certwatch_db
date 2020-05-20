@@ -68,6 +68,6 @@ BEGIN
 		END IF;
 	END LOOP;
 
-	RETURN strip(to_tsvector('certwatch', ltrim(t_string)));
+	RETURN strip(to_tsvector('public.certwatch', ltrim(t_string)));
 END;
 $$ LANGUAGE plpgsql STRICT IMMUTABLE;
