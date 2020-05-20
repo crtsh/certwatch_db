@@ -2150,12 +2150,10 @@ Content-Type: text/plain; charset=UTF-8
 					t_temp4 := '<SPAN style="color:#FF9400">Unknown</SPAN></TD>
           <TD><SPAN style="color:#888888">n/a</SPAN></TD>
           <TD><SPAN style="color:#888888">n/a</SPAN></TD>';
-				ELSIF t_temp4 = 'No OCSP URL available' THEN
+				ELSE	-- "No OCSP URL Available" or error.
 					t_temp4 := t_temp4 || '</TD>
           <TD><SPAN style="color:#888888">n/a</SPAN></TD>
           <TD><SPAN style="color:#888888">n/a</SPAN></TD>';
-				ELSE	-- Error
-					null;
 				END IF;
 				t_temp4 := t_temp4 || '
           <TD>' || to_char(now() AT TIME ZONE 'UTC', 'YYYY-MM-DD') || '&nbsp; <FONT class="small">'
