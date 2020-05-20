@@ -3515,7 +3515,8 @@ Content-Type: text/plain; charset=UTF-8
 				END IF;
 				IF t_excludeExpired IS NOT NULL THEN
 					t_query := t_query ||
-						'                      AND coalesce(x509_notAfter(cai.CERTIFICATE), ''infinity''::timestamp) > now() AT TIME ZONE ''UTC''' || chr(10);
+						'                      AND coalesce(x509_notAfter(cai.CERTIFICATE), ''infinity''::timestamp) >= date_trunc(''year'', now() AT TIME ZONE ''UTC'')' || chr(10) ||
+						'                      AND x509_notAfter(cai.CERTIFICATE) >= now() AT TIME ZONE ''UTC''' || chr(10);
 					t_temp := t_excludeExpired;
 				END IF;
 				t_query := t_query ||
@@ -3535,7 +3536,8 @@ Content-Type: text/plain; charset=UTF-8
 
 			IF (t_excludeExpired IS NOT NULL) AND (t_temp IS NULL) THEN
 				t_query := t_query ||
-						'        AND coalesce(x509_notAfter(c.CERTIFICATE), ''infinity''::timestamp) > now() AT TIME ZONE ''UTC''' || chr(10);
+   						'        AND coalesce(x509_notAfter(c.CERTIFICATE), ''infinity''::timestamp) >= date_trunc(''year'', now() AT TIME ZONE ''UTC'')' || chr(10) ||
+						'        AND x509_notAfter(c.CERTIFICATE) >= now() AT TIME ZONE ''UTC''' || chr(10);
 			END IF;
 			IF lower(t_type) LIKE '%lint' THEN
 				t_query := t_query ||
@@ -3808,7 +3810,8 @@ Content-Type: text/plain; charset=UTF-8
 				END IF;
 				IF t_excludeExpired IS NOT NULL THEN
 					t_temp := t_temp ||
-							'                      AND coalesce(x509_notAfter(cai.CERTIFICATE), ''infinity''::timestamp) > now() AT TIME ZONE ''UTC''' || chr(10);
+							'                      AND coalesce(x509_notAfter(cai.CERTIFICATE), ''infinity''::timestamp) >= date_trunc(''year'', now() AT TIME ZONE ''UTC'')' || chr(10) ||
+							'                      AND x509_notAfter(cai.CERTIFICATE) >= now() AT TIME ZONE ''UTC''' || chr(10);
 				END IF;
 				IF t_excludeCAsString IS NOT NULL THEN
 					t_temp := t_temp ||
@@ -3853,7 +3856,8 @@ Content-Type: text/plain; charset=UTF-8
 
 			IF (t_excludeExpired IS NOT NULL) AND (t_temp IS NULL) THEN
 				t_where := t_where || chr(10) ||
-							'coalesce(x509_notAfter(c.CERTIFICATE), ''infinity''::timestamp) > now() AT TIME ZONE ''UTC''';
+							'coalesce(x509_notAfter(c.CERTIFICATE), ''infinity''::timestamp) >= date_trunc(''year'', now() AT TIME ZONE ''UTC'')' || chr(10) ||
+							'x509_notAfter(c.CERTIFICATE) >= now() AT TIME ZONE ''UTC''';
 			END IF;
 			IF (t_excludeCAsString IS NOT NULL) AND (t_temp IS NULL) THEN
 				t_where := t_where || chr(10) ||
@@ -4526,7 +4530,7 @@ Content-Type: text/html; charset=UTF-8
   <BR><BR><BR>
 ';
 		IF t_showSQL AND (t_query IS NOT NULL) THEN
-			t_output := t_output || '<BR><BR><TEXTAREA cols="100" rows="30">' || t_query || ';</TEXTAREA>';
+			t_output := t_output || '<BR><BR><TEXTAREA cols="160" rows="30">' || t_query || ';</TEXTAREA>';
 		END IF;
 		t_output := t_output || '
   <P class="copyright">&copy; Sectigo Limited 2015-2020. All rights reserved.</P>
