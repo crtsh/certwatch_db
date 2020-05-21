@@ -869,10 +869,16 @@ Content-Type: application/json
               <TD>crt.sh</TD>
               <TD>
                 <A href="/forum">Forum</A>
+                <BR><A href="/cert-populations">Certificate Populations</A>
                 <BR><A href="/revoked-intermediates">Revoked Intermediates</A>
                 <BR><A href="/ocsp-responders">OCSP Responders</A>
                 <BR><A href="/test-websites">Test Websites</A>
-                <BR><A href="/linttbscert">TBSCertificate Linter</A>
+              </TD>
+            </TR>
+            <TR>
+              <TD>Linting</TD>
+              <TD>
+                <A href="/linttbscert">TBSCertificate Linter</A>
                 <BR><A href="/lintcert">Certificate Linter</A>
               </TD>
             </TR>
