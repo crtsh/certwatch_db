@@ -140,6 +140,7 @@ DECLARE
 	t_excludeAffectedCerts	text;
 	t_excludeCAs		integer[];
 	t_excludeCAsString	text;
+	t_deduplicate		boolean			:= FALSE;
 	t_match				text;
 	t_tsqueryFunction	text;
 	t_searchProvider	text;
@@ -418,6 +419,10 @@ Content-Type: application/json
 	t_temp := get_parameter('exclude', paramNames, paramValues);
 	IF lower(coalesce(',' || t_temp || ',', 'nothing')) LIKE ',expired,' THEN
 		t_excludeExpired := '&exclude=expired';
+	END IF;
+
+	IF upper(coalesce(get_parameter('deduplicate', paramNames, paramValues), 'N')) = 'Y' THEN
+		t_deduplicate := TRUE;
 	END IF;
 
 	t_temp := get_parameter('search', paramNames, paramValues);
@@ -752,6 +757,8 @@ Content-Type: application/json
           if (match.options[match.selectedIndex].value != "")
             t_url += "&match=" + match.options[match.selectedIndex].value;
         }
+        if (document.search_form.deduplicate.checked)
+          t_url += "&deduplicate=Y";
         if (document.search_form.showSQL.checked)
           t_url += "&showSQL=Y";
       }
@@ -809,6 +816,11 @@ Content-Type: application/json
 			t_output := t_output || ' checked';
 		END IF;
 		t_output := t_output || '> Exclude expired certificates?
+            <BR><INPUT type="checkbox" name="deduplicate"';
+		IF t_deduplicate THEN
+			t_output := t_output || ' checked';
+		END IF;
+		t_output := t_output || '> Deduplicate (pre)certificate pairs?
             <BR><INPUT type="checkbox" name="showSQL"';
 		IF t_showSQL THEN
 			t_output := t_output || ' checked';
@@ -2930,6 +2942,8 @@ Content-Type: text/plain; charset=UTF-8
               if (match.options[match.selectedIndex].value != "")
                 t_url += "&match=" + match.options[match.selectedIndex].value;
             }
+            if (document.search_form.deduplicate.checked)
+              t_url += "&deduplicate=Y";
             if (document.search_form.showSQL.checked)
               t_url += "&showSQL=Y";
           }
@@ -3006,6 +3020,11 @@ Content-Type: text/plain; charset=UTF-8
 				t_output := t_output || ' checked';
 			END IF;
 			t_output := t_output || '> Exclude expired certificates?
+                <BR><INPUT type="checkbox" name="deduplicate"';
+			IF t_deduplicate THEN
+				t_output := t_output || ' checked';
+			END IF;
+			t_output := t_output || '> Deduplicate (pre)certificate pairs?
                 <BR><INPUT type="checkbox" name="showSQL"';
 			IF t_showSQL THEN
 				t_output := t_output || ' checked';
@@ -3521,6 +3540,18 @@ Content-Type: text/plain; charset=UTF-8
 						'                      AND x509_notAfter(cai.CERTIFICATE) >= now() AT TIME ZONE ''UTC''' || chr(10);
 					t_temp := t_excludeExpired;
 				END IF;
+				IF t_deduplicate THEN
+					t_query := t_query ||
+						'                      AND NOT EXISTS (' || chr(10) ||
+						'                          SELECT 1' || chr(10) ||
+						'                              FROM certificate c2' || chr(10) ||
+						'                              WHERE x509_serialNumber(c2.CERTIFICATE) = x509_serialNumber(cai.CERTIFICATE)' || chr(10) ||
+						'                                  AND c2.ISSUER_CA_ID = cai.ISSUER_CA_ID' || chr(10) ||
+						'                                  AND c2.ID < cai.CERTIFICATE_ID' || chr(10) ||
+						'                                  AND x509_tbscert_strip_ct_ext(c2.CERTIFICATE) = x509_tbscert_strip_ct_ext(cai.CERTIFICATE)' || chr(10) ||
+						'                              LIMIT 1' || chr(10) ||
+						'                      )' || chr(10);
+				END IF;
 				t_query := t_query ||
 						'                  LIMIT 10000' || chr(10) ||
 						'             ) sub' || chr(10) ||
@@ -3546,7 +3577,7 @@ Content-Type: text/plain; charset=UTF-8
 						'    GROUP BY c.ID, c.ISSUER_CA_ID, SUBJECT_NAME, NOT_BEFORE, NOT_AFTER' || chr(10);
 			END IF;
 			t_query := t_query ||
-						'    ORDER BY NOT_BEFORE DESC';
+						'    ORDER BY NOT_BEFORE DESC, ID DESC';
 			IF t_pageNo IS NOT NULL THEN
 				t_query := t_query || chr(10) ||
 						'    OFFSET ' || ((t_pageNo - 1) * t_resultsPerPage)::text || chr(10) ||
@@ -3818,6 +3849,18 @@ Content-Type: text/plain; charset=UTF-8
 				IF t_excludeCAsString IS NOT NULL THEN
 					t_temp := t_temp ||
 							'                      AND cai.ISSUER_CA_ID NOT IN (' || array_to_string(t_excludeCAs, ',') || ')' || chr(10);
+				END IF;
+				IF t_deduplicate THEN
+					t_temp := t_temp ||
+							'                      AND NOT EXISTS (' || chr(10) ||
+							'                          SELECT 1' || chr(10) ||
+							'                              FROM certificate c2' || chr(10) ||
+							'                              WHERE x509_serialNumber(c2.CERTIFICATE) = x509_serialNumber(cai.CERTIFICATE)' || chr(10) ||
+							'                                  AND c2.ISSUER_CA_ID = cai.ISSUER_CA_ID' || chr(10) ||
+							'                                  AND c2.ID < cai.CERTIFICATE_ID' || chr(10) ||
+							'                                  AND x509_tbscert_strip_ct_ext(c2.CERTIFICATE) = x509_tbscert_strip_ct_ext(cai.CERTIFICATE)' || chr(10) ||
+							'                              LIMIT 1' || chr(10) ||
+							'                      )' || chr(10);
 				END IF;
 
 				t_select := t_temp ||
