@@ -3719,7 +3719,7 @@ Content-Type: text/plain; charset=UTF-8
 				IF t_sort = 0 THEN
 					t_query := t_query || 'ID ' || t_orderBy;
 				ELSIF t_sort = 1 THEN
-					t_query := t_query || '__entry_timestamp_field__ ' || t_orderBy;
+					t_query := t_query || '__entry_timestamp_field__ ' || t_orderBy || ' NULLS LAST';
 				ELSIF t_sort = 2 THEN
 					t_query := t_query || 'NOT_BEFORE ' || t_orderBy || ', NAME_VALUE, ISSUER_NAME';
 				ELSIF t_sort = 4 THEN
@@ -4000,7 +4000,7 @@ Content-Type: text/plain; charset=UTF-8
     <TD style="text-align:center">';
 					IF coalesce(t_groupBy, '') = 'none' THEN
 						t_temp2 := t_temp2 || '<A href="?id=' || l_record.ID::text || t_opt || '">' || l_record.ID::text || '</A></TD>
-    <TD style="text-align:center;white-space:nowrap">' || to_char(l_record.ENTRY_TIMESTAMP, 'YYYY-MM-DD') || '</TD>
+    <TD style="text-align:center;white-space:nowrap">' || coalesce(to_char(l_record.ENTRY_TIMESTAMP, 'YYYY-MM-DD'), '&nbsp;') || '</TD>
     <TD style="text-align:center;white-space:nowrap">' || to_char(l_record.NOT_BEFORE, 'YYYY-MM-DD') || '</TD>
     <TD style="text-align:center;white-space:nowrap">' || to_char(l_record.NOT_AFTER, 'YYYY-MM-DD');
 					ELSIF (l_record.NUM_CERTS = 1)
