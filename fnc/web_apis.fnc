@@ -665,6 +665,9 @@ Content-Type: application/json
       background-color: #FFEFDF;
       color: #DF6000
     }
+    *:focus {
+      outline: 0px transparent !important
+    }
   </STYLE>
 </HEAD>
 <BODY>
