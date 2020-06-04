@@ -40,7 +40,7 @@ BEGIN
 		)
 		SELECT cac.CA_ID, rtp.TRUST_CONTEXT_ID, rtp.TRUST_PURPOSE_ID,
 				1, 0, 999,
-				(now() BETWEEN min(x509_notBefore(c.CERTIFICATE)) AND max(coalesce(x509_notAfter(c.CERTIFICATE), 'infinity'::timestamp)))
+				(now() AT TIME ZONE 'UTC' BETWEEN min(x509_notBefore(c.CERTIFICATE)) AND max(coalesce(x509_notAfter(c.CERTIFICATE), 'infinity'::timestamp)))
 			FROM root_trust_purpose rtp, ca_certificate cac, certificate c
 			WHERE rtp.CERTIFICATE_ID = cac.CERTIFICATE_ID
 				AND cac.CERTIFICATE_ID = c.ID
@@ -138,7 +138,7 @@ BEGIN
 					)
 				);
 
-				IF t_ctp_parent.IS_TIME_VALID AND (now() BETWEEN x509_notBefore(l_record2.CERTIFICATE) AND coalesce(x509_notAfter(l_record2.CERTIFICATE), 'infinity'::timestamp)) THEN
+				IF t_ctp_parent.IS_TIME_VALID AND (now() AT TIME ZONE 'UTC' BETWEEN x509_notBefore(l_record2.CERTIFICATE) AND coalesce(x509_notAfter(l_record2.CERTIFICATE), 'infinity'::timestamp)) THEN
 					t_ctp_new.IS_TIME_VALID := TRUE;
 
 					t_ctp_new.ALL_CHAINS_TECHNICALLY_CONSTRAINED := least(
