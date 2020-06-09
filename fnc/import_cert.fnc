@@ -34,6 +34,7 @@ DECLARE
 	l_ca				RECORD;
 	l_cdp				RECORD;
 	l_aiaOCSP			RECORD;
+	l_aiaCAIssuer		RECORD;
 BEGIN
 	IF cert_data IS NULL THEN
 		RETURN NULL;
@@ -147,15 +148,9 @@ BEGIN
 		END IF;
 	END IF;
 
-/*	IF t_lintingApplies THEN
-		PERFORM lint_cached(t_certificateID, 'cablint');
-		PERFORM lint_cached(t_certificateID, 'x509lint');
-		PERFORM lint_cached(t_certificateID, 'zlint');
-	END IF;*/
-
 	FOR l_cdp IN (
-				SELECT x509_crlDistributionPoints(cert_data) URL
-			) LOOP
+		SELECT x509_crlDistributionPoints(cert_data) URL
+	) LOOP
 		INSERT INTO crl (
 				CA_ID, DISTRIBUTION_POINT_URL, NEXT_CHECK_DUE, IS_ACTIVE
 			)
@@ -166,13 +161,25 @@ BEGIN
 	END LOOP;
 
 	FOR l_aiaOCSP IN (
-				SELECT x509_authorityInfoAccess(cert_data, 1) URL
-			) LOOP
+		SELECT x509_authorityInfoAccess(cert_data, 1) URL
+	) LOOP
 		INSERT INTO ocsp_responder (
 				CA_ID, URL, NEXT_CHECKS_DUE
 			)
 			VALUES (
 				t_issuerCAID, l_aiaOCSP.URL, now() AT TIME ZONE 'UTC'
+			)
+			ON CONFLICT DO NOTHING;
+	END LOOP;
+
+	FOR l_aiaCAIssuer IN (
+		SELECT x509_authorityInfoAccess(cert_data, 2) URL
+	) LOOP
+		INSERT INTO ca_issuer (
+				CA_ID, URL, NEXT_CHECK_DUE, FIRST_CERTIFICATE_ID, IS_ACTIVE
+			)
+			VALUES (
+				t_issuerCAID, l_aiaCAIssuer.URL, now() AT TIME ZONE 'UTC', t_certificateID, TRUE
 			)
 			ON CONFLICT DO NOTHING;
 	END LOOP;

@@ -103,12 +103,12 @@ BEGIN
 		-- The ct_monitor Go code was unable to determine the CA ID.
 		-- Have another go, just in case libx509pq/OpenSSL can do better.
 		FOR l_ca IN (
-					SELECT ca.ID, ca.LINTING_APPLIES, ca.PUBLIC_KEY
-						FROM ca
-						WHERE ca.NAME = x509_issuerName(l_entry.DER_X509)
-							AND ca.PUBLIC_KEY != E'\\x00'
-						ORDER BY octet_length(ca.PUBLIC_KEY) DESC
-				) LOOP
+			SELECT ca.ID, ca.LINTING_APPLIES, ca.PUBLIC_KEY
+				FROM ca
+				WHERE ca.NAME = x509_issuerName(l_entry.DER_X509)
+					AND ca.PUBLIC_KEY != E'\\x00'
+				ORDER BY octet_length(ca.PUBLIC_KEY) DESC
+		) LOOP
 			IF x509_verify(l_entry.DER_X509, l_ca.PUBLIC_KEY) THEN
 				l_entry.ISSUER_CA_ID := l_ca.ID;
 				l_entry.LINTING_APPLIES := l_ca.LINTING_APPLIES;
@@ -202,6 +202,23 @@ BEGIN
 					FROM ocsp_responder ors
 					WHERE ors.CA_ID = sub.ISSUER_CA_ID
 						AND ors.URL = sub.URL
+			);
+
+	INSERT INTO ca_issuer (
+			CA_ID, URL, NEXT_CHECK_DUE, FIRST_CERTIFICATE_ID, IS_ACTIVE
+		)
+		SELECT sub.ISSUER_CA_ID, sub.URL, now() AT TIME ZONE 'UTC', sub.FIRST_CERTIFICATE_ID, TRUE
+			FROM (
+					SELECT net.ISSUER_CA_ID, trim(x509_authorityInfoAccess(net.DER_X509, 2)) URL, min(net.CERTIFICATE_ID) FIRST_CERTIFICATE_ID
+						FROM newentries_temp net
+						WHERE net.NUM_ISSUED_INDEX > 0
+						GROUP BY net.ISSUER_CA_ID, URL
+				) sub
+			WHERE NOT EXISTS (
+				SELECT 1
+					FROM ca_issuer cais
+					WHERE cais.CA_ID = sub.ISSUER_CA_ID
+						AND cais.URL = sub.URL
 			);
 END;
 $$ LANGUAGE plpgsql;

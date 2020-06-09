@@ -34,6 +34,7 @@ DECLARE
 	l_ca				RECORD;
 	l_cdp				RECORD;
 	l_aiaOCSP			RECORD;
+	l_aiaCAIssuer		RECORD;
 BEGIN
 	IF ca_cert_data IS NULL THEN
 		RETURN NULL;
@@ -119,12 +120,6 @@ BEGIN
 				NEXT_NOT_AFTER = CASE WHEN (t_notAfter <= coalesce(LAST_NOT_AFTER, '-infinity'::timestamp)) THEN NEXT_NOT_AFTER ELSE least(coalesce(NEXT_NOT_AFTER, 'infinity'::timestamp), t_notAfter) END
 			WHERE ID = t_issuerCAID;
 
-/*		IF t_lintingApplies THEN
-			PERFORM lint_cached(t_certificateID, 'cablint');
-			PERFORM lint_cached(t_certificateID, 'x509lint');
-			PERFORM lint_cached(t_certificateID, 'zlint');
-		END IF;*/
-
 		FOR l_cdp IN (
 			SELECT x509_crlDistributionPoints(ca_cert_data) URL
 		) LOOP
@@ -145,6 +140,18 @@ BEGIN
 				)
 				VALUES (
 					t_issuerCAID, l_aiaOCSP.URL, now() AT TIME ZONE 'UTC'
+				)
+				ON CONFLICT DO NOTHING;
+		END LOOP;
+
+		FOR l_aiaCAIssuer IN (
+			SELECT x509_authorityInfoAccess(ca_cert_data, 2) URL
+		) LOOP
+			INSERT INTO ca_issuer (
+					CA_ID, URL, NEXT_CHECK_DUE, FIRST_CERTIFICATE_ID, IS_ACTIVE
+				)
+				VALUES (
+					t_issuerCAID, l_aiaCAIssuer.URL, now() AT TIME ZONE 'UTC', t_certificateID, TRUE
 				)
 				ON CONFLICT DO NOTHING;
 		END LOOP;

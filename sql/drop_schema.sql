@@ -245,6 +245,8 @@ DROP TABLE ct_log_operator;
 
 DROP TABLE ct_log;
 
+DROP TABLE ca_issuer;
+
 DROP TABLE ocsp_responder;
 
 DROP TABLE crl_revoked;

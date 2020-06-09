@@ -256,6 +256,23 @@ CREATE TABLE ocsp_responder (
 );
 
 
+CREATE TABLE ca_issuer (
+	CA_ID					integer,
+	NEXT_CHECK_DUE			timestamp,
+	LAST_CHECKED			timestamp,
+	URL						text,
+	RESULT					text,
+	CA_CERTIFICATE_IDS		bigint[],
+	FIRST_CERTIFICATE_ID	bigint,
+	IS_ACTIVE				boolean,
+	CONSTRAINT cais_pk
+		PRIMARY KEY (CA_ID, URL),
+	CONSTRAINT cais_ca_fk
+		FOREIGN KEY (CA_ID)
+		REFERENCES ca(ID)
+);
+
+
 CREATE TABLE ct_log (
 	ID						integer,
 	OPERATOR				text,
