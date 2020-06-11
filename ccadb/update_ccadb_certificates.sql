@@ -262,7 +262,12 @@ INSERT INTO ccadb_certificate_temp (
 
 \echo Determining Parent CA Certificates
 
-/* Look for the issuer, prioritizing the "parent" records indicated by the CCADB... */
+/* Look for the parent.  Treat a Root Certificate in the CCADB as its own parent... */
+UPDATE ccadb_certificate_temp cct
+	SET PARENT_CERTIFICATE_ID = CERTIFICATE_ID
+	WHERE cct.CERTIFICATE_ID IS NOT NULL
+		AND cct.CERT_RECORD_TYPE = 'Root Certificate';
+/* ...then prioritize the "parent" records indicated by the CCADB... */
 UPDATE ccadb_certificate_temp cct
 	SET PARENT_CERTIFICATE_ID = c_parent.ID
 	FROM certificate c, ca_certificate cac_parent, certificate c_parent
