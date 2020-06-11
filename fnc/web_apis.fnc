@@ -2037,7 +2037,7 @@ Content-Type: text/plain; charset=UTF-8
 					t_temp := t_temp ||
 '  <TR>
     <TD style="vertical-align:middle">' || coalesce(l_record.AUDITOR, '') || '</TD>
-    <TD>' || coalesce(l_record.STANDARD_AUDIT_TYPE, 'Not disclosed');
+    <TD style="vertical-align:middle">' || coalesce(l_record.STANDARD_AUDIT_TYPE, 'Not disclosed');
 					IF coalesce(l_record.STANDARD_AUDIT_URL, '') LIKE '%://%' THEN
 						t_temp := t_temp || ':
       <A href="' || l_record.STANDARD_AUDIT_URL || '" target="_blank">' || coalesce(l_record.STANDARD_AUDIT_DATE::text, 'Yes') || '</A>
@@ -2045,7 +2045,7 @@ Content-Type: text/plain; charset=UTF-8
 ';
 					END IF;
 					t_temp := t_temp ||
-'    <TD>' || coalesce(l_record.BRSSL_AUDIT_TYPE, 'No');
+'    <TD style="vertical-align:middle">' || coalesce(l_record.BRSSL_AUDIT_TYPE, 'No');
 					IF coalesce(l_record.BRSSL_AUDIT_URL, '') LIKE '%://%' THEN
 						t_temp := t_temp || ':
       <A href="' || l_record.BRSSL_AUDIT_URL || '" target="_blank">' || coalesce(l_record.BRSSL_AUDIT_DATE::text, 'Yes') || '</A>
@@ -2053,7 +2053,7 @@ Content-Type: text/plain; charset=UTF-8
 ';
 					END IF;
 					t_temp := t_temp ||
-'    <TD>' || coalesce(l_record.EVSSL_AUDIT_TYPE, 'No');
+'    <TD style="vertical-align:middle">' || coalesce(l_record.EVSSL_AUDIT_TYPE, 'No');
 					IF coalesce(l_record.EVSSL_AUDIT_URL, '') LIKE '%://%' THEN
 						t_temp := t_temp || ':
       <A href="' || l_record.EVSSL_AUDIT_URL || '" target="_blank">' || coalesce(l_record.EVSSL_AUDIT_DATE::text, 'Yes') || '</A>
@@ -2061,7 +2061,7 @@ Content-Type: text/plain; charset=UTF-8
 ';
 					END IF;
 					t_temp := t_temp ||
-'    <TD>
+'    <TD style="vertical-align:middle">
 ';
 					IF coalesce(l_record.CP_URL, '') != '' THEN
 						t_temp := t_temp ||
@@ -2075,14 +2075,14 @@ Content-Type: text/plain; charset=UTF-8
 					END IF;
 					t_temp := t_temp ||
 '    </TD>
-    <TD>';
+    <TD style="vertical-align:middle">';
 					IF l_record.CCADB_RECORD_ID IS NOT NULL THEN
 						t_temp := t_temp || '<A href="//ccadb.force.com/' || l_record.CCADB_RECORD_ID || '" target="_blank">' || l_record.CCADB_RECORD_ID || '</A>';
 					ELSE
 						t_temp := t_temp || '&nbsp;';
 					END IF;
 					t_temp := t_temp || '</TD>
-    <TD>';
+    <TD style="vertical-align:middle">';
 					IF l_record.INCLUDED_CERTIFICATE_ID IS NULL THEN
 						t_temp := t_temp || coalesce(html_escape(l_record.INCLUDED_CERTIFICATE_OWNER), '&nbsp;');
 					ELSE
