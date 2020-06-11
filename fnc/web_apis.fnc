@@ -1895,6 +1895,10 @@ Content-Type: text/plain; charset=UTF-8
   <TR>
     <TH class="outer">Certificate<BR>Transparency</TH>
     <TD class="outer">
+      <DIV style="overflow-y:scroll;height:100px">
+        <TABLE style="margin-left:0px">
+          <TR>
+            <TD>
 ';
 
 			t_temp := '';
@@ -1917,9 +1921,14 @@ Content-Type: text/plain; charset=UTF-8
   </TR>
 ';
 			END LOOP;
-			IF t_temp != '' THEN
-				t_output := t_output ||
+			IF t_temp = '' THEN
+				t_temp := '  <TR><TD colspan="4">No entries found</TD></TR>';
+			END IF;
+			t_output := t_output ||
 '<TABLE class="options" style="margin-left:0px">
+  <TR>
+    <TD colspan="4" style="border:none"><I>Log entries for this certificate:</I></TD>
+  </TR>
   <TR>
     <TH>Timestamp</TH>
     <TH>Entry #</TH>
@@ -1928,14 +1937,69 @@ Content-Type: text/plain; charset=UTF-8
   </TR>
 ' || t_temp ||
 '</TABLE>
+            </TD>
 ';
-			ELSE
+
+			IF t_caID = coalesce(t_issuerCAID, -1) THEN
 				t_output := t_output ||
-'      No log entries found
+'            <TD style="border:none;width:15px"></TD>
+            <TD>
+';
+				t_temp := '';
+				FOR l_record IN (
+					SELECT ctl.CHROME_INCLUSION_STATUS, ctl.APPLE_INCLUSION_STATUS, ctl.OPERATOR, ctl.URL
+						FROM accepted_roots ar, ct_log ctl
+						WHERE ar.CERTIFICATE_ID = t_certificateID
+							AND ar.CT_LOG_ID = ctl.ID
+							AND ctl.IS_ACTIVE
+						ORDER BY
+							CASE coalesce(ctl.CHROME_INCLUSION_STATUS, '')
+								WHEN 'Usable' THEN 1
+								WHEN '' THEN 3
+								ELSE 2
+							END,
+							CASE coalesce(ctl.APPLE_INCLUSION_STATUS, '')
+								WHEN 'Usable' THEN 1
+								WHEN '' THEN 3
+								ELSE 2
+							END,
+							ctl.OPERATOR, ctl.URL
+				) LOOP
+					t_temp := t_temp ||
+'  <TR>
+    <TD>' || coalesce(l_record.CHROME_INCLUSION_STATUS, '&nbsp;') || '</TD>
+    <TD>' || coalesce(l_record.APPLE_INCLUSION_STATUS, '&nbsp;') || '</TD>
+    <TD>' || coalesce(l_record.OPERATOR, '&nbsp;') || '</TD>
+    <TD>' || l_record.URL || '</TD>
+  </TR>
+';
+				END LOOP;
+				IF t_temp = '' THEN
+					t_temp := '  <TR><TD colspan="4">No logs found</TD></TR>';
+				END IF;
+				t_output := t_output ||
+'<TABLE class="options" style="margin-left:0px">
+  <TR>
+    <TD colspan="4" style="border:none"><I>Active Logs for which this certificate is an Accepted Root Certificate:</I></TD>
+  </TR>
+  <TR>
+    <TH>Chromium Status</TH>
+    <TH>Apple Status</TH>
+    <TH>Log Operator</TH>
+    <TH>Log URL</TH>
+  </TR>
+  ' || t_temp || '
+</TABLE>
+            </TD>
 ';
 			END IF;
+
 			t_output := t_output ||
-'    </TD>
+'            <TD style="border:none;width:15px"></TD>
+          </TR>
+        </TABLE>
+      </DIV>
+    </TD>
   </TR>
 ';
 
