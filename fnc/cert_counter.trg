@@ -35,7 +35,7 @@ BEGIN
 		ELSIF old.ISSUER_CA_ID = new.ISSUER_CA_ID THEN
 			RETURN new;
 		END IF;
-		RAISE EXCEPTION 'Updating ISSUER_CA_ID is not currently permitted because... TODO: Update lint_summarizer to handle "UPDATE lint_cert_issue SET ISSUER_CA_ID = new.ISSUER_CA_ID".';
+
 		UPDATE lint_cert_issue
 			SET ISSUER_CA_ID = new.ISSUER_CA_ID
 			WHERE CERTIFICATE_ID = new.ID;

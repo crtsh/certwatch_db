@@ -435,7 +435,7 @@ CREATE TABLE lint_summary (
 \i linting/lint_summarizer.trg
 
 CREATE TRIGGER lint_summarizer
-	BEFORE INSERT OR DELETE ON lint_cert_issue
+	BEFORE INSERT OR UPDATE OR DELETE ON lint_cert_issue
 	FOR EACH ROW
 	EXECUTE PROCEDURE lint_summarizer();
 
