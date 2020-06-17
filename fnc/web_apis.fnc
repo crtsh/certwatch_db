@@ -269,7 +269,7 @@ BEGIN
 		t_outputType := 'json';
 		t_isJSONOutputSupported := TRUE;
 	ELSIF lower(t_outputType) IN ('revoked-intermediates', 'mozilla-certvalidations', 'mozilla-certvalidations-by-root', 'mozilla-certvalidations-by-owner', 'mozilla-certvalidations-by-version',
-									'mozilla-disclosures', 'mozilla-onecrl', 'microsoft-disclosures', 'ocsp-responders', 'ocsp-response', 'test-websites', 'cert-populations') THEN
+									'mozilla-disclosures', 'mozilla-onecrl', 'microsoft-disclosures', 'ca-issuers', 'ocsp-responders', 'ocsp-response', 'test-websites', 'cert-populations') THEN
 		t_type := lower(t_outputType);
 		t_title := t_type;
 		t_outputType := 'html';
@@ -542,10 +542,16 @@ Content-Type: application/json
 		t_output := t_output ||
 '  <STYLE type="text/css">
 ';
-		IF t_type NOT IN ('mozilla-disclosures', 'microsoft-disclosures', 'ocsp-responders', 'test-websites') THEN
+		IF t_type NOT IN ('mozilla-disclosures', 'microsoft-disclosures', 'ca-issuers', 'ocsp-responders', 'test-websites') THEN
 			t_output := t_output ||
 '    a {
       white-space: nowrap;
+    }
+';
+		ELSIF t_type = 'ca-issuers' THEN
+			t_output := t_output ||
+'    a {
+      word-wrap: break-word;
     }
 ';
 		END IF;
@@ -874,6 +880,7 @@ Content-Type: application/json
                 <A href="/forum">Forum</A>
                 <BR><A href="/cert-populations">Certificate Populations</A>
                 <BR><A href="/revoked-intermediates">Revoked Intermediates</A>
+                <BR><A href="/ca-issuers">CA Issuers</A>
                 <BR><A href="/ocsp-responders">OCSP Responders</A>
                 <BR><A href="/test-websites">Test Websites</A>
               </TD>
@@ -1610,6 +1617,20 @@ Content-Type: text/plain; charset=UTF-8
 
 	ELSIF t_type = 'microsoft-disclosures' THEN
 		t_output := t_output || microsoft_disclosures();
+
+	ELSIF t_type = 'ca-issuers' THEN
+		t_cacheControlMaxAge := -1;
+		t_output := t_output || ca_issuers(
+			coalesce(get_parameter('dir', paramNames, paramValues), 'v'),
+			coalesce(get_parameter('sort', paramNames, paramValues), '2')::integer,
+			get_parameter('rootOwner', paramNames, paramValues),
+			get_parameter('url', paramNames, paramValues),
+			get_parameter('content', paramNames, paramValues),
+			get_parameter('contentType', paramNames, paramValues),
+			get_parameter('trustedby', paramNames, paramValues),
+			get_parameter('trustedfor', paramNames, paramValues),
+			get_parameter('trustedexclude', paramNames, paramValues)
+		);
 
 	ELSIF t_type = 'ocsp-responders' THEN
 		t_cacheControlMaxAge := -1;

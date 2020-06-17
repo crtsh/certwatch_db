@@ -11,6 +11,7 @@
 0 * * * *	~/restart_app_monitor.sh ~/certwatch/ct_monitor/bin/ct_monitor
 0 * * * *	~/restart_app_monitor.sh ~/certwatch/crl_monitor/bin/crl_monitor
 0 * * * *	~/restart_app_monitor.sh ~/certwatch/ocsp_monitor/bin/ocsp_monitor
+0 * * * *	~/restart_app_monitor.sh ~/certwatch/caissuer_monitor/bin/caissuer_monitor
 0 * * * *	~/app_monitor.sh ~/certwatch/jobs/regular_maintenance.sh
 0 * * * *	~/app_monitor.sh ~/certwatch/jobs/update_browser_revocations.sh
 0 * * * *	~/app_monitor.sh ~/certwatch/ccadb/update_caowner_information.sh

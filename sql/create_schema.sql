@@ -265,6 +265,7 @@ CREATE TABLE ca_issuer (
 	CA_CERTIFICATE_IDS		bigint[],
 	FIRST_CERTIFICATE_ID	bigint,
 	IS_ACTIVE				boolean,
+	CONTENT_TYPE			text,
 	CONSTRAINT cais_pk
 		PRIMARY KEY (CA_ID, URL),
 	CONSTRAINT cais_ca_fk
@@ -960,6 +961,9 @@ GRANT SELECT ON crl_revoked TO crtsh;
 GRANT SELECT ON ocsp_responder TO guest;
 GRANT SELECT ON ocsp_responder TO crtsh;
 
+GRANT SELECT ON ca_issuer TO guest;
+GRANT SELECT ON ca_issuer TO httpd;
+
 GRANT SELECT ON ct_log TO guest;
 GRANT SELECT ON ct_log TO crtsh;
 
@@ -968,6 +972,9 @@ GRANT SELECT ON ct_log_operator TO crtsh;
 
 GRANT SELECT ON ct_log_entry TO guest;
 GRANT SELECT ON ct_log_entry TO crtsh;
+
+GRANT SELECT ON accepted_roots TO guest;
+GRANT SELECT ON accepted_roots TO httpd;
 
 GRANT SELECT ON lint_issue TO guest;
 GRANT SELECT ON lint_issue TO crtsh;
