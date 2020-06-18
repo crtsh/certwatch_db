@@ -383,6 +383,9 @@ BEGIN
 		IF ((l_record.CONTENT_TYPE = 'application/pkix-cert') AND (l_record.RESULT IN ('DER X.509', 'PEM X.509')))
 				OR ((l_record.CONTENT_TYPE = 'application/pkcs7-mime') AND (l_record.RESULT IN ('DER CMS', 'PEM CMS'))) THEN
 			t_temp := t_temp || l_record.CONTENT_TYPE;
+		ELSIF ((l_record.CONTENT_TYPE = 'application/x-x509-ca-cert') AND (l_record.RESULT IN ('DER X.509', 'PEM X.509')))
+				OR ((l_record.CONTENT_TYPE = 'application/x-pkcs7-certificates') AND (l_record.RESULT IN ('DER CMS', 'PEM CMS'))) THEN
+			t_temp := t_temp || '<SPAN class="warning">' || l_record.CONTENT_TYPE || '</SPAN>';
 		ELSE
 			t_temp := t_temp || '<SPAN class="error">' || coalesce(l_record.CONTENT_TYPE, '&nbsp;') || '</SPAN>';
 		END IF;
