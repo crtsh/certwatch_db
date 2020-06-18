@@ -179,13 +179,19 @@ BEGIN
     if (document.getElementById("onecrl").checked) {
       v_form.trustedExclude.value += ",onecrl";
     }
+    if (document.getElementById("crlset").checked) {
+      v_form.trustedExclude.value += ",crlset";
+    }
+    if (document.getElementById("disallowedstl").checked) {
+      v_form.trustedExclude.value += ",disallowedstl";
+    }
     v_form.trustedExclude.value = v_form.trustedExclude.value.substr(1);
     return true;
   }
 </SCRIPT>
 <TABLE>
   <TR>
-    <TH class="outer">Trust Filter</TH>
+    <TH class="outer">Trust Filter<BR><BR><SPAN style="font-size:8pt;font-weight:normal;color:#888888">Configure for <A href="?webpki">WebPKI</A></TH>
     <TD class="outer">
       <TABLE>
         <TR>

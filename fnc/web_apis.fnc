@@ -1620,31 +1620,43 @@ Content-Type: text/plain; charset=UTF-8
 
 	ELSIF t_type = 'ca-issuers' THEN
 		t_cacheControlMaxAge := -1;
-		t_output := t_output || ca_issuers(
-			coalesce(get_parameter('dir', paramNames, paramValues), 'v'),
-			coalesce(get_parameter('sort', paramNames, paramValues), '2')::integer,
-			get_parameter('rootOwner', paramNames, paramValues),
-			get_parameter('url', paramNames, paramValues),
-			get_parameter('content', paramNames, paramValues),
-			get_parameter('contentType', paramNames, paramValues),
-			get_parameter('trustedby', paramNames, paramValues),
-			get_parameter('trustedfor', paramNames, paramValues),
-			get_parameter('trustedexclude', paramNames, paramValues)
-		);
+		IF get_parameter('webpki', paramNames, paramValues) IS NOT NULL THEN
+			t_output := t_output || ca_issuers(
+				'v', 2, NULL, NULL, NULL, NULL, NULL, 'Server Authentication', 'expired,onecrl,crlset,disallowedstl'
+			);
+		ELSE
+			t_output := t_output || ca_issuers(
+				coalesce(get_parameter('dir', paramNames, paramValues), 'v'),
+				coalesce(get_parameter('sort', paramNames, paramValues), '2')::integer,
+				get_parameter('rootOwner', paramNames, paramValues),
+				get_parameter('url', paramNames, paramValues),
+				get_parameter('content', paramNames, paramValues),
+				get_parameter('contentType', paramNames, paramValues),
+				get_parameter('trustedby', paramNames, paramValues),
+				get_parameter('trustedfor', paramNames, paramValues),
+				get_parameter('trustedexclude', paramNames, paramValues)
+			);
+		END IF;
 
 	ELSIF t_type = 'ocsp-responders' THEN
 		t_cacheControlMaxAge := -1;
-		t_output := t_output || ocsp_responders(
-			coalesce(get_parameter('dir', paramNames, paramValues), 'v'),
-			coalesce(get_parameter('sort', paramNames, paramValues), '2')::integer,
-			get_parameter('url', paramNames, paramValues),
-			get_parameter('trustedby', paramNames, paramValues),
-			get_parameter('trustedfor', paramNames, paramValues),
-			get_parameter('trustedexclude', paramNames, paramValues),
-			get_parameter('get', paramNames, paramValues),
-			get_parameter('post', paramNames, paramValues),
-			get_parameter('randomserial', paramNames, paramValues)
-		);
+		IF get_parameter('webpki', paramNames, paramValues) IS NOT NULL THEN
+			t_output := t_output || ocsp_responders(
+				'v', 2, NULL, NULL, 'Server Authentication', 'expired,onecrl,crlset,disallowedstl', NULL, NULL, NULL
+			);
+		ELSE
+			t_output := t_output || ocsp_responders(
+				coalesce(get_parameter('dir', paramNames, paramValues), 'v'),
+				coalesce(get_parameter('sort', paramNames, paramValues), '2')::integer,
+				get_parameter('url', paramNames, paramValues),
+				get_parameter('trustedby', paramNames, paramValues),
+				get_parameter('trustedfor', paramNames, paramValues),
+				get_parameter('trustedexclude', paramNames, paramValues),
+				get_parameter('get', paramNames, paramValues),
+				get_parameter('post', paramNames, paramValues),
+				get_parameter('randomserial', paramNames, paramValues)
+			);
+		END IF;
 
 	ELSIF t_type = 'ocsp-response' THEN
 		t_cacheControlMaxAge := -1;
