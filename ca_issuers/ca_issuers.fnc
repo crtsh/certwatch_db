@@ -378,7 +378,7 @@ BEGIN
 		ELSE
 			t_temp := t_temp || '<SPAN class="error">';
 		END IF;
-		t_temp := t_temp || coalesce(l_record.RESULT, '&nbsp;') || '</SPAN></TD>
+		t_temp := t_temp || coalesce(replace(html_escape(l_record.RESULT), '[redacted]', '<I>[redacted]</I>'), '&nbsp;') || '</SPAN></TD>
     <TD>';
 		IF ((l_record.CONTENT_TYPE = 'application/pkix-cert') AND (l_record.RESULT IN ('DER X.509', 'PEM X.509')))
 				OR ((l_record.CONTENT_TYPE = 'application/pkcs7-mime') AND (l_record.RESULT IN ('DER CMS', 'PEM CMS'))) THEN
