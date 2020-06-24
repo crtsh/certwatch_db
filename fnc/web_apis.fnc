@@ -30,6 +30,8 @@ DECLARE
 		'sha1', 'SHA-1(Certificate)', NULL,
 		'sha256', 'SHA-256(Certificate)', NULL,
 		'asn1', 'Certificate ASN.1', NULL,
+		'graph', 'Certification Graph', NULL,
+		'nodes', 'Graph Nodes', NULL,
 		'pv', 'pv-certificate-viewer', NULL,
 		'ctid', 'CT Entry ID', NULL,
 		'ca', 'CA ID', 'CA Name', NULL,
@@ -126,6 +128,7 @@ DECLARE
 	t_rsaModulus		bytea;
 	t_hasROCAFingerprint	boolean;
 	t_publicKeyProblems	text;
+	t_action			text;
 	t_certType			integer;
 	t_showMozillaDisclosure	boolean;
 	t_ctp				ca_trust_purpose%ROWTYPE;
@@ -202,13 +205,15 @@ BEGIN
 
 			IF t_type = 'Download Certificate' THEN
 				RETURN download_cert(t_value);
-			ELSIF t_type IN ('ID', 'Certificate ASN.1', 'pv-certificate-viewer', 'CA ID') THEN
+			ELSIF t_type IN ('ID', 'Certificate ASN.1', 'Certification Graph', 'pv-certificate-viewer', 'CA ID') THEN
 				BEGIN
 					EXIT WHEN t_value::bigint IS NOT NULL;
 				EXCEPTION
 					WHEN OTHERS THEN
 						NULL;
 				END;
+			ELSIF t_type = 'Graph Nodes' THEN
+				RETURN certification_graph(t_value);
 			ELSIF t_type = 'CT Entry ID' THEN
 				BEGIN
 					IF t_value::bigint IS NOT NULL THEN
@@ -510,6 +515,20 @@ Content-Type: application/json
 				OR ((t_type = 'ocsp-response') AND (coalesce(get_parameter('type', paramNames, paramValues), 'dump') = 'asn1')) THEN
 			t_output := t_output ||
 '  <LINK rel="stylesheet" href="/asn1js/index.css" type="text/css">
+';
+		ELSIF t_type = 'Certification Graph' THEN
+			t_output := t_output ||
+'  <SCRIPT src="//cdn.jsdelivr.net/npm/jquery@3.5.1/dist/jquery.min.js"></SCRIPT>
+  <SCRIPT src="//cdn.jsdelivr.net/npm/cytoscape@3.15.1/dist/cytoscape.min.js"></SCRIPT>
+  <SCRIPT src="//cdn.jsdelivr.net/npm/dagre@0.8.5/dist/dagre.min.js"></SCRIPT>
+  <SCRIPT src="//cdn.jsdelivr.net/npm/cytoscape-dagre@2.2.2/cytoscape-dagre.min.js"></SCRIPT>
+  <STYLE type="text/css">
+    #cy {
+      width: 100%;
+      height: 600px;
+      position: relative;
+    }
+  </STYLE>
 ';
 		ELSIF t_type = 'pv-certificate-viewer' THEN
 			t_output := t_output ||
@@ -1680,6 +1699,7 @@ Content-Type: text/plain; charset=UTF-8
 				'SHA-1(Certificate)',
 				'SHA-256(Certificate)',
 				'Certificate ASN.1',
+				'Certification Graph',
 				'pv-certificate-viewer'
 			)
 			OR (
@@ -1694,7 +1714,7 @@ Content-Type: text/plain; charset=UTF-8
 		t_certSummary := 'Leaf certificate';
 
 		-- Search for a specific Certificate.
-		IF t_type IN ('ID', 'Certificate ASN.1', 'pv-certificate-viewer') THEN
+		IF t_type IN ('ID', 'Certificate ASN.1', 'Certification Graph', 'pv-certificate-viewer') THEN
 			SELECT c.ID, x509_print(c.CERTIFICATE, NULL, 196608), ca.ID, cac.CA_ID,
 					digest(c.CERTIFICATE, 'sha1'::text),
 					digest(c.CERTIFICATE, 'sha256'::text),
@@ -2534,44 +2554,69 @@ Content-Type: text/plain; charset=UTF-8
 ';
 
 		IF t_type = 'Certificate ASN.1' THEN
+			t_action := 'asn1';
 			t_output := t_output ||
-'    <TH class="outer"><A href="?id=' || t_certificateID::text || '">Certificate</A> | ASN.1 | <A href="?pv=' || t_certificateID::text || '">pv</A>
+'    <TH class="outer"><A href="?id=' || t_certificateID::text || '">Certificate</A> | ASN.1 | <A href="?graph=' || t_certificateID::text || '&opt=nometadata">Graph</A> | <A href="?pv=' || t_certificateID::text || '">pv</A>
       <BR><BR><SPAN class="small">Powered by <A href="//lapo.it/asn1js/" target="_blank">asn1js</A><BR>
 ';
-			IF t_showMetadata THEN
-				t_output := t_output ||
-'      <BR><BR><A href="?asn1=' || t_certificateID::text || '&opt=' || t_opt || 'nometadata">Hide metadata</A>
+		ELSIF t_type = 'Certification Graph' THEN
+			t_action := 'graph';
+			t_output := t_output ||
+'    <TH class="outer"><A href="?id=' || t_certificateID::text || '">Certificate</A> | <A href="?asn1=' || t_certificateID::text || '">ASN.1</A> | Graph | <A href="?pv=' || t_certificateID::text || '">pv</A>
+      <BR><BR><SPAN class="small">Powered by <A href="//js.cytoscape.org/" target="_blank">Cytoscape.js</A> <A href="//github.com/cytoscape/cytoscape.js-dagre">and</A> <A href="//github.com/dagrejs/dagre">Dagre</A><BR>
 ';
+		ELSIF t_type = 'pv-certificate-viewer' THEN
+			t_action := 'pv';
+			t_output := t_output ||
+'    <TH class="outer"><A href="?id=' || t_certificateID::text || '">Certificate</A> | <A href="?asn1=' || t_certificateID::text || '">ASN.1</A> | <A href="?graph=' || t_certificateID::text || '&opt=nometadata">Graph</A> | pv
+      <BR><BR><SPAN class="small">Powered by <A href="//github.com/PeculiarVentures/pv-certificates-viewer" target="_blank">pv-certificates-viewer</A><BR>
+';
+		ELSE
+			t_action := 'id';
+			t_output := t_output ||
+'    <TH class="outer">Certificate | <A href="?asn1=' || t_certificateID::text || '">ASN.1</A> | <A href="?graph=' || t_certificateID::text || '&opt=nometadata">Graph</A> | <A href="?pv=' || t_certificateID::text || '">pv</A>
+      <SPAN class="small"><BR>
+';
+		END IF;
+
+		IF t_showMetadata THEN
+			t_output := t_output ||
+'      <BR><BR><A href="?' || t_action || '=' || t_certificateID::text || '&opt=' || t_opt || 'nometadata">Hide metadata</A>
+';
+		ELSE
+			IF t_opt = 'nometadata,' THEN
+				t_temp := '';
 			ELSE
-				IF t_opt = 'nometadata,' THEN
-					t_temp := '';
-				ELSE
-					t_temp := '&opt=' || rtrim(replace(t_opt, 'nometadata,', ''), ',');
-				END IF;
-				t_output := t_output ||
-'      <BR><BR><A href="?asn1=' || t_certificateID::text || t_temp || '">Show metadata</A>
-';
-			END IF;
-			IF NOT t_showCABLint THEN
-				t_output := t_output ||
-'      <BR><BR><A href="?asn1=' || t_certificateID::text || '&opt=' || t_opt || 'cablint">Run cablint</A>
-';
-			END IF;
-			IF NOT t_showX509Lint THEN
-				t_output := t_output ||
-'      <BR><BR><A href="?asn1=' || t_certificateID::text || '&opt=' || t_opt || 'x509lint">Run x509lint</A>
-';
-			END IF;
-			IF NOT t_showZLint THEN
-				t_output := t_output ||
-'      <BR><BR><A href="?asn1=' || t_certificateID::text || '&opt=' || t_opt || 'zlint">Run zlint</A>
-';
+				t_temp := '&opt=' || rtrim(replace(t_opt, 'nometadata,', ''), ',');
 			END IF;
 			t_output := t_output ||
+'      <BR><BR><A href="?' || t_action || '=' || t_certificateID::text || t_temp || '">Show metadata</A>
+';
+		END IF;
+		IF NOT t_showCABLint THEN
+			t_output := t_output ||
+'      <BR><BR><A href="?' || t_action || '=' || t_certificateID::text || '&opt=' || t_opt || 'cablint">Run cablint</A>
+';
+		END IF;
+		IF NOT t_showX509Lint THEN
+			t_output := t_output ||
+'      <BR><BR><A href="?' || t_action || '=' || t_certificateID::text || '&opt=' || t_opt || 'x509lint">Run x509lint</A>
+';
+		END IF;
+		IF NOT t_showZLint THEN
+			t_output := t_output ||
+'      <BR><BR><A href="?' || t_action || '=' || t_certificateID::text || '&opt=' || t_opt || 'zlint">Run zlint</A>
+';
+		END IF;
+		t_output := t_output ||
 '      <BR><BR><BR>Download Certificate: <A href="?d=' || t_certificateID::text || '">PEM</A>
       </SPAN>
     </TH>
-    <TD class="text">
+';
+
+		IF t_type = 'Certificate ASN.1' THEN
+			t_output := t_output ||
+'    <TD class="text">
       <DIV id="dump" style="position:absolute;right:20px;"></DIV>
       <DIV id="tree"></DIV>
       <SCRIPT type="text/javascript" src="/asn1js/base64.js"></SCRIPT>
@@ -2598,46 +2643,90 @@ Content-Type: text/plain; charset=UTF-8
         }
       </SCRIPT>
 ';
+		ELSIF t_type = 'Certification Graph' THEN
+			t_output := t_output ||
+'    <TD style="width:100%">
+      <DIV id="spinner" style="margin:0 auto;width:400px;padding-top:70px;"><IMG src="/spinner.gif" style="display:inline-block" /><SPAN style="font-size:20px;display:inline-block;position:relative;top:-52px;left:30px">Loading...</SPAN></DIV>
+      <BR><DIV id="cy"></DIV>
+      <SCRIPT type="text/javascript">
+$.ajax({
+  dataType: "json",
+  url: "?nodes=' || t_certificateID::text || '",
+  success: function(data) {
+    var cy = window.cy = cytoscape({
+      container: $("#cy"),
 
+      boxSelectionEnabled: true,
+      autounselectify: true,
+      userPanningEnabled: true,
+      userZoomingEnabled: true,
+      fit: true,
+
+      layout: {
+        name: "dagre",
+        rankDir: "TB",
+        stop: function() { document.getElementById("spinner").style.display = "none"; }
+      },
+      style: cytoscape.stylesheet()
+        .selector("node").css({
+          "content": "",
+          "background-color": "data(color)",
+          "color": "#000",
+          "shape": "data(type)",
+          "label": "data(label)",
+          "text-halign": "center",
+          "text-valign": "center",
+          "text-wrap": "wrap",
+          "text-max-width": "50px",
+          "font-family": "Roboto",
+          "font-weight": "400",
+          "font-size": "8pt",
+          "width": "50px",
+          "height": "50px"
+        })
+        .selector(":selected").css({
+          "border-width": 3,
+          "border-color": "#333"
+        })
+        .selector("edge").css({
+          "curve-style": "bezier",
+          "color": "data(color)",
+          "line-color": "data(linecolor)",
+          "target-arrow-color": "data(linecolor)",
+          "target-arrow-shape": "triangle",
+          "arrow-scale": 0.75,
+          "label": "data(label)",
+          "width": 1,
+          "edge-text-rotation": "autorotate",
+          "font-size": "8pt"
+        }),
+      elements: data["elements"],
+    });
+    cy.on("tap", "edge", function(){
+      if (this.data("href")) {
+        try { // your browser may block popups
+          window.open( this.data("href") );
+        } catch(e){ // fall back on url change
+          window.location.href = this.data("href");
+        }
+      }
+    }); 
+    cy.on("tap", "node", function(){
+      if (this.data("href")) {
+        try { // your browser may block popups
+          window.open( this.data("href") );
+        } catch(e){ // fall back on url change
+          window.location.href = this.data("href");
+        }
+      }
+    }); 
+  },
+});
+      </SCRIPT>
+';
 		ELSIF t_type = 'pv-certificate-viewer' THEN
 			t_output := t_output ||
-'    <TH class="outer"><A href="?id=' || t_certificateID::text || '">Certificate</A> | <A href="?asn1=' || t_certificateID::text || '">ASN.1</A> | pv
-      <BR><BR><SPAN class="small">Powered by <A href="//github.com/PeculiarVentures/pv-certificates-viewer" target="_blank">pv-certificates-viewer</A><BR>
-';
-			IF t_showMetadata THEN
-				t_output := t_output ||
-'      <BR><BR><A href="?pv=' || t_certificateID::text || '&opt=' || t_opt || 'nometadata">Hide metadata</A>
-';
-			ELSE
-				IF t_opt = 'nometadata,' THEN
-					t_temp := '';
-				ELSE
-					t_temp := '&opt=' || rtrim(replace(t_opt, 'nometadata,', ''), ',');
-				END IF;
-				t_output := t_output ||
-'      <BR><BR><A href="?pv=' || t_certificateID::text || t_temp || '">Show metadata</A>
-';
-			END IF;
-			IF NOT t_showCABLint THEN
-				t_output := t_output ||
-'      <BR><BR><A href="?pv=' || t_certificateID::text || '&opt=' || t_opt || 'cablint">Run cablint</A>
-';
-			END IF;
-			IF NOT t_showX509Lint THEN
-				t_output := t_output ||
-'      <BR><BR><A href="?pv=' || t_certificateID::text || '&opt=' || t_opt || 'x509lint">Run x509lint</A>
-';
-			END IF;
-			IF NOT t_showZLint THEN
-				t_output := t_output ||
-'      <BR><BR><A href="?pv=' || t_certificateID::text || '&opt=' || t_opt || 'zlint">Run zlint</A>
-';
-			END IF;
-			t_output := t_output ||
-'      <BR><BR><BR>Download Certificate: <A href="?d=' || t_certificateID::text || '">PEM</A>
-      </SPAN>
-    </TH>
-    <TD>
+'    <TD>
       <peculiar-certificate-viewer
         certificate="' || replace(encode(t_certificate, 'base64'), chr(10), '') || '"
         issuer-dn-link="?caid=' || t_issuerCAID::text || '"
@@ -2645,47 +2734,11 @@ Content-Type: text/plain; charset=UTF-8
         subject-key-id-siblings-link="?ski={{subjectKeyId}}"
       />
 ';
-
 		ELSE
 			t_output := t_output ||
-'    <TH class="outer">Certificate | <A href="?asn1=' || t_certificateID::text || '">ASN.1</A> | <A href="?pv=' || t_certificateID::text || '">pv</A>
-      <SPAN class="small"><BR>
-';
-			IF t_showMetadata THEN
-				t_output := t_output ||
-'      <BR><BR><A href="?id=' || t_certificateID::text || '&opt=' || t_opt || 'nometadata">Hide metadata</A>
-';
-			ELSE
-				IF t_opt = 'nometadata,' THEN
-					t_temp := '';
-				ELSE
-					t_temp := '&opt=' || rtrim(replace(t_opt, 'nometadata,', ''), ',');
-				END IF;
-				t_output := t_output ||
-'      <BR><BR><A href="?id=' || t_certificateID::text || t_temp || '">Show metadata</A>
-';
-			END IF;
-			IF NOT t_showCABLint THEN
-				t_output := t_output ||
-'      <BR><BR><A href="?id=' || t_certificateID::text || '&opt=' || t_opt || 'cablint">Run cablint</A>
-';
-			END IF;
-			IF NOT t_showX509Lint THEN
-				t_output := t_output ||
-'      <BR><BR><A href="?id=' || t_certificateID::text || '&opt=' || t_opt || 'x509lint">Run x509lint</A>
-';
-			END IF;
-			IF NOT t_showZLint THEN
-				t_output := t_output ||
-'      <BR><BR><A href="?id=' || t_certificateID::text || '&opt=' || t_opt || 'zlint">Run zlint</A>
-';
-			END IF;
-			t_output := t_output ||
-'      <BR><BR><BR>Download Certificate: <A href="?d=' || t_certificateID::text || '">PEM</A>
-      </SPAN>
-    </TH>
-    <TD class="text">' || coalesce(t_text, '<I>Not found</I>');
+'    <TD class="text">' || coalesce(t_text, '<I>Not found</I>');
 		END IF;
+
 		t_output := t_output ||
 '    </TD>
   </TR>
