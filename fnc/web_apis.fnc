@@ -1946,7 +1946,7 @@ Content-Type: text/plain; charset=UTF-8
     <TD class="outer">' || t_certSummary || '</TD>
   </TR>
   <TR>
-    <TH class="outer">Certificate<BR>Transparency</TH>
+    <TH class="outer">Certificate Transparency</TH>
     <TD class="outer">
       <DIV style="overflow-y:scroll;height:100px">
         <TABLE style="margin-left:0px">
@@ -2388,13 +2388,19 @@ Content-Type: text/plain; charset=UTF-8
 
 		t_output := t_output ||
 '  <TR>
-    <TH class="outer">SHA-256(Certificate)</TH>
-    <TD class="outer"><A href="//censys.io/certificates/' || coalesce(lower(encode(t_certificateSHA256, 'hex')), '') || '">'
+    <TH class="outer">Certificate Fingerprints</TH>
+    <TD class="outer">
+      <TABLE class="options" style="margin-left:0px">
+        <TR>
+          <TH>SHA-256</TH>
+          <TD><A href="//censys.io/certificates/' || coalesce(lower(encode(t_certificateSHA256, 'hex')), '') || '">'
 						|| coalesce(upper(encode(t_certificateSHA256, 'hex')), '<I>Not found</I>') || '</A></TD>
-  </TR>
-  <TR>
-    <TH class="outer">SHA-1(Certificate)</TH>
-    <TD class="outer">' || coalesce(upper(encode(t_certificateSHA1, 'hex')), '<I>Not found</I>') || '</TD>
+          <TD style="width:20px;border:none">&nbsp;</TD>
+          <TH>SHA-1</TH>
+          <TD>' || coalesce(upper(encode(t_certificateSHA1, 'hex')), '<I>Not found</I>') || '</TD>
+        </TR>
+      </TABLE>
+    </TD>
   </TR>
 ';
 
@@ -2556,25 +2562,25 @@ Content-Type: text/plain; charset=UTF-8
 		IF t_type = 'Certificate ASN.1' THEN
 			t_action := 'asn1';
 			t_output := t_output ||
-'    <TH class="outer"><A href="?id=' || t_certificateID::text || '">Certificate</A> | ASN.1 | <A href="?graph=' || t_certificateID::text || '&opt=nometadata">Graph</A> | <A href="?pv=' || t_certificateID::text || '">pv</A>
+'    <TH class="outer" style="white-space:nowrap"><A href="?id=' || t_certificateID::text || '">Certificate</A> | ASN.1 | <A href="?graph=' || t_certificateID::text || '&opt=nometadata">Graph</A> | <A href="?pv=' || t_certificateID::text || '">pv</A>
       <BR><BR><SPAN class="small">Powered by <A href="//lapo.it/asn1js/" target="_blank">asn1js</A><BR>
 ';
 		ELSIF t_type = 'Certification Graph' THEN
 			t_action := 'graph';
 			t_output := t_output ||
-'    <TH class="outer"><A href="?id=' || t_certificateID::text || '">Certificate</A> | <A href="?asn1=' || t_certificateID::text || '">ASN.1</A> | Graph | <A href="?pv=' || t_certificateID::text || '">pv</A>
+'    <TH class="outer" style="white-space:nowrap"><A href="?id=' || t_certificateID::text || '">Certificate</A> | <A href="?asn1=' || t_certificateID::text || '">ASN.1</A> | Graph | <A href="?pv=' || t_certificateID::text || '">pv</A>
       <BR><BR><SPAN class="small">Powered by <A href="//js.cytoscape.org/" target="_blank">Cytoscape.js</A> <A href="//github.com/cytoscape/cytoscape.js-dagre">and</A> <A href="//github.com/dagrejs/dagre">Dagre</A><BR>
 ';
 		ELSIF t_type = 'pv-certificate-viewer' THEN
 			t_action := 'pv';
 			t_output := t_output ||
-'    <TH class="outer"><A href="?id=' || t_certificateID::text || '">Certificate</A> | <A href="?asn1=' || t_certificateID::text || '">ASN.1</A> | <A href="?graph=' || t_certificateID::text || '&opt=nometadata">Graph</A> | pv
+'    <TH class="outer" style="white-space:nowrap"><A href="?id=' || t_certificateID::text || '">Certificate</A> | <A href="?asn1=' || t_certificateID::text || '">ASN.1</A> | <A href="?graph=' || t_certificateID::text || '&opt=nometadata">Graph</A> | pv
       <BR><BR><SPAN class="small">Powered by <A href="//github.com/PeculiarVentures/pv-certificates-viewer" target="_blank">pv-certificates-viewer</A><BR>
 ';
 		ELSE
 			t_action := 'id';
 			t_output := t_output ||
-'    <TH class="outer">Certificate | <A href="?asn1=' || t_certificateID::text || '">ASN.1</A> | <A href="?graph=' || t_certificateID::text || '&opt=nometadata">Graph</A> | <A href="?pv=' || t_certificateID::text || '">pv</A>
+'    <TH class="outer" style="white-space:nowrap">Certificate | <A href="?asn1=' || t_certificateID::text || '">ASN.1</A> | <A href="?graph=' || t_certificateID::text || '&opt=nometadata">Graph</A> | <A href="?pv=' || t_certificateID::text || '">pv</A>
       <SPAN class="small"><BR>
 ';
 		END IF;
