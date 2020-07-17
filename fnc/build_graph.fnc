@@ -61,12 +61,12 @@ BEGIN
 		RETURN;
 	END IF;
 
-	-- Enforce a maximum path length of 5 certificates.
-	IF array_length(certchain_so_far, 1) >= 5 THEN
+	-- Enforce a maximum path length (default: 5 certificates).
+	IF array_length(certchain_so_far, 1) >= max_chain_length THEN
 		RETURN;
 	END IF;
 
-	-- Avoid (too many) cross-certification loops!
+	-- Avoid cross-certification loops!
 	IF (cachain_so_far IS NOT NULL) AND (cachain_so_far @> ARRAY[t_issuerCAID]) THEN
 		IF array_length(cachain_so_far, 1) - array_length(array_remove(cachain_so_far, t_issuerCAID), 1) > 0 THEN
 			RETURN;
@@ -76,11 +76,11 @@ BEGIN
 
 	-- We have a partial chain, so loop through every matching issuer CA certificate.
 	FOR l_record IN (
-				SELECT cac.CERTIFICATE_ID, cac.CA_ID, c.ISSUER_CA_ID
+				SELECT cac.CERTIFICATE_ID, cac.CA_ID
 					FROM certificate c, ca, ca_certificate cac
 					WHERE c.ID = cert_id
-						AND c.ISSUER_CA_ID = ca.ID
 						AND c.ISSUER_CA_ID != coalesce(t_caID, -1)
+						AND c.ISSUER_CA_ID = ca.ID
 						AND ca.PUBLIC_KEY != E'\\x00'
 						AND ca.ID = cac.CA_ID
 					ORDER BY ca.ID DESC
@@ -94,7 +94,8 @@ BEGIN
 														ctp.TRUST_CONTEXT_ID)
 					AND ctp.TRUST_PURPOSE_ID = COALESCE(NULLIF(trust_purp_id, 0),
 														ctp.TRUST_PURPOSE_ID)
-					AND ctp.IS_TIME_VALID >= COALESCE(must_be_time_valid, FALSE);
+					AND ctp.IS_TIME_VALID >= COALESCE(must_be_time_valid, FALSE)
+					AND coalesce(ctp.NOTBEFORE_UNTIL, 'infinity'::date) > x509_notBefore(t_certificate);
 			IF (t_count > 0) AND (trust_purp_id >= 100) THEN	-- EV Server Authentication.
 				-- EV Server Authentication must also be trusted for Server Authentication.
 				SELECT COUNT(*)
@@ -111,7 +112,7 @@ BEGIN
 		IF t_count > 0 THEN
 			RETURN QUERY SELECT build_graph(
 				l_record.CERTIFICATE_ID, must_be_time_valid, trust_ctx_id, trust_purp_id, max_chain_length,
-				certchain_so_far || (cert_id::text || ':' || l_record.ISSUER_CA_ID || ';' || t_validity), t_caChainSoFar
+				certchain_so_far || (cert_id::text || ':' || l_record.CA_ID || ';' || t_validity), t_caChainSoFar
 			);
 		END IF;
 	END LOOP;

@@ -35,17 +35,18 @@ DECLARE
 BEGIN
 	INSERT INTO ca_trust_purpose_temp (
 			CA_ID, TRUST_CONTEXT_ID, TRUST_PURPOSE_ID,
+			DISABLED_FROM, NOTBEFORE_UNTIL,
 			SHORTEST_CHAIN, ITERATION_LAST_MODIFIED, PATH_LEN_CONSTRAINT,
 			IS_TIME_VALID
 		)
 		SELECT cac.CA_ID, rtp.TRUST_CONTEXT_ID, rtp.TRUST_PURPOSE_ID,
+				max(coalesce(DISABLED_FROM, 'infinity'::timestamp)), max(coalesce(NOTBEFORE_UNTIL, 'infinity'::timestamp)),
 				1, 0, 999,
 				(now() AT TIME ZONE 'UTC' BETWEEN min(x509_notBefore(c.CERTIFICATE)) AND max(coalesce(x509_notAfter(c.CERTIFICATE), 'infinity'::timestamp)))
 			FROM root_trust_purpose rtp, ca_certificate cac, certificate c
 			WHERE rtp.CERTIFICATE_ID = cac.CERTIFICATE_ID
 				AND cac.CERTIFICATE_ID = c.ID
-			GROUP BY cac.CA_ID, rtp.TRUST_CONTEXT_ID,
-					rtp.TRUST_PURPOSE_ID;
+			GROUP BY cac.CA_ID, rtp.TRUST_CONTEXT_ID, rtp.TRUST_PURPOSE_ID;
 	UPDATE ca_trust_purpose_temp
 		SET ALL_CHAINS_TECHNICALLY_CONSTRAINED = FALSE,
 			ALL_CHAINS_REVOKED_IN_SALESFORCE = FALSE,
@@ -58,7 +59,9 @@ BEGIN
 		t_nothingChanged := TRUE;
 
 		FOR l_record IN (
-			SELECT ctp.CA_ID, ctp.TRUST_CONTEXT_ID, ctp.TRUST_PURPOSE_ID, tp.PURPOSE, tp.PURPOSE_OID
+			SELECT ctp.CA_ID, ctp.TRUST_CONTEXT_ID, ctp.TRUST_PURPOSE_ID,
+					ctp.DISABLED_FROM, ctp.NOTBEFORE_UNTIL,
+					tp.PURPOSE, tp.PURPOSE_OID
 				FROM ca_trust_purpose_temp ctp, trust_purpose tp
 				WHERE ctp.ITERATION_LAST_MODIFIED = t_iteration - 1
 					AND ctp.TRUST_PURPOSE_ID = tp.ID
@@ -128,6 +131,8 @@ BEGIN
 					t_ctp_new.ALL_CHAINS_REVOKED_VIA_CRLSET := NULL;
 					t_ctp_new.ALL_CHAINS_REVOKED_VIA_ONECRL := NULL;
 					t_ctp_new.ALL_CHAINS_REVOKED_VIA_DISALLOWEDSTL := NULL;
+					t_ctp_new.DISABLED_FROM := NULL;
+					t_ctp_new.NOTBEFORE_UNTIL := NULL;
 				END IF;
 
 				t_ctp_new.PATH_LEN_CONSTRAINT := greatest(
@@ -197,6 +202,9 @@ BEGIN
 							(t_count > 0)
 						)
 					);
+
+					t_ctp_new.DISABLED_FROM := greatest(t_ctp_new.DISABLED_FROM, t_ctp_parent.DISABLED_FROM);
+					t_ctp_new.NOTBEFORE_UNTIL := greatest(t_ctp_new.NOTBEFORE_UNTIL, t_ctp_parent.NOTBEFORE_UNTIL);
 				END IF;
 
 				IF t_ctp_new.CA_ID IS NULL THEN
@@ -206,14 +214,16 @@ BEGIN
 							SHORTEST_CHAIN, ITERATION_LAST_MODIFIED, PATH_LEN_CONSTRAINT,
 							IS_TIME_VALID, ALL_CHAINS_TECHNICALLY_CONSTRAINED,
 							ALL_CHAINS_REVOKED_IN_SALESFORCE, ALL_CHAINS_REVOKED_VIA_ONECRL,
-							ALL_CHAINS_REVOKED_VIA_CRLSET, ALL_CHAINS_REVOKED_VIA_DISALLOWEDSTL
+							ALL_CHAINS_REVOKED_VIA_CRLSET, ALL_CHAINS_REVOKED_VIA_DISALLOWEDSTL,
+							DISABLED_FROM, NOTBEFORE_UNTIL
 						)
 						VALUES (
 							t_caID, l_record.TRUST_CONTEXT_ID, l_record.TRUST_PURPOSE_ID,
 							t_iteration + 1, t_iteration, t_ctp_new.PATH_LEN_CONSTRAINT,
 							t_ctp_new.IS_TIME_VALID, t_ctp_new.ALL_CHAINS_TECHNICALLY_CONSTRAINED,
 							t_ctp_new.ALL_CHAINS_REVOKED_IN_SALESFORCE, t_ctp_new.ALL_CHAINS_REVOKED_VIA_ONECRL,
-							t_ctp_new.ALL_CHAINS_REVOKED_VIA_CRLSET, t_ctp_new.ALL_CHAINS_REVOKED_VIA_DISALLOWEDSTL
+							t_ctp_new.ALL_CHAINS_REVOKED_VIA_CRLSET, t_ctp_new.ALL_CHAINS_REVOKED_VIA_DISALLOWEDSTL,
+							t_ctp_new.DISABLED_FROM, t_ctp_new.NOTBEFORE_UNTIL
 						);
 				ELSE
 					IF t_ctp_old <> t_ctp_new THEN
@@ -226,7 +236,9 @@ BEGIN
 								ALL_CHAINS_REVOKED_IN_SALESFORCE = t_ctp_new.ALL_CHAINS_REVOKED_IN_SALESFORCE,
 								ALL_CHAINS_REVOKED_VIA_ONECRL = t_ctp_new.ALL_CHAINS_REVOKED_VIA_ONECRL,
 								ALL_CHAINS_REVOKED_VIA_CRLSET = t_ctp_new.ALL_CHAINS_REVOKED_VIA_CRLSET,
-								ALL_CHAINS_REVOKED_VIA_DISALLOWEDSTL = t_ctp_new.ALL_CHAINS_REVOKED_VIA_DISALLOWEDSTL
+								ALL_CHAINS_REVOKED_VIA_DISALLOWEDSTL = t_ctp_new.ALL_CHAINS_REVOKED_VIA_DISALLOWEDSTL,
+								DISABLED_FROM = t_ctp_new.DISABLED_FROM,
+								NOTBEFORE_UNTIL = t_ctp_new.NOTBEFORE_UNTIL
 							WHERE CA_ID = t_caID
 								AND TRUST_CONTEXT_ID = l_record.TRUST_CONTEXT_ID
 								AND TRUST_PURPOSE_ID = l_record.TRUST_PURPOSE_ID;
@@ -238,6 +250,10 @@ BEGIN
 		EXIT WHEN t_nothingChanged;
 		t_iteration := t_iteration + 1;
 	END LOOP;
+
+	UPDATE ca_trust_purpose_temp
+		SET DISABLED_FROM = nullif(DISABLED_FROM, 'infinity'::date),
+			NOTBEFORE_UNTIL = nullif(NOTBEFORE_UNTIL, 'infinity'::date);
 
 	RETURN t_iteration;
 END;

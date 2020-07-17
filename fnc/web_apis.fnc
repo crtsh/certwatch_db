@@ -3245,7 +3245,7 @@ $.ajax({
 			END LOOP;
 
 			t_output := t_output ||
-'          <TH colspan="' || t_count::text || '">Context <SPAN class="small">(Version)</SPAN> <SPAN style="vertical-align:super;font-size:70%;color:#33A8FF">Shortest Path</SPAN></TH>
+'          <TH colspan="' || t_count::text || '">Context <SPAN class="small">(Version)</SPAN> <SPAN style="vertical-align:super;font-size:70%"><FONT style="color:#33A8FF">Shortest Path</FONT> &nbsp;<FONT style="color:#9100FF">Disabled From</FONT> &nbsp;<FONT style="color:#FF9100">NotBefore Until</FONT></SPAN></TH>
         </TR>
         <TR>
 ';
@@ -3262,7 +3262,9 @@ $.ajax({
 								ctp.ALL_CHAINS_REVOKED_VIA_ONECRL,
 								ctp.ALL_CHAINS_REVOKED_VIA_CRLSET,
 								ctp.ALL_CHAINS_REVOKED_VIA_DISALLOWEDSTL,
-								ctp.ALL_CHAINS_TECHNICALLY_CONSTRAINED
+								ctp.ALL_CHAINS_TECHNICALLY_CONSTRAINED,
+								ctp.DISABLED_FROM,
+								ctp.NOTBEFORE_UNTIL
 							FROM (SELECT tc.DISPLAY_ORDER CTX_DISPLAY_ORDER,
 											tc.ID TRUST_CONTEXT_ID,
 											tp.ID TRUST_PURPOSE_ID,
@@ -3341,6 +3343,12 @@ $.ajax({
 				END IF;
 				IF l_record.SHORTEST_CHAIN IS NOT NULL THEN
 					t_text := t_text || ' <SPAN style="vertical-align:super;font-size:70%;color:#33A8FF">' || l_record.SHORTEST_CHAIN || '</SPAN>';
+				END IF;
+				IF l_record.DISABLED_FROM IS NOT NULL THEN
+					t_text := t_text || '<BR><SPAN style="font-size:70%;color:#9100FF">' || l_record.DISABLED_FROM::date || '</SPAN>';
+				END IF;
+				IF l_record.NOTBEFORE_UNTIL IS NOT NULL THEN
+					t_text := t_text || '<BR><SPAN style="font-size:70%;color:#FF9100">' || l_record.NOTBEFORE_UNTIL::date || '</SPAN>';
 				END IF;
 				t_text := t_text || '</FONT></TD>
 ';
