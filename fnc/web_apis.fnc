@@ -2622,7 +2622,7 @@ Content-Type: text/plain; charset=UTF-8
 
 		IF t_type = 'Certificate ASN.1' THEN
 			t_output := t_output ||
-'    <TD class="text">
+'    <TD class="text" style="width:100%">
       <DIV id="dump" style="position:absolute;right:20px;"></DIV>
       <DIV id="tree"></DIV>
       <SCRIPT type="text/javascript" src="/asn1js/base64.js"></SCRIPT>
