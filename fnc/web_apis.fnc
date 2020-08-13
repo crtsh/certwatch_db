@@ -155,9 +155,9 @@ DECLARE
 	t_caPublicKey		ca.PUBLIC_KEY%TYPE;
 	t_numIssued			ca.NUM_ISSUED%TYPE;
 	t_numExpired		ca.NUM_EXPIRED%TYPE;
-	t_count				integer;
-	t_count2			integer;
-	t_pageNo			integer;
+	t_count				bigint;
+	t_count2			bigint;
+	t_pageNo			bigint;
 	t_resultsPerPage	integer			:= 100;
 	l_record			RECORD;
 	l_record2			RECORD;
@@ -3750,7 +3750,7 @@ $.ajax({
 						'    GROUP BY c.ID, c.ISSUER_CA_ID, SUBJECT_NAME, NOT_BEFORE, NOT_AFTER' || chr(10);
 			END IF;
 			t_query := t_query ||
-						'    ORDER BY NOT_BEFORE DESC, ID DESC';
+						'    ORDER BY NOT_BEFORE DESC';
 			IF t_pageNo IS NOT NULL THEN
 				t_query := t_query || chr(10) ||
 						'    OFFSET ' || ((t_pageNo - 1) * t_resultsPerPage)::text || chr(10) ||
