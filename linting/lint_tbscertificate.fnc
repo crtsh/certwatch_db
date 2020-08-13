@@ -23,12 +23,12 @@ AS $$
 DECLARE
 	t_certificate			bytea;
 	t_header				text;
-	t_certType				integer;
+	t_sigHashAlg			text;
 	t_output				text := '';
 	l_linter				RECORD;
 BEGIN
-	-- Add ASN.1 packaging and a dummy signature to create a valid X.509
-	-- certificate that the linters will parse.
+	-- Add ASN.1 packaging and a dummy signature to create a "valid" X.509
+	-- certificate that x509_print() can process.
 	t_certificate := tbscert || E'\\x3003060100030100';
 	t_header := to_hex(length(t_certificate));
 	IF length(t_header) % 2 > 0 THEN
@@ -38,6 +38,26 @@ BEGIN
 		t_header := to_hex(128 + (length(t_header) / 2)) || t_header;
 	END IF;
 	t_certificate := E'\\x30' || decode(t_header, 'hex') || t_certificate;
+
+	-- cablint checks that an ECDSA signature has a syntactically valid ECDSA-Sig-Value structure (that is, a SEQUENCE containing two INTEGERs), and exits early with a FATAL error if not.
+	-- ZLint checks that an ECDSA signature has roughly the expected length, based on the assumption that ecdsa-with-SHA256 implies a P-256 signing key, and that ecdsa-with-SHA384 implies a P-384 signing key.
+	-- So we need to manufacture fake ECDSA signatures that satisfy these syntax checks.
+	t_sigHashAlg := substring(x509_print(t_certificate), 'Signature Algorithm: ecdsa-with-(.*?)\n');
+	IF t_sigHashAlg IS NOT NULL THEN
+		IF t_sigHashAlg = 'SHA256' THEN
+			t_certificate := tbscert || E'\\x300A06082A8648CE3D040302034900304602210123456789ABCDEF0123456789ABCDEF0123456789ABCDEF0123456789ABCDEF0102210123456789ABCDEF0123456789ABCDEF0123456789ABCDEF0123456789ABCDEF01';
+		ELSIF t_sigHashAlg = 'SHA384' THEN
+			t_certificate := tbscert || E'\\x300A06082A8648CE3D040303036900306602310123456789ABCDEF0123456789ABCDEF0123456789ABCDEF0123456789ABCDEF0123456789ABCDEF0123456789ABCDEF0102310123456789ABCDEF0123456789ABCDEF0123456789ABCDEF0123456789ABCDEF0123456789ABCDEF0123456789ABCDEF01';
+		END IF;
+		t_header := to_hex(length(t_certificate));
+		IF length(t_header) % 2 > 0 THEN
+			t_header := '0' || t_header;
+		END IF;
+		IF length(t_header) > 2 THEN
+			t_header := to_hex(128 + (length(t_header) / 2)) || t_header;
+		END IF;
+		t_certificate := E'\\x30' || decode(t_header, 'hex') || t_certificate;
+	END IF;
 
 	RETURN lint_certificate(t_certificate, TRUE);
 END;

@@ -1291,7 +1291,7 @@ Content-Type: application/json
   <BR><BR>Pick a file or Paste a base64 encoded TBSCertificate, then press "Lint":
   <BR><BR><INPUT type="file" id="fil" onchange="handleFiles(this.files)" />
   <BR><BR><FORM method="post" name="form1">
-    <TEXTAREA name="b64tbscert" rows=25 cols=64></TEXTAREA>
+    <TEXTAREA name="b64tbscert" rows=25 cols=65></TEXTAREA>
     <BR><BR><INPUT type="submit" class="button" value="Lint">
   </FORM>';
 		ELSE
@@ -1324,7 +1324,7 @@ Content-Type: text/plain; charset=UTF-8
   <BR><BR>Pick a file or Paste a base64 encoded Certificate, then press "Lint":
   <BR><BR><INPUT type="file" id="fil" onchange="handleFiles(this.files)" />
   <BR><BR><FORM method="post" name="form1">
-    <TEXTAREA name="b64cert" rows=25 cols=64></TEXTAREA>
+    <TEXTAREA name="b64cert" rows=25 cols=65></TEXTAREA>
     <BR><BR><INPUT type="submit" class="button" value="Lint">
   </FORM>';
 		ELSE
