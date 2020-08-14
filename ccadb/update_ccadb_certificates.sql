@@ -498,13 +498,13 @@ UPDATE ccadb_certificate_temp cct
 			WHEN 'Undisclosed' THEN 'Expired'::disclosure_status_type
 			WHEN 'Disclosed' THEN 'DisclosedButExpired'::disclosure_status_type
 			WHEN 'Revoked' THEN 'RevokedButExpired'::disclosure_status_type
-			WHEN 'ParentRevoked' THEN 'RevokedButExpired'::disclosure_status_type
+			ELSE MOZILLA_DISCLOSURE_STATUS
 		END,
 		MICROSOFT_DISCLOSURE_STATUS = CASE MICROSOFT_DISCLOSURE_STATUS
 			WHEN 'Undisclosed' THEN 'Expired'::disclosure_status_type
 			WHEN 'Disclosed' THEN 'DisclosedButExpired'::disclosure_status_type
 			WHEN 'Revoked' THEN 'RevokedButExpired'::disclosure_status_type
-			WHEN 'ParentRevoked' THEN 'RevokedButExpired'::disclosure_status_type
+			ELSE MICROSOFT_DISCLOSURE_STATUS
 		END
 	FROM certificate c
 	WHERE cct.CERTIFICATE_ID = c.ID
@@ -570,20 +570,19 @@ UPDATE ccadb_certificate_temp cct
 UPDATE ccadb_certificate_temp cct
 	SET MOZILLA_DISCLOSURE_STATUS = CASE MOZILLA_DISCLOSURE_STATUS
 			WHEN 'Revoked' THEN 'RevokedViaOneCRL'::disclosure_status_type
-			WHEN 'ParentRevoked' THEN 'RevokedViaOneCRL'::disclosure_status_type
 			WHEN 'Disclosed' THEN 'DisclosedButInOneCRL'::disclosure_status_type
+			WHEN 'RevokedButExpired' THEN 'RevokedViaOneCRLButExpired'::disclosure_status_type
 		END
 	FROM mozilla_onecrl m
-	WHERE cct.MOZILLA_DISCLOSURE_STATUS IN ('Revoked', 'ParentRevoked', 'Disclosed')
+	WHERE cct.MOZILLA_DISCLOSURE_STATUS IN ('Revoked', 'Disclosed', 'RevokedButExpired')
 		AND cct.CERTIFICATE_ID = m.CERTIFICATE_ID;
 UPDATE ccadb_certificate_temp cct
 	SET MICROSOFT_DISCLOSURE_STATUS = CASE MICROSOFT_DISCLOSURE_STATUS
 			WHEN 'Revoked' THEN 'RevokedViaOneCRL'::disclosure_status_type
-			WHEN 'ParentRevoked' THEN 'RevokedViaOneCRL'::disclosure_status_type
 			WHEN 'Disclosed' THEN 'DisclosedButInOneCRL'::disclosure_status_type
 		END
 	FROM microsoft_disallowedcert md
-	WHERE cct.MICROSOFT_DISCLOSURE_STATUS IN ('Revoked', 'ParentRevoked', 'Disclosed')
+	WHERE cct.MICROSOFT_DISCLOSURE_STATUS IN ('Revoked', 'Disclosed')
 		AND cct.CERTIFICATE_ID = md.CERTIFICATE_ID;
 
 \echo Handle the Technically Constrained cases
@@ -591,9 +590,11 @@ UPDATE ccadb_certificate_temp cct
 	SET MOZILLA_DISCLOSURE_STATUS = CASE MOZILLA_DISCLOSURE_STATUS
 			WHEN 'Undisclosed' THEN 'TechnicallyConstrainedOther'::disclosure_status_type
 			WHEN 'Disclosed' THEN 'DisclosedButConstrained'::disclosure_status_type
+			WHEN 'Revoked' THEN 'RevokedAndTechnicallyConstrained'::disclosure_status_type
+			WHEN 'RevokedViaOneCRL' THEN 'RevokedViaOneCRLButTechnicallyConstrained'::disclosure_status_type
 		END
 	FROM certificate c
-	WHERE cct.MOZILLA_DISCLOSURE_STATUS IN ('Undisclosed', 'Disclosed')
+	WHERE cct.MOZILLA_DISCLOSURE_STATUS IN ('Undisclosed', 'Disclosed', 'Revoked', 'RevokedViaOneCRL')
 		AND coalesce(cct.CERT_RECORD_TYPE, 'Undisclosed') != 'Root Certificate'
 		AND cct.CERTIFICATE_ID = c.ID
 		AND is_technically_constrained(c.CERTIFICATE);
