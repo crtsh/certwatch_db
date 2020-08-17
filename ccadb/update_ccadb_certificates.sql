@@ -577,6 +577,43 @@ UPDATE ccadb_certificate_temp cct
 	WHERE cct.MOZILLA_DISCLOSURE_STATUS IN ('Revoked', 'Disclosed', 'RevokedButExpired')
 		AND cct.CERTIFICATE_ID = m.CERTIFICATE_ID;
 UPDATE ccadb_certificate_temp cct
+	SET MOZILLA_DISCLOSURE_STATUS = 'RevokedAndShouldBeAddedToOneCRL'
+	FROM certificate c
+	WHERE cct.MOZILLA_DISCLOSURE_STATUS = 'Revoked'
+		AND cct.CERTIFICATE_ID = c.ID
+		AND EXISTS (
+			SELECT 1
+				FROM ca_trust_purpose ctp
+				WHERE ctp.CA_ID = c.ISSUER_CA_ID
+					AND ctp.TRUST_CONTEXT_ID = 5
+					AND ctp.TRUST_PURPOSE_ID = 1
+		)
+		AND (
+			x509_isEKUPermitted(c.CERTIFICATE, '1.3.6.1.5.5.7.3.1')
+			OR x509_isEKUPermitted(c.CERTIFICATE, '1.3.6.1.4.1.311.10.3.3')	-- MS SGC.
+			OR x509_isEKUPermitted(c.CERTIFICATE, '2.16.840.1.113730.4.1')
+		);
+UPDATE ccadb_certificate_temp cct
+	SET MOZILLA_DISCLOSURE_STATUS = 'RevokedViaOneCRLButNotNeeded'
+	FROM certificate c
+	WHERE cct.MOZILLA_DISCLOSURE_STATUS = 'RevokedViaOneCRL'
+		AND cct.CERTIFICATE_ID = c.ID
+		AND NOT (
+			EXISTS (
+				SELECT 1
+					FROM ca_trust_purpose ctp
+					WHERE ctp.CA_ID = c.ISSUER_CA_ID
+						AND ctp.TRUST_CONTEXT_ID = 5
+						AND ctp.TRUST_PURPOSE_ID = 1
+			)
+			AND (
+				x509_isEKUPermitted(c.CERTIFICATE, '1.3.6.1.5.5.7.3.1')
+				OR x509_isEKUPermitted(c.CERTIFICATE, '1.3.6.1.4.1.311.10.3.3')	-- MS SGC.
+				OR x509_isEKUPermitted(c.CERTIFICATE, '2.16.840.1.113730.4.1')
+			)
+		);
+
+UPDATE ccadb_certificate_temp cct
 	SET MICROSOFT_DISCLOSURE_STATUS = CASE MICROSOFT_DISCLOSURE_STATUS
 			WHEN 'Revoked' THEN 'RevokedViaOneCRL'::disclosure_status_type
 			WHEN 'Disclosed' THEN 'DisclosedButInOneCRL'::disclosure_status_type
@@ -715,9 +752,11 @@ UPDATE ccadb_certificate_temp cct
 			'RevokedAndTechnicallyConstrained',
 			'ParentRevoked',
 			'RevokedButExpired',
+			'RevokedAndShouldBeAddedToOneCRL',
 			'RevokedViaOneCRL',
 			'RevokedViaOneCRLButExpired',
 			'RevokedViaOneCRLButTechnicallyConstrained',
+			'RevokedViaOneCRLButNotNeeded',
 			'DisclosedButExpired',
 			'DisclosedButNoKnownServerAuthTrustPath',
 			'DisclosedButInOneCRL'

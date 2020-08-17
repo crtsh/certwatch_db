@@ -39,7 +39,9 @@ DECLARE
 	t_revokedAndConstrained			text[];
 	t_revokedViaOneCRLButExpired	text[];
 	t_revokedViaOneCRLButConstrained	text[];
+	t_revokedViaOneCRLButNotNeeded	text[];
 	t_revokedViaOneCRL				text[];
+	t_revokedAndShouldBeAddedToOneCRL	text[];
 	t_revoked						text[];
 	t_disclosedButExpired			text[];
 	t_disclosedButNotTrusted		text[];
@@ -72,8 +74,11 @@ BEGIN
 	'revokedviaonecrlbutexpired', 'Disclosed as Revoked and in OneCRL, but Expired', '#B2CEFE');
 	t_revokedViaOneCRLButConstrained := ccadb_disclosure_group(5, 'RevokedViaOneCRLButTechnicallyConstrained',
 	'revokedviaonecrlbutconstrained', 'Disclosed as Revoked and in OneCRL, but Technically Constrained', '#B2CEFE');
+	t_revokedViaOneCRLButNotNeeded := ccadb_disclosure_group(5, 'RevokedViaOneCRLButNotNeeded',
+	'revokedviaonecrlbutnotneeded', 'Disclosed as Revoked and in OneCRL, but not serverAuth-capable', '#B2CEFE');
 	t_revokedViaOneCRL := ccadb_disclosure_group(5, 'RevokedViaOneCRL', 'revokedviaonecrl', 'Disclosed as Revoked and in OneCRL', '#B2CEFE');
-	t_revoked := ccadb_disclosure_group(5, 'Revoked', 'revoked', 'Disclosed as Revoked, but not currently in OneCRL', '#B2CEFE');
+	t_revoked := ccadb_disclosure_group(5, 'Revoked', 'revoked', 'Disclosed as Revoked and should be added to OneCRL', '#B2CEFE');
+	t_revokedAndShouldBeAddedToOneCRL := ccadb_disclosure_group(5, 'RevokedAndShouldBeAddedToOneCRL', 'revokedandshouldbeaddedtoonecrl', 'Disclosed as Revoked and should be added to OneCRL', '#B2CEFE');
 	t_disclosedButExpired := ccadb_disclosure_group(5, 'DisclosedButExpired', 'disclosedbutexpired', 'Disclosed, but Expired', '#F2A2E8');
 	t_disclosedButNotTrusted := ccadb_disclosure_group(5, 'DisclosedButNoKnownServerAuthTrustPath', 'disclosedbutnottrusted', 'Disclosed, but no unexpired trust paths have been observed', '#F2A2E8');
 	t_disclosedButInOneCRL := ccadb_disclosure_group(5, 'DisclosedButInOneCRL', 'disclosedbutinonecrl', 'Disclosed (as Not Revoked), but Revoked via OneCRL', '#F2A2E8');
@@ -91,7 +96,7 @@ BEGIN
 <TABLE>
   <TR>
     <TH>Category</TH>
-    <TH>Disclosure Required?</TH>
+    <TH>(Further) Disclosure Required?</TH>
     <TH># of CA certs</TH>
   </TR>
   <TR style="background-color:#FE838A">
@@ -153,7 +158,7 @@ BEGIN
   </TR>
   <TR style="background-color:#B2CEFE">
     <TD>Disclosed as Parent Revoked, but not all parent(s) are disclosed as Revoked</TD>
-    <TD>Already disclosed</TD>
+    <TD><B><U>Yes!</U></B></TD>
     <TD><A href="#parentrevokedbutnotallparents">' || t_parentRevokedButNotAllParents[2] || '</A></TD>
   </TR>
   <TR style="background-color:#B2CEFE">
@@ -177,12 +182,22 @@ BEGIN
     <TD><A href="#revokedviaonecrlbutconstrained">' || t_revokedViaOneCRLButConstrained[2] || '</A></TD>
   </TR>
   <TR style="background-color:#B2CEFE">
+    <TD>Disclosed as Revoked and in <A href="/mozilla-onecrl" target="_blank">OneCRL</A>, but not serverAuth-capable</TD>
+    <TD>Already disclosed</TD>
+    <TD><A href="#revokedviaonecrlbutnotneeded">' || t_revokedViaOneCRLButNotNeeded[2] || '</A></TD>
+  </TR>
+  <TR style="background-color:#B2CEFE">
     <TD>Disclosed as Revoked and in <A href="/mozilla-onecrl" target="_blank">OneCRL</A></TD>
     <TD>Already disclosed</TD>
     <TD><A href="#revokedviaonecrl">' || t_revokedViaOneCRL[2] || '</A></TD>
   </TR>
   <TR style="background-color:#B2CEFE">
-    <TD>Disclosed as Revoked (but not in <A href="/mozilla-onecrl" target="_blank">OneCRL</A>)</TD>
+    <TD>Disclosed as Revoked and should be added to <A href="/mozilla-onecrl" target="_blank">OneCRL</A></TD>
+    <TD>Already disclosed</TD>
+    <TD><A href="#revokedandshouldbeaddedtoonecrl">' || t_revokedAndShouldBeAddedToOneCRL[2] || '</A></TD>
+  </TR>
+  <TR style="background-color:#B2CEFE">
+    <TD>Disclosed as Revoked</TD>
     <TD>Already disclosed</TD>
     <TD><A href="#revoked">' || t_revoked[2] || '</A></TD>
   </TR>
@@ -198,7 +213,7 @@ BEGIN
   </TR>
   <TR style="background-color:#F2A2E8">
     <TD>Disclosed (as Not Revoked), but in <A href="/mozilla-onecrl" target="_blank">OneCRL</A></TD>
-    <TD>Already disclosed</TD>
+    <TD><B><U>Yes!</U></B></TD>
     <TD><A href="#disclosedbutinonecrl">' || t_disclosedButInOneCRL[2] || '</A></TD>
   </TR>
   <TR style="background-color:#F2A2E8">
@@ -213,12 +228,12 @@ BEGIN
   </TR>
   <TR style="background-color:#F2A2E8">
     <TD>Disclosed (as Not Revoked), but Revoked via CRL</TD>
-    <TD>Already disclosed</TD>
+    <TD><B><U>Yes!</U></B></TD>
     <TD><A href="#disclosedbutincrl">' || t_disclosedButInCRL[2] || '</A></TD>
   </TR>
   <TR style="background-color:#F2A2E8">
     <TD>Disclosed (as Not Revoked) and "Unrevoked" from CRL</TD>
-    <TD>Already disclosed</TD>
+    <TD><B><U>Yes!</U></B></TD>
     <TD><A href="#disclosedandunrevokedfromcrl">' || t_disclosedAndUnrevokedFromCRL[2] || '</A></TD>
   </TR>
   <TR style="background-color:#F2A2E8">
@@ -252,7 +267,9 @@ BEGIN
 		|| t_revokedAndConstrained[1]
 		|| t_revokedViaOneCRLButExpired[1]
 		|| t_revokedViaOneCRLButConstrained[1]
+		|| t_revokedViaOneCRLButNotNeeded[1]
 		|| t_revokedViaOneCRL[1]
+		|| t_revokedAndShouldBeAddedToOneCRL[1]
 		|| t_revoked[1]
 		|| t_disclosedButExpired[1]
 		|| t_disclosedButNotTrusted[1]
