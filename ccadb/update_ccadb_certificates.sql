@@ -699,6 +699,39 @@ UPDATE ccadb_certificate_temp cct
 					AND ctp.IS_TIME_VALID
 		);
 
+\echo ParentRevoked -> ParentRevokedButNotAllParents
+UPDATE ccadb_certificate_temp cct
+	SET MOZILLA_DISCLOSURE_STATUS = 'ParentRevokedButNotAllParents'
+	FROM certificate c, ca_certificate cac, ccadb_certificate cc2
+	WHERE cct.MOZILLA_DISCLOSURE_STATUS = 'ParentRevoked'
+		AND cct.CERTIFICATE_ID = c.ID
+		AND c.ISSUER_CA_ID = cac.CA_ID
+		AND cac.CERTIFICATE_ID = cc2.CERTIFICATE_ID
+		AND cc2.MOZILLA_DISCLOSURE_STATUS NOT IN (
+			'AllServerAuthPathsRevoked',
+			'NoKnownServerAuthTrustPath',
+			'Expired',
+			'Revoked',
+			'RevokedAndTechnicallyConstrained',
+			'ParentRevoked',
+			'RevokedButExpired',
+			'RevokedViaOneCRL',
+			'RevokedViaOneCRLButExpired',
+			'RevokedViaOneCRLButTechnicallyConstrained',
+			'DisclosedButExpired',
+			'DisclosedButNoKnownServerAuthTrustPath',
+			'DisclosedButInOneCRL'
+		)
+		AND NOT (
+			coalesce(cc2.CERT_RECORD_TYPE, '') = 'Root Certificate'
+			AND NOT EXISTS (
+				SELECT 1
+					FROM root_trust_purpose rtp
+					WHERE cc2.CERTIFICATE_ID = rtp.CERTIFICATE_ID
+						AND rtp.TRUST_CONTEXT_ID = 5
+			)
+		);
+
 \echo Disclosed -> DisclosureIncomplete
 UPDATE ccadb_certificate_temp cct
 	SET MOZILLA_DISCLOSURE_STATUS = 'DisclosureIncomplete'

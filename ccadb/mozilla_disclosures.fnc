@@ -34,6 +34,7 @@ DECLARE
 	t_constrained					text[];
 	t_constrainedOther				text[];
 	t_parentRevoked					text[];
+	t_parentRevokedButNotAllParents	text[];
 	t_revokedButExpired				text[];
 	t_revokedAndConstrained			text[];
 	t_revokedViaOneCRLButExpired	text[];
@@ -64,6 +65,7 @@ BEGIN
 	t_constrained := ccadb_disclosure_group(5, 'TechnicallyConstrained', 'constrained', 'Technically Constrained (Trusted): Disclosure is not currently required', '#BAED91');
 	t_constrainedOther := ccadb_disclosure_group(5, 'TechnicallyConstrainedOther', 'constrainedother', 'Technically Constrained (Other): Disclosure is not required', '#BAED91');
 	t_parentRevoked := ccadb_disclosure_group(5, 'ParentRevoked', 'parentrevoked', 'Disclosed as Parent Revoked, so probably not in OneCRL', '#B2CEFE');
+	t_parentRevokedButNotAllParents := ccadb_disclosure_group(5, 'ParentRevokedButNotAllParents', 'parentrevokedbutnotallparents', 'Disclosed as Parent Revoked, but not all parent(s) are disclosed as Revoked', '#B2CEFE');
 	t_revokedButExpired := ccadb_disclosure_group(5, 'RevokedButExpired', 'revokedbutexpired', 'Disclosed as Revoked, but Expired', '#B2CEFE');
 	t_revokedAndConstrained := ccadb_disclosure_group(5, 'RevokedAndTechnicallyConstrained', 'revokedandconstrained', 'Disclosed as Revoked and Technically Constrained', '#B2CEFE');
 	t_revokedViaOneCRLButExpired := ccadb_disclosure_group(5, 'RevokedViaOneCRLButExpired',
@@ -148,6 +150,11 @@ BEGIN
     <TD>Disclosed as Parent Revoked (so probably not in <A href="/mozilla-onecrl" target="_blank">OneCRL</A>)</TD>
     <TD>Already disclosed</TD>
     <TD><A href="#parentrevoked">' || t_parentRevoked[2] || '</A></TD>
+  </TR>
+  <TR style="background-color:#B2CEFE">
+    <TD>Disclosed as Parent Revoked, but not all parent(s) are disclosed as Revoked</TD>
+    <TD>Already disclosed</TD>
+    <TD><A href="#parentrevokedbutnotallparents">' || t_parentRevokedButNotAllParents[2] || '</A></TD>
   </TR>
   <TR style="background-color:#B2CEFE">
     <TD>Disclosed as Revoked, but Expired</TD>
@@ -240,6 +247,7 @@ BEGIN
 		|| t_constrained[1]
 		|| t_constrainedOther[1]
 		|| t_parentRevoked[1]
+		|| t_parentRevokedButNotAllParents[1]
 		|| t_revokedButExpired[1]
 		|| t_revokedAndConstrained[1]
 		|| t_revokedViaOneCRLButExpired[1]
