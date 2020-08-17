@@ -3771,8 +3771,8 @@ $.ajax({
 					t_text := t_text || '&opt=' || t_linters;
 				END IF;
 				t_text := t_text || '">' || l_record.ID::text || '</A></TD>
-    <TD style="white-space:nowrap">' || to_char(l_record.NOT_BEFORE, 'YYYY-MM-DD') || '</TD>
-    <TD style="white-space:nowrap">' || to_char(l_record.NOT_AFTER, 'YYYY-MM-DD') || '</TD>
+    <TD style="white-space:nowrap">' || coalesce(to_char(l_record.NOT_BEFORE, 'YYYY-MM-DD'), '&nbsp;') || '</TD>
+    <TD style="white-space:nowrap">' || coalesce(to_char(l_record.NOT_AFTER, 'YYYY-MM-DD'), '&nbsp;') || '</TD>
 ';
 				IF t_showIdentity THEN
 					t_text := t_text ||
@@ -3780,7 +3780,7 @@ $.ajax({
 ';
 				END IF;
 				t_text := t_text ||
-'    <TD>' || html_escape(l_record.SUBJECT_NAME) || '</TD>
+'    <TD>' || coalesce(html_escape(l_record.SUBJECT_NAME), '&nbsp;') || '</TD>
   </TR>
 ';
 			END LOOP;
