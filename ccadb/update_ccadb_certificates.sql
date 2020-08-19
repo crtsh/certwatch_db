@@ -745,12 +745,14 @@ UPDATE ccadb_certificate_temp cct
 		AND c.ISSUER_CA_ID = cac.CA_ID
 		AND cac.CERTIFICATE_ID = cc2.CERTIFICATE_ID
 		AND cc2.MOZILLA_DISCLOSURE_STATUS NOT IN (
+			'TechnicallyConstrained',
 			'AllServerAuthPathsRevoked',
 			'NoKnownServerAuthTrustPath',
 			'Expired',
 			'Revoked',
 			'RevokedAndTechnicallyConstrained',
 			'ParentRevoked',
+			'ParentRevokedButInOneCRL',
 			'RevokedButExpired',
 			'RevokedAndShouldBeAddedToOneCRL',
 			'RevokedViaOneCRL',
@@ -770,6 +772,13 @@ UPDATE ccadb_certificate_temp cct
 						AND rtp.TRUST_CONTEXT_ID = 5
 			)
 		);
+
+\echo ParentRevoked -> ParentRevokedButInOneCRL
+UPDATE ccadb_certificate_temp cct
+	SET MOZILLA_DISCLOSURE_STATUS = 'ParentRevokedButInOneCRL'
+	FROM mozilla_onecrl m
+	WHERE cct.MOZILLA_DISCLOSURE_STATUS = 'ParentRevoked'
+		AND cct.CERTIFICATE_ID = m.CERTIFICATE_ID;
 
 \echo Disclosed -> DisclosureIncomplete
 UPDATE ccadb_certificate_temp cct

@@ -713,6 +713,7 @@ CREATE TYPE disclosure_status_type AS ENUM (
 	'RevokedAndTechnicallyConstrained',
 	'ParentRevoked',
 	'ParentRevokedButNotAllParents',
+	'ParentRevokedButInOneCRL',
 	'RevokedButExpired',
 	'RevokedAndShouldBeAddedToOneCRL',
 	'RevokedViaOneCRL',
