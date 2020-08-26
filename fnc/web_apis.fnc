@@ -149,6 +149,7 @@ DECLARE
 	t_searchProvider	text;
 	t_issuerCAID		certificate.ISSUER_CA_ID%TYPE;
 	t_issuerCAID_table	text;
+	t_commonName_field	text;
 	t_notBefore_field	text;
 	t_notAfter_field	text;
 	t_feedUpdated		timestamp;
@@ -3875,7 +3876,7 @@ $.ajax({
 			t_needMinEntryTimestamp := TRUE;
 
 			t_select :=		'SELECT __issuer_ca_id_table__.ISSUER_CA_ID,' || chr(10) ||
-							'        ca.NAME ISSUER_NAME,' || chr(10) ||
+							'        ca.NAME ISSUER_NAME,__common_name_field__' || chr(10) ||
 							'        __name_value__ NAME_VALUE,' || chr(10);
 			t_from := 		'    FROM ';
 			t_where := '';
@@ -3986,7 +3987,7 @@ $.ajax({
 							'    SELECT min(sub.CERTIFICATE_ID) ID,' || chr(10) ||
 							'           min(sub.ISSUER_CA_ID) ISSUER_CA_ID,' || chr(10) ||
 							'           array_agg(DISTINCT sub.NAME_VALUE) NAME_VALUES,' || chr(10) ||
-							'           x509_subjectName(sub.CERTIFICATE) SUBJECT_NAME,' || chr(10) ||
+							'           x509_commonName(sub.CERTIFICATE) COMMON_NAME,' || chr(10) ||
 							'           x509_notBefore(sub.CERTIFICATE) NOT_BEFORE,' || chr(10) ||
 							'           x509_notAfter(sub.CERTIFICATE) NOT_AFTER' || chr(10) ||
 							'        FROM (SELECT *' || chr(10) ||
@@ -4043,6 +4044,9 @@ $.ajax({
 							')' || chr(10) ||
 							t_select;
 				t_entryTimestamp_field := 'le.ENTRY_TIMESTAMP';
+				IF (coalesce(t_groupBy, '') = 'none') AND (t_type != 'Common Name') THEN
+					t_commonName_field := chr(10) || '        ci.COMMON_NAME,';
+				END IF;
 				t_notBefore_field := 'ci.NOT_BEFORE';
 				t_notAfter_field := 'ci.NOT_AFTER';
 				t_from := t_from || 'ci';
@@ -4102,6 +4106,7 @@ $.ajax({
 			t_query := replace(t_query, '__name_value__', t_nameValue);
 			t_query := replace(t_query, '__cert_id_field__', t_certID_field);
 			t_query := replace(t_query, '__entry_timestamp_field__', t_entryTimestamp_field);
+			t_query := replace(t_query, '__common_name_field__', coalesce(t_commonName_field, ''));
 			t_query := replace(t_query, '__not_before_field__', t_notBefore_field);
 			t_query := replace(t_query, '__not_after_field__', t_notAfter_field);
 
@@ -4176,6 +4181,10 @@ $.ajax({
     <TD style="text-align:center;white-space:nowrap">' || coalesce(to_char(l_record.ENTRY_TIMESTAMP, 'YYYY-MM-DD'), '&nbsp;') || '</TD>
     <TD style="text-align:center;white-space:nowrap">' || to_char(l_record.NOT_BEFORE, 'YYYY-MM-DD') || '</TD>
     <TD style="text-align:center;white-space:nowrap">' || to_char(l_record.NOT_AFTER, 'YYYY-MM-DD');
+						IF t_commonName_field IS NOT NULL THEN
+							t_temp2 := t_temp2 || '</TD>
+    <TD>' || coalesce(html_escape(l_record.COMMON_NAME), '&nbsp;');
+						END IF;
 					ELSIF (l_record.NUM_CERTS = 1)
 							AND (l_record.ID IS NOT NULL) THEN
 						t_temp2 := t_temp2 || '<A href="?id=' || l_record.ID::text || t_opt || '">'
@@ -4308,6 +4317,11 @@ Content-Type: application/atom+xml
 						t_output := t_output ||
 '    </TH>
 ';
+						IF t_commonName_field IS NOT NULL THEN
+							t_output := t_output ||
+'    <TH>Common Name</TH>
+';
+						END IF;
 					ELSE
 						t_output := t_output ||
 '    <TH>
