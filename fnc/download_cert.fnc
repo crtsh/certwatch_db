@@ -21,45 +21,28 @@ CREATE OR REPLACE FUNCTION download_cert(
 ) RETURNS text
 AS $$
 DECLARE
-	t_b64Certificate	text;
-	t_output			text;
+	t_certificate		certificate.CERTIFICATE%TYPE;
 BEGIN
 	IF length(cert_identifier) = 64 THEN
-		SELECT replace(encode(c.CERTIFICATE, 'base64'), chr(10), '')
-			INTO t_b64Certificate
+		SELECT c.CERTIFICATE
+			INTO t_certificate
 			FROM certificate c
 			WHERE digest(c.CERTIFICATE, 'sha256') = decode(cert_identifier, 'hex');
 	ELSIF translate(cert_identifier, '0123456789', '') = '' THEN
-		SELECT replace(encode(c.CERTIFICATE, 'base64'), chr(10), '')
-			INTO t_b64Certificate
+		SELECT c.CERTIFICATE
+			INTO t_certificate
 			FROM certificate c
 			WHERE c.ID = cert_identifier::bigint;
 	END IF;
-	IF t_b64Certificate IS NULL THEN
+	IF t_certificate IS NULL THEN
 		RETURN NULL;
 	END IF;
 
-	t_output :=
+	RETURN
 '[BEGIN_HEADERS]
 Content-Disposition: attachment; filename="' || cert_identifier || '.crt"
 Content-Type: application/pkix-cert
 [END_HEADERS]
-';
-
-	t_output := t_output || '-----BEGIN CERTIFICATE-----' || chr(10);
-
-	WHILE length(t_b64Certificate) > 64 LOOP
-		t_output := t_output || substring(
-			t_b64Certificate from 1 for 64
-		) || chr(10);
-		t_b64Certificate := substring(t_b64Certificate from 65);
-	END LOOP;
-	IF coalesce(t_b64Certificate, '') != '' THEN
-		t_output := t_output || t_b64Certificate || chr(10);
-	END IF;
-
-	t_output := t_output || '-----END CERTIFICATE-----' || chr(10);
-
-	RETURN t_output;
+' || pem_cert(t_certificate);
 END;
 $$ LANGUAGE plpgsql;
