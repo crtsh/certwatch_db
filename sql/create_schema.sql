@@ -415,6 +415,9 @@ CREATE TABLE lint_cert_issue (
 CREATE INDEX lci_c
 	ON lint_cert_issue (CERTIFICATE_ID);
 
+CREATE INDEX lci_li_nbd
+	ON lint_cert_issue (LINT_ISSUE_ID, NOT_BEFORE_DATE);
+
 CREATE TABLE lint_summary (
 	LINT_ISSUE_ID	integer,
 	ISSUER_CA_ID	integer,
