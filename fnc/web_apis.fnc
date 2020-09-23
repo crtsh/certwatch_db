@@ -711,7 +711,7 @@ Content-Type: application/json
   Enter an <B>Identity</B> (Domain Name, Organization Name, etc),
   <BR>a <B>Certificate Fingerprint</B> (SHA-1 or SHA-256) or a <B>crt.sh ID</B>:
   <BR><BR>
-  <FORM name="search_form" method="GET" onsubmit="return (this.q.value != '')">
+  <FORM name="search_form" method="GET" onsubmit="return (this.q.value != '''')">
     <INPUT type="text" class="input" name="q" size="64" maxlength="255">
     <BR><BR><BR>
     <INPUT type="submit" class="button" value="Search">
