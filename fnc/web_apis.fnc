@@ -152,6 +152,7 @@ DECLARE
 	t_commonName_field	text;
 	t_notBefore_field	text;
 	t_notAfter_field	text;
+	t_serialNumber_field	text;
 	t_feedUpdated		timestamp;
 	t_caPublicKey		ca.PUBLIC_KEY%TYPE;
 	t_numIssued			ca.NUM_ISSUED%TYPE;
@@ -3636,7 +3637,8 @@ $.ajax({
 						'       c.ISSUER_CA_ID,' || chr(10) ||
 						'       x509_subjectName(c.CERTIFICATE) SUBJECT_NAME,' || chr(10) ||
 						'       x509_notBefore(c.CERTIFICATE) NOT_BEFORE,' || chr(10) ||
-						'       x509_notAfter(c.CERTIFICATE) NOT_AFTER' || chr(10) ||
+						'       x509_notAfter(c.CERTIFICATE) NOT_AFTER,' || chr(10) ||
+						'       encode(x509_serialNumber(c.CERTIFICATE), ''hex'') SERIAL_NUMBER' || chr(10) ||
 						'    FROM certificate c' || chr(10) ||
 						'    WHERE c.ISSUER_CA_ID = $1::integer' || chr(10);
 				IF t_type = 'Serial Number' THEN
@@ -3661,7 +3663,8 @@ $.ajax({
 						'       c.ISSUER_CA_ID,' || chr(10) ||
 						'       x509_subjectName(c.CERTIFICATE) SUBJECT_NAME,' || chr(10) ||
 						'       x509_notBefore(c.CERTIFICATE) NOT_BEFORE,' || chr(10) ||
-						'       x509_notAfter(c.CERTIFICATE) NOT_AFTER' || chr(10) ||
+						'       x509_notAfter(c.CERTIFICATE) NOT_AFTER,' || chr(10) ||
+						'       encode(x509_serialNumber(c.CERTIFICATE), ''hex'') SERIAL_NUMBER' || chr(10) ||
 						'    FROM certificate c,' || chr(10) ||
 						'         lint_cert_issue lci, lint_issue li' || chr(10) ||
 						'    WHERE c.ISSUER_CA_ID = $1::integer' || chr(10) ||
@@ -3682,7 +3685,8 @@ $.ajax({
 						'           array_agg(DISTINCT sub.NAME_VALUE) NAME_VALUES,' || chr(10) ||
 						'           x509_subjectName(sub.CERTIFICATE) SUBJECT_NAME,' || chr(10) ||
 						'           x509_notBefore(sub.CERTIFICATE) NOT_BEFORE,' || chr(10) ||
-						'           x509_notAfter(sub.CERTIFICATE) NOT_AFTER' || chr(10) ||
+						'           x509_notAfter(sub.CERTIFICATE) NOT_AFTER,' || chr(10) ||
+						'           encode(x509_serialNumber(sub.CERTIFICATE), ''hex'') SERIAL_NUMBER' || chr(10) ||
 						'        FROM (SELECT *' || chr(10) ||
 						'                  FROM certificate_and_identities cai' || chr(10) ||
 						'                  WHERE ' || t_tsqueryFunction || '(''certwatch'', $2) @@ identities(cai.CERTIFICATE)' || chr(10);
@@ -3736,7 +3740,8 @@ $.ajax({
 						'       array_to_string(ci.NAME_VALUES, chr(10)) NAME_VALUE,' || chr(10) ||
 						'       ci.SUBJECT_NAME,' || chr(10) ||
 						'       ci.NOT_BEFORE,' || chr(10) ||
-						'       ci.NOT_AFTER' || chr(10) ||
+						'       ci.NOT_AFTER,' || chr(10) ||
+						'       ci.SERIAL_NUMBER' || chr(10) ||
 						'    FROM ci' || chr(10) ||
 						'    WHERE ci.ISSUER_CA_ID = $1' || chr(10);
 			END IF;
@@ -3885,9 +3890,11 @@ $.ajax({
 							'        __cert_id_field__ ID,' || chr(10) ||
 							'        __entry_timestamp_field__,' || chr(10) ||
 							'        __not_before_field__,' || chr(10) ||
-							'        __not_after_field__';
+							'        __not_after_field__,' || chr(10) ||
+							'        __serial_number_field__';
 				t_notBefore_field := 'x509_notBefore(c.CERTIFICATE) NOT_BEFORE';
 				t_notAfter_field := 'x509_notAfter(c.CERTIFICATE) NOT_AFTER';
+				t_serialNumber_field := 'encode(x509_serialNumber(c.CERTIFICATE), ''hex'') SERIAL_NUMBER';
 
 				t_query :=	'    ORDER BY ';
 				IF t_sort = 0 THEN
@@ -3908,6 +3915,7 @@ $.ajax({
 							'        count(DISTINCT __cert_id_field__) NUM_CERTS';
 				t_notBefore_field := '';
 				t_notAfter_field := '';
+				t_serialNumber_field := '';
 
 				t_query :=	'    GROUP BY __issuer_ca_id_table__.ISSUER_CA_ID, ISSUER_NAME' || chr(10) ||
 							'    ORDER BY ';
@@ -3989,7 +3997,8 @@ $.ajax({
 							'           array_agg(DISTINCT sub.NAME_VALUE) NAME_VALUES,' || chr(10) ||
 							'           x509_commonName(sub.CERTIFICATE) COMMON_NAME,' || chr(10) ||
 							'           x509_notBefore(sub.CERTIFICATE) NOT_BEFORE,' || chr(10) ||
-							'           x509_notAfter(sub.CERTIFICATE) NOT_AFTER' || chr(10) ||
+							'           x509_notAfter(sub.CERTIFICATE) NOT_AFTER,' || chr(10) ||
+							'           encode(x509_serialNumber(sub.CERTIFICATE), ''hex'') SERIAL_NUMBER' || chr(10) ||
 							'        FROM (SELECT *' || chr(10) ||
 							'                  FROM certificate_and_identities cai' || chr(10) ||
 							'                  WHERE ' || t_tsqueryFunction || '(''certwatch'', $1) @@ identities(cai.CERTIFICATE)' || chr(10);
@@ -4049,6 +4058,7 @@ $.ajax({
 				END IF;
 				t_notBefore_field := 'ci.NOT_BEFORE';
 				t_notAfter_field := 'ci.NOT_AFTER';
+				t_serialNumber_field := 'ci.SERIAL_NUMBER';
 				t_from := t_from || 'ci';
 				t_issuerCAID_table := 'ci';
 				t_nameValue := 'array_to_string(ci.NAME_VALUES, chr(10))';
@@ -4109,6 +4119,7 @@ $.ajax({
 			t_query := replace(t_query, '__common_name_field__', coalesce(t_commonName_field, ''));
 			t_query := replace(t_query, '__not_before_field__', t_notBefore_field);
 			t_query := replace(t_query, '__not_after_field__', t_notAfter_field);
+			t_query := replace(t_query, '__serial_number_field__', t_serialNumber_field);
 
 			IF t_outputType = 'json' THEN
 				t_output := t_output || '[';
