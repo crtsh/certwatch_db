@@ -3753,7 +3753,7 @@ $.ajax({
 			END IF;
 			IF lower(t_type) LIKE '%lint' THEN
 				t_query := t_query ||
-						'    GROUP BY c.ID, c.ISSUER_CA_ID, SUBJECT_NAME, NOT_BEFORE, NOT_AFTER' || chr(10);
+						'    GROUP BY c.ID, c.ISSUER_CA_ID, SUBJECT_NAME, NOT_BEFORE, NOT_AFTER, SERIAL_NUMBER' || chr(10);
 			END IF;
 			t_query := t_query ||
 						'    ORDER BY NOT_BEFORE DESC';
