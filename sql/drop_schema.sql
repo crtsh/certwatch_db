@@ -177,7 +177,7 @@ DROP TABLE google_revoked;
 
 DROP TABLE google_crlset_import;
 
-DROP TABLE google_blacklist_import;
+DROP TABLE google_blocklist_import;
 
 DROP TYPE revocation_entry_type;
 

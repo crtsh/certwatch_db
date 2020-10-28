@@ -49,7 +49,7 @@ BEGIN
     <TH>IE/Edge with<BR>disallowedcert.stl</TH>
     <TH>Firefox with<BR>OneCRL</TH>
     <TH>CCADB disclosure</TH>
-    <TH>Chrome with<BR>CRLSet / Blacklist</TH>
+    <TH>Chrome with<BR>CRLSet / Blocklist</TH>
   </TR>
 ';
 

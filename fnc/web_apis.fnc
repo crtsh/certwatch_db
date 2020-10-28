@@ -2334,7 +2334,7 @@ Content-Type: text/plain; charset=UTF-8
           <TD>' || t_temp0 || '</TD>
         </TR>
         <TR>
-          <TD>CRLSet/Blacklist</TD>
+          <TD>CRLSet/Blocklist</TD>
           <TD>Google</TD>
           <TD>' || t_temp || '</TD>
           <TD><SPAN style="color:#888888">n/a</SPAN></TD>
@@ -3328,7 +3328,7 @@ $.ajax({
 				ELSIF l_record.ALL_CHAINS_REVOKED_VIA_ONECRL AND (l_record.TRUST_CONTEXT_ID = 5) THEN
 					t_text := t_text || 'CC0000 style="font-weight:bold">Revoked</FONT><BR><FONT style="font-size:8pt;color:#CC0000">via OneCRL';
 				ELSIF l_record.ALL_CHAINS_REVOKED_VIA_CRLSET AND (l_record.TRUST_CONTEXT_ID = 6) THEN
-					t_text := t_text || 'CC0000 style="font-weight:bold">Revoked</FONT> <FONT style="font-size:8pt;color:#CC0000">via<BR>CRLSet / Blacklist';
+					t_text := t_text || 'CC0000 style="font-weight:bold">Revoked</FONT> <FONT style="font-size:8pt;color:#CC0000">via<BR>CRLSet / Blocklist';
 				ELSIF l_record.ALL_CHAINS_REVOKED_VIA_DISALLOWEDSTL AND (l_record.TRUST_CONTEXT_ID = 1) THEN
 					t_text := t_text || 'CC0000 style="font-weight:bold">Revoked</FONT> <FONT style="font-size:8pt;color:#CC0000">via<BR>disallowedcert.stl';
 				ELSIF (l_record.PURPOSE = 'Server Authentication') AND (l_record.TRUST_CONTEXT_ID = 6) THEN

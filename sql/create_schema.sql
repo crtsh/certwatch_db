@@ -856,7 +856,7 @@ CREATE TYPE revocation_entry_type AS ENUM (
 	'SHA-256(SubjectPublicKeyInfo)'
 );
 
-CREATE TABLE google_blacklist_import (
+CREATE TABLE google_blocklist_import (
 	ENTRY_SHA256	bytea,
 	ENTRY_TYPE		revocation_entry_type,
 	CONSTRAINT gbi_pk

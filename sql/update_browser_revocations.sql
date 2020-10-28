@@ -111,7 +111,7 @@ INSERT INTO google_revoked (CERTIFICATE_ID, ENTRY_TYPE)
 			AND gci.SPKI_SHA256 = digest(x509_publicKey(c.CERTIFICATE), 'sha256')
 	UNION
 	SELECT c.ID, gbi.ENTRY_TYPE
-		FROM google_blacklist_import gbi, certificate c
+		FROM google_blocklist_import gbi, certificate c
 		WHERE ((gbi.ENTRY_TYPE = 'SHA-256(Certificate)') AND (gbi.ENTRY_SHA256 = digest(c.CERTIFICATE, 'sha256')))
 			OR ((gbi.ENTRY_TYPE = 'SHA-256(SubjectPublicKeyInfo)') AND (gbi.ENTRY_SHA256 = digest(x509_publickey(c.CERTIFICATE), 'sha256')));
 
