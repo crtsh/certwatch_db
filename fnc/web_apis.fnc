@@ -3317,6 +3317,7 @@ $.ajax({
 						INTO l_record.ALL_CHAINS_REVOKED_VIA_CRLSET
 						FROM ca_trust_purpose ctp
 						WHERE ctp.CA_ID = t_caID
+							AND ctp.TRUST_PURPOSE_ID = 1
 							AND ctp.ALL_CHAINS_REVOKED_VIA_CRLSET
 						LIMIT 1;
 				END IF;
