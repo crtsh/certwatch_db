@@ -25,7 +25,8 @@ CREATE OR REPLACE FUNCTION ocsp_responders(
 	trustedExclude			text,
 	get						text,
 	post					text,
-	randomserial			text
+	getrandomserial			text,
+	postrandomserial		text
 ) RETURNS text
 AS $$
 DECLARE
@@ -137,11 +138,17 @@ BEGIN
 ';
 		t_params := t_params || '&post=' || urlEncode(post);
 	END IF;
-	IF coalesce(randomserial, '') != '' THEN
+	IF coalesce(getrandomserial, '') != '' THEN
 		t_query := t_query ||
-'		AND orp.RANDOM_SERIAL_RESULT ILIKE ' || quote_literal(randomserial) || '
+'		AND orp.GET_RANDOM_SERIAL_RESULT ILIKE ' || quote_literal(getrandomserial) || '
 ';
-		t_params := t_params || '&randomserial=' || urlEncode(randomserial);
+		t_params := t_params || '&getrandomserial=' || urlEncode(getrandomserial);
+	END IF;
+	IF coalesce(postrandomserial, '') != '' THEN
+		t_query := t_query ||
+'		AND orp.POST_RANDOM_SERIAL_RESULT ILIKE ' || quote_literal(postrandomserial) || '
+';
+		t_params := t_params || '&postrandomserial=' || urlEncode(postrandomserial);
 	END IF;
 	t_query := t_query ||
 '	ORDER BY ' || CASE sort
@@ -153,9 +160,12 @@ BEGIN
 					WHEN 8 THEN 'CASE WHEN length(orp.POST_DUMP) = 0 THEN 1 ELSE 0 END, orp.POST_RESULT' || t_orderBy || ', CA_FRIENDLY_NAME' || t_orderBy || ', orp.URL' || t_orderBy
 					WHEN 9 THEN 'CASE WHEN length(orp.POST_DUMP) = 0 THEN 1 ELSE 0 END, length(orp.POST_DUMP)' || t_orderBy || ', CA_FRIENDLY_NAME' || t_orderBy || ', orp.URL' || t_orderBy
 					WHEN 10 THEN 'CASE WHEN length(orp.POST_DUMP) = 0 THEN 1 ELSE 0 END, orp.POST_DURATION' || t_orderBy || ', CA_FRIENDLY_NAME' || t_orderBy || ', orp.URL' || t_orderBy
-					WHEN 11 THEN 'CASE WHEN length(orp.RANDOM_SERIAL_DUMP) = 0 THEN 1 ELSE 0 END, orp.RANDOM_SERIAL_RESULT' || t_orderBy || ', CA_FRIENDLY_NAME' || t_orderBy || ', orp.URL' || t_orderBy
-					WHEN 12 THEN 'CASE WHEN length(orp.RANDOM_SERIAL_DUMP) = 0 THEN 1 ELSE 0 END, length(orp.RANDOM_SERIAL_DUMP)' || t_orderBy || ', CA_FRIENDLY_NAME' || t_orderBy || ', orp.URL' || t_orderBy
-					WHEN 13 THEN 'CASE WHEN length(orp.RANDOM_SERIAL_DUMP) = 0 THEN 1 ELSE 0 END, orp.RANDOM_SERIAL_DURATION' || t_orderBy || ', CA_FRIENDLY_NAME' || t_orderBy || ', orp.URL' || t_orderBy
+					WHEN 11 THEN 'CASE WHEN length(orp.GET_RANDOM_SERIAL_DUMP) = 0 THEN 1 ELSE 0 END, orp.GET_RANDOM_SERIAL_RESULT' || t_orderBy || ', CA_FRIENDLY_NAME' || t_orderBy || ', orp.URL' || t_orderBy
+					WHEN 12 THEN 'CASE WHEN length(orp.GET_RANDOM_SERIAL_DUMP) = 0 THEN 1 ELSE 0 END, length(orp.GET_RANDOM_SERIAL_DUMP)' || t_orderBy || ', CA_FRIENDLY_NAME' || t_orderBy || ', orp.URL' || t_orderBy
+					WHEN 13 THEN 'CASE WHEN length(orp.GET_RANDOM_SERIAL_DUMP) = 0 THEN 1 ELSE 0 END, orp.GET_RANDOM_SERIAL_DURATION' || t_orderBy || ', CA_FRIENDLY_NAME' || t_orderBy || ', orp.URL' || t_orderBy
+					WHEN 14 THEN 'CASE WHEN length(orp.POST_RANDOM_SERIAL_DUMP) = 0 THEN 1 ELSE 0 END, orp.POST_RANDOM_SERIAL_RESULT' || t_orderBy || ', CA_FRIENDLY_NAME' || t_orderBy || ', orp.URL' || t_orderBy
+					WHEN 15 THEN 'CASE WHEN length(orp.POST_RANDOM_SERIAL_DUMP) = 0 THEN 1 ELSE 0 END, length(orp.POST_RANDOM_SERIAL_DUMP)' || t_orderBy || ', CA_FRIENDLY_NAME' || t_orderBy || ', orp.URL' || t_orderBy
+					WHEN 16 THEN 'CASE WHEN length(orp.POST_RANDOM_SERIAL_DUMP) = 0 THEN 1 ELSE 0 END, orp.POST_RANDOM_SERIAL_DURATION' || t_orderBy || ', CA_FRIENDLY_NAME' || t_orderBy || ', orp.URL' || t_orderBy
 				END;
 
 	IF coalesce(sort::text, '') != '' THEN
@@ -308,8 +318,12 @@ BEGIN
     <TD class="outer"><INPUT style="border:none;background-color:#EFEFEF" type="text" name="post" size="55" value="' || coalesce(html_escape(post), '') || '"></TD>
   </TR>
   <TR>
+    <TH class="outer">GET request for Random Serial</TH>
+    <TD class="outer"><INPUT style="border:none;background-color:#EFEFEF" type="text" name="getrandomserial" size="55" value="' || coalesce(html_escape(getrandomserial), '') || '"></TD>
+  </TR>
+  <TR>
     <TH class="outer">POST request for Random Serial</TH>
-    <TD class="outer"><INPUT style="border:none;background-color:#EFEFEF" type="text" name="randomserial" size="55" value="' || coalesce(html_escape(randomserial), '') || '"></TD>
+    <TD class="outer"><INPUT style="border:none;background-color:#EFEFEF" type="text" name="postrandomserial" size="55" value="' || coalesce(html_escape(postrandomserial), '') || '"></TD>
   </TR>
   <TR>
     <TD class="small" style="text-align:center;vertical-align:middle">(% = wildcard)</TD>
@@ -334,6 +348,7 @@ BEGIN
     <TH rowspan="2">Certificate Used</TH>
     <TH colspan="3">GET request for Certificate</TH>
     <TH colspan="3">POST request for Certificate</TH>
+    <TH colspan="3">GET request for Random Serial</TH>
     <TH colspan="3">POST request for Random Serial</TH>
   </TR>
   <TR>
@@ -379,6 +394,21 @@ BEGIN
 	t_output := t_output || '</TH>
     <TH><A href="?dir=' || t_oppositeDirection || '&sort=13' || t_params || '">ms</A>';
 	IF sort = 13 THEN
+		t_output := t_output || ' ' || t_dirSymbol;
+	END IF;
+	t_output := t_output || '</TH>
+    <TH><A href="?dir=' || t_oppositeDirection || '&sort=14' || t_params || '">Response</A>';
+	IF sort = 14 THEN
+		t_output := t_output || ' ' || t_dirSymbol;
+	END IF;
+	t_output := t_output || '</TH>
+    <TH><A href="?dir=' || t_oppositeDirection || '&sort=15' || t_params || '">B</A>';
+	IF sort = 15 THEN
+		t_output := t_output || ' ' || t_dirSymbol;
+	END IF;
+	t_output := t_output || '</TH>
+    <TH><A href="?dir=' || t_oppositeDirection || '&sort=16' || t_params || '">ms</A>';
+	IF sort = 16 THEN
 		t_output := t_output || ' ' || t_dirSymbol;
 	END IF;
 	t_output := t_output || '</TH>
@@ -450,23 +480,42 @@ BEGIN
     <TD>' || coalesce((l_record.POST_DURATION / 1000000)::text, '&nbsp;') || '</TD>
     <TD>';
 
-		IF l_record.RANDOM_SERIAL_RESULT IS NULL THEN
+		IF l_record.GET_RANDOM_SERIAL_RESULT IS NULL THEN
 			t_temp := t_temp || '<I>Not tested</I>';
 		ELSE
-			IF l_record.RANDOM_SERIAL_RESULT LIKE 'Revoked|%' THEN
-				l_record.RANDOM_SERIAL_RESULT := 'Revoked at ' || substring(l_record.RANDOM_SERIAL_RESULT from 9 for (length(l_record.RANDOM_SERIAL_RESULT) - 10));
+			IF l_record.GET_RANDOM_SERIAL_RESULT LIKE 'Revoked|%' THEN
+				l_record.GET_RANDOM_SERIAL_RESULT := 'Revoked at ' || substring(l_record.GET_RANDOM_SERIAL_RESULT from 9 for (length(l_record.GET_RANDOM_SERIAL_RESULT) - 10));
 			END IF;
-			t_temp := t_temp || '<A href="?randomserial=' || urlEncode(l_record.RANDOM_SERIAL_RESULT) || t_paramsWithSort || t_baseParams || '">' || html_escape(l_record.RANDOM_SERIAL_RESULT) || '</A>';
+			t_temp := t_temp || '<A href="?getrandomserial=' || urlEncode(l_record.GET_RANDOM_SERIAL_RESULT) || t_paramsWithSort || t_baseParams || '">' || html_escape(l_record.GET_RANDOM_SERIAL_RESULT) || '</A>';
 		END IF;
 		t_temp := t_temp || '</TD>
     <TD>';
-		IF coalesce(length(l_record.RANDOM_SERIAL_DUMP), 0) > 0 THEN
-			t_temp := t_temp || '<A href="/ocsp-response?caID=' || l_record.CA_ID::text || '&url=' || urlEncode(l_record.URL) || '&request=randomserial" target="_blank">' || length(l_record.RANDOM_SERIAL_DUMP)::text || '</A>';
+		IF coalesce(length(l_record.GET_RANDOM_SERIAL_DUMP), 0) > 0 THEN
+			t_temp := t_temp || '<A href="/ocsp-response?caID=' || l_record.CA_ID::text || '&url=' || urlEncode(l_record.URL) || '&request=getrandomserial" target="_blank">' || length(l_record.GET_RANDOM_SERIAL_DUMP)::text || '</A>';
 		ELSE
 			t_temp := t_temp || '&nbsp;';
 		END IF;
 		t_temp := t_temp || '</TD>
-    <TD>' || coalesce((l_record.RANDOM_SERIAL_DURATION / 1000000)::text, '&nbsp;') || '</TD>
+    <TD>' || coalesce((l_record.GET_RANDOM_SERIAL_DURATION / 1000000)::text, '&nbsp;') || '</TD>
+    <TD>';
+
+		IF l_record.POST_RANDOM_SERIAL_RESULT IS NULL THEN
+			t_temp := t_temp || '<I>Not tested</I>';
+		ELSE
+			IF l_record.POST_RANDOM_SERIAL_RESULT LIKE 'Revoked|%' THEN
+				l_record.POST_RANDOM_SERIAL_RESULT := 'Revoked at ' || substring(l_record.POST_RANDOM_SERIAL_RESULT from 9 for (length(l_record.POST_RANDOM_SERIAL_RESULT) - 10));
+			END IF;
+			t_temp := t_temp || '<A href="?postrandomserial=' || urlEncode(l_record.POST_RANDOM_SERIAL_RESULT) || t_paramsWithSort || t_baseParams || '">' || html_escape(l_record.POST_RANDOM_SERIAL_RESULT) || '</A>';
+		END IF;
+		t_temp := t_temp || '</TD>
+    <TD>';
+		IF coalesce(length(l_record.POST_RANDOM_SERIAL_DUMP), 0) > 0 THEN
+			t_temp := t_temp || '<A href="/ocsp-response?caID=' || l_record.CA_ID::text || '&url=' || urlEncode(l_record.URL) || '&request=postrandomserial" target="_blank">' || length(l_record.POST_RANDOM_SERIAL_DUMP)::text || '</A>';
+		ELSE
+			t_temp := t_temp || '&nbsp;';
+		END IF;
+		t_temp := t_temp || '</TD>
+    <TD>' || coalesce((l_record.POST_RANDOM_SERIAL_DURATION / 1000000)::text, '&nbsp;') || '</TD>
   </TR>
 ';
 
@@ -480,4 +529,3 @@ BEGIN
 	RETURN t_output;
 END;
 $$ LANGUAGE plpgsql;
-
