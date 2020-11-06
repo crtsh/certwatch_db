@@ -50,7 +50,9 @@ BEGIN
 			CASE lower(request)
 				WHEN 'get' THEN 'GET request'
 				WHEN 'post' THEN 'POST request'
-				WHEN 'randomserial' THEN 'Random Serial Number'
+				WHEN 'getrandomserial' THEN 'GET Random Serial Number'
+				WHEN 'postrandomserial' THEN 'POST Random Serial Number'
+				WHEN 'randomserial' THEN 'POST Random Serial Number'
 				ELSE 'Unrecognized Request Type'
 			END
 		) || '</TD>
@@ -85,8 +87,10 @@ BEGIN
 		t_output := t_output || html_escape(t_responder.GET_RESULT);
 	ELSIF lower(request) = 'post' THEN
 		t_output := t_output || html_escape(t_responder.POST_RESULT);
-	ELSIF lower(request) = 'randomserial' THEN
-		t_output := t_output || html_escape(t_responder.RANDOM_SERIAL_RESULT);
+	ELSIF lower(request) = 'getrandomserial' THEN
+		t_output := t_output || html_escape(t_responder.GET_RANDOM_SERIAL_RESULT);
+	ELSIF lower(request) IN ('postrandomserial', 'randomserial') THEN
+		t_output := t_output || html_escape(t_responder.POST_RANDOM_SERIAL_RESULT);
 	ELSE
 		t_output := t_output || 'Unrecognized Request Type';
 	END IF;
@@ -127,8 +131,10 @@ BEGIN
 		t_dump := t_responder.GET_DUMP;
 	ELSIF lower(request) = 'post' THEN
 		t_dump := t_responder.POST_DUMP;
-	ELSIF lower(request) = 'randomserial' THEN
-		t_dump := t_responder.RANDOM_SERIAL_DUMP;
+	ELSIF lower(request) = 'getrandomserial' THEN
+		t_dump := t_responder.GET_RANDOM_SERIAL_DUMP;
+	ELSIF lower(request) IN ('postrandomserial', 'randomserial') THEN
+		t_dump := t_responder.POST_RANDOM_SERIAL_DUMP;
 	ELSE
 		t_output := t_output || 'Unrecognized Request Type';
 	END IF;
