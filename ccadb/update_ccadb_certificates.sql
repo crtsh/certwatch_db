@@ -48,7 +48,8 @@ CREATE TEMPORARY TABLE ccadb_certificate_import (
 	IS_TECHNICALLY_CONSTRAINED	text,
 	MOZILLA_STATUS				text,
 	MICROSOFT_STATUS			text,
-	SUBORDINATE_CA_OWNER		text
+	SUBORDINATE_CA_OWNER		text,
+	FULL_CRL_URL				text
 ) ON COMMIT DROP;
 
 \COPY ccadb_certificate_import FROM 'ccadb_all_certificate_records.csv' CSV HEADER;
@@ -109,7 +110,8 @@ INSERT INTO ccadb_certificate_temp (
 		MOZILLA_DISCLOSURE_STATUS,
 		MICROSOFT_DISCLOSURE_STATUS,
 		LAST_MOZILLA_DISCLOSURE_STATUS_CHANGE,
-		LAST_MICROSOFT_DISCLOSURE_STATUS_CHANGE
+		LAST_MICROSOFT_DISCLOSURE_STATUS_CHANGE,
+		FULL_CRL_URL
 	)
 	SELECT	c.ID					CERTIFICATE_ID,
 			NULL					PARENT_CERTIFICATE_ID,
@@ -225,7 +227,8 @@ INSERT INTO ccadb_certificate_temp (
 				ELSE 'Disclosed'::disclosure_status_type
 			END MICROSOFT_DISCLOSURE_STATUS,
 			statement_timestamp() AT TIME ZONE 'UTC'	LAST_MOZILLA_DISCLOSURE_STATUS_CHANGE,
-			statement_timestamp() AT TIME ZONE 'UTC'	LAST_MICROSOFT_DISCLOSURE_STATUS_CHANGE
+			statement_timestamp() AT TIME ZONE 'UTC'	LAST_MICROSOFT_DISCLOSURE_STATUS_CHANGE,
+			cci.FULL_CRL_URL
 		FROM ccadb_certificate_import cci
 			LEFT OUTER JOIN certificate c ON (decode(replace(cci.CERT_SHA256, ':', ''), 'hex') = digest(c.CERTIFICATE, 'sha256'));
 
