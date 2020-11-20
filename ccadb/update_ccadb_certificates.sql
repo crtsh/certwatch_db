@@ -1301,6 +1301,23 @@ UPDATE ccadb_certificate_temp cct
 	FROM ccadb_certificate cc
 	WHERE cct.CERT_SHA256 = cc.CERT_SHA256;
 
+INSERT INTO crl (
+		CA_ID, DISTRIBUTION_POINT_URL, NEXT_CHECK_DUE, IS_ACTIVE
+	)
+	SELECT sub.CA_ID, sub.FULL_CRL_URL, now() AT TIME ZONE 'UTC', TRUE
+		FROM (
+			SELECT cac.CA_ID, cct.FULL_CRL_URL
+				FROM ccadb_certificate_temp cct, ca_certificate cac
+				WHERE nullif(cct.FULL_CRL_URL, '') IS NOT NULL
+					AND cct.CERTIFICATE_ID = cac.CERTIFICATE_ID
+					AND NOT EXISTS (
+						SELECT 1
+							FROM crl
+							WHERE crl.CA_ID = cac.CA_ID
+								AND crl.DISTRIBUTION_POINT_URL = cct.FULL_CRL_URL
+					)
+		) sub;
+
 LOCK ccadb_certificate;
 
 TRUNCATE ccadb_certificate;
