@@ -79,7 +79,7 @@ BEGIN
 	t_revokedViaOneCRLButNotNeeded := ccadb_disclosure_group(5, 'RevokedViaOneCRLButNotNeeded',
 	'revokedviaonecrlbutnotneeded', 'Disclosed as Revoked and in OneCRL, but not serverAuth-trusted/capable', '#B2CEFE');
 	t_revokedViaOneCRL := ccadb_disclosure_group(5, 'RevokedViaOneCRL', 'revokedviaonecrl', 'Disclosed as Revoked and in OneCRL', '#B2CEFE');
-	t_revoked := ccadb_disclosure_group(5, 'Revoked', 'revoked', 'Disclosed as Revoked and should be added to OneCRL', '#B2CEFE');
+	t_revoked := ccadb_disclosure_group(5, 'Revoked', 'revoked', 'Disclosed as Revoked', '#B2CEFE');
 	t_revokedAndShouldBeAddedToOneCRL := ccadb_disclosure_group(5, 'RevokedAndShouldBeAddedToOneCRL', 'revokedandshouldbeaddedtoonecrl', 'Disclosed as Revoked and should be added to OneCRL', '#B2CEFE');
 	t_disclosedButExpired := ccadb_disclosure_group(5, 'DisclosedButExpired', 'disclosedbutexpired', 'Disclosed, but Expired', '#F2A2E8');
 	t_disclosedButNotTrusted := ccadb_disclosure_group(5, 'DisclosedButNoKnownServerAuthTrustPath', 'disclosedbutnottrusted', 'Disclosed, but no unexpired trust paths have been observed', '#F2A2E8');
