@@ -1860,6 +1860,17 @@ Content-Type: text/plain; charset=UTF-8
 						|| t_temp || '">Issuer:</A> <SPAN class="small">(CA ID: ' || t_issuerCAID::text || ')</SPAN><BR>'
 			);
 		END IF;
+		IF x509_notAfter(t_certificate) < now() AT TIME ZONE 'UTC' THEN
+			t_text := replace(
+				t_text, '<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Validity<BR>',
+				'<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Validity <SPAN class="small">(Expired)</SPAN><BR>'
+			);
+		ELSIF x509_notBefore(t_certificate) > now() AT TIME ZONE 'UTC' THEN
+			t_text := replace(
+				t_text, '<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Validity<BR>',
+				'<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Validity <SPAN class="small">(Not Yet Valid)</SPAN><BR>'
+			);
+		END IF;
 		IF t_caID IS NOT NULL THEN
 			t_text := replace(
 				t_text, '<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Subject:<BR>',
