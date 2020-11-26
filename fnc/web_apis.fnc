@@ -1675,7 +1675,11 @@ Content-Type: text/plain; charset=UTF-8
 				get_parameter('trustedexclude', paramNames, paramValues),
 				get_parameter('get', paramNames, paramValues),
 				get_parameter('post', paramNames, paramValues),
-				get_parameter('randomserial', paramNames, paramValues)
+				get_parameter('getrandomserial', paramNames, paramValues),
+				coalesce(
+					get_parameter('postrandomserial', paramNames, paramValues),
+					get_parameter('randomserial', paramNames, paramValues)
+				)
 			);
 		END IF;
 
