@@ -96,8 +96,11 @@ CREATE TABLE certificate_2021 PARTITION OF certificate
 CREATE TABLE certificate_2022 PARTITION OF certificate
 	FOR VALUES FROM ('2022-01-01T00:00:00'::timestamp) TO ('2023-01-01T00:00:00'::timestamp);
 
-CREATE TABLE certificate_2023andbeyond PARTITION OF certificate
-	FOR VALUES FROM ('2023-01-01T00:00:00'::timestamp) TO (MAXVALUE);
+CREATE TABLE certificate_2023 PARTITION OF certificate
+	FOR VALUES FROM ('2023-01-01T00:00:00'::timestamp) TO ('2024-01-01T00:00:00'::timestamp);
+
+CREATE TABLE certificate_2024andbeyond PARTITION OF certificate
+	FOR VALUES FROM ('2024-01-01T00:00:00'::timestamp) TO (MAXVALUE);
 
 CREATE INDEX c_id ON certificate (ID);
 
