@@ -812,6 +812,7 @@ UPDATE ccadb_certificate_temp cct
 								OR x509_isEKUPermitted(c.CERTIFICATE, '2.16.840.1.113730.4.1')	-- NS Step-Up.
 							)
 							AND ctp.IS_TIME_VALID
+							AND (NOT ctp.ALL_CHAINS_REVOKED_VIA_ONECRL)
 				)
 				AND (
 					(cct.BRSSL_AUDIT_URL IS NULL)
@@ -836,6 +837,7 @@ UPDATE ccadb_certificate_temp cct
 								OR x509_isEKUPermitted(c.CERTIFICATE, '2.16.840.1.113730.4.1')	-- NS Step-Up.
 							)
 							AND ctp.IS_TIME_VALID
+							AND (NOT ctp.ALL_CHAINS_REVOKED_VIA_ONECRL)
 				)
 				AND (
 					(cct.EVSSL_AUDIT_URL IS NULL)
@@ -874,6 +876,7 @@ UPDATE ccadb_certificate_temp cct
 								OR x509_isEKUPermitted(c.CERTIFICATE, '2.16.840.1.113730.4.1')	-- NS Step-Up.
 							)
 							AND ctp.IS_TIME_VALID
+							AND (NOT ctp.ALL_CHAINS_REVOKED_VIA_DISALLOWEDSTL)
 				)
 				AND (
 					(cct.BRSSL_AUDIT_URL IS NULL)
@@ -898,6 +901,7 @@ UPDATE ccadb_certificate_temp cct
 								OR x509_isEKUPermitted(c.CERTIFICATE, '2.16.840.1.113730.4.1')	-- NS Step-Up.
 							)
 							AND ctp.IS_TIME_VALID
+							AND (NOT ctp.ALL_CHAINS_REVOKED_VIA_DISALLOWEDSTL)
 				)
 				AND (
 					(cct.EVSSL_AUDIT_URL IS NULL)

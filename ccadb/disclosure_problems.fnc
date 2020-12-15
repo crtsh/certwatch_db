@@ -39,7 +39,8 @@ BEGIN
 	SELECT cc.*
 		INTO t_ccadbCertificate
 		FROM ccadb_certificate cc
-		WHERE cc.CERTIFICATE_ID = certificateID;
+		WHERE cc.CERTIFICATE_ID = certificateID
+		ORDER BY cc.CERT_RECORD_TYPE;	-- 'Intermediate Certificate' ahead of 'Root Certificate'.
 
 	IF trustContextID = 5 THEN
 		t_disclosureStatus := t_ccadbCertificate.MOZILLA_DISCLOSURE_STATUS;
@@ -79,6 +80,14 @@ BEGIN
 					x509_isEKUPermitted(c.CERTIFICATE, '1.3.6.1.5.5.7.3.1')
 					OR x509_isEKUPermitted(c.CERTIFICATE, '1.3.6.1.4.1.311.10.3.3')	-- MS SGC.
 					OR x509_isEKUPermitted(c.CERTIFICATE, '2.16.840.1.113730.4.1')	-- NS Step-Up.
+				)
+				AND NOT (
+					(ctp.TRUST_CONTEXT_ID = 1)
+					AND ctp.ALL_CHAINS_REVOKED_VIA_DISALLOWEDSTL
+				)
+				AND NOT (
+					(ctp.TRUST_CONTEXT_ID = 5)
+					AND ctp.ALL_CHAINS_REVOKED_VIA_ONECRL
 				);
 		IF FOUND THEN
 			IF t_ccadbCertificate.BRSSL_AUDIT_URL IS NULL THEN
@@ -110,6 +119,14 @@ BEGIN
 					x509_isEKUPermitted(c.CERTIFICATE, '1.3.6.1.5.5.7.3.1')
 					OR x509_isEKUPermitted(c.CERTIFICATE, '1.3.6.1.4.1.311.10.3.3')	-- MS SGC.
 					OR x509_isEKUPermitted(c.CERTIFICATE, '2.16.840.1.113730.4.1')	-- NS Step-Up.
+				)
+				AND NOT (
+					(ctp.TRUST_CONTEXT_ID = 1)
+					AND ctp.ALL_CHAINS_REVOKED_VIA_DISALLOWEDSTL
+				)
+				AND NOT (
+					(ctp.TRUST_CONTEXT_ID = 5)
+					AND ctp.ALL_CHAINS_REVOKED_VIA_ONECRL
 				);
 		IF FOUND THEN
 			IF t_ccadbCertificate.EVSSL_AUDIT_URL IS NULL THEN
