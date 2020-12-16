@@ -898,7 +898,7 @@ Content-Type: application/json
             <TR>
               <TD>crt.sh</TD>
               <TD>
-                <A href="/forum">Forum</A>
+                <A href="//groups.google.com/g/crtsh">Forum</A>
                 <BR><A href="/cert-populations">Certificate Populations</A>
                 <BR><A href="/revoked-intermediates">Revoked Intermediates</A>
                 <BR><A href="/ca-issuers">CA Issuers</A>
@@ -992,22 +992,8 @@ Content-Type: application/json
 ';
 
 	ELSIF t_type = 'forum' THEN
-		t_output := t_output ||
-' <SPAN class="whiteongrey">Forum</SPAN>
-<BR><BR>
-<IFRAME id="forum_embed"
-  src="javascript:void(0)"
-  scrolling="no"
-  frameborder="0"
-  width="900"
-  height="600">
-</IFRAME>
-<SCRIPT type="text/javascript">
-  document.getElementById(''forum_embed'').src =
-     ''https://groups.google.com/forum/embed/?place=forum/crtsh''
-     + ''&showsearch=true&showpopout=true&showtabs=false''
-     + ''&parenturl='' + encodeURIComponent(window.location.href);
-</SCRIPT>';
+		RETURN
+'<HTML><HEAD><META http-equiv="refresh" content="0;url=https://groups.google.com/g/crtsh"/></HEAD></HTML>';
 
 	ELSIF t_type = 'logs.json' THEN
 		t_temp := coalesce(get_parameter('include', paramNames, paramValues), 'active');
