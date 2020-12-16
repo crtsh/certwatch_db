@@ -1223,6 +1223,33 @@ UPDATE ccadb_certificate_temp cct
 		)
 		AND coalesce(cpcps_variations.NUMBER_OF_CP_CPS_VARIATIONS, 0) > 1;
 
+\echo DisclosureIncomplete, DisclosedWithInconsistentAudit, DisclosedWithInconsistentCPS -> AllServerAuthPathsRevoked
+UPDATE ccadb_certificate_temp cct
+	SET MOZILLA_DISCLOSURE_STATUS = 'AllServerAuthPathsRevoked'
+	FROM certificate c
+	WHERE cct.MOZILLA_DISCLOSURE_STATUS IN ('DisclosureIncomplete', 'DisclosedWithInconsistentAudit', 'DisclosedWithInconsistentCPS')
+		AND cct.CERTIFICATE_ID = c.ID
+		AND NOT EXISTS (
+			SELECT 1
+				FROM ca_trust_purpose ctp
+				WHERE ctp.CA_ID = c.ISSUER_CA_ID
+					AND ctp.TRUST_CONTEXT_ID = 5
+					AND ctp.TRUST_PURPOSE_ID IN (1, 3)
+					AND NOT ctp.ALL_CHAINS_REVOKED_IN_SALESFORCE
+		);
+UPDATE ccadb_certificate_temp cct
+	SET MICROSOFT_DISCLOSURE_STATUS = 'AllServerAuthPathsRevoked'
+	FROM certificate c
+	WHERE cct.MICROSOFT_DISCLOSURE_STATUS IN ('DisclosureIncomplete', 'DisclosedWithInconsistentAudit', 'DisclosedWithInconsistentCPS')
+		AND cct.CERTIFICATE_ID = c.ID
+		AND NOT EXISTS (
+			SELECT 1
+				FROM ca_trust_purpose ctp
+				WHERE ctp.CA_ID = c.ISSUER_CA_ID
+					AND ctp.TRUST_CONTEXT_ID = 1
+					AND NOT ctp.ALL_CHAINS_REVOKED_IN_SALESFORCE
+		);
+
 \echo Disclosed -> DisclosedWithErrors
 UPDATE ccadb_certificate_temp cct
 	SET MOZILLA_DISCLOSURE_STATUS = 'DisclosedWithErrors'
