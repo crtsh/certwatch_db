@@ -25,6 +25,8 @@ DECLARE
 	t_ccadbCertificate		ccadb_certificate%ROWTYPE;
 	t_disclosureStatus		disclosure_status_type;
 	t_problems				text[];
+	t_caOwner1				text;
+	t_caOwner2				text;
 	t_url1					text;
 	t_url2					text;
 	t_type1					text;
@@ -147,12 +149,14 @@ BEGIN
 		END IF;
 
 	ELSIF t_disclosureStatus = 'DisclosedWithInconsistentAudit' THEN
-		SELECT min(coalesce(cc2.STANDARD_AUDIT_URL, '&lt;omitted&gt;')), max(coalesce(cc2.STANDARD_AUDIT_URL, '&lt;omitted&gt;')),
+		SELECT min(coalesce(nullif(cc2.SUBORDINATE_CA_OWNER, ''), cc2.CA_OWNER)), max(coalesce(nullif(cc2.SUBORDINATE_CA_OWNER, ''), cc2.CA_OWNER)),
+				min(coalesce(cc2.STANDARD_AUDIT_URL, '&lt;omitted&gt;')), max(coalesce(cc2.STANDARD_AUDIT_URL, '&lt;omitted&gt;')),
 				min(coalesce(cc2.STANDARD_AUDIT_TYPE, '&lt;omitted&gt;')), max(coalesce(cc2.STANDARD_AUDIT_TYPE, '&lt;omitted&gt;')),
 				min(coalesce(cc2.STANDARD_AUDIT_DATE::text, '&lt;omitted&gt;')), max(coalesce(cc2.STANDARD_AUDIT_DATE::text, '&lt;omitted&gt;')),
 				min(coalesce(cc2.STANDARD_AUDIT_START::text, '&lt;omitted&gt;')), max(coalesce(cc2.STANDARD_AUDIT_START::text, '&lt;omitted&gt;')),
 				min(coalesce(cc2.STANDARD_AUDIT_END::text, '&lt;omitted&gt;')), max(coalesce(cc2.STANDARD_AUDIT_END::text, '&lt;omitted&gt;'))
-			INTO t_url1, t_url2,
+			INTO t_caOwner1, t_caOwner2,
+				t_url1, t_url2,
 				t_type1, t_type2,
 				t_date1, t_date2,
 				t_start1, t_start2,
@@ -172,6 +176,9 @@ BEGIN
 				)
 				AND cac2.CERTIFICATE_ID = cc2.CERTIFICATE_ID
 				AND cc2.CCADB_RECORD_ID IS NOT NULL;	-- Ignore CA certificates not in CCADB (e.g., kernel mode cross-certificates).
+		IF t_caOwner1 != t_caOwner2 THEN
+			t_problems := array_append(t_problems, '"(Subordinate) CA Owner"s: "' || replace(html_escape(t_caOwner1), ' ', '&nbsp;') || '" != "' || replace(html_escape(t_caOwner2), ' ', '&nbsp;') || '"');
+		END IF;
 		IF t_url1 != t_url2 THEN
 			t_problems := array_append(t_problems, '"Standard Audit" URLs: ' || t_url1 || ' != ' || t_url2);
 		END IF;
