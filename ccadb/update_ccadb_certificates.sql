@@ -1421,6 +1421,7 @@ INSERT INTO crl (
 							WHERE crl.CA_ID = cac.CA_ID
 								AND crl.DISTRIBUTION_POINT_URL = cct.FULL_CRL_URL
 					)
+				GROUP BY cac.CA_ID, cct.FULL_CRL_URL
 		) sub;
 
 LOCK ccadb_certificate;
