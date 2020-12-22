@@ -159,7 +159,7 @@ BEGIN
 ';
 			IF disclosureStatus != 'DisclosureIncomplete' THEN
 				t_row := t_row ||
-'      <A href="//ccadb.force.com/_ui/search/ui/UnifiedSearchResults?str=' || encode(t_spki, 'hex') || '" target="_blank">Review this Subject CA''s CCADB records</A><BR>
+'      <A href="//ccadb.force.com/s/global-search/' || encode(t_spki, 'hex') || '" target="_blank">Review this Subject CA''s CCADB records</A><BR>
 ';
 			END IF;
 			t_row := t_row || array_to_string(t_problems, '<BR>') || '
