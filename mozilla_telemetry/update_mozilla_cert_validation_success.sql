@@ -1,5 +1,7 @@
 \timing on
 
+\set ON_ERROR_STOP on
+
 BEGIN WORK;
 
 CREATE TEMPORARY TABLE mozilla_root_hashes_new ( LIKE mozilla_root_hashes INCLUDING INDEXES) ON COMMIT DROP;
@@ -54,7 +56,7 @@ INSERT INTO mozilla_cert_validation_success (
 	SELECT mcvsi.SUBMISSION_DATE, mcvsi.BIN_NUMBER, sum(mcvsi.COUNT), mrh.CERTIFICATE_ID
 		FROM mozilla_cert_validation_success_import mcvsi
 			LEFT OUTER JOIN mozilla_root_hashes mrh ON (mcvsi.BIN_NUMBER = mrh.BIN_NUMBER)
-		WHERE mcvsi.RELEASE = 'release'
+		WHERE mcvsi.RELEASE = 'beta'
 		GROUP BY mcvsi.SUBMISSION_DATE, mcvsi.BIN_NUMBER, mrh.CERTIFICATE_ID;
 
 COMMIT WORK;

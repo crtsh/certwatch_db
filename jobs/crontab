@@ -18,7 +18,7 @@
 5 * * * *	~/app_monitor.sh ~/certwatch/jobs/update_accepted_roots.sh
 
 # Every one day.
-#0 3 * * *	?
+0 3 * * *	~/app_monitor.sh ~/certwatch/mozilla_telemetry/update_mozilla_cert_validation_success.sh
 
 # Every one week.
 #0 3 * * sun	?

@@ -1467,7 +1467,7 @@ Content-Type: text/plain; charset=UTF-8
 		t_output := t_output || '
   <BR><SPAN class="small"><A href="//mzl.la/2nvPgJs" target="_blank">CERT_VALIDATION_SUCCESS_BY_CA telemetry</A> for ';
 		IF t_groupBy IN ('owner', 'root') THEN
-			t_output := t_output || 'all Firefox Release versions';
+			t_output := t_output || 'all Firefox Beta versions';
 		ELSE
 			SELECT get_ca_name_attribute(cac.CA_ID)
 				INTO t_temp2
