@@ -41,6 +41,24 @@ SELECT decode(
 				END,
 			'base64'
 		) SERIAL_NUMBER,
+		decode(
+			o.CERT_ITEM->>'subject'
+				|| CASE length(o.CERT_ITEM->>'subject') % 4
+					WHEN 2 THEN '=='
+					WHEN 3 THEN '='
+					ELSE ''
+				END,
+			'base64'
+		) SUBJECT_NAME,
+		decode(
+			o.CERT_ITEM->>'pubKeyHash'
+				|| CASE length(o.CERT_ITEM->>'pubKeyHash') % 4
+					WHEN 2 THEN '=='
+					WHEN 3 THEN '='
+					ELSE ''
+				END,
+			'base64'
+		) PUB_KEY_HASH,
 		CASE WHEN coalesce((((o.CERT_ITEM->>'details')::json)->>'created'), '') = ''
 			THEN NULL
 			ELSE (((o.CERT_ITEM->>'details')::json)->>'created')::timestamp
@@ -52,13 +70,24 @@ SELECT decode(
 CREATE TEMPORARY TABLE mozilla_onecrl_new ON COMMIT DROP AS
 SELECT c.ID		CERTIFICATE_ID,
 		c.ISSUER_CA_ID,
-		o.*,
+		o.ISSUER_NAME,
+		o.LAST_MODIFIED,
+		o.SERIAL_NUMBER,
+		o.CREATED,
+		o.BUG_URL,
+		o.SUMMARY,
 		x509_name(c.CERTIFICATE, TRUE) SUBJECT_NAME,
 		x509_notAfter(c.CERTIFICATE) NOT_AFTER
 	FROM onecrl_import3 o
 		LEFT OUTER JOIN certificate c ON (
-			o.SERIAL_NUMBER = x509_serialNumber(c.CERTIFICATE)
-			AND o.ISSUER_NAME = x509_name(c.CERTIFICATE, 'f')
+			(
+				o.SERIAL_NUMBER = x509_serialNumber(c.CERTIFICATE)
+				AND o.ISSUER_NAME = x509_name(c.CERTIFICATE, 'f')
+			)
+			OR (
+				o.SUBJECT_NAME = x509_name(c.CERTIFICATE)
+				AND o.PUB_KEY_HASH = digest(x509_publicKey(c.CERTIFICATE), 'sha256')
+			)
 		);
 
 UPDATE mozilla_onecrl_new mon
