@@ -863,7 +863,9 @@ CREATE TABLE microsoft_disallowedcert (
 CREATE TYPE revocation_entry_type AS ENUM (
 	'Serial Number',
 	'SHA-256(Certificate)',
-	'SHA-256(SubjectPublicKeyInfo)'
+	'SHA-256(SubjectPublicKeyInfo)',
+	'Issuer Name, Serial Number',
+	'Subject Name, SHA-256(SubjectPublicKeyInfo)'
 );
 
 CREATE TABLE google_blocklist_import (
@@ -900,6 +902,7 @@ CREATE TABLE mozilla_onecrl (
 	SUMMARY				text,
 	SUBJECT_NAME		bytea,
 	NOT_AFTER			timestamp,
+	ENTRY_TYPE			revocation_entry_type,
 	CONSTRAINT mo_ca_fk
 		FOREIGN KEY (ISSUER_CA_ID)
 		REFERENCES ca(ID)

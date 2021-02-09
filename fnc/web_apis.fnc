@@ -2246,7 +2246,7 @@ Content-Type: text/plain; charset=UTF-8
 				WHERE mdc.CERTIFICATE_ID = t_certificateID;
 			t_temp2 := coalesce(t_temp2, 'Not Revoked');
 
-			SELECT '<SPAN style="color:#CC0000">Revoked [by Issuer Name, Serial Number]</SPAN></TD><TD>'
+			SELECT '<SPAN style="color:#CC0000">Revoked [by ' || mo.ENTRY_TYPE::text || ']</SPAN></TD><TD>'
 					|| CASE WHEN mo.CREATED IS NOT NULL
 						THEN to_char(mo.CREATED, 'YYYY-MM-DD') || '&nbsp; <FONT class="small">'
 							|| to_char(mo.CREATED, 'HH24:MI:SS UTC') || '</FONT>'

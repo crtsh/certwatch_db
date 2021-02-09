@@ -59,6 +59,10 @@ SELECT decode(
 				END,
 			'base64'
 		) PUB_KEY_HASH,
+		CASE WHEN o.CERT_ITEM->>'pubKeyHash' IS NOT NULL
+			THEN 'Subject Name, SHA-256(SubjectPublicKeyInfo)'::revocation_entry_type
+			ELSE 'Issuer Name, Serial Number'::revocation_entry_type
+		END ENTRY_TYPE,
 		CASE WHEN coalesce((((o.CERT_ITEM->>'details')::json)->>'created'), '') = ''
 			THEN NULL
 			ELSE (((o.CERT_ITEM->>'details')::json)->>'created')::timestamp
@@ -77,7 +81,8 @@ SELECT c.ID		CERTIFICATE_ID,
 		o.BUG_URL,
 		o.SUMMARY,
 		x509_name(c.CERTIFICATE, TRUE) SUBJECT_NAME,
-		x509_notAfter(c.CERTIFICATE) NOT_AFTER
+		x509_notAfter(c.CERTIFICATE) NOT_AFTER,
+		o.ENTRY_TYPE
 	FROM onecrl_import3 o
 		LEFT OUTER JOIN certificate c ON (
 			(
