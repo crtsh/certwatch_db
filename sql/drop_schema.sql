@@ -165,6 +165,8 @@ DROP FUNCTION ci_error_message(
 
 DROP TABLE cached_response;
 
+DROP TABLE bugzilla_bug;
+
 DROP TABLE mozilla_root_hashes;
 
 DROP TABLE mozilla_cert_validation_success;

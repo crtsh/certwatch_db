@@ -5,6 +5,7 @@
 # Every ten minutes.
 */10 * * * *	~/app_monitor.sh ~/certwatch/jobs/determine_ca_trust_purposes.sh
 */10 * * * *	~/app_monitor.sh ~/certwatch/google/update_google_uptime.sh
+*/10 * * * *	~/app_monitor.sh ~/certwatch/jobs/update_bugzilla_bugs.sh
 2-59/10 * * * *	~/app_monitor.sh ~/certwatch/ccadb/update_ccadb_certificates.sh
 
 # Every one hour.

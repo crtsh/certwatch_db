@@ -951,6 +951,21 @@ CREATE INDEX mrh_c
 	ON mozilla_root_hashes (CERTIFICATE_ID);
 
 
+CREATE TABLE bugzilla_bug (
+	ID								bigint,
+	SUMMARY							text,
+	WHITEBOARD						text,
+	COMPONENT						text,
+	STATUS							text,
+	RESOLUTION						text,
+	CREATION_TIME					timestamp,
+	LAST_CHANGE_TIME				timestamp,
+	LAST_CHANGE_TIME_CHECKED		timestamp,
+	CONSTRAINT bb_pk
+		PRIMARY KEY (ID)
+);
+
+
 CREATE TABLE cached_response (
 	PAGE_NAME			text,
 	GENERATED_AT		timestamp,
@@ -1045,11 +1060,17 @@ GRANT SELECT ON mozilla_onecrl TO crtsh;
 GRANT SELECT ON google_revoked TO guest;
 GRANT SELECT ON google_revoked TO crtsh;
 
+GRANT SELECT ON mozilla_cert_validation_success_import TO guest;
 GRANT SELECT ON mozilla_cert_validation_success_import TO crtsh;
 
+GRANT SELECT ON mozilla_cert_validation_success TO guest;
 GRANT SELECT ON mozilla_cert_validation_success TO crtsh;
 
+GRANT SELECT ON mozilla_root_hashes TO guest;
 GRANT SELECT ON mozilla_root_hashes TO crtsh;
+
+GRANT SELECT ON bugzilla_bug TO guest;
+GRANT SELECT ON bugzilla_bug TO httpd;
 
 GRANT SELECT ON cached_response TO guest;
 GRANT SELECT ON cached_response TO crtsh;
