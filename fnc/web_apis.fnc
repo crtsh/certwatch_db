@@ -2258,11 +2258,19 @@ Content-Type: text/plain; charset=UTF-8
 			t_temp3 := coalesce(t_temp3, 'Not Revoked</TD><TD><SPAN style="color:#888888">n/a</SPAN>');
 
 			IF lower(',' || t_opt) LIKE '%,ocsp,%' THEN
-				SELECT c.CERTIFICATE
+				SELECT coalesce(c2.CERTIFICATE, c1.CERTIFICATE)
 					INTO t_issuerCertificate
-					FROM ca_certificate cac, certificate c
-					WHERE cac.CA_ID = t_issuerCAID
-						AND cac.CERTIFICATE_ID = c.ID
+					FROM ca_certificate cac1, certificate c1
+						LEFT JOIN LATERAL (
+							SELECT c2.CERTIFICATE
+								FROM ca_certificate cac2, certificate c2
+								WHERE cac2.CA_ID = c1.ISSUER_CA_ID
+									AND cac2.CERTIFICATE_ID = c2.ID
+									AND EXISTS (SELECT 1 FROM x509_extKeyUsages(c1.CERTIFICATE) WHERE x509_extKeyUsages = '1.3.6.1.4.1.11129.2.4.4')
+								LIMIT 1
+						) c2 ON TRUE
+					WHERE cac1.CA_ID = t_issuerCAID
+						AND cac1.CERTIFICATE_ID = c1.ID
 					LIMIT 1;
 				t_temp4 := ocsp_embedded(t_certificate, t_issuerCertificate);
 				IF t_temp4 LIKE 'Good%' THEN
