@@ -354,6 +354,30 @@ UPDATE ccadb_certificate_temp cct1
 		AND cct10.CERT_RECORD_TYPE IS NOT NULL;
 
 
+/* Handle Subordinate CA Owner inheritance.  Repeat several times, to populate several levels of Sub-CA */
+\echo Handling Subordinate CA Owner inheritance
+UPDATE ccadb_certificate_temp cct
+	SET SUBORDINATE_CA_OWNER = coalesce(nullif(cct.SUBORDINATE_CA_OWNER, ''), cct_parent.SUBORDINATE_CA_OWNER)
+	FROM ccadb_certificate_temp cct_parent
+	WHERE cct.CERTIFICATE_ID IS NOT NULL
+		AND cct.PARENT_CERTIFICATE_ID = cct_parent.CERTIFICATE_ID;
+UPDATE ccadb_certificate_temp cct
+	SET SUBORDINATE_CA_OWNER = coalesce(nullif(cct.SUBORDINATE_CA_OWNER, ''), cct_parent.SUBORDINATE_CA_OWNER)
+	FROM ccadb_certificate_temp cct_parent
+	WHERE cct.CERTIFICATE_ID IS NOT NULL
+		AND cct.PARENT_CERTIFICATE_ID = cct_parent.CERTIFICATE_ID;
+UPDATE ccadb_certificate_temp cct
+	SET SUBORDINATE_CA_OWNER = coalesce(nullif(cct.SUBORDINATE_CA_OWNER, ''), cct_parent.SUBORDINATE_CA_OWNER)
+	FROM ccadb_certificate_temp cct_parent
+	WHERE cct.CERTIFICATE_ID IS NOT NULL
+		AND cct.PARENT_CERTIFICATE_ID = cct_parent.CERTIFICATE_ID;
+UPDATE ccadb_certificate_temp cct
+	SET SUBORDINATE_CA_OWNER = coalesce(nullif(cct.SUBORDINATE_CA_OWNER, ''), cct_parent.SUBORDINATE_CA_OWNER)
+	FROM ccadb_certificate_temp cct_parent
+	WHERE cct.CERTIFICATE_ID IS NOT NULL
+		AND cct.PARENT_CERTIFICATE_ID = cct_parent.CERTIFICATE_ID;
+
+
 /* Handle CP/CPS inheritance.  Repeat several times, to populate several levels of Sub-CA */
 \echo Handling CP/CPS Inheritance
 UPDATE ccadb_certificate_temp cct
