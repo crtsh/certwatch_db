@@ -1018,6 +1018,9 @@ GRANT SELECT ON ct_log_entry TO crtsh;
 GRANT SELECT ON accepted_roots TO guest;
 GRANT SELECT ON accepted_roots TO httpd;
 
+GRANT SELECT ON linter_version TO guest;
+GRANT SELECT ON linter_version TO httpd;
+
 GRANT SELECT ON lint_issue TO guest;
 GRANT SELECT ON lint_issue TO crtsh;
 
