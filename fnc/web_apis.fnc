@@ -2119,16 +2119,16 @@ Content-Type: text/plain; charset=UTF-8
 					t_temp := t_temp ||
 '    <TD style="vertical-align:middle">
 ';
-					IF coalesce(l_record.CP_URL, '') != '' THEN
+					FOREACH t_temp3 IN ARRAY string_to_array(coalesce(l_record.CP_URL, ''), '; ') LOOP
 						t_temp := t_temp ||
-'      <A href="' || l_record.CP_URL || '" target="blank">CP</A>
+'      <A href="' || t_temp3 || '" target="blank">CP</A>
 ';
-					END IF;
-					IF coalesce(l_record.CPS_URL, '') != '' THEN
+					END LOOP;
+					FOREACH t_temp3 IN ARRAY string_to_array(coalesce(l_record.CPS_URL, ''), '; ') LOOP
 						t_temp := t_temp ||
-'      <A href="' || l_record.CPS_URL || '" target="blank">CPS</A>
+'      <A href="' || t_temp3 || '" target="blank">CPS</A>
 ';
-					END IF;
+					END LOOP;
 					t_temp := t_temp ||
 '    </TD>
     <TD style="vertical-align:middle">';
