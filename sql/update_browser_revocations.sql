@@ -139,7 +139,7 @@ INSERT INTO google_revoked (CERTIFICATE_ID, ENTRY_TYPE)
 			AND c.ISSUER_CA_ID = ca.ID
 	UNION
 	SELECT c.ID, 'SHA-256(SubjectPublicKeyInfo)'::revocation_entry_type
-		FROM google_crlset_import gci, certificate c, ca
+		FROM google_crlset_import gci, certificate c
 		WHERE gci.SERIAL_NUMBER = E'\\x'
 			AND gci.ISSUER_SPKI_SHA256 = E'\\x'
 			AND gci.SPKI_SHA256 = digest(x509_publicKey(c.CERTIFICATE), 'sha256')
