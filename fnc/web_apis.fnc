@@ -1,6 +1,6 @@
 /* certwatch_db - Database schema
  * Written by Rob Stradling
- * Copyright (C) 2015-2020 Sectigo Limited
+ * Copyright (C) 2015-2021 Sectigo Limited
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -1649,7 +1649,7 @@ Content-Type: text/plain; charset=UTF-8
 		t_cacheControlMaxAge := -1;
 		IF get_parameter('webpki', paramNames, paramValues) IS NOT NULL THEN
 			t_output := t_output || ocsp_responders(
-				'v', 2, NULL, NULL, 'Server Authentication', 'expired,onecrl,crlset,disallowedstl', NULL, NULL, NULL
+				'v', 2, NULL, NULL, 'Server Authentication', 'expired,onecrl,crlset,disallowedstl', NULL, NULL, NULL, NULL, NULL
 			);
 		ELSE
 			t_output := t_output || ocsp_responders(
@@ -1665,7 +1665,8 @@ Content-Type: text/plain; charset=UTF-8
 				coalesce(
 					get_parameter('postrandomserial', paramNames, paramValues),
 					get_parameter('randomserial', paramNames, paramValues)
-				)
+				),
+				get_parameter('getforwardslashes', paramNames, paramValues)
 			);
 		END IF;
 

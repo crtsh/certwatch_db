@@ -1,6 +1,6 @@
 /* certwatch_db - Database schema
  * Written by Rob Stradling
- * Copyright (C) 2015-2020 Sectigo Limited
+ * Copyright (C) 2015-2021 Sectigo Limited
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -26,7 +26,8 @@ CREATE OR REPLACE FUNCTION ocsp_responders(
 	get						text,
 	post					text,
 	getrandomserial			text,
-	postrandomserial		text
+	postrandomserial		text,
+	getforwardslashes		text
 ) RETURNS text
 AS $$
 DECLARE
@@ -150,6 +151,12 @@ BEGIN
 ';
 		t_params := t_params || '&postrandomserial=' || urlEncode(postrandomserial);
 	END IF;
+	IF coalesce(getforwardslashes, '') != '' THEN
+		t_query := t_query ||
+'		AND orp.FORWARD_SLASHES_RESULT ILIKE ' || quote_literal(getforwardslashes) || '
+';
+		t_params := t_params || '&getforwardslashes=' || urlEncode(getforwardslashes);
+	END IF;
 	t_query := t_query ||
 '	ORDER BY ' || CASE sort
 					WHEN 2 THEN 'CA_FRIENDLY_NAME' || t_orderBy || ', orp.URL' || t_orderBy
@@ -166,6 +173,9 @@ BEGIN
 					WHEN 14 THEN 'CASE WHEN length(orp.POST_RANDOM_SERIAL_DUMP) = 0 THEN 1 ELSE 0 END, orp.POST_RANDOM_SERIAL_RESULT' || t_orderBy || ', CA_FRIENDLY_NAME' || t_orderBy || ', orp.URL' || t_orderBy
 					WHEN 15 THEN 'CASE WHEN length(orp.POST_RANDOM_SERIAL_DUMP) = 0 THEN 1 ELSE 0 END, length(orp.POST_RANDOM_SERIAL_DUMP)' || t_orderBy || ', CA_FRIENDLY_NAME' || t_orderBy || ', orp.URL' || t_orderBy
 					WHEN 16 THEN 'CASE WHEN length(orp.POST_RANDOM_SERIAL_DUMP) = 0 THEN 1 ELSE 0 END, orp.POST_RANDOM_SERIAL_DURATION' || t_orderBy || ', CA_FRIENDLY_NAME' || t_orderBy || ', orp.URL' || t_orderBy
+					WHEN 17 THEN 'CASE WHEN length(orp.FORWARD_SLASHES_DUMP) = 0 THEN 1 ELSE 0 END, orp.FORWARD_SLASHES_RESULT' || t_orderBy || ', CA_FRIENDLY_NAME' || t_orderBy || ', orp.URL' || t_orderBy
+					WHEN 18 THEN 'CASE WHEN length(orp.FORWARD_SLASHES_DUMP) = 0 THEN 1 ELSE 0 END, length(orp.FORWARD_SLASHES_DUMP)' || t_orderBy || ', CA_FRIENDLY_NAME' || t_orderBy || ', orp.URL' || t_orderBy
+					WHEN 19 THEN 'CASE WHEN length(orp.FORWARD_SLASHES_DUMP) = 0 THEN 1 ELSE 0 END, orp.FORWARD_SLASHES_DURATION' || t_orderBy || ', CA_FRIENDLY_NAME' || t_orderBy || ', orp.URL' || t_orderBy
 				END;
 
 	IF coalesce(sort::text, '') != '' THEN
@@ -326,6 +336,10 @@ BEGIN
     <TD class="outer"><INPUT style="border:none;background-color:#EFEFEF" type="text" name="postrandomserial" size="55" value="' || coalesce(html_escape(postrandomserial), '') || '"></TD>
   </TR>
   <TR>
+    <TH class="outer">GET request containing <A href="//groups.google.com/a/mozilla.org/g/dev-security-policy/c/cMegyySSqhM/m/G7s5tFR4BAAJ" target="_blank">multiple forward-slashes</A></TH>
+    <TD class="outer"><INPUT style="border:none;background-color:#EFEFEF" type="text" name="getforwardslashes" size="55" value="' || coalesce(html_escape(getforwardslashes), '') || '"></TD>
+  </TR>
+  <TR>
     <TD class="small" style="text-align:center;vertical-align:middle">(% = wildcard)</TD>
     <TD class="outer"><INPUT type="submit" class="button" style="font-size:9pt" value="Update"></TD>
   </TR>
@@ -350,6 +364,7 @@ BEGIN
     <TH colspan="3">POST request for Certificate</TH>
     <TH colspan="3">GET request for Random Serial</TH>
     <TH colspan="3">POST request for Random Serial</TH>
+    <TH colspan="3">GET request containing multiple forward-slashes</TH>
   </TR>
   <TR>
     <TH><A href="?dir=' || t_oppositeDirection || '&sort=5' || t_params || '">Response</A>';
@@ -409,6 +424,21 @@ BEGIN
 	t_output := t_output || '</TH>
     <TH><A href="?dir=' || t_oppositeDirection || '&sort=16' || t_params || '">ms</A>';
 	IF sort = 16 THEN
+		t_output := t_output || ' ' || t_dirSymbol;
+	END IF;
+	t_output := t_output || '</TH>
+    <TH><A href="?dir=' || t_oppositeDirection || '&sort=17' || t_params || '">Response</A>';
+	IF sort = 17 THEN
+		t_output := t_output || ' ' || t_dirSymbol;
+	END IF;
+	t_output := t_output || '</TH>
+    <TH><A href="?dir=' || t_oppositeDirection || '&sort=18' || t_params || '">B</A>';
+	IF sort = 18 THEN
+		t_output := t_output || ' ' || t_dirSymbol;
+	END IF;
+	t_output := t_output || '</TH>
+    <TH><A href="?dir=' || t_oppositeDirection || '&sort=19' || t_params || '">ms</A>';
+	IF sort = 19 THEN
 		t_output := t_output || ' ' || t_dirSymbol;
 	END IF;
 	t_output := t_output || '</TH>
@@ -516,6 +546,25 @@ BEGIN
 		END IF;
 		t_temp := t_temp || '</TD>
     <TD>' || coalesce((l_record.POST_RANDOM_SERIAL_DURATION / 1000000)::text, '&nbsp;') || '</TD>
+    <TD>';
+
+		IF l_record.FORWARD_SLASHES_RESULT IS NULL THEN
+			t_temp := t_temp || '<I>Not tested</I>';
+		ELSE
+			IF l_record.FORWARD_SLASHES_RESULT LIKE 'Revoked|%' THEN
+				l_record.FORWARD_SLASHES_RESULT := 'Revoked at ' || substring(l_record.FORWARD_SLASHES_RESULT from 9 for (length(l_record.FORWARD_SLASHES_RESULT) - 10));
+			END IF;
+			t_temp := t_temp || '<A href="?getforwardslashes=' || urlEncode(l_record.FORWARD_SLASHES_RESULT) || t_paramsWithSort || t_baseParams || '">' || html_escape(l_record.FORWARD_SLASHES_RESULT) || '</A>';
+		END IF;
+		t_temp := t_temp || '</TD>
+    <TD>';
+		IF coalesce(length(l_record.FORWARD_SLASHES_DUMP), 0) > 0 THEN
+			t_temp := t_temp || '<A href="/ocsp-response?caID=' || l_record.CA_ID::text || '&url=' || urlEncode(l_record.URL) || '&request=getforwardslashes" target="_blank">' || length(l_record.FORWARD_SLASHES_DUMP)::text || '</A>';
+		ELSE
+			t_temp := t_temp || '&nbsp;';
+		END IF;
+		t_temp := t_temp || '</TD>
+    <TD>' || coalesce((l_record.FORWARD_SLASHES_DURATION / 1000000)::text, '&nbsp;') || '</TD>
   </TR>
 ';
 
