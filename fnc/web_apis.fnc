@@ -127,6 +127,7 @@ DECLARE
 	t_showMetadata		boolean;
 	t_rsaModulus		bytea;
 	t_hasROCAFingerprint	boolean;
+	t_hasClosePrimes	boolean;
 	t_publicKeyProblems	text;
 	t_action			text;
 	t_certType			integer;
@@ -1715,6 +1716,7 @@ Content-Type: text/plain; charset=UTF-8
 					digest(x509_publicKey(c.CERTIFICATE), 'sha256'::text),
 					x509_rsamodulus(c.CERTIFICATE),
 					x509_hasROCAFingerprint(c.CERTIFICATE),
+					x509_hasClosePrimes(c.CERTIFICATE),
 					c.CERTIFICATE
 				INTO t_certificateID, t_text, t_issuerCAID, t_caID,
 					t_certificateSHA1,
@@ -1723,6 +1725,7 @@ Content-Type: text/plain; charset=UTF-8
 					t_spkiSHA256,
 					t_rsaModulus,
 					t_hasROCAFingerprint,
+					t_hasClosePrimes,
 					t_certificate
 				FROM certificate c
 					LEFT OUTER JOIN ca ON (c.ISSUER_CA_ID = ca.ID)
@@ -1736,6 +1739,7 @@ Content-Type: text/plain; charset=UTF-8
 					digest(x509_publicKey(c.CERTIFICATE), 'sha256'::text),
 					x509_rsamodulus(c.CERTIFICATE),
 					x509_hasROCAFingerprint(c.CERTIFICATE),
+					x509_hasClosePrimes(c.CERTIFICATE),
 					c.CERTIFICATE
 				INTO t_certificateID, t_text, t_issuerCAID, t_caID,
 					t_certificateSHA1,
@@ -1744,6 +1748,7 @@ Content-Type: text/plain; charset=UTF-8
 					t_spkiSHA256,
 					t_rsaModulus,
 					t_hasROCAFingerprint,
+					t_hasClosePrimes,
 					t_certificate
 				FROM certificate c
 					LEFT OUTER JOIN ca ON (c.ISSUER_CA_ID = ca.ID)
@@ -1758,6 +1763,7 @@ Content-Type: text/plain; charset=UTF-8
 					digest(x509_publicKey(c.CERTIFICATE), 'sha256'::text),
 					x509_rsamodulus(c.CERTIFICATE),
 					x509_hasROCAFingerprint(c.CERTIFICATE),
+					x509_hasClosePrimes(c.CERTIFICATE),
 					c.CERTIFICATE
 				INTO t_certificateID, t_text, t_issuerCAID, t_caID,
 					t_certificateSHA1,
@@ -1766,6 +1772,7 @@ Content-Type: text/plain; charset=UTF-8
 					t_spkiSHA256,
 					t_rsaModulus,
 					t_hasROCAFingerprint,
+					t_hasClosePrimes,
 					t_certificate
 				FROM certificate c
 					LEFT OUTER JOIN ca ON (c.ISSUER_CA_ID = ca.ID)
@@ -1780,6 +1787,7 @@ Content-Type: text/plain; charset=UTF-8
 					digest(x509_publicKey(c.CERTIFICATE), 'sha256'::text),
 					x509_rsamodulus(c.CERTIFICATE),
 					x509_hasROCAFingerprint(c.CERTIFICATE),
+					x509_hasClosePrimes(c.CERTIFICATE),
 					c.CERTIFICATE
 				INTO t_certificateID, t_text, t_issuerCAID, t_caID,
 					t_certificateSHA1,
@@ -1788,6 +1796,7 @@ Content-Type: text/plain; charset=UTF-8
 					t_spkiSHA256,
 					t_rsaModulus,
 					t_hasROCAFingerprint,
+					t_hasClosePrimes,
 					t_certificate
 				FROM certificate c
 					LEFT OUTER JOIN ca ON (c.ISSUER_CA_ID = ca.ID)
@@ -2556,6 +2565,12 @@ Content-Type: text/plain; charset=UTF-8
 				t_publicKeyProblems := t_publicKeyProblems || '<BR>';
 			END IF;
 			t_publicKeyProblems := coalesce(t_publicKeyProblems, '') || '<SPAN class="error">ROCA vulnerability</SPAN> <SPAN class="small"><A href="//en.wikipedia.org/wiki/ROCA_vulnerability" target="_blank">Details</A></SPAN>';
+		END IF;
+		IF t_hasClosePrimes THEN
+			IF t_publicKeyProblems IS NOT NULL THEN
+				t_publicKeyProblems := t_publicKeyProblems || '<BR>';
+			END IF;
+			t_publicKeyProblems := coalesce(t_publicKeyProblems, '') || '<SPAN class="error">Close Primes vulnerability</SPAN> <SPAN class="small"><A href="//crypto.stackexchange.com/questions/5262/rsa-and-prime-difference" target="_blank">Details</A></SPAN>';
 		END IF;
 
 		IF t_publicKeyProblems IS NOT NULL THEN
