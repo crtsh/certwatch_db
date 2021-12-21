@@ -745,7 +745,7 @@ Content-Type: application/json
           alert("Sorry, Censys doesn''t support this search type");
           return;
         }
-        t_url = "//www.censys.io/certificates?q=";
+        t_url = "//search.censys.io/certificates?q=";
         var t_field = "";
         if (value != "%") {
           if (type == "c")
@@ -760,10 +760,7 @@ Content-Type: application/json
           else if ((type == "CA") || (type == "CAName"))
             t_field = "parsed.issuer_dn";
           else if (type == "Identity")
-            t_url += "parsed.subject_dn:" + encodeURIComponent("\"" + value + "\"")
-                     + " OR parsed.extensions.subject_alt_name.dns_names:" + encodeURIComponent("\"" + value + "\"")
-                     + " OR parsed.extensions.subject_alt_name.email_addresses:" + encodeURIComponent("\"" + value + "\"")
-                     + " OR parsed.extensions.subject_alt_name.ip_addresses:" + encodeURIComponent("\"" + value + "\"");
+            t_url += "parsed.names:" + encodeURIComponent("\"" + value + "\"");
           else if (type == "CN")
             t_field = "parsed.subject.common_name";
           else if (type == "OU")
@@ -2414,7 +2411,7 @@ Content-Type: text/plain; charset=UTF-8
       <TABLE class="options" style="margin-left:0px">
         <TR>
           <TH>SHA-256</TH>
-          <TD><A href="//censys.io/certificates/' || coalesce(lower(encode(t_certificateSHA256, 'hex')), '') || '">'
+          <TD><A href="//search.censys.io/certificates/' || coalesce(lower(encode(t_certificateSHA256, 'hex')), '') || '">'
 						|| coalesce(upper(encode(t_certificateSHA256, 'hex')), '<I>Not found</I>') || '</A></TD>
           <TD style="width:20px;border:none">&nbsp;</TD>
           <TH>SHA-1</TH>
@@ -3093,16 +3090,12 @@ $.ajax({
             return;
           var t_url;
           if (document.search_form.searchCensys.checked) {
-            t_url = "//www.censys.io/certificates?q="
+            t_url = "//search.censys.io/certificates?q="
                    + encodeURIComponent("parsed.issuer_dn=\"' || replace(t_caName, '"', '') || '\"");
             var t_field = "";
             if (value != "%") {
               if (type == "Identity") {
-                t_url += " AND (parsed.subject_dn:" + encodeURIComponent("\"" + value + "\"")
-                         + " OR parsed.extensions.subject_alt_name.dns_names:" + encodeURIComponent("\"" + value + "\"")
-                         + " OR parsed.extensions.subject_alt_name.email_addresses:" + encodeURIComponent("\"" + value + "\"")
-                         + " OR parsed.extensions.subject_alt_name.ip_addresses:" + encodeURIComponent("\"" + value + "\"")
-                         + ")";
+                t_url += " AND (parsed.names:" + encodeURIComponent("\"" + value + "\"") + ")";
               }
               else if (type == "CN")
                 t_field = "parsed.subject.common_name";
