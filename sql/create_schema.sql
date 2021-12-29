@@ -357,6 +357,9 @@ CREATE TABLE ct_log_entry_2020 PARTITION OF ct_log_entry
 CREATE TABLE ct_log_entry_2021 PARTITION OF ct_log_entry
 	FOR VALUES FROM ('2021-01-01T00:00:00'::timestamp) TO ('2022-01-01T00:00:00'::timestamp);
 
+CREATE TABLE ct_log_entry_2022 PARTITION OF ct_log_entry
+	FOR VALUES FROM ('2022-01-01T00:00:00'::timestamp) TO ('2023-01-01T00:00:00'::timestamp);
+
 CREATE INDEX ctle_c ON ct_log_entry (CERTIFICATE_ID);
 
 CREATE INDEX ctle_e ON ct_log_entry (ENTRY_ID);
