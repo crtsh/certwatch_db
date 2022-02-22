@@ -201,7 +201,10 @@ BEGIN
 				SELECT 1
 					FROM ocsp_responder ors
 					WHERE ors.CA_ID = sub.ISSUER_CA_ID
-						AND ors.URL = sub.URL
+						AND (
+							ors.URL = sub.URL
+							OR ors.IGNORE_OTHER_URLS
+						)
 			);
 
 	INSERT INTO ca_issuer (

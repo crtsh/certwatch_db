@@ -27,7 +27,9 @@ CREATE OR REPLACE FUNCTION ocsp_responders(
 	post					text,
 	getrandomserial			text,
 	postrandomserial		text,
-	getforwardslashes		text
+	getforwardslashes		text,
+	getunencodedplus		text,
+	getsha256certid			text
 ) RETURNS text
 AS $$
 DECLARE
@@ -157,6 +159,18 @@ BEGIN
 ';
 		t_params := t_params || '&getforwardslashes=' || urlEncode(getforwardslashes);
 	END IF;
+	IF coalesce(getunencodedplus, '') != '' THEN
+		t_query := t_query ||
+'		AND orp.UNENCODED_PLUS ILIKE ' || quote_literal(getunencodedplus) || '
+';
+		t_params := t_params || '&getunencodedplus=' || urlEncode(getunencodedplus);
+	END IF;
+	IF coalesce(getsha256certid, '') != '' THEN
+		t_query := t_query ||
+'		AND orp.SHA256_CERTID_RESULT ILIKE ' || quote_literal(getsha256certid) || '
+';
+		t_params := t_params || '&getsha256certid=' || urlEncode(getsha256certid);
+	END IF;
 	t_query := t_query ||
 '	ORDER BY ' || CASE sort
 					WHEN 2 THEN 'CA_FRIENDLY_NAME' || t_orderBy || ', orp.URL' || t_orderBy
@@ -176,6 +190,12 @@ BEGIN
 					WHEN 17 THEN 'CASE WHEN length(orp.FORWARD_SLASHES_DUMP) = 0 THEN 1 ELSE 0 END, orp.FORWARD_SLASHES_RESULT' || t_orderBy || ', CA_FRIENDLY_NAME' || t_orderBy || ', orp.URL' || t_orderBy
 					WHEN 18 THEN 'CASE WHEN length(orp.FORWARD_SLASHES_DUMP) = 0 THEN 1 ELSE 0 END, length(orp.FORWARD_SLASHES_DUMP)' || t_orderBy || ', CA_FRIENDLY_NAME' || t_orderBy || ', orp.URL' || t_orderBy
 					WHEN 19 THEN 'CASE WHEN length(orp.FORWARD_SLASHES_DUMP) = 0 THEN 1 ELSE 0 END, orp.FORWARD_SLASHES_DURATION' || t_orderBy || ', CA_FRIENDLY_NAME' || t_orderBy || ', orp.URL' || t_orderBy
+					WHEN 20 THEN 'CASE WHEN length(orp.UNENCODED_PLUS_DUMP) = 0 THEN 1 ELSE 0 END, orp.UNENCODED_PLUS_RESULT' || t_orderBy || ', CA_FRIENDLY_NAME' || t_orderBy || ', orp.URL' || t_orderBy
+					WHEN 21 THEN 'CASE WHEN length(orp.UNENCODED_PLUS_DUMP) = 0 THEN 1 ELSE 0 END, length(orp.UNENCODED_PLUS_DUMP)' || t_orderBy || ', CA_FRIENDLY_NAME' || t_orderBy || ', orp.URL' || t_orderBy
+					WHEN 22 THEN 'CASE WHEN length(orp.UNENCODED_PLUS_DUMP) = 0 THEN 1 ELSE 0 END, orp.UNENCODED_PLUS_DURATION' || t_orderBy || ', CA_FRIENDLY_NAME' || t_orderBy || ', orp.URL' || t_orderBy
+					WHEN 23 THEN 'CASE WHEN length(orp.SHA256_CERTID_DUMP) = 0 THEN 1 ELSE 0 END, orp.SHA256_CERTID_RESULT' || t_orderBy || ', CA_FRIENDLY_NAME' || t_orderBy || ', orp.URL' || t_orderBy
+					WHEN 24 THEN 'CASE WHEN length(orp.SHA256_CERTID_DUMP) = 0 THEN 1 ELSE 0 END, length(orp.SHA256_CERTID_DUMP)' || t_orderBy || ', CA_FRIENDLY_NAME' || t_orderBy || ', orp.URL' || t_orderBy
+					WHEN 25 THEN 'CASE WHEN length(orp.SHA256_CERTID_DUMP) = 0 THEN 1 ELSE 0 END, orp.SHA256_CERTID_DURATION' || t_orderBy || ', CA_FRIENDLY_NAME' || t_orderBy || ', orp.URL' || t_orderBy
 				END;
 
 	IF coalesce(sort::text, '') != '' THEN
@@ -320,24 +340,32 @@ BEGIN
     <TD class="outer"><INPUT style="border:none;background-color:#EFEFEF" type="text" name="url" size="55" value="' || coalesce(html_escape(url), '') || '"></TD>
   </TR>
   <TR>
-    <TH class="outer">GET request for Certificate</TH>
+    <TH class="outer">[SHA-1 CertID] GET request for Certificate</TH>
     <TD class="outer"><INPUT style="border:none;background-color:#EFEFEF" type="text" name="get" size="55" value="' || coalesce(html_escape(get), '') || '"></TD>
   </TR>
   <TR>
-    <TH class="outer">POST request for Certificate</TH>
+    <TH class="outer">[SHA-1 CertID] POST request for Certificate</TH>
     <TD class="outer"><INPUT style="border:none;background-color:#EFEFEF" type="text" name="post" size="55" value="' || coalesce(html_escape(post), '') || '"></TD>
   </TR>
   <TR>
-    <TH class="outer">GET request for Random Serial</TH>
+    <TH class="outer">[SHA-1 CertID] GET request for Random Serial</TH>
     <TD class="outer"><INPUT style="border:none;background-color:#EFEFEF" type="text" name="getrandomserial" size="55" value="' || coalesce(html_escape(getrandomserial), '') || '"></TD>
   </TR>
   <TR>
-    <TH class="outer">POST request for Random Serial</TH>
+    <TH class="outer">[SHA-1 CertID] POST request for Random Serial</TH>
     <TD class="outer"><INPUT style="border:none;background-color:#EFEFEF" type="text" name="postrandomserial" size="55" value="' || coalesce(html_escape(postrandomserial), '') || '"></TD>
   </TR>
   <TR>
-    <TH class="outer">GET request containing <A href="//groups.google.com/a/mozilla.org/g/dev-security-policy/c/cMegyySSqhM/m/G7s5tFR4BAAJ" target="_blank">multiple forward-slashes</A></TH>
+    <TH class="outer">[SHA-1 CertID] GET request containing <A href="//groups.google.com/a/mozilla.org/g/dev-security-policy/c/cMegyySSqhM/m/G7s5tFR4BAAJ" target="_blank">multiple forward-slashes</A></TH>
     <TD class="outer"><INPUT style="border:none;background-color:#EFEFEF" type="text" name="getforwardslashes" size="55" value="' || coalesce(html_escape(getforwardslashes), '') || '"></TD>
+  </TR>
+  <TR>
+    <TH class="outer">[SHA-1 CertID] GET request for Certificate containing an <A href="//groups.google.com/a/mozilla.org/g/dev-security-policy/c/cMegyySSqhM/m/zcJwbdNnAwAJ" target="_blank">unencoded plus</A></TH>
+    <TD class="outer"><INPUT style="border:none;background-color:#EFEFEF" type="text" name="getunencodedplus" size="55" value="' || coalesce(html_escape(getunencodedplus), '') || '"></TD>
+  </TR>
+  <TR>
+    <TH class="outer">[SHA-256 CertID] GET request for Certificate</TH>
+    <TD class="outer"><INPUT style="border:none;background-color:#EFEFEF" type="text" name="getsha256certid" size="55" value="' || coalesce(html_escape(getsha256certid), '') || '"></TD>
   </TR>
   <TR>
     <TD class="small" style="text-align:center;vertical-align:middle">(% = wildcard)</TD>
@@ -360,11 +388,13 @@ BEGIN
 	END IF;
 	t_output := t_output || '</TH>
     <TH rowspan="2">Certificate Used</TH>
-    <TH colspan="3">GET request for Certificate</TH>
-    <TH colspan="3">POST request for Certificate</TH>
-    <TH colspan="3">GET request for Random Serial</TH>
-    <TH colspan="3">POST request for Random Serial</TH>
-    <TH colspan="3">GET request containing multiple forward-slashes</TH>
+    <TH colspan="3">GET request for<BR>Certificate [SHA-1 CertID]</TH>
+    <TH colspan="3">POST request for<BR>Certificate</TH>
+    <TH colspan="3">GET request for<BR>Random Serial</TH>
+    <TH colspan="3">POST request for<BR>Random Serial</TH>
+    <TH colspan="3">GET request containing<BR>multiple forward-slashes</TH>
+    <TH colspan="3">GET request for Certificate<BR>containing an unencoded plus</TH>
+    <TH colspan="3">GET request for<BR>Certificate [SHA-256 CertID]</TH>
   </TR>
   <TR>
     <TH><A href="?dir=' || t_oppositeDirection || '&sort=5' || t_params || '">Response</A>';
@@ -442,7 +472,37 @@ BEGIN
 		t_output := t_output || ' ' || t_dirSymbol;
 	END IF;
 	t_output := t_output || '</TH>
-  </TR>
+    <TH><A href="?dir=' || t_oppositeDirection || '&sort=20' || t_params || '">Response</A>';
+	IF sort = 20 THEN
+		t_output := t_output || ' ' || t_dirSymbol;
+	END IF;
+	t_output := t_output || '</TH>
+    <TH><A href="?dir=' || t_oppositeDirection || '&sort=21' || t_params || '">B</A>';
+	IF sort = 21 THEN
+		t_output := t_output || ' ' || t_dirSymbol;
+	END IF;
+	t_output := t_output || '</TH>
+    <TH><A href="?dir=' || t_oppositeDirection || '&sort=22' || t_params || '">ms</A>';
+	IF sort = 22 THEN
+		t_output := t_output || ' ' || t_dirSymbol;
+	END IF;
+	t_output := t_output || '</TH>
+    <TH><A href="?dir=' || t_oppositeDirection || '&sort=23' || t_params || '">Response</A>';
+	IF sort = 23 THEN
+		t_output := t_output || ' ' || t_dirSymbol;
+	END IF;
+	t_output := t_output || '</TH>
+    <TH><A href="?dir=' || t_oppositeDirection || '&sort=24' || t_params || '">B</A>';
+	IF sort = 24 THEN
+		t_output := t_output || ' ' || t_dirSymbol;
+	END IF;
+	t_output := t_output || '</TH>
+    <TH><A href="?dir=' || t_oppositeDirection || '&sort=25' || t_params || '">ms</A>';
+	IF sort = 25 THEN
+		t_output := t_output || ' ' || t_dirSymbol;
+	END IF;
+	t_output := t_output || '</TH>
+</TR>
 ';
 	FOR l_record IN EXECUTE t_query LOOP
 		SELECT array_to_string(array_agg(DISTINCT cc.INCLUDED_CERTIFICATE_OWNER ORDER BY cc.INCLUDED_CERTIFICATE_OWNER), '<BR>')
@@ -565,6 +625,44 @@ BEGIN
 		END IF;
 		t_temp := t_temp || '</TD>
     <TD>' || coalesce((l_record.FORWARD_SLASHES_DURATION / 1000000)::text, '&nbsp;') || '</TD>
+    <TD>';
+
+		IF l_record.UNENCODED_PLUS_RESULT IS NULL THEN
+			t_temp := t_temp || '<I>Not tested</I>';
+		ELSE
+			IF l_record.UNENCODED_PLUS_RESULT LIKE 'Revoked|%' THEN
+				l_record.UNENCODED_PLUS_RESULT := 'Revoked at ' || substring(l_record.UNENCODED_PLUS_RESULT from 9 for (length(l_record.UNENCODED_PLUS_RESULT) - 10));
+			END IF;
+			t_temp := t_temp || '<A href="?getunencodedplus=' || urlEncode(l_record.UNENCODED_PLUS_RESULT) || t_paramsWithSort || t_baseParams || '">' || html_escape(l_record.UNENCODED_PLUS_RESULT) || '</A>';
+		END IF;
+		t_temp := t_temp || '</TD>
+    <TD>';
+		IF coalesce(length(l_record.UNENCODED_PLUS_DUMP), 0) > 0 THEN
+			t_temp := t_temp || '<A href="/ocsp-response?caID=' || l_record.CA_ID::text || '&url=' || urlEncode(l_record.URL) || '&request=getunencodedplus" target="_blank">' || length(l_record.UNENCODED_PLUS_DUMP)::text || '</A>';
+		ELSE
+			t_temp := t_temp || '&nbsp;';
+		END IF;
+		t_temp := t_temp || '</TD>
+    <TD>' || coalesce((l_record.UNENCODED_PLUS_DURATION / 1000000)::text, '&nbsp;') || '</TD>
+    <TD>';
+
+		IF l_record.SHA256_CERTID_RESULT IS NULL THEN
+			t_temp := t_temp || '<I>Not tested</I>';
+		ELSE
+			IF l_record.SHA256_CERTID_RESULT LIKE 'Revoked|%' THEN
+				l_record.SHA256_CERTID_RESULT := 'Revoked at ' || substring(l_record.SHA256_CERTID_RESULT from 9 for (length(l_record.SHA256_CERTID_RESULT) - 10));
+			END IF;
+			t_temp := t_temp || '<A href="?getsha256certid=' || urlEncode(l_record.SHA256_CERTID_RESULT) || t_paramsWithSort || t_baseParams || '">' || html_escape(l_record.SHA256_CERTID_RESULT) || '</A>';
+		END IF;
+		t_temp := t_temp || '</TD>
+    <TD>';
+		IF coalesce(length(l_record.SHA256_CERTID_DUMP), 0) > 0 THEN
+			t_temp := t_temp || '<A href="/ocsp-response?caID=' || l_record.CA_ID::text || '&url=' || urlEncode(l_record.URL) || '&request=getsha256certid" target="_blank">' || length(l_record.SHA256_CERTID_DUMP)::text || '</A>';
+		ELSE
+			t_temp := t_temp || '&nbsp;';
+		END IF;
+		t_temp := t_temp || '</TD>
+    <TD>' || coalesce((l_record.SHA256_CERTID_DURATION / 1000000)::text, '&nbsp;') || '</TD>
   </TR>
 ';
 

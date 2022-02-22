@@ -53,6 +53,8 @@ BEGIN
 				WHEN 'getrandomserial' THEN 'GET Random Serial Number'
 				WHEN 'postrandomserial' THEN 'POST Random Serial Number'
 				WHEN 'randomserial' THEN 'POST Random Serial Number'
+				WHEN 'getforwardslashes' THEN 'GET Multiple Forward Slashes'
+				WHEN 'getsha256certid' THEN 'GET request [SHA-256 CertID]'
 				ELSE 'Unrecognized Request Type'
 			END
 		) || '</TD>
@@ -91,6 +93,10 @@ BEGIN
 		t_output := t_output || html_escape(t_responder.GET_RANDOM_SERIAL_RESULT);
 	ELSIF lower(request) IN ('postrandomserial', 'randomserial') THEN
 		t_output := t_output || html_escape(t_responder.POST_RANDOM_SERIAL_RESULT);
+	ELSIF lower(request) = 'getforwardslashes' THEN
+		t_output := t_output || html_escape(t_responder.FORWARD_SLASHES_RESULT);
+	ELSIF lower(request) = 'getsha256certid' THEN
+		t_output := t_output || html_escape(t_responder.SHA256_CERTID_RESULT);
 	ELSE
 		t_output := t_output || 'Unrecognized Request Type';
 	END IF;
@@ -135,6 +141,10 @@ BEGIN
 		t_dump := t_responder.GET_RANDOM_SERIAL_DUMP;
 	ELSIF lower(request) IN ('postrandomserial', 'randomserial') THEN
 		t_dump := t_responder.POST_RANDOM_SERIAL_DUMP;
+	ELSIF lower(request) = 'getforwardslashes' THEN
+		t_dump := t_responder.FORWARD_SLASHES_DUMP;
+	ELSIF lower(request) = 'getsha256certid' THEN
+		t_dump := t_responder.SHA256_CERTID_DUMP;
 	ELSE
 		t_output := t_output || 'Unrecognized Request Type';
 	END IF;

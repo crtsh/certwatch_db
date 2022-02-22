@@ -1647,7 +1647,7 @@ Content-Type: text/plain; charset=UTF-8
 		t_cacheControlMaxAge := -1;
 		IF get_parameter('webpki', paramNames, paramValues) IS NOT NULL THEN
 			t_output := t_output || ocsp_responders(
-				'v', 2, NULL, NULL, 'Server Authentication', 'expired,onecrl,crlset,disallowedstl', NULL, NULL, NULL, NULL, NULL
+				'v', 2, NULL, NULL, 'Server Authentication', 'expired,onecrl,crlset,disallowedstl', NULL, NULL, NULL, NULL, NULL, NULL, NULL
 			);
 		ELSE
 			t_output := t_output || ocsp_responders(
@@ -1664,7 +1664,9 @@ Content-Type: text/plain; charset=UTF-8
 					get_parameter('postrandomserial', paramNames, paramValues),
 					get_parameter('randomserial', paramNames, paramValues)
 				),
-				get_parameter('getforwardslashes', paramNames, paramValues)
+				get_parameter('getforwardslashes', paramNames, paramValues),
+				get_parameter('getunencodedplus', paramNames, paramValues),
+				get_parameter('getsha256certid', paramNames, paramValues)
 			);
 		END IF;
 

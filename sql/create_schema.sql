@@ -241,6 +241,14 @@ CREATE TABLE ocsp_responder (
 	NEXT_CHECKS_DUE				timestamp,
 	LAST_CHECKED				timestamp,
 	URL							text,
+	IGNORE_OTHER_URLS			boolean		NOT NULL	DEFAULT FALSE,
+	TESTED_CERTIFICATE_ID		bigint,
+	GET_RESULT					text,
+	GET_DUMP					bytea,
+	GET_DURATION				bigint,
+	POST_RESULT					text,
+	POST_DUMP					bytea,
+	POST_DURATION				bigint,
 	GET_RANDOM_SERIAL_RESULT	text,
 	GET_RANDOM_SERIAL_DUMP		bytea,
 	GET_RANDOM_SERIAL_DURATION	bigint,
@@ -250,19 +258,22 @@ CREATE TABLE ocsp_responder (
 	FORWARD_SLASHES_RESULT		text,
 	FORWARD_SLASHES_DUMP		bytea,
 	FORWARD_SLASHES_DURATION	bigint,
-	TESTED_CERTIFICATE_ID		bigint,
-	GET_RESULT					text,
-	GET_DUMP					bytea,
-	GET_DURATION				bigint,
-	POST_RESULT					text,
-	POST_DUMP					bytea,
-	POST_DURATION				bigint,
+	SHA256_CERTID_RESULT		text,
+	SHA256_CERTID_DUMP			bytea,
+	SHA256_CERTID_DURATION		bigint,
+	RAW_PLUSES_RESULT			text,
+	RAW_PLUSES_DUMP				bytea,
+	RAW_PLUSES_DURATION			bigint,
 	CONSTRAINT or_pk
 		PRIMARY KEY (CA_ID, URL),
 	CONSTRAINT or_ca_fk
 		FOREIGN KEY (CA_ID)
 		REFERENCES ca(ID)
 );
+
+CREATE INDEX or_iou
+	ON ocsp_responder ( CA_ID, IGNORE_OTHER_URLS )
+	WHERE IGNORE_OTHER_URLS;
 
 
 CREATE TABLE ca_issuer (
