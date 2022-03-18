@@ -161,7 +161,7 @@ BEGIN
 	END IF;
 	IF coalesce(getunencodedplus, '') != '' THEN
 		t_query := t_query ||
-'		AND orp.UNENCODED_PLUS ILIKE ' || quote_literal(getunencodedplus) || '
+'		AND orp.UNENCODED_PLUS_RESULT ILIKE ' || quote_literal(getunencodedplus) || '
 ';
 		t_params := t_params || '&getunencodedplus=' || urlEncode(getunencodedplus);
 	END IF;
