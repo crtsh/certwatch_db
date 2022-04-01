@@ -63,6 +63,7 @@ DECLARE
 		'cablint', 'CA/B Forum lint', NULL,
 		'x509lint', 'X.509 lint', NULL,
 		'zlint', 'ZLint', NULL,
+		'keylint', 'keylint', NULL,
 		'lint', 'Lint', NULL
 	];
 	t_paramNo			integer;
@@ -232,7 +233,7 @@ BEGIN
 					) THEN
 				EXIT;
 			ELSIF t_type IN (
-						'CA/B Forum lint', 'X.509 lint', 'ZLint', 'Lint',
+						'CA/B Forum lint', 'X.509 lint', 'ZLint', 'keylint', 'Lint',
 						'Identity', 'Common Name', 'Email Address',
 						'Organizational Unit Name', 'Organization Name',
 						'Domain Name', 'Email Address (SAN)', 'IP Address'
@@ -393,7 +394,7 @@ Content-Type: application/json
 		t_nameType_oid := 'san:iPAddress';
 	ELSIF lower(t_type) LIKE '%lint' THEN
 		IF t_type = 'Lint' THEN
-			t_linters := 'cablint,x509lint,zlint';
+			t_linters := 'cablint,x509lint,zlint,keylint';
 		ELSE
 			t_linters := t_cmd;
 			t_linter := t_linters::linter_type;
@@ -870,13 +871,14 @@ Content-Type: application/json
           </SPAN>
           <BR><BR><BR><HR><BR>
           <SPAN class="heading">Select linting options:</SPAN>
-          <BR><SELECT name="linter" size="4">
+          <BR><SELECT name="linter" size="3">
             <OPTION value="cablint">cablint</OPTION>
             <OPTION value="x509lint">x509lint</OPTION>
             <OPTION value="zlint" selected>zlint</OPTION>
+            <OPTION value="keylint">keylint</OPTION>
             <OPTION value="lint">ALL</OPTION>
           </SELECT>
-          <SELECT name="linttype" size="4">
+          <SELECT name="linttype" size="3">
             <OPTION value="1 week" selected>1-week Summary</OPTION>
             <OPTION value="issues">Issues</OPTION>
           </SELECT>
@@ -3541,6 +3543,7 @@ $.ajax({
 				'CA/B Forum lint',
 				'X.509 lint',
 				'ZLint',
+				'keylint',
 				'Lint'
 			) THEN
 		IF length(t_value) = 1 THEN
