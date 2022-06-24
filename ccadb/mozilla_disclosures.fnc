@@ -22,6 +22,8 @@ AS $$
 DECLARE
 	t_undisclosed					text[];
 	t_undisclosedSummary			text;
+	t_constrained					text[];
+	t_constrainedSummary			text;
 	t_incomplete					text[];
 	t_incompleteSummary				text;
 	t_inconsistentAudit				text[];
@@ -31,7 +33,6 @@ DECLARE
 	t_trustRevoked					text[];
 	t_notTrusted					text[];
 	t_expired						text[];
-	t_constrained					text[];
 	t_constrainedOther				text[];
 	t_parentRevokedButNotAllParents	text[];
 	t_parentRevokedButInOneCRL		text[];
@@ -56,16 +57,17 @@ DECLARE
 BEGIN
 	t_undisclosed := ccadb_disclosure_group2(5, 'Undisclosed', 'undisclosed', 'Unconstrained Trust: Disclosure is required!', '#FE838A');
 	t_undisclosedSummary := ccadb_disclosure_group_summary(5, 'Undisclosed', 'undisclosedsummary', '#FE838A');
+	t_constrained := ccadb_disclosure_group2(5, 'TechnicallyConstrained', 'constrained', 'Technically Constrained (Trusted): Disclosure is required!', '#FE838A');
+	t_constrainedSummary := ccadb_disclosure_group_summary(5, 'TechnicallyConstrained', 'constrainedsummary', '#FE838A');
 	t_incomplete := ccadb_disclosure_group2(5, 'DisclosureIncomplete', 'disclosureincomplete', 'Certificate disclosed, but CP/CPS or Audit details missing: Further Disclosure is required!', '#FEA3AA');
 	t_incompleteSummary := ccadb_disclosure_group_summary(5, 'DisclosureIncomplete', 'disclosureincompletesummary', '#FEA3AA');
-	t_inconsistentAudit := ccadb_disclosure_group2(5, 'DisclosedWithInconsistentAudit', 'disclosedwithinconsistentaudit', '[EXPERIMENTAL] Certificate disclosed, but Audit details for the Subject CA are inconsistent: Further Disclosure is required!', '#F8B88B');
+	t_inconsistentAudit := ccadb_disclosure_group2(5, 'DisclosedWithInconsistentAudit', 'disclosedwithinconsistentaudit', 'Certificate disclosed, but Audit details for the Subject CA are inconsistent: Further Disclosure is required!', '#F8B88B');
 	t_inconsistentAuditSummary := ccadb_disclosure_group_summary(5, 'DisclosedWithInconsistentAudit', 'disclosedwithinconsistentauditsummary', '#F8B88B');
-	t_inconsistentCPS := ccadb_disclosure_group2(5, 'DisclosedWithInconsistentCPS', 'disclosedwithinconsistentcps', '[EXPERIMENTAL] Certificate disclosed, but CP/CPS details for the Subject CA are inconsistent: Further Disclosure is required!', '#F8B88B');
+	t_inconsistentCPS := ccadb_disclosure_group2(5, 'DisclosedWithInconsistentCPS', 'disclosedwithinconsistentcps', 'Certificate disclosed, but CP/CPS details for the Subject CA are inconsistent: Further Disclosure is required!', '#F8B88B');
 	t_inconsistentCPSSummary := ccadb_disclosure_group_summary(5, 'DisclosedWithInconsistentCPS', 'disclosedwithinconsistentcpssummary', '#F8B88B');
 	t_trustRevoked := ccadb_disclosure_group(5, 'AllServerAuthPathsRevoked', 'trustrevoked', 'Unconstrained, although all unexpired paths contain at least one revoked intermediate: Disclosure is not known to be required', '#FAF884');
 	t_notTrusted := ccadb_disclosure_group(5, 'NoKnownServerAuthTrustPath', 'nottrusted', 'Unconstrained, but no unexpired trust paths have been observed: Disclosure is not known to be required', '#FAF884');
 	t_expired := ccadb_disclosure_group(5, 'Expired', 'expired', 'Expired: Disclosure is not required', '#BAED91');
-	t_constrained := ccadb_disclosure_group(5, 'TechnicallyConstrained', 'constrained', 'Technically Constrained (Trusted): Disclosure is not currently required', '#BAED91');
 	t_constrainedOther := ccadb_disclosure_group(5, 'TechnicallyConstrainedOther', 'constrainedother', 'Technically Constrained (Other): Disclosure is not required', '#BAED91');
 	t_parentRevokedButNotAllParents := ccadb_disclosure_group(5, 'ParentRevokedButNotAllParents', 'parentrevokedbutnotallparents', 'Disclosed as Parent Revoked, but not all parent(s) are disclosed as Revoked', '#B2CEFE');
 	t_parentRevokedButInOneCRL := ccadb_disclosure_group(5, 'ParentRevokedButInOneCRL', 'parentrevokedbutinonecrl', 'Disclosed as Parent Revoked, but in OneCRL', '#B2CEFE');
@@ -107,6 +109,12 @@ BEGIN
     <TD><A href="#undisclosed">' || t_undisclosed[2] || ' + ' || t_undisclosed[3] || '</A>
       &nbsp;<A href="#undisclosedsummary" style="font-size:8pt">Summary</A></TD>
   </TR>
+  <TR style="background-color:#FE838A">
+    <TD>Technically Constrained (Trusted)</TD>
+    <TD><B><U>Yes!</U></B></TD>
+    <TD><A href="#constrained">' || t_constrained[2] || ' + ' || t_constrained[3] || '</A>
+      &nbsp;<A href="#constrainedsummary" style="font-size:8pt">Summary</A></TD>
+  </TR>
   <TR style="background-color:#FEA3AA">
     <TD>Disclosure Incomplete</TD>
     <TD><B><U>Yes!</U></B></TD>
@@ -115,14 +123,14 @@ BEGIN
     </TD>
   </TR>
   <TR style="background-color:#F8B88B">
-    <TD>[EXPERIMENTAL] Disclosed, but with Inconsistent Audit details</TD>
+    <TD>Disclosed, but with Inconsistent Audit details</TD>
     <TD><B><U>Yes!</U></B></TD>
     <TD><A href="#disclosedwithinconsistentaudit">' || t_inconsistentAudit[2] || ' + ' || t_inconsistentAudit[3] || '</A>
       &nbsp;<A href="#disclosedwithinconsistentauditsummary" style="font-size:8pt">Summary</A>
     </TD>
   </TR>
   <TR style="background-color:#F8B88B">
-    <TD>[EXPERIMENTAL] Disclosed, but with Inconsistent CP/CPS details</TD>
+    <TD>Disclosed, but with Inconsistent CP/CPS details</TD>
     <TD><B><U>Yes!</U></B></TD>
     <TD><A href="#disclosedwithinconsistentcps">' || t_inconsistentCPS[2] || ' + ' || t_inconsistentCPS[3] || '</A>
       &nbsp;<A href="#disclosedwithinconsistentcpssummary" style="font-size:8pt">Summary</A>
@@ -142,11 +150,6 @@ BEGIN
     <TD>Expired</TD>
     <TD>No</TD>
     <TD><A href="#expired">' || t_expired[2] || '</A></TD>
-  </TR>
-  <TR style="background-color:#BAED91">
-    <TD>Technically Constrained (Trusted)</TD>
-    <TD><A href="//www.mail-archive.com/dev-security-policy@lists.mozilla.org/msg06905.html" target="_blank">Maybe soon?</A></TD>
-    <TD><A href="#constrained">' || t_constrained[2] || '</A></TD>
   </TR>
   <TR style="background-color:#BAED91">
     <TD>Technically Constrained (Other)</TD>
@@ -257,6 +260,8 @@ BEGIN
 '
 		|| t_undisclosed[1]
 		|| t_undisclosedSummary
+		|| t_constrained[1]
+		|| t_constrainedSummary
 		|| t_incomplete[1]
 		|| t_incompleteSummary
 		|| t_inconsistentAudit[1]
@@ -266,7 +271,6 @@ BEGIN
 		|| t_trustRevoked[1]
 		|| t_notTrusted[1]
 		|| t_expired[1]
-		|| t_constrained[1]
 		|| t_constrainedOther[1]
 		|| t_parentRevokedButNotAllParents[1]
 		|| t_parentRevokedButInOneCRL[1]
