@@ -54,6 +54,9 @@ CREATE TEMPORARY TABLE ccadb_certificate_import (
 
 \COPY ccadb_certificate_import FROM 'ccadb_all_certificate_records.csv' CSV HEADER;
 
+DELETE FROM ccadb_certificate_import
+	WHERE LENGTH(CERT_SHA256) != 64;
+
 CREATE TEMPORARY TABLE ccadb_certificate_temp (LIKE ccadb_certificate INCLUDING INDEXES)
 	ON COMMIT DROP;
 
