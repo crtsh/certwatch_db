@@ -49,7 +49,8 @@ CREATE TEMPORARY TABLE ccadb_certificate_import (
 	MOZILLA_STATUS				text,
 	MICROSOFT_STATUS			text,
 	SUBORDINATE_CA_OWNER		text,
-	FULL_CRL_URL				text
+	FULL_CRL_URL				text,
+	JSON_ARRAY_OF_CRL_URLS		text
 ) ON COMMIT DROP;
 
 \COPY ccadb_certificate_import FROM 'ccadb_all_certificate_records.csv' CSV HEADER;
@@ -114,7 +115,8 @@ INSERT INTO ccadb_certificate_temp (
 		MICROSOFT_DISCLOSURE_STATUS,
 		LAST_MOZILLA_DISCLOSURE_STATUS_CHANGE,
 		LAST_MICROSOFT_DISCLOSURE_STATUS_CHANGE,
-		FULL_CRL_URL
+		FULL_CRL_URL,
+		JSON_ARRAY_OF_CRL_URLS
 	)
 	SELECT	c.ID					CERTIFICATE_ID,
 			NULL					PARENT_CERTIFICATE_ID,
@@ -231,7 +233,8 @@ INSERT INTO ccadb_certificate_temp (
 			END MICROSOFT_DISCLOSURE_STATUS,
 			statement_timestamp() AT TIME ZONE 'UTC'	LAST_MOZILLA_DISCLOSURE_STATUS_CHANGE,
 			statement_timestamp() AT TIME ZONE 'UTC'	LAST_MICROSOFT_DISCLOSURE_STATUS_CHANGE,
-			cci.FULL_CRL_URL
+			cci.FULL_CRL_URL,
+			cci.JSON_ARRAY_OF_CRL_URLS
 		FROM ccadb_certificate_import cci
 			LEFT OUTER JOIN certificate c ON (decode(replace(cci.CERT_SHA256, ':', ''), 'hex') = digest(c.CERTIFICATE, 'sha256'));
 
@@ -847,6 +850,10 @@ UPDATE ccadb_certificate_temp cct
 					OR (cct.BRSSL_AUDIT_DATE IS NULL)
 					OR (cct.BRSSL_AUDIT_START IS NULL)
 					OR (cct.BRSSL_AUDIT_END IS NULL)
+					OR (
+						(nullif(cct.FULL_CRL_URL, '') IS NULL)
+						AND (nullif(cct.JSON_ARRAY_OF_CRL_URLS, '') IS NULL)
+					)
 				)
 			)
 			OR (

@@ -107,6 +107,9 @@ BEGIN
 			IF t_ccadbCertificate.BRSSL_AUDIT_END IS NULL THEN
 				t_problems := array_append(t_problems, '"BR Audit Period End Date" is required');
 			END IF;
+			IF (nullif(t_ccadbCertificate.FULL_CRL_URL, '') IS NULL) AND (nullif(t_ccadbCertificate.JSON_ARRAY_OF_CRL_URLS, '') IS NULL) THEN
+				t_problems := array_append(t_problems, '"Full CRL Issued By This CA" or "JSON Array of Partitioned CRLs" is required');
+			END IF;
 		END IF;
 
 		PERFORM

@@ -59,7 +59,7 @@ BEGIN
 	t_undisclosedSummary := ccadb_disclosure_group_summary(5, 'Undisclosed', 'undisclosedsummary', '#FE838A');
 	t_constrained := ccadb_disclosure_group2(5, 'TechnicallyConstrained', 'constrained', 'Technically Constrained (Trusted): Disclosure is required!', '#FE838A');
 	t_constrainedSummary := ccadb_disclosure_group_summary(5, 'TechnicallyConstrained', 'constrainedsummary', '#FE838A');
-	t_incomplete := ccadb_disclosure_group2(5, 'DisclosureIncomplete', 'disclosureincomplete', 'Certificate disclosed, but CP/CPS or Audit details missing: Further Disclosure is required!', '#FEA3AA');
+	t_incomplete := ccadb_disclosure_group2(5, 'DisclosureIncomplete', 'disclosureincomplete', 'Certificate disclosed, but CP/CPS, Audit, or CRL details missing: Further Disclosure is required!', '#FEA3AA');
 	t_incompleteSummary := ccadb_disclosure_group_summary(5, 'DisclosureIncomplete', 'disclosureincompletesummary', '#FEA3AA');
 	t_inconsistentAudit := ccadb_disclosure_group2(5, 'DisclosedWithInconsistentAudit', 'disclosedwithinconsistentaudit', 'Certificate disclosed, but Audit details for the Subject CA are inconsistent: Further Disclosure is required!', '#F8B88B');
 	t_inconsistentAuditSummary := ccadb_disclosure_group_summary(5, 'DisclosedWithInconsistentAudit', 'disclosedwithinconsistentauditsummary', '#F8B88B');
