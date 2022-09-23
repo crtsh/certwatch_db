@@ -46,6 +46,8 @@ BEGIN
 		t_opt := '&opt=mozilladisclosure';
 	ELSIF trustContextID = 1 THEN
 		t_disclosureStatusField := 'MICROSOFT_DISCLOSURE_STATUS';
+	ELSIF trustContextID = 12 THEN
+		t_disclosureStatusField := 'APPLE_DISCLOSURE_STATUS';
 	END IF;
 
 	t_query :=
@@ -147,7 +149,7 @@ BEGIN
     <TD style="font-family:monospace"><A href="/?sha256=' || encode(l_record.CERT_SHA256, 'hex') || t_opt || '" target="blank">' || substr(upper(encode(l_record.CERT_SHA256, 'hex')), 1, 16) || '...</A></TD>
   </TR>
 ';
-		t_problems := disclosure_problems(l_record.CERTIFICATE_ID, 5);
+		t_problems := disclosure_problems(l_record.CERTIFICATE_ID, trustContextID);
 		IF array_length(t_problems, 1) > 0 THEN
 			SELECT digest(x509_publicKey(c.CERTIFICATE), 'sha256')
 				INTO t_spki
@@ -183,7 +185,7 @@ BEGIN
     <TH>#</TH>
     <TH>Earliest SCT</TH>
     <TH>Listed Here Since</TH>
-    <TH>Trusted For</TH>
+    <TH>Trusted For Server? Email?</TH>
     <TH>Root Owner / Certificate</TH>
     <TH>Issuer O</TH>
     <TH>Issuer CN</TH>

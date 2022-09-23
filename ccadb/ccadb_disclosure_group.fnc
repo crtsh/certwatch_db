@@ -38,6 +38,8 @@ BEGIN
 		t_opt := '&opt=mozilladisclosure';
 	ELSIF trustContextID = 1 THEN
 		t_disclosureStatusField := 'MICROSOFT_DISCLOSURE_STATUS';
+	ELSIF trustContextID = 12 THEN
+		t_disclosureStatusField := 'APPLE_DISCLOSURE_STATUS';
 	END IF;
 
 	IF disclosureStatus IS NULL THEN

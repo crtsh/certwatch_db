@@ -113,8 +113,10 @@ INSERT INTO ccadb_certificate_temp (
 		SUBJECT_O,
 		MOZILLA_DISCLOSURE_STATUS,
 		MICROSOFT_DISCLOSURE_STATUS,
+		APPLE_DISCLOSURE_STATUS,
 		LAST_MOZILLA_DISCLOSURE_STATUS_CHANGE,
 		LAST_MICROSOFT_DISCLOSURE_STATUS_CHANGE,
+		LAST_APPLE_DISCLOSURE_STATUS_CHANGE,
 		FULL_CRL_URL,
 		JSON_ARRAY_OF_CRL_URLS
 	)
@@ -231,8 +233,14 @@ INSERT INTO ccadb_certificate_temp (
 				WHEN 'Parent Cert Revoked' THEN 'ParentRevoked'::disclosure_status_type
 				ELSE 'Disclosed'::disclosure_status_type
 			END MICROSOFT_DISCLOSURE_STATUS,
-			statement_timestamp() AT TIME ZONE 'UTC'	LAST_MOZILLA_DISCLOSURE_STATUS_CHANGE,
-			statement_timestamp() AT TIME ZONE 'UTC'	LAST_MICROSOFT_DISCLOSURE_STATUS_CHANGE,
+			CASE cci.REVOCATION_STATUS
+				WHEN 'Revoked' THEN 'Revoked'::disclosure_status_type
+				WHEN 'Parent Cert Revoked' THEN 'ParentRevoked'::disclosure_status_type
+				ELSE 'Disclosed'::disclosure_status_type
+			END APPLE_DISCLOSURE_STATUS,
+			now() AT TIME ZONE 'UTC'	LAST_MOZILLA_DISCLOSURE_STATUS_CHANGE,
+			now() AT TIME ZONE 'UTC'	LAST_MICROSOFT_DISCLOSURE_STATUS_CHANGE,
+			now() AT TIME ZONE 'UTC'	LAST_APPLE_DISCLOSURE_STATUS_CHANGE,
 			cci.FULL_CRL_URL,
 			cci.JSON_ARRAY_OF_CRL_URLS
 		FROM ccadb_certificate_import cci
@@ -248,7 +256,8 @@ INSERT INTO ccadb_certificate_temp (
 		SUBJECT_CN,
 		CERT_SHA256,
 		MOZILLA_DISCLOSURE_STATUS, LAST_MOZILLA_DISCLOSURE_STATUS_CHANGE,
-		MICROSOFT_DISCLOSURE_STATUS, LAST_MICROSOFT_DISCLOSURE_STATUS_CHANGE
+		MICROSOFT_DISCLOSURE_STATUS, LAST_MICROSOFT_DISCLOSURE_STATUS_CHANGE,
+		APPLE_DISCLOSURE_STATUS, LAST_APPLE_DISCLOSURE_STATUS_CHANGE
 	)
 	SELECT c.ID, get_ca_name_attribute(cac.CA_ID),
 			get_ca_name_attribute(c.ISSUER_CA_ID, 'organizationName'),
@@ -256,8 +265,9 @@ INSERT INTO ccadb_certificate_temp (
 			get_ca_name_attribute(cac.CA_ID, 'organizationName'),
 			get_ca_name_attribute(cac.CA_ID, 'commonName'),
 			digest(c.CERTIFICATE, 'sha256'),
-			'Undisclosed', statement_timestamp() AT TIME ZONE 'UTC',
-			'Undisclosed', statement_timestamp() AT TIME ZONE 'UTC'
+			'Undisclosed', now() AT TIME ZONE 'UTC',
+			'Undisclosed', now() AT TIME ZONE 'UTC',
+			'Undisclosed', now() AT TIME ZONE 'UTC'
 		FROM ca, ca_certificate cac, certificate c
 		WHERE ca.LINTING_APPLIES
 			AND ca.ID = cac.CA_ID
@@ -294,7 +304,7 @@ UPDATE ccadb_certificate_temp cct
 		AND cct.CERTIFICATE_ID = c.ID
 		AND c.ISSUER_CA_ID = cac_parent.CA_ID
 		AND cac_parent.CERTIFICATE_ID = c_parent.ID
-		AND coalesce(x509_notAfter(c_parent.CERTIFICATE), 'infinity'::timestamp) > statement_timestamp() AT TIME ZONE 'UTC'
+		AND coalesce(x509_notAfter(c_parent.CERTIFICATE), 'infinity'::timestamp) > now() AT TIME ZONE 'UTC'
 		AND c_parent.ID = cct_parent.CERTIFICATE_ID
 		AND cct_parent.CERT_RECORD_TYPE = 'Root Certificate';
 /* ...then Disclosed Intermediate CA certs that are unexpired... */
@@ -306,10 +316,10 @@ UPDATE ccadb_certificate_temp cct
 		AND cct.CERTIFICATE_ID = c.ID
 		AND c.ISSUER_CA_ID = cac_parent.CA_ID
 		AND cac_parent.CERTIFICATE_ID = c_parent.ID
-		AND coalesce(x509_notAfter(c_parent.CERTIFICATE), 'infinity'::timestamp) > statement_timestamp() AT TIME ZONE 'UTC'
+		AND coalesce(x509_notAfter(c_parent.CERTIFICATE), 'infinity'::timestamp) > now() AT TIME ZONE 'UTC'
 		AND c_parent.ID = cct_parent.CERTIFICATE_ID
 		AND cct_parent.CERT_RECORD_TYPE IS NOT NULL;
-/* ...then any other CA certs trusted by Mozilla or Microsoft... */
+/* ...then any other CA certs trusted by Microsoft, Mozilla, or Apple... */
 UPDATE ccadb_certificate_temp cct
 	SET PARENT_CERTIFICATE_ID = (
 		SELECT c_parent.ID
@@ -319,7 +329,7 @@ UPDATE ccadb_certificate_temp cct
 				AND cac_parent.CERTIFICATE_ID = c_parent.ID
 				AND c.ID != c_parent.ID
 				AND c_parent.ISSUER_CA_ID = ctp.CA_ID
-				AND ctp.TRUST_CONTEXT_ID IN (1, 5)
+				AND ctp.TRUST_CONTEXT_ID IN (1, 5, 12)
 			ORDER BY ctp.IS_TIME_VALID DESC,
 					ctp.SHORTEST_CHAIN,
 					ctp.TRUST_PURPOSE_ID
@@ -538,10 +548,16 @@ UPDATE ccadb_certificate_temp cct
 			WHEN 'Disclosed' THEN 'DisclosedButExpired'::disclosure_status_type
 			WHEN 'Revoked' THEN 'RevokedButExpired'::disclosure_status_type
 			ELSE MICROSOFT_DISCLOSURE_STATUS
+		END,
+		APPLE_DISCLOSURE_STATUS = CASE APPLE_DISCLOSURE_STATUS
+			WHEN 'Undisclosed' THEN 'Expired'::disclosure_status_type
+			WHEN 'Disclosed' THEN 'DisclosedButExpired'::disclosure_status_type
+			WHEN 'Revoked' THEN 'RevokedButExpired'::disclosure_status_type
+			ELSE APPLE_DISCLOSURE_STATUS
 		END
 	FROM certificate c
 	WHERE cct.CERTIFICATE_ID = c.ID
-		AND coalesce(x509_notAfter(c.CERTIFICATE), 'infinity'::timestamp) < statement_timestamp();
+		AND coalesce(x509_notAfter(c.CERTIFICATE), 'infinity'::timestamp) < now();
 
 \echo Undisclosed -> NoKnownServerAuthTrustPath
 UPDATE ccadb_certificate_temp cct
@@ -571,6 +587,19 @@ UPDATE ccadb_certificate_temp cct
 					AND ctp.IS_TIME_VALID
 					AND NOT ctp.ALL_CHAINS_TECHNICALLY_CONSTRAINED
 		);
+UPDATE ccadb_certificate_temp cct
+	SET APPLE_DISCLOSURE_STATUS = 'NoKnownServerAuthTrustPath'
+	FROM certificate c
+	WHERE cct.APPLE_DISCLOSURE_STATUS = 'Undisclosed'
+		AND cct.CERTIFICATE_ID = c.ID
+		AND NOT EXISTS (
+			SELECT 1
+				FROM ca_trust_purpose ctp
+				WHERE ctp.CA_ID = c.ISSUER_CA_ID
+					AND ctp.TRUST_CONTEXT_ID = 12
+					AND ctp.IS_TIME_VALID
+					AND NOT ctp.ALL_CHAINS_TECHNICALLY_CONSTRAINED
+		);
 
 \echo Undisclosed -> AllServerAuthPathsRevoked
 UPDATE ccadb_certificate_temp cct
@@ -596,6 +625,18 @@ UPDATE ccadb_certificate_temp cct
 				FROM ca_trust_purpose ctp
 				WHERE ctp.CA_ID = c.ISSUER_CA_ID
 					AND ctp.TRUST_CONTEXT_ID = 1
+					AND NOT ctp.ALL_CHAINS_REVOKED_IN_SALESFORCE
+		);
+UPDATE ccadb_certificate_temp cct
+	SET APPLE_DISCLOSURE_STATUS = 'AllServerAuthPathsRevoked'
+	FROM certificate c
+	WHERE cct.APPLE_DISCLOSURE_STATUS = 'Undisclosed'
+		AND cct.CERTIFICATE_ID = c.ID
+		AND NOT EXISTS (
+			SELECT 1
+				FROM ca_trust_purpose ctp
+				WHERE ctp.CA_ID = c.ISSUER_CA_ID
+					AND ctp.TRUST_CONTEXT_ID = 12
 					AND NOT ctp.ALL_CHAINS_REVOKED_IN_SALESFORCE
 		);
 
@@ -675,6 +716,17 @@ UPDATE ccadb_certificate_temp cct
 		END
 	FROM certificate c
 	WHERE cct.MICROSOFT_DISCLOSURE_STATUS IN ('Undisclosed', 'Disclosed')
+		AND coalesce(cct.CERT_RECORD_TYPE, 'Undisclosed') != 'Root Certificate'
+		AND cct.CERTIFICATE_ID = c.ID
+		AND is_technically_constrained(c.CERTIFICATE);
+UPDATE ccadb_certificate_temp cct
+	SET APPLE_DISCLOSURE_STATUS = CASE APPLE_DISCLOSURE_STATUS
+			WHEN 'Undisclosed' THEN 'TechnicallyConstrained'::disclosure_status_type
+			WHEN 'Disclosed' THEN 'DisclosedButConstrained'::disclosure_status_type
+			WHEN 'Revoked' THEN 'RevokedAndTechnicallyConstrained'::disclosure_status_type
+		END
+	FROM certificate c
+	WHERE cct.APPLE_DISCLOSURE_STATUS IN ('Undisclosed', 'Disclosed', 'Revoked')
 		AND coalesce(cct.CERT_RECORD_TYPE, 'Undisclosed') != 'Root Certificate'
 		AND cct.CERTIFICATE_ID = c.ID
 		AND is_technically_constrained(c.CERTIFICATE);
@@ -768,6 +820,18 @@ UPDATE ccadb_certificate_temp cct
 					AND ctp.TRUST_PURPOSE_ID IN (1, 3)
 					AND ctp.IS_TIME_VALID
 		);
+UPDATE ccadb_certificate_temp cct
+	SET APPLE_DISCLOSURE_STATUS = 'DisclosedButNoKnownServerAuthTrustPath'
+	FROM certificate c
+	WHERE cct.APPLE_DISCLOSURE_STATUS IN ('Disclosed', 'Revoked', 'ParentRevoked')
+		AND cct.CERTIFICATE_ID = c.ID
+		AND NOT EXISTS (
+			SELECT 1
+				FROM ca_trust_purpose ctp
+				WHERE ctp.CA_ID = c.ISSUER_CA_ID
+					AND ctp.TRUST_CONTEXT_ID = 12
+					AND ctp.IS_TIME_VALID
+		);
 
 \echo ParentRevoked -> ParentRevokedButNotAllParents
 UPDATE ccadb_certificate_temp cct
@@ -803,6 +867,34 @@ UPDATE ccadb_certificate_temp cct
 					FROM root_trust_purpose rtp
 					WHERE cc2.CERTIFICATE_ID = rtp.CERTIFICATE_ID
 						AND rtp.TRUST_CONTEXT_ID = 5
+			)
+		);
+UPDATE ccadb_certificate_temp cct
+	SET APPLE_DISCLOSURE_STATUS = 'ParentRevokedButNotAllParents'
+	FROM certificate c, ca_certificate cac, ccadb_certificate cc2
+	WHERE cct.APPLE_DISCLOSURE_STATUS = 'ParentRevoked'
+		AND cct.CERTIFICATE_ID = c.ID
+		AND c.ISSUER_CA_ID = cac.CA_ID
+		AND cac.CERTIFICATE_ID = cc2.CERTIFICATE_ID
+		AND cc2.APPLE_DISCLOSURE_STATUS NOT IN (
+			'TechnicallyConstrained',
+			'AllServerAuthPathsRevoked',
+			'NoKnownServerAuthTrustPath',
+			'Expired',
+			'Revoked',
+			'RevokedAndTechnicallyConstrained',
+			'ParentRevoked',
+			'RevokedButExpired',
+			'DisclosedButExpired',
+			'DisclosedButNoKnownServerAuthTrustPath'
+		)
+		AND NOT (
+			coalesce(cc2.CERT_RECORD_TYPE, '') = 'Root Certificate'
+			AND NOT EXISTS (
+				SELECT 1
+					FROM root_trust_purpose rtp
+					WHERE cc2.CERTIFICATE_ID = rtp.CERTIFICATE_ID
+						AND rtp.TRUST_CONTEXT_ID = 12
 			)
 		);
 
@@ -946,6 +1038,74 @@ UPDATE ccadb_certificate_temp cct
 				)
 			)
 		);
+UPDATE ccadb_certificate_temp cct
+	SET APPLE_DISCLOSURE_STATUS = 'DisclosureIncomplete'
+	FROM certificate c
+	WHERE cct.APPLE_DISCLOSURE_STATUS = 'Disclosed'
+		AND cct.CERTIFICATE_ID = c.ID
+		AND cct.CERT_RECORD_TYPE != 'Root Certificate'
+		AND (
+			(
+				(coalesce(cct.CP_URL, cct.CPS_URL) IS NULL)
+				OR (cct.STANDARD_AUDIT_URL IS NULL)
+				OR (cct.STANDARD_AUDIT_TYPE IS NULL)
+				OR (cct.STANDARD_AUDIT_DATE IS NULL)
+				OR (cct.STANDARD_AUDIT_START IS NULL)
+				OR (cct.STANDARD_AUDIT_END IS NULL)
+				OR (
+					(nullif(cct.FULL_CRL_URL, '') IS NULL)
+					AND (nullif(cct.JSON_ARRAY_OF_CRL_URLS, '') IS NULL)
+				)
+			)
+			OR (
+				EXISTS (
+					SELECT 1
+						FROM ca_trust_purpose ctp
+						WHERE ctp.CA_ID = c.ISSUER_CA_ID
+							AND ctp.TRUST_CONTEXT_ID = 12
+							AND ctp.TRUST_PURPOSE_ID = 1
+							AND (
+								x509_isEKUPermitted(c.CERTIFICATE, '1.3.6.1.5.5.7.3.1')
+								OR x509_isEKUPermitted(c.CERTIFICATE, '1.3.6.1.4.1.311.10.3.3')	-- MS SGC.
+								OR x509_isEKUPermitted(c.CERTIFICATE, '2.16.840.1.113730.4.1')	-- NS Step-Up.
+							)
+							AND ctp.IS_TIME_VALID
+							AND (NOT ctp.ALL_CHAINS_REVOKED_VIA_ONECRL)
+				)
+				AND (
+					(cct.BRSSL_AUDIT_URL IS NULL)
+					OR (cct.BRSSL_AUDIT_TYPE IS NULL)
+					OR (cct.BRSSL_AUDIT_DATE IS NULL)
+					OR (cct.BRSSL_AUDIT_START IS NULL)
+					OR (cct.BRSSL_AUDIT_END IS NULL)
+				)
+			)
+			OR (
+				EXISTS (
+					SELECT 1
+						FROM ca_trust_purpose ctp, trust_purpose tp
+						WHERE ctp.CA_ID = c.ISSUER_CA_ID
+							AND ctp.TRUST_CONTEXT_ID = 12
+							AND ctp.TRUST_PURPOSE_ID >= 100
+							AND ctp.TRUST_PURPOSE_ID = tp.ID
+							AND x509_isPolicyPermitted(c.CERTIFICATE, tp.PURPOSE_OID)
+							AND (
+								x509_isEKUPermitted(c.CERTIFICATE, '1.3.6.1.5.5.7.3.1')
+								OR x509_isEKUPermitted(c.CERTIFICATE, '1.3.6.1.4.1.311.10.3.3')	-- MS SGC.
+								OR x509_isEKUPermitted(c.CERTIFICATE, '2.16.840.1.113730.4.1')	-- NS Step-Up.
+							)
+							AND ctp.IS_TIME_VALID
+							AND (NOT ctp.ALL_CHAINS_REVOKED_VIA_ONECRL)
+				)
+				AND (
+					(cct.EVSSL_AUDIT_URL IS NULL)
+					OR (cct.EVSSL_AUDIT_TYPE IS NULL)
+					OR (cct.EVSSL_AUDIT_DATE IS NULL)
+					OR (cct.EVSSL_AUDIT_START IS NULL)
+					OR (cct.EVSSL_AUDIT_END IS NULL)
+				)
+			)
+		);
 
 \echo Disclosed -> DisclosedWithInconsistentAudit
 UPDATE ccadb_certificate_temp cct
@@ -961,7 +1121,7 @@ UPDATE ccadb_certificate_temp cct
 									SELECT 1
 										FROM certificate c, ca_trust_purpose ctp
 										WHERE c.ID = cac2.CERTIFICATE_ID
-											AND coalesce(x509_notAfter(c.CERTIFICATE), 'infinity'::timestamp) > statement_timestamp() AT TIME ZONE 'UTC'
+											AND coalesce(x509_notAfter(c.CERTIFICATE), 'infinity'::timestamp) > now() AT TIME ZONE 'UTC'
 											AND c.ISSUER_CA_ID = ctp.CA_ID
 											AND ctp.TRUST_CONTEXT_ID = 5
 											AND NOT ctp.ALL_CHAINS_REVOKED_IN_SALESFORCE
@@ -998,7 +1158,7 @@ UPDATE ccadb_certificate_temp cct
 									SELECT 1
 										FROM certificate c, ca_trust_purpose ctp
 										WHERE c.ID = cac2.CERTIFICATE_ID
-											AND coalesce(x509_notAfter(c.CERTIFICATE), 'infinity'::timestamp) > statement_timestamp() AT TIME ZONE 'UTC'
+											AND coalesce(x509_notAfter(c.CERTIFICATE), 'infinity'::timestamp) > now() AT TIME ZONE 'UTC'
 											AND c.ISSUER_CA_ID = ctp.CA_ID
 											AND ctp.TRUST_CONTEXT_ID = 5
 											AND NOT ctp.ALL_CHAINS_REVOKED_IN_SALESFORCE
@@ -1035,7 +1195,7 @@ UPDATE ccadb_certificate_temp cct
 									SELECT 1
 										FROM certificate c, ca_trust_purpose ctp
 										WHERE c.ID = cac2.CERTIFICATE_ID
-											AND coalesce(x509_notAfter(c.CERTIFICATE), 'infinity'::timestamp) > statement_timestamp() AT TIME ZONE 'UTC'
+											AND coalesce(x509_notAfter(c.CERTIFICATE), 'infinity'::timestamp) > now() AT TIME ZONE 'UTC'
 											AND c.ISSUER_CA_ID = ctp.CA_ID
 											AND ctp.TRUST_CONTEXT_ID = 5
 											AND ctp.TRUST_PURPOSE_ID = 1
@@ -1074,7 +1234,7 @@ UPDATE ccadb_certificate_temp cct
 									SELECT 1
 										FROM certificate c, ca_trust_purpose ctp
 										WHERE c.ID = cac2.CERTIFICATE_ID
-											AND coalesce(x509_notAfter(c.CERTIFICATE), 'infinity'::timestamp) > statement_timestamp() AT TIME ZONE 'UTC'
+											AND coalesce(x509_notAfter(c.CERTIFICATE), 'infinity'::timestamp) > now() AT TIME ZONE 'UTC'
 											AND c.ISSUER_CA_ID = ctp.CA_ID
 											AND ctp.TRUST_CONTEXT_ID = 5
 											AND ctp.TRUST_PURPOSE_ID >= 100
@@ -1114,7 +1274,7 @@ UPDATE ccadb_certificate_temp cct
 									SELECT 1
 										FROM certificate c, ca_trust_purpose ctp
 										WHERE c.ID = cac2.CERTIFICATE_ID
-											AND coalesce(x509_notAfter(c.CERTIFICATE), 'infinity'::timestamp) > statement_timestamp() AT TIME ZONE 'UTC'
+											AND coalesce(x509_notAfter(c.CERTIFICATE), 'infinity'::timestamp) > now() AT TIME ZONE 'UTC'
 											AND c.ISSUER_CA_ID = ctp.CA_ID
 											AND ctp.TRUST_CONTEXT_ID = 1
 											AND NOT ctp.ALL_CHAINS_REVOKED_IN_SALESFORCE
@@ -1151,7 +1311,7 @@ UPDATE ccadb_certificate_temp cct
 									SELECT 1
 										FROM certificate c, ca_trust_purpose ctp
 										WHERE c.ID = cac2.CERTIFICATE_ID
-											AND coalesce(x509_notAfter(c.CERTIFICATE), 'infinity'::timestamp) > statement_timestamp() AT TIME ZONE 'UTC'
+											AND coalesce(x509_notAfter(c.CERTIFICATE), 'infinity'::timestamp) > now() AT TIME ZONE 'UTC'
 											AND c.ISSUER_CA_ID = ctp.CA_ID
 											AND ctp.TRUST_CONTEXT_ID = 1
 											AND NOT ctp.ALL_CHAINS_REVOKED_IN_SALESFORCE
@@ -1188,7 +1348,7 @@ UPDATE ccadb_certificate_temp cct
 									SELECT 1
 										FROM certificate c, ca_trust_purpose ctp
 										WHERE c.ID = cac2.CERTIFICATE_ID
-											AND coalesce(x509_notAfter(c.CERTIFICATE), 'infinity'::timestamp) > statement_timestamp() AT TIME ZONE 'UTC'
+											AND coalesce(x509_notAfter(c.CERTIFICATE), 'infinity'::timestamp) > now() AT TIME ZONE 'UTC'
 											AND c.ISSUER_CA_ID = ctp.CA_ID
 											AND ctp.TRUST_CONTEXT_ID = 1
 											AND ctp.TRUST_PURPOSE_ID = 1
@@ -1227,7 +1387,7 @@ UPDATE ccadb_certificate_temp cct
 									SELECT 1
 										FROM certificate c, ca_trust_purpose ctp
 										WHERE c.ID = cac2.CERTIFICATE_ID
-											AND coalesce(x509_notAfter(c.CERTIFICATE), 'infinity'::timestamp) > statement_timestamp() AT TIME ZONE 'UTC'
+											AND coalesce(x509_notAfter(c.CERTIFICATE), 'infinity'::timestamp) > now() AT TIME ZONE 'UTC'
 											AND c.ISSUER_CA_ID = ctp.CA_ID
 											AND ctp.TRUST_CONTEXT_ID = 1
 											AND ctp.TRUST_PURPOSE_ID >= 100
@@ -1250,6 +1410,159 @@ UPDATE ccadb_certificate_temp cct
 				FROM ca_trust_purpose ctp
 				WHERE ctp.CA_ID = cac.CA_ID
 					AND ctp.TRUST_CONTEXT_ID = 1
+					AND ctp.TRUST_PURPOSE_ID >= 100
+		)
+		AND coalesce(audit_variations.NUMBER_OF_AUDIT_VARIATIONS, 0) > 1;
+
+UPDATE ccadb_certificate_temp cct
+	SET APPLE_DISCLOSURE_STATUS = 'DisclosedWithInconsistentAudit'
+	FROM ca_certificate cac
+			LEFT JOIN LATERAL (
+				SELECT COUNT(*) AS NUMBER_OF_AUDIT_VARIATIONS
+					FROM (
+						SELECT 1
+							FROM ca_certificate cac2, ccadb_certificate_temp cct2, certificate c
+							WHERE cac.CA_ID = cac2.CA_ID
+								AND EXISTS (
+									SELECT 1
+										FROM certificate c, ca_trust_purpose ctp
+										WHERE c.ID = cac2.CERTIFICATE_ID
+											AND coalesce(x509_notAfter(c.CERTIFICATE), 'infinity'::timestamp) > now() AT TIME ZONE 'UTC'
+											AND c.ISSUER_CA_ID = ctp.CA_ID
+											AND ctp.TRUST_CONTEXT_ID = 12
+											AND NOT ctp.ALL_CHAINS_REVOKED_IN_SALESFORCE
+											AND ctp.IS_TIME_VALID
+								)
+								AND cac2.CERTIFICATE_ID = cct2.CERTIFICATE_ID
+								AND cct2.REVOCATION_STATUS NOT IN ('Revoked', 'Parent Cert Revoked')
+								AND cct2.CERTIFICATE_ID = c.ID
+								AND NOT is_technically_constrained(c.CERTIFICATE)
+								AND cct2.CCADB_RECORD_ID IS NOT NULL	-- Ignore CA certificates not in CCADB (e.g., kernel mode cross-certificates).
+							GROUP BY coalesce(nullif(cct2.SUBORDINATE_CA_OWNER, ''), cct2.CA_OWNER)
+					) sub
+			) audit_variations ON TRUE
+	WHERE cct.APPLE_DISCLOSURE_STATUS = 'Disclosed'
+		AND cct.CERT_RECORD_TYPE != 'Root Certificate'
+		AND cct.CERTIFICATE_ID = cac.CERTIFICATE_ID
+		AND EXISTS (			-- Standard audit inconsistencies are only relevant if the CA is trusted by Apple.
+			SELECT 1
+				FROM ca_trust_purpose ctp
+				WHERE ctp.CA_ID = cac.CA_ID
+					AND ctp.TRUST_CONTEXT_ID = 12
+		)
+		AND coalesce(audit_variations.NUMBER_OF_AUDIT_VARIATIONS, 0) > 1;
+UPDATE ccadb_certificate_temp cct
+	SET APPLE_DISCLOSURE_STATUS = 'DisclosedWithInconsistentAudit'
+	FROM ca_certificate cac
+			LEFT JOIN LATERAL (
+				SELECT COUNT(*) AS NUMBER_OF_AUDIT_VARIATIONS
+					FROM (
+						SELECT 1
+							FROM ca_certificate cac2, ccadb_certificate_temp cct2, certificate c
+							WHERE cac.CA_ID = cac2.CA_ID
+								AND EXISTS (
+									SELECT 1
+										FROM certificate c, ca_trust_purpose ctp
+										WHERE c.ID = cac2.CERTIFICATE_ID
+											AND coalesce(x509_notAfter(c.CERTIFICATE), 'infinity'::timestamp) > now() AT TIME ZONE 'UTC'
+											AND c.ISSUER_CA_ID = ctp.CA_ID
+											AND ctp.TRUST_CONTEXT_ID = 12
+											AND NOT ctp.ALL_CHAINS_REVOKED_IN_SALESFORCE
+											AND ctp.IS_TIME_VALID
+								)
+								AND cac2.CERTIFICATE_ID = cct2.CERTIFICATE_ID
+								AND cct2.REVOCATION_STATUS NOT IN ('Revoked', 'Parent Cert Revoked')
+								AND cct2.CERTIFICATE_ID = c.ID
+								AND NOT is_technically_constrained(c.CERTIFICATE)
+								AND cct2.CCADB_RECORD_ID IS NOT NULL	-- Ignore CA certificates not in CCADB (e.g., kernel mode cross-certificates).
+							GROUP BY cct2.STANDARD_AUDIT_URL, cct2.STANDARD_AUDIT_TYPE, cct2.STANDARD_AUDIT_DATE, cct2.STANDARD_AUDIT_START, cct2.STANDARD_AUDIT_END
+					) sub
+			) audit_variations ON TRUE
+	WHERE cct.APPLE_DISCLOSURE_STATUS = 'Disclosed'
+		AND cct.CERT_RECORD_TYPE != 'Root Certificate'
+		AND cct.CERTIFICATE_ID = cac.CERTIFICATE_ID
+		AND EXISTS (			-- Standard audit inconsistencies are only relevant if the CA is trusted by Apple.
+			SELECT 1
+				FROM ca_trust_purpose ctp
+				WHERE ctp.CA_ID = cac.CA_ID
+					AND ctp.TRUST_CONTEXT_ID = 12
+		)
+		AND coalesce(audit_variations.NUMBER_OF_AUDIT_VARIATIONS, 0) > 1;
+UPDATE ccadb_certificate_temp cct
+	SET APPLE_DISCLOSURE_STATUS = 'DisclosedWithInconsistentAudit'
+	FROM ca_certificate cac
+			LEFT JOIN LATERAL (
+				SELECT COUNT(*) AS NUMBER_OF_AUDIT_VARIATIONS
+					FROM (
+						SELECT 1
+							FROM ca_certificate cac2, ccadb_certificate_temp cct2, certificate c
+							WHERE cac.CA_ID = cac2.CA_ID
+								AND EXISTS (
+									SELECT 1
+										FROM certificate c, ca_trust_purpose ctp
+										WHERE c.ID = cac2.CERTIFICATE_ID
+											AND coalesce(x509_notAfter(c.CERTIFICATE), 'infinity'::timestamp) > now() AT TIME ZONE 'UTC'
+											AND c.ISSUER_CA_ID = ctp.CA_ID
+											AND ctp.TRUST_CONTEXT_ID = 12
+											AND ctp.TRUST_PURPOSE_ID = 1
+											AND NOT ctp.ALL_CHAINS_REVOKED_IN_SALESFORCE
+											AND ctp.IS_TIME_VALID
+								)
+								AND cac2.CERTIFICATE_ID = cct2.CERTIFICATE_ID
+								AND cct2.REVOCATION_STATUS NOT IN ('Revoked', 'Parent Cert Revoked')
+								AND cct2.CERTIFICATE_ID = c.ID
+								AND NOT is_technically_constrained(c.CERTIFICATE)
+								AND cct2.CCADB_RECORD_ID IS NOT NULL	-- Ignore CA certificates not in CCADB (e.g., kernel mode cross-certificates).
+							GROUP BY cct2.BRSSL_AUDIT_URL, cct2.BRSSL_AUDIT_TYPE, cct2.BRSSL_AUDIT_DATE, cct2.BRSSL_AUDIT_START, cct2.BRSSL_AUDIT_END
+					) sub
+			) audit_variations ON TRUE
+	WHERE cct.APPLE_DISCLOSURE_STATUS = 'Disclosed'
+		AND cct.CERT_RECORD_TYPE != 'Root Certificate'
+		AND cct.CERTIFICATE_ID = cac.CERTIFICATE_ID
+		AND EXISTS (			-- BR SSL audit inconsistencies are only relevant if the CA is trusted to issue Server Authentication certificates.
+			SELECT 1
+				FROM ca_trust_purpose ctp
+				WHERE ctp.CA_ID = cac.CA_ID
+					AND ctp.TRUST_CONTEXT_ID = 12
+					AND ctp.TRUST_PURPOSE_ID = 1
+		)
+		AND coalesce(audit_variations.NUMBER_OF_AUDIT_VARIATIONS, 0) > 1;
+UPDATE ccadb_certificate_temp cct
+	SET APPLE_DISCLOSURE_STATUS = 'DisclosedWithInconsistentAudit'
+	FROM ca_certificate cac
+			LEFT JOIN LATERAL (
+				SELECT COUNT(*) AS NUMBER_OF_AUDIT_VARIATIONS
+					FROM (
+						SELECT 1
+							FROM ca_certificate cac2, ccadb_certificate_temp cct2, certificate c
+							WHERE cac.CA_ID = cac2.CA_ID
+								AND EXISTS (
+									SELECT 1
+										FROM certificate c, ca_trust_purpose ctp
+										WHERE c.ID = cac2.CERTIFICATE_ID
+											AND coalesce(x509_notAfter(c.CERTIFICATE), 'infinity'::timestamp) > now() AT TIME ZONE 'UTC'
+											AND c.ISSUER_CA_ID = ctp.CA_ID
+											AND ctp.TRUST_CONTEXT_ID = 12
+											AND ctp.TRUST_PURPOSE_ID >= 100
+											AND NOT ctp.ALL_CHAINS_REVOKED_IN_SALESFORCE
+											AND ctp.IS_TIME_VALID
+								)
+								AND cac2.CERTIFICATE_ID = cct2.CERTIFICATE_ID
+								AND cct2.REVOCATION_STATUS NOT IN ('Revoked', 'Parent Cert Revoked')
+								AND cct2.CERTIFICATE_ID = c.ID
+								AND NOT is_technically_constrained(c.CERTIFICATE)
+								AND cct2.CCADB_RECORD_ID IS NOT NULL	-- Ignore CA certificates not in CCADB (e.g., kernel mode cross-certificates).
+							GROUP BY cct2.EVSSL_AUDIT_URL, cct2.EVSSL_AUDIT_TYPE, cct2.EVSSL_AUDIT_DATE, cct2.EVSSL_AUDIT_START, cct2.EVSSL_AUDIT_END
+					) sub
+			) audit_variations ON TRUE
+	WHERE cct.APPLE_DISCLOSURE_STATUS = 'Disclosed'
+		AND cct.CERT_RECORD_TYPE != 'Root Certificate'
+		AND cct.CERTIFICATE_ID = cac.CERTIFICATE_ID
+		AND EXISTS (			-- EV SSL audit inconsistencies are only relevant if the CA is trusted to issue EV SSL certificates.
+			SELECT 1
+				FROM ca_trust_purpose ctp
+				WHERE ctp.CA_ID = cac.CA_ID
+					AND ctp.TRUST_CONTEXT_ID = 12
 					AND ctp.TRUST_PURPOSE_ID >= 100
 		)
 		AND coalesce(audit_variations.NUMBER_OF_AUDIT_VARIATIONS, 0) > 1;
@@ -1268,7 +1581,7 @@ UPDATE ccadb_certificate_temp cct
 									SELECT 1
 										FROM certificate c, ca_trust_purpose ctp
 										WHERE c.ID = cac2.CERTIFICATE_ID
-											AND coalesce(x509_notAfter(c.CERTIFICATE), 'infinity'::timestamp) > statement_timestamp() AT TIME ZONE 'UTC'
+											AND coalesce(x509_notAfter(c.CERTIFICATE), 'infinity'::timestamp) > now() AT TIME ZONE 'UTC'
 											AND c.ISSUER_CA_ID = ctp.CA_ID
 											AND ctp.TRUST_CONTEXT_ID = 5
 											AND NOT ctp.ALL_CHAINS_REVOKED_IN_SALESFORCE
@@ -1306,7 +1619,7 @@ UPDATE ccadb_certificate_temp cct
 									SELECT 1
 										FROM certificate c, ca_trust_purpose ctp
 										WHERE c.ID = cac2.CERTIFICATE_ID
-											AND coalesce(x509_notAfter(c.CERTIFICATE), 'infinity'::timestamp) > statement_timestamp() AT TIME ZONE 'UTC'
+											AND coalesce(x509_notAfter(c.CERTIFICATE), 'infinity'::timestamp) > now() AT TIME ZONE 'UTC'
 											AND c.ISSUER_CA_ID = ctp.CA_ID
 											AND ctp.TRUST_CONTEXT_ID = 1
 											AND NOT ctp.ALL_CHAINS_REVOKED_IN_SALESFORCE
@@ -1328,6 +1641,44 @@ UPDATE ccadb_certificate_temp cct
 				FROM ca_trust_purpose ctp
 				WHERE ctp.CA_ID = cac.CA_ID
 					AND ctp.TRUST_CONTEXT_ID = 1
+		)
+		AND coalesce(cpcps_variations.NUMBER_OF_CP_CPS_VARIATIONS, 0) > 1;
+
+UPDATE ccadb_certificate_temp cct
+	SET APPLE_DISCLOSURE_STATUS = 'DisclosedWithInconsistentCPS'
+	FROM ca_certificate cac
+			LEFT JOIN LATERAL (
+				SELECT COUNT(*) AS NUMBER_OF_CP_CPS_VARIATIONS
+					FROM (
+						SELECT 1
+							FROM ca_certificate cac2, ccadb_certificate_temp cct2, certificate c
+							WHERE cac.CA_ID = cac2.CA_ID
+								AND EXISTS (
+									SELECT 1
+										FROM certificate c, ca_trust_purpose ctp
+										WHERE c.ID = cac2.CERTIFICATE_ID
+											AND coalesce(x509_notAfter(c.CERTIFICATE), 'infinity'::timestamp) > now() AT TIME ZONE 'UTC'
+											AND c.ISSUER_CA_ID = ctp.CA_ID
+											AND ctp.TRUST_CONTEXT_ID = 12
+											AND NOT ctp.ALL_CHAINS_REVOKED_IN_SALESFORCE
+											AND ctp.IS_TIME_VALID
+								)
+								AND cac2.CERTIFICATE_ID = cct2.CERTIFICATE_ID
+								AND cct2.REVOCATION_STATUS NOT IN ('Revoked', 'Parent Cert Revoked')
+								AND cct2.CERTIFICATE_ID = c.ID
+								AND NOT is_technically_constrained(c.CERTIFICATE)
+								AND cct2.CCADB_RECORD_ID IS NOT NULL	-- Ignore CA certificates not in CCADB (e.g., kernel mode cross-certificates).
+							GROUP BY cct2.CP_URL, cct2.CPS_URL
+					) sub
+			) cpcps_variations ON TRUE
+	WHERE cct.APPLE_DISCLOSURE_STATUS = 'Disclosed'
+		AND cct.CERT_RECORD_TYPE != 'Root Certificate'
+		AND cct.CERTIFICATE_ID = cac.CERTIFICATE_ID
+		AND EXISTS (			-- Standard audit inconsistencies are only relevant if the CA is trusted by Apple.
+			SELECT 1
+				FROM ca_trust_purpose ctp
+				WHERE ctp.CA_ID = cac.CA_ID
+					AND ctp.TRUST_CONTEXT_ID = 12
 		)
 		AND coalesce(cpcps_variations.NUMBER_OF_CP_CPS_VARIATIONS, 0) > 1;
 
@@ -1357,6 +1708,18 @@ UPDATE ccadb_certificate_temp cct
 					AND ctp.TRUST_CONTEXT_ID = 1
 					AND NOT ctp.ALL_CHAINS_REVOKED_IN_SALESFORCE
 		);
+UPDATE ccadb_certificate_temp cct
+	SET APPLE_DISCLOSURE_STATUS = 'AllServerAuthPathsRevoked'
+	FROM certificate c
+	WHERE cct.APPLE_DISCLOSURE_STATUS IN ('DisclosureIncomplete', 'DisclosedWithInconsistentAudit', 'DisclosedWithInconsistentCPS')
+		AND cct.CERTIFICATE_ID = c.ID
+		AND NOT EXISTS (
+			SELECT 1
+				FROM ca_trust_purpose ctp
+				WHERE ctp.CA_ID = c.ISSUER_CA_ID
+					AND ctp.TRUST_CONTEXT_ID = 12
+					AND NOT ctp.ALL_CHAINS_REVOKED_IN_SALESFORCE
+		);
 
 \echo Disclosed -> DisclosedWithErrors
 UPDATE ccadb_certificate_temp cct
@@ -1375,6 +1738,14 @@ UPDATE ccadb_certificate_temp cct
 		AND cct.CERT_RECORD_TYPE != 'Root Certificate'
 		AND (cct.PARENT_CERT_NAME NOT LIKE get_ca_name_attribute(c.ISSUER_CA_ID, 'commonName') || '%')
 		AND (cct.PARENT_CERT_NAME NOT LIKE get_ca_name_attribute(c.ISSUER_CA_ID, 'organizationName') || '%');
+UPDATE ccadb_certificate_temp cct
+	SET APPLE_DISCLOSURE_STATUS = 'DisclosedWithErrors'
+	FROM certificate c
+	WHERE cct.APPLE_DISCLOSURE_STATUS = 'Disclosed'
+		AND cct.CERTIFICATE_ID = c.ID
+		AND cct.CERT_RECORD_TYPE != 'Root Certificate'
+		AND (cct.PARENT_CERT_NAME NOT LIKE get_ca_name_attribute(c.ISSUER_CA_ID, 'commonName') || '%')
+		AND (cct.PARENT_CERT_NAME NOT LIKE get_ca_name_attribute(c.ISSUER_CA_ID, 'organizationName') || '%');
 
 \echo Disclosed -> DisclosedButInCRL
 UPDATE ccadb_certificate_temp cct
@@ -1388,6 +1759,13 @@ UPDATE ccadb_certificate_temp cct
 	SET MICROSOFT_DISCLOSURE_STATUS = 'DisclosedButInCRL'
 	FROM certificate c, crl_revoked cr
 	WHERE cct.MICROSOFT_DISCLOSURE_STATUS = 'Disclosed'
+		AND cct.CERTIFICATE_ID = c.ID
+		AND x509_serialNumber(c.CERTIFICATE) = cr.SERIAL_NUMBER
+		AND c.ISSUER_CA_ID = cr.CA_ID;
+UPDATE ccadb_certificate_temp cct
+	SET APPLE_DISCLOSURE_STATUS = 'DisclosedButInCRL'
+	FROM certificate c, crl_revoked cr
+	WHERE cct.APPLE_DISCLOSURE_STATUS = 'Disclosed'
 		AND cct.CERTIFICATE_ID = c.ID
 		AND x509_serialNumber(c.CERTIFICATE) = cr.SERIAL_NUMBER
 		AND c.ISSUER_CA_ID = cr.CA_ID;
@@ -1411,6 +1789,15 @@ UPDATE ccadb_certificate_temp cct
 		AND c.ISSUER_CA_ID = cr.CA_ID
 		AND cr.CA_ID = crl.CA_ID
 		AND crl.THIS_UPDATE > cr.LAST_SEEN_CHECK_DATE;
+UPDATE ccadb_certificate_temp cct
+	SET APPLE_DISCLOSURE_STATUS = 'DisclosedButRemovedFromCRL'
+	FROM certificate c, crl_revoked cr, crl
+	WHERE cct.APPLE_DISCLOSURE_STATUS = 'DisclosedButInCRL'
+		AND cct.CERTIFICATE_ID = c.ID
+		AND x509_serialNumber(c.CERTIFICATE) = cr.SERIAL_NUMBER
+		AND c.ISSUER_CA_ID = cr.CA_ID
+		AND cr.CA_ID = crl.CA_ID
+		AND crl.THIS_UPDATE > cr.LAST_SEEN_CHECK_DATE;
 
 
 \echo Tidying Up
@@ -1429,6 +1816,12 @@ UPDATE ccadb_certificate_temp cct
 	WHERE cct.CERT_SHA256 = cc.CERT_SHA256
 		AND cct.MICROSOFT_DISCLOSURE_STATUS = cc.MICROSOFT_DISCLOSURE_STATUS
 		AND cc.LAST_MICROSOFT_DISCLOSURE_STATUS_CHANGE IS NOT NULL;
+UPDATE ccadb_certificate_temp cct
+	SET LAST_APPLE_DISCLOSURE_STATUS_CHANGE = cc.LAST_APPLE_DISCLOSURE_STATUS_CHANGE
+	FROM ccadb_certificate cc
+	WHERE cct.CERT_SHA256 = cc.CERT_SHA256
+		AND cct.APPLE_DISCLOSURE_STATUS = cc.APPLE_DISCLOSURE_STATUS
+		AND cc.LAST_APPLE_DISCLOSURE_STATUS_CHANGE IS NOT NULL;
 UPDATE ccadb_certificate_temp cct
 	SET TEST_WEBSITE_VALID_STATUS = cc.TEST_WEBSITE_VALID_STATUS,
 		TEST_WEBSITE_EXPIRED_STATUS = cc.TEST_WEBSITE_EXPIRED_STATUS,
@@ -1471,3 +1864,5 @@ COMMIT WORK;
 SELECT substr(web_apis(NULL, '{output,maxage}'::text[], '{mozilla-disclosures,0}'::text[]), 1, 6);
 
 SELECT substr(web_apis(NULL, '{output,maxage}'::text[], '{microsoft-disclosures,0}'::text[]), 1, 6);
+
+SELECT substr(web_apis(NULL, '{output,maxage}'::text[], '{apple-disclosures,0}'::text[]), 1, 6);

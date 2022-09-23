@@ -24,6 +24,7 @@ AS $$
 DECLARE
 	t_ccadbCertificate		ccadb_certificate%ROWTYPE;
 	t_disclosureStatus		disclosure_status_type;
+	t_crlDisclosureRequired	boolean		:= FALSE;
 	t_problems				text[];
 	t_caOwner1				text;
 	t_caOwner2				text;
@@ -48,6 +49,8 @@ BEGIN
 		t_disclosureStatus := t_ccadbCertificate.MOZILLA_DISCLOSURE_STATUS;
 	ELSIF trustContextID = 1 THEN
 		t_disclosureStatus := t_ccadbCertificate.MICROSOFT_DISCLOSURE_STATUS;
+	ELSIF trustContextID = 12 THEN
+		t_disclosureStatus := t_ccadbCertificate.APPLE_DISCLOSURE_STATUS;
 	ELSE
 		RETURN NULL;
 	END IF;
@@ -70,6 +73,9 @@ BEGIN
 		END IF;
 		IF t_ccadbCertificate.STANDARD_AUDIT_END IS NULL THEN
 			t_problems := array_append(t_problems, '"Standard Audit Period End Date" is required');
+		END IF;
+		IF trustContextID = 12 THEN
+			t_crlDisclosureRequired := TRUE;
 		END IF;
 
 		PERFORM
@@ -107,9 +113,13 @@ BEGIN
 			IF t_ccadbCertificate.BRSSL_AUDIT_END IS NULL THEN
 				t_problems := array_append(t_problems, '"BR Audit Period End Date" is required');
 			END IF;
-			IF (nullif(t_ccadbCertificate.FULL_CRL_URL, '') IS NULL) AND (nullif(t_ccadbCertificate.JSON_ARRAY_OF_CRL_URLS, '') IS NULL) THEN
-				t_problems := array_append(t_problems, '"Full CRL Issued By This CA" or "JSON Array of Partitioned CRLs" is required');
+			IF trustContextID = 5 THEN
+				t_crlDisclosureRequired := TRUE;
 			END IF;
+		END IF;
+
+		IF t_crlDisclosureRequired AND (nullif(t_ccadbCertificate.FULL_CRL_URL, '') IS NULL) AND (nullif(t_ccadbCertificate.JSON_ARRAY_OF_CRL_URLS, '') IS NULL) THEN
+			t_problems := array_append(t_problems, '"Full CRL Issued By This CA" or "JSON Array of Partitioned CRLs" is required');
 		END IF;
 
 		PERFORM
