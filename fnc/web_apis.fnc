@@ -32,6 +32,7 @@ DECLARE
 		'asn1', 'Certificate ASN.1', NULL,
 		'graph', 'Certification Graph', NULL,
 		'nodes', 'Graph Nodes', NULL,
+		'h', 'PKI Hierarchy', NULL,
 		'pv', 'pv-certificate-viewer', NULL,
 		'ctid', 'CT Entry ID', NULL,
 		'ca', 'CA ID', 'CA Name', NULL,
@@ -209,7 +210,7 @@ BEGIN
 
 			IF t_type = 'Download Certificate' THEN
 				RETURN download_cert(t_value);
-			ELSIF t_type IN ('ID', 'Certificate ASN.1', 'Certification Graph', 'pv-certificate-viewer', 'CA ID') THEN
+			ELSIF t_type IN ('ID', 'Certificate ASN.1', 'Certification Graph', 'PKI Hierarchy', 'pv-certificate-viewer', 'CA ID') THEN
 				BEGIN
 					EXIT WHEN t_value::bigint IS NOT NULL;
 				EXCEPTION
@@ -1698,6 +1699,7 @@ Content-Type: text/plain; charset=UTF-8
 				'SHA-256(Certificate)',
 				'Certificate ASN.1',
 				'Certification Graph',
+				'PKI Hierarchy',
 				'pv-certificate-viewer'
 			)
 			OR (
@@ -1712,7 +1714,7 @@ Content-Type: text/plain; charset=UTF-8
 		t_certSummary := 'Leaf certificate';
 
 		-- Search for a specific Certificate.
-		IF t_type IN ('ID', 'Certificate ASN.1', 'Certification Graph', 'pv-certificate-viewer') THEN
+		IF t_type IN ('ID', 'Certificate ASN.1', 'Certification Graph', 'PKI Hierarchy', 'pv-certificate-viewer') THEN
 			SELECT c.ID, x509_print(c.CERTIFICATE, NULL, 196608), ca.ID, cac.CA_ID,
 					digest(c.CERTIFICATE, 'sha1'::text),
 					digest(c.CERTIFICATE, 'sha256'::text),
@@ -2593,25 +2595,56 @@ Content-Type: text/plain; charset=UTF-8
 		IF t_type = 'Certificate ASN.1' THEN
 			t_action := 'asn1';
 			t_output := t_output ||
-'    <TH class="outer" style="white-space:nowrap"><A href="?id=' || t_certificateID::text || '">Certificate</A> | ASN.1 | <A href="?graph=' || t_certificateID::text || '&opt=nometadata">Graph</A> | <A href="?pv=' || t_certificateID::text || '">pv</A>
+'    <TH class="outer" style="white-space:nowrap">
+      | ASN.1 |
+      <A href="?id=' || t_certificateID::text || '">Certificate</A> |
+      <A href="?graph=' || t_certificateID::text || '&opt=nometadata">Graph</A> |<BR>
+      | <A href="?h=' || t_certificateID::text || '&opt=nometadata">Hierarchy</A> |
+      <A href="?pv=' || t_certificateID::text || '">pv</A> |
       <BR><BR><SPAN class="small">Powered by <A href="//lapo.it/asn1js/" target="_blank">asn1js</A><BR>
 ';
 		ELSIF t_type = 'Certification Graph' THEN
 			t_action := 'graph';
 			t_output := t_output ||
-'    <TH class="outer" style="white-space:nowrap"><A href="?id=' || t_certificateID::text || '">Certificate</A> | <A href="?asn1=' || t_certificateID::text || '">ASN.1</A> | Graph | <A href="?pv=' || t_certificateID::text || '">pv</A>
+'    <TH class="outer" style="white-space:nowrap">
+      | <A href="?asn1=' || t_certificateID::text || '">ASN.1</A> |
+      <A href="?id=' || t_certificateID::text || '">Certificate</A> |
+      Graph |<BR>
+      | <A href="?h=' || t_certificateID::text || '&opt=nometadata">Hierarchy</A> |
+      <A href="?pv=' || t_certificateID::text || '">pv</A> |
       <BR><BR><SPAN class="small">Powered by <A href="//js.cytoscape.org/" target="_blank">Cytoscape.js</A> <A href="//github.com/cytoscape/cytoscape.js-dagre">and</A> <A href="//github.com/dagrejs/dagre">Dagre</A><BR>
+';
+		ELSIF t_type = 'PKI Hierarchy' THEN
+			t_action := 'h';
+			t_output := t_output ||
+'    <TH class="outer" style="white-space:nowrap">
+      | <A href="?asn1=' || t_certificateID::text || '">ASN.1</A> |
+      <A href="?id=' || t_certificateID::text || '">Certificate</A> |
+      <A href="?graph=' || t_certificateID::text || '&opt=nometadata">Graph</A> |<BR>
+      | Hierarchy |
+      <A href="?pv=' || t_certificateID::text || '">pv</A> |
+      <SPAN class="small"><BR>
 ';
 		ELSIF t_type = 'pv-certificate-viewer' THEN
 			t_action := 'pv';
 			t_output := t_output ||
-'    <TH class="outer" style="white-space:nowrap"><A href="?id=' || t_certificateID::text || '">Certificate</A> | <A href="?asn1=' || t_certificateID::text || '">ASN.1</A> | <A href="?graph=' || t_certificateID::text || '&opt=nometadata">Graph</A> | pv
-      <BR><BR><SPAN class="small">Powered by <A href="//github.com/PeculiarVentures/pv-certificates-viewer" target="_blank">pv-certificates-viewer</A><BR>
+'    <TH class="outer" style="white-space:nowrap">
+      | <A href="?asn1=' || t_certificateID::text || '">ASN.1</A> |
+      <A href="?id=' || t_certificateID::text || '">Certificate</A> |
+      <A href="?graph=' || t_certificateID::text || '&opt=nometadata">Graph</A> |<BR>
+      | <A href="?h=' || t_certificateID::text || '&opt=nometadata">Hierarchy</A> |
+      pv
+      <BR><BR><SPAN class="small">Powered by <A href="//github.com/PeculiarVentures/pv-certificates-viewer" target="_blank">pv-certificates-viewer</A> |<BR>
 ';
 		ELSE
 			t_action := 'id';
 			t_output := t_output ||
-'    <TH class="outer" style="white-space:nowrap">Certificate | <A href="?asn1=' || t_certificateID::text || '">ASN.1</A> | <A href="?graph=' || t_certificateID::text || '&opt=nometadata">Graph</A> | <A href="?pv=' || t_certificateID::text || '">pv</A>
+'    <TH class="outer" style="white-space:nowrap">
+      | <A href="?asn1=' || t_certificateID::text || '">ASN.1</A> |
+      Certificate |
+      <A href="?graph=' || t_certificateID::text || '&opt=nometadata">Graph</A> |<BR>
+      | <A href="?h=' || t_certificateID::text || '&opt=nometadata">Hierarchy</A> |
+      <A href="?pv=' || t_certificateID::text || '">pv</A> |
       <SPAN class="small"><BR>
 ';
 		END IF;
@@ -2761,6 +2794,34 @@ $.ajax({
 });
       </SCRIPT>
 ';
+		ELSIF t_type = 'PKI Hierarchy' THEN
+			t_output := t_output ||
+'    <TD style="padding:5px 20px">
+      <TABLE style="width:100%;border:0px;margin-right:0px">
+        <TR style="border:0px">
+          <TD style="border:0px">' || pki_hierarchy(t_certificateID, t_excludeExpired IS NOT NULL) || '</TD>
+          <TD style="border:0px">
+            <DIV>
+              <FONT style="color:#00CC00">Valid</FONT>
+              <BR><FONT style="color:#CC0000;font-style:italic;text-decoration:line-through">Revoked by CRL</FONT>
+              <BR><FONT style="color:#888888;font-style:italic;text-decoration:line-through">Expired; was observed as Revoked</FONT>
+              <BR><FONT style="color:#888888">Expired</FONT>
+              <BR><FONT style="color:#00007F"><B>[External Operator]</B></FONT>
+              <BR><BR><BR><A href="/?h=' || t_certificateID::text;
+			IF coalesce(t_opt, '') != '' THEN
+				t_output := t_output || '&opt=' || rtrim(t_opt, ',');
+			END IF;
+			IF t_excludeExpired IS NULL THEN
+				t_output := t_output || '&exclude=expired">Hide expired certificates?</A>';
+			ELSE
+				t_output := t_output || '">Show expired certificates?</A>';
+			END IF;
+			t_output := t_output || '
+            </DIV>
+          </TD>
+        </TR>
+      </TABLE>
+    </TD>';
 		ELSIF t_type = 'pv-certificate-viewer' THEN
 			t_output := t_output ||
 '    <TD>
