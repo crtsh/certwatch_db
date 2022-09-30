@@ -934,6 +934,12 @@ Content-Type: application/json
                 <BR><A href="/mozilla-onecrl">OneCRL</A>
               </TD>
             </TR>
+            <TR>
+              <TD>Apple</TD>
+              <TD>
+                <A href="/apple-disclosures">CA Certificate Disclosures</A>
+              </TD>
+            </TR>
           </TABLE>
         </TD>
       <TR>

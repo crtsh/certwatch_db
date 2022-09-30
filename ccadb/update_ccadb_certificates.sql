@@ -1052,10 +1052,6 @@ UPDATE ccadb_certificate_temp cct
 				OR (cct.STANDARD_AUDIT_DATE IS NULL)
 				OR (cct.STANDARD_AUDIT_START IS NULL)
 				OR (cct.STANDARD_AUDIT_END IS NULL)
-				OR (
-					(nullif(cct.FULL_CRL_URL, '') IS NULL)
-					AND (nullif(cct.JSON_ARRAY_OF_CRL_URLS, '') IS NULL)
-				)
 			)
 			OR (
 				EXISTS (
@@ -1070,7 +1066,6 @@ UPDATE ccadb_certificate_temp cct
 								OR x509_isEKUPermitted(c.CERTIFICATE, '2.16.840.1.113730.4.1')	-- NS Step-Up.
 							)
 							AND ctp.IS_TIME_VALID
-							AND (NOT ctp.ALL_CHAINS_REVOKED_VIA_ONECRL)
 				)
 				AND (
 					(cct.BRSSL_AUDIT_URL IS NULL)
@@ -1095,7 +1090,6 @@ UPDATE ccadb_certificate_temp cct
 								OR x509_isEKUPermitted(c.CERTIFICATE, '2.16.840.1.113730.4.1')	-- NS Step-Up.
 							)
 							AND ctp.IS_TIME_VALID
-							AND (NOT ctp.ALL_CHAINS_REVOKED_VIA_ONECRL)
 				)
 				AND (
 					(cct.EVSSL_AUDIT_URL IS NULL)
@@ -1106,6 +1100,18 @@ UPDATE ccadb_certificate_temp cct
 				)
 			)
 		);
+UPDATE ccadb_certificate_temp cct
+	SET APPLE_DISCLOSURE_STATUS = CASE coalesce(ca.NUM_ISSUED[1], 0) + coalesce(ca.NUM_ISSUED[2], 0)
+			WHEN 0 THEN 'CRLDisclosureIncompleteForPossiblyDormantCA'::disclosure_status_type
+			ELSE 'DisclosureIncomplete'::disclosure_status_type
+		END
+	FROM ca_certificate cac, ca
+	WHERE cct.APPLE_DISCLOSURE_STATUS = 'Disclosed'
+		AND cct.CERT_RECORD_TYPE IN ('Root Certificate', 'Intermediate Certificate')
+		AND nullif(cct.FULL_CRL_URL, '') IS NULL
+		AND nullif(cct.JSON_ARRAY_OF_CRL_URLS, '') IS NULL
+		AND cct.CERTIFICATE_ID = cac.CERTIFICATE_ID
+		AND cac.CA_ID = ca.ID;
 
 \echo Disclosed -> DisclosedWithInconsistentAudit
 UPDATE ccadb_certificate_temp cct

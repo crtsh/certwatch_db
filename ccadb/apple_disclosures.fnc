@@ -8,6 +8,8 @@ DECLARE
 	t_constrainedSummary			text;
 	t_incomplete					text[];
 	t_incompleteSummary				text;
+	t_incomplete2					text[];
+	t_incomplete2Summary			text;
 	t_inconsistentAudit				text[];
 	t_inconsistentAuditSummary		text;
 	t_inconsistentCPS				text[];
@@ -35,6 +37,8 @@ BEGIN
 	t_constrainedSummary := ccadb_disclosure_group_summary(12, 'TechnicallyConstrained', 'constrainedsummary', '#FE838A');
 	t_incomplete := ccadb_disclosure_group2(12, 'DisclosureIncomplete', 'disclosureincomplete', 'Certificate disclosed, but CP/CPS, Audit, or CRL details missing: Further Disclosure is required!', '#FEA3AA');
 	t_incompleteSummary := ccadb_disclosure_group_summary(12, 'DisclosureIncomplete', 'disclosureincompletesummary', '#FEA3AA');
+	t_incomplete2 := ccadb_disclosure_group2(12, 'CRLDisclosureIncompleteForPossiblyDormantCA', 'disclosureincomplete2', 'Certificate disclosed, but CRL details missing: Further Disclosure may be required!', '#FEA3AA');
+	t_incomplete2Summary := ccadb_disclosure_group_summary(12, 'CRLDisclosureIncompleteForPossiblyDormantCA', 'disclosureincomplete2summary', '#FEA3AA');
 	t_inconsistentAudit := ccadb_disclosure_group2(12, 'DisclosedWithInconsistentAudit', 'disclosedwithinconsistentaudit', 'Certificate disclosed, but Audit details for the Subject CA are inconsistent: Further Disclosure is required!', '#F8B88B');
 	t_inconsistentAuditSummary := ccadb_disclosure_group_summary(12, 'DisclosedWithInconsistentAudit', 'disclosedwithinconsistentauditsummary', '#F8B88B');
 	t_inconsistentCPS := ccadb_disclosure_group2(12, 'DisclosedWithInconsistentCPS', 'disclosedwithinconsistentcps', 'Certificate disclosed, but CP/CPS details for the Subject CA are inconsistent: Further Disclosure is required!', '#F8B88B');
@@ -83,6 +87,13 @@ BEGIN
     <TD><B><U>Yes!</U></B></TD>
     <TD><A href="#disclosureincomplete">' || t_incomplete[2] || ' + ' || t_incomplete[3] || '</A>
       &nbsp;<A href="#disclosureincompletesummary" style="font-size:8pt">Summary</A>
+    </TD>
+  </TR>
+  <TR style="background-color:#FEA3AA">
+    <TD>CRL Disclosure Incomplete, but no issued certificates observed</TD>
+    <TD>Unknown</TD>
+    <TD><A href="#disclosureincomplete2">' || t_incomplete2[2] || ' + ' || t_incomplete2[3] || '</A>
+      &nbsp;<A href="#disclosureincomplete2summary" style="font-size:8pt">Summary</A>
     </TD>
   </TR>
   <TR style="background-color:#F8B88B">
@@ -187,6 +198,8 @@ BEGIN
 		|| t_constrainedSummary
 		|| t_incomplete[1]
 		|| t_incompleteSummary
+		|| t_incomplete2[1]
+		|| t_incomplete2Summary
 		|| t_inconsistentAudit[1]
 		|| t_inconsistentAuditSummary
 		|| t_inconsistentCPS[1]

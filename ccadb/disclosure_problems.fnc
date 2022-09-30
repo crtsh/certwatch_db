@@ -25,6 +25,8 @@ DECLARE
 	t_ccadbCertificate		ccadb_certificate%ROWTYPE;
 	t_disclosureStatus		disclosure_status_type;
 	t_crlDisclosureRequired	boolean		:= FALSE;
+	t_caID					ca.ID%TYPE;
+	t_count					bigint;
 	t_problems				text[];
 	t_caOwner1				text;
 	t_caOwner2				text;
@@ -119,7 +121,20 @@ BEGIN
 		END IF;
 
 		IF t_crlDisclosureRequired AND (nullif(t_ccadbCertificate.FULL_CRL_URL, '') IS NULL) AND (nullif(t_ccadbCertificate.JSON_ARRAY_OF_CRL_URLS, '') IS NULL) THEN
-			t_problems := array_append(t_problems, '"Full CRL Issued By This CA" or "JSON Array of Partitioned CRLs" is required');
+			SELECT ca.ID, coalesce(ca.NUM_ISSUED[1], 0) + coalesce(ca.NUM_ISSUED[2], 0)
+				INTO t_caID, t_count
+				FROM ca_certificate cac, ca
+				WHERE cac.CERTIFICATE_ID = certificateID
+					AND cac.CA_ID = ca.ID;
+			IF trustContextID = 12 THEN
+				IF t_count = 0 THEN
+					t_problems := array_append(t_problems, '"Full CRL Issued By This CA" or "JSON Array of Partitioned CRLs" may be required (<A href="/?ca=' || t_caID || '" target="_blank">no issuance observed</A>)');
+				ELSE
+					t_problems := array_append(t_problems, '"Full CRL Issued By This CA" or "JSON Array of Partitioned CRLs" is required (<A href="/?ca=' || t_caID || '" target="_blank">' || t_count::text || ' (pre)cert(s) observed</A>)');
+				END IF;
+			ELSE
+				t_problems := array_append(t_problems, '"Full CRL Issued By This CA" or "JSON Array of Partitioned CRLs" is required');
+			END IF;
 		END IF;
 
 		PERFORM
