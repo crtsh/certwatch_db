@@ -304,7 +304,7 @@ CREATE TABLE ct_log (
 	LATEST_UPDATE				timestamp,
 	LATEST_STH_TIMESTAMP		timestamp,
 	MMD_IN_SECONDS				integer,
-	TREE_SIZE					integer,
+	TREE_SIZE					bigint,
 	BATCH_SIZE					integer,
 	CHUNK_SIZE					integer,
 	GOOGLE_UPTIME				text,
