@@ -83,7 +83,7 @@ BEGIN
 			t_table := t_table || '<B>[Root]</B> ';
 		END IF;
 		IF l_record.CCADB_RECORD_ID IS NOT NULL THEN
-			t_table := t_table || '<A href="//ccadb.my.salesforce-sites.com/' || l_record.CCADB_RECORD_ID || '" target="_blank">';
+			t_table := t_table || '<A href="//ccadb.my.site.com/' || l_record.CCADB_RECORD_ID || '" target="_blank">';
 		END IF;
 		t_table := t_table || coalesce(html_escape(l_record.CERT_NAME), '&nbsp;');
 		IF l_record.CCADB_RECORD_ID IS NOT NULL THEN

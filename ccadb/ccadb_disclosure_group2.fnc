@@ -139,7 +139,7 @@ BEGIN
 			t_row := t_row || '<B>[Root]</B> ';
 		END IF;
 		IF l_record.CCADB_RECORD_ID IS NOT NULL THEN
-			t_row := t_row || '<A href="//ccadb.my.salesforce-sites.com/' || l_record.CCADB_RECORD_ID || '" target="_blank">';
+			t_row := t_row || '<A href="//ccadb.my.site.com/' || l_record.CCADB_RECORD_ID || '" target="_blank">';
 		END IF;
 		t_row := t_row || coalesce(html_escape(l_record.CERT_NAME), '&nbsp;');
 		IF l_record.CCADB_RECORD_ID IS NOT NULL THEN
@@ -161,7 +161,7 @@ BEGIN
 ';
 			IF disclosureStatus != 'DisclosureIncomplete' THEN
 				t_row := t_row ||
-'      <A href="//ccadb.my.salesforce-sites.com/s/global-search/' || encode(t_spki, 'hex') || '" target="_blank">Review this Subject CA''s CCADB records</A><BR>
+'      <A href="//ccadb.my.site.com/s/global-search/' || encode(t_spki, 'hex') || '" target="_blank">Review this Subject CA''s CCADB records</A><BR>
 ';
 			END IF;
 			t_row := t_row || array_to_string(t_problems, '<BR>') || '
