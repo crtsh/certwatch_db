@@ -1,6 +1,6 @@
 /* certwatch_db - Database schema
  * Written by Rob Stradling
- * Copyright (C) 2015-2020 Sectigo Limited
+ * Copyright (C) 2015-2023 Sectigo Limited
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -83,7 +83,7 @@ BEGIN
 			t_table := t_table || '<B>[Root]</B> ';
 		END IF;
 		IF l_record.CCADB_RECORD_ID IS NOT NULL THEN
-			t_table := t_table || '<A href="//ccadb.force.com/' || l_record.CCADB_RECORD_ID || '" target="_blank">';
+			t_table := t_table || '<A href="//ccadb.my.salesforce-sites.com/' || l_record.CCADB_RECORD_ID || '" target="_blank">';
 		END IF;
 		t_table := t_table || coalesce(html_escape(l_record.CERT_NAME), '&nbsp;');
 		IF l_record.CCADB_RECORD_ID IS NOT NULL THEN

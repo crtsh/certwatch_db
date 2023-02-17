@@ -1,6 +1,6 @@
 /* certwatch_db - Database schema
  * Written by Rob Stradling
- * Copyright (C) 2015-2021 Sectigo Limited
+ * Copyright (C) 2015-2023 Sectigo Limited
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -2086,7 +2086,7 @@ Content-Type: text/plain; charset=UTF-8
 '  <TR>
     <TH class="outer">Audit details<BR>
       <DIV class="small" style="padding-top:3px">Disclosed via the
-        <A href="//ccadb-public.secure.force.com/mozilla/PublicAllIntermediateCerts" target="_blank">CCADB</A></DIV>
+        <A href="//ccadb-public.my.salesforce-sites.com/mozilla/PublicAllIntermediateCerts" target="_blank">CCADB</A></DIV>
     </TH>
     <TD class="outer">
 ';
@@ -2155,7 +2155,7 @@ Content-Type: text/plain; charset=UTF-8
 '    </TD>
     <TD style="vertical-align:middle">';
 					IF l_record.CCADB_RECORD_ID IS NOT NULL THEN
-						t_temp := t_temp || '<A href="//ccadb.force.com/' || l_record.CCADB_RECORD_ID || '" target="_blank">' || l_record.CCADB_RECORD_ID || '</A>';
+						t_temp := t_temp || '<A href="//ccadb.my.salesforce-sites.com/' || l_record.CCADB_RECORD_ID || '" target="_blank">' || l_record.CCADB_RECORD_ID || '</A>';
 					ELSE
 						t_temp := t_temp || '&nbsp;';
 					END IF;
@@ -2411,7 +2411,7 @@ Content-Type: text/plain; charset=UTF-8
 '  <TR>
     <TH class="outer">Problem Reporting<BR>
       <DIV class="small" style="padding-top:3px">Mechanism(s) disclosed<BR>via the
-        <A href="//ccadb-public.secure.force.com/mozilla/CAInformationReport" target="_blank">CCADB</A></DIV>
+        <A href="//ccadb-public.my.salesforce-sites.com/mozilla/CAInformationReport" target="_blank">CCADB</A></DIV>
     </TH>
     <TD class="outer">' || replace(html_escape(t_temp3), '. ', '.<BR>') || '</TD>
   </TR>
