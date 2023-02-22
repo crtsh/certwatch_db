@@ -747,7 +747,7 @@ Content-Type: application/json
           alert("Sorry, Censys doesn''t support this search type");
           return;
         }
-        t_url = "//search.censys.io/certificates?q=";
+        t_url = "//search.censys.io/certificates-legacy?q=";
         var t_field = "";
         if (value != "%") {
           if (type == "c")
@@ -3164,7 +3164,7 @@ $.ajax({
             return;
           var t_url;
           if (document.search_form.searchCensys.checked) {
-            t_url = "//search.censys.io/certificates?q="
+            t_url = "//search.censys.io/certificates-legacy?q="
                    + encodeURIComponent("parsed.issuer_dn=\"' || replace(t_caName, '"', '') || '\"");
             var t_field = "";
             if (value != "%") {
