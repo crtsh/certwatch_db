@@ -1,6 +1,6 @@
 /* certwatch_db - Database schema
  * Written by Rob Stradling
- * Copyright (C) 2015-2020 Sectigo Limited
+ * Copyright (C) 2015-2023 Sectigo Limited
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -60,6 +60,9 @@ BEGIN
 	IF t_disclosureStatus = 'DisclosureIncomplete' THEN
 		IF coalesce(t_ccadbCertificate.CP_URL, t_ccadbCertificate.CPS_URL) IS NULL THEN
 			t_problems := array_append(t_problems, '"Certificate Policy (CP)" and/or "Certification Practice Statement (CPS)" is required');
+		END IF;
+		IF coalesce(t_ccadbCertificate.CP_CPS_LAST_UPDATED, now() AT TIME ZONE 'UTC') < (now() AT TIME ZONE 'UTC' - interval '365 days') THEN
+			t_problems := array_append(t_problems, '"CP/CPS Last Updated Date" is older than 365 days');
 		END IF;
 		IF t_ccadbCertificate.STANDARD_AUDIT_URL IS NULL THEN
 			t_problems := array_append(t_problems, '"Standard Audit" URL is required');

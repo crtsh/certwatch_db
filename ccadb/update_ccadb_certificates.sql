@@ -101,6 +101,7 @@ INSERT INTO ccadb_certificate_temp (
 		CP_CPS_SAME_AS_PARENT,
 		CP_URL,
 		CPS_URL,
+		CP_CPS_LAST_UPDATED,
 		TEST_WEBSITE_VALID,
 		TEST_WEBSITE_EXPIRED,
 		TEST_WEBSITE_REVOKED,
@@ -213,6 +214,9 @@ INSERT INTO ccadb_certificate_temp (
 			CASE WHEN (cci.CPS_URL = '') THEN NULL
 				ELSE cci.CPS_URL
 			END CPS_URL,
+			CASE WHEN (cci.CP_CPS_LAST_UPDATED = '') THEN NULL
+				ELSE to_date(cci.CP_CPS_LAST_UPDATED, 'YYYY.MM.DD')
+			END CP_CPS_LAST_UPDATED,
 			cci.TEST_WEBSITE_VALID,
 			cci.TEST_WEBSITE_EXPIRED,
 			cci.TEST_WEBSITE_REVOKED,
@@ -915,6 +919,7 @@ UPDATE ccadb_certificate_temp cct
 		AND (
 			(
 				(coalesce(cct.CP_URL, cct.CPS_URL) IS NULL)
+				OR (coalesce(cct.CP_CPS_LAST_UPDATED, now() AT TIME ZONE 'UTC') < (now() AT TIME ZONE 'UTC' - interval '365 days'))
 				OR (cct.STANDARD_AUDIT_URL IS NULL)
 				OR (cct.STANDARD_AUDIT_TYPE IS NULL)
 				OR (cct.STANDARD_AUDIT_DATE IS NULL)
@@ -983,6 +988,7 @@ UPDATE ccadb_certificate_temp cct
 		AND (
 			(
 				(coalesce(cct.CP_URL, cct.CPS_URL) IS NULL)
+				OR (coalesce(cct.CP_CPS_LAST_UPDATED, now() AT TIME ZONE 'UTC') < (now() AT TIME ZONE 'UTC' - interval '365 days'))
 				OR (cct.STANDARD_AUDIT_URL IS NULL)
 				OR (cct.STANDARD_AUDIT_TYPE IS NULL)
 				OR (cct.STANDARD_AUDIT_DATE IS NULL)
@@ -1047,6 +1053,7 @@ UPDATE ccadb_certificate_temp cct
 		AND (
 			(
 				(coalesce(cct.CP_URL, cct.CPS_URL) IS NULL)
+				OR (coalesce(cct.CP_CPS_LAST_UPDATED, now() AT TIME ZONE 'UTC') < (now() AT TIME ZONE 'UTC' - interval '365 days'))
 				OR (cct.STANDARD_AUDIT_URL IS NULL)
 				OR (cct.STANDARD_AUDIT_TYPE IS NULL)
 				OR (cct.STANDARD_AUDIT_DATE IS NULL)
