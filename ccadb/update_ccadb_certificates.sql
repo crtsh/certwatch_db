@@ -988,6 +988,7 @@ UPDATE ccadb_certificate_temp cct
 		AND (
 			(
 				(coalesce(cct.CP_URL, cct.CPS_URL) IS NULL)
+				OR (coalesce(cct.CP_CPS_LAST_UPDATED, now() AT TIME ZONE 'UTC') < (now() AT TIME ZONE 'UTC' - interval '365 days'))
 				OR (cct.STANDARD_AUDIT_URL IS NULL)
 				OR (cct.STANDARD_AUDIT_TYPE IS NULL)
 				OR (cct.STANDARD_AUDIT_DATE IS NULL)
@@ -1010,8 +1011,7 @@ UPDATE ccadb_certificate_temp cct
 							AND (NOT ctp.ALL_CHAINS_REVOKED_VIA_DISALLOWEDSTL)
 				)
 				AND (
-					(coalesce(cct.CP_CPS_LAST_UPDATED, now() AT TIME ZONE 'UTC') < (now() AT TIME ZONE 'UTC' - interval '365 days'))
-					OR (cct.BRSSL_AUDIT_URL IS NULL)
+					(cct.BRSSL_AUDIT_URL IS NULL)
 					OR (cct.BRSSL_AUDIT_TYPE IS NULL)
 					OR (cct.BRSSL_AUDIT_DATE IS NULL)
 					OR (cct.BRSSL_AUDIT_START IS NULL)
@@ -1053,6 +1053,7 @@ UPDATE ccadb_certificate_temp cct
 		AND (
 			(
 				(coalesce(cct.CP_URL, cct.CPS_URL) IS NULL)
+				OR (coalesce(cct.CP_CPS_LAST_UPDATED, now() AT TIME ZONE 'UTC') < (now() AT TIME ZONE 'UTC' - interval '365 days'))
 				OR (cct.STANDARD_AUDIT_URL IS NULL)
 				OR (cct.STANDARD_AUDIT_TYPE IS NULL)
 				OR (cct.STANDARD_AUDIT_DATE IS NULL)
@@ -1074,8 +1075,7 @@ UPDATE ccadb_certificate_temp cct
 							AND ctp.IS_TIME_VALID
 				)
 				AND (
-					(coalesce(cct.CP_CPS_LAST_UPDATED, now() AT TIME ZONE 'UTC') < (now() AT TIME ZONE 'UTC' - interval '365 days'))
-					OR (cct.BRSSL_AUDIT_URL IS NULL)
+					(cct.BRSSL_AUDIT_URL IS NULL)
 					OR (cct.BRSSL_AUDIT_TYPE IS NULL)
 					OR (cct.BRSSL_AUDIT_DATE IS NULL)
 					OR (cct.BRSSL_AUDIT_START IS NULL)
