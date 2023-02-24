@@ -1,6 +1,7 @@
 # Every one minute.
 * * * * *	~/app_monitor.sh ~/certwatch/jobs/update_expirations.sh
 * * * * *	~/app_monitor.sh ~/certwatch/linting/do_some_linting.sh
+* * * * *	~/app_monitor.sh ~/certwatch/jobs/gin_clean_pending_list.sh
 
 # Every ten minutes.
 */10 * * * *	~/app_monitor.sh ~/certwatch/jobs/determine_ca_trust_purposes.sh
