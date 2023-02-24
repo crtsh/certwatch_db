@@ -1,4 +1,6 @@
 #!/bin/bash
+source ~/.profile
+
 ALLGETROOTS=`mktemp`
 WORKDIR=`mktemp -d`
 TSVTEMP=`mktemp`

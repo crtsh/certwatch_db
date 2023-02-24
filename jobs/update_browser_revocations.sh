@@ -1,4 +1,5 @@
 #!/bin/bash
+source ~/.profile
 
 # Get latest OneCRL.
 cd ~/certwatch/jobs

@@ -1,4 +1,5 @@
 #!/bin/bash
+source ~/.profile
 
 wget -O ccadb_caowner_information.csv.new https://ccadb.my.salesforce-sites.com/mozilla/CAInformationReportCSVFormat
 RESULT=$?

@@ -1,4 +1,5 @@
 #!/bin/bash
+source ~/.profile
 
 # Process CCADB certificates.
 wget -O ccadb_all_certificate_records.csv.new https://ccadb.my.salesforce-sites.com/ccadb/AllCertificateRecordsCSVFormat
