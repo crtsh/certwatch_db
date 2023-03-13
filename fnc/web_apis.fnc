@@ -1043,7 +1043,7 @@ Content-Type: application/json
       <TH rowspan="2">MMD<BR><SPAN class="small">(hrs)</SPAN></TH>
       <TH rowspan="2">Latest STH<BR><SPAN class="small">(UTC)</SPAN></TH>
       <TH colspan="3">Entries</TH>
-      <TH rowspan="2">Last Contacted<BR><SPAN class="small">(UTC)</SPAN></TH>
+      <TH rowspan="2">Last get-sth call<BR><SPAN class="small">(UTC)</SPAN></TH>
       <TH>Google</TH>
       <TH><A href="monitored-logs?recognizedBy=Chromium">Chromium</A></TH>
       <TH>Apple</TH>
@@ -1162,7 +1162,7 @@ Content-Type: application/json
       <TH rowspan="2">MMD<BR><SPAN class="small">(hrs)</SPAN></TH>
       <TH rowspan="2">Latest STH<BR><SPAN class="small">(UTC)</SPAN></TH>
       <TH colspan="2">Entries</TH>
-      <TH rowspan="2">Last Contacted<BR><SPAN class="small">(UTC)</SPAN></TH>
+      <TH rowspan="2">Last get-sth call<BR><SPAN class="small">(UTC)</SPAN></TH>
       <TH rowspan="2"><A href="monitored-logs?recognizedBy=Chromium">Chromium</A> Status (Final<BR>Tree Size or Disqualified At)</TH>
       <TH>Apple</TH>
     </TR>
