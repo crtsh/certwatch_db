@@ -3649,6 +3649,9 @@ $.ajax({
 			END IF;
 		END IF;
 		t_resultsPerPage := coalesce(get_parameter('n', paramNames, paramValues)::integer, 100);
+		IF t_pageNo * t_resultsPerPage > 100000 THEN
+			RAISE no_data_found USING MESSAGE = 'Unsupported offset in the result set (p * n > 100000)';
+		END IF;
 
 		IF t_outputType = 'html' THEN
 			t_output := t_output ||
