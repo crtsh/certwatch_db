@@ -248,7 +248,8 @@ INSERT INTO ccadb_certificate_temp (
 			cci.FULL_CRL_URL,
 			cci.JSON_ARRAY_OF_CRL_URLS
 		FROM ccadb_certificate_import cci
-			LEFT OUTER JOIN certificate c ON (decode(replace(cci.CERT_SHA256, ':', ''), 'hex') = digest(c.CERTIFICATE, 'sha256'));
+			LEFT OUTER JOIN certificate c ON (decode(replace(cci.CERT_SHA256, ':', ''), 'hex') = digest(c.CERTIFICATE, 'sha256'))
+		WHERE cci.CA_OWNER != 'Example CA';
 
 
 \echo Finding All CA Certificates
