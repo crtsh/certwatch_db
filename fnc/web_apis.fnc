@@ -3424,8 +3424,6 @@ $.ajax({
 					t_text := t_text || 'CC0000 style="font-weight:bold">Revoked</FONT> <FONT style="font-size:8pt;color:#CC0000">via<BR>CRLSet / Blocklist';
 				ELSIF l_record.ALL_CHAINS_REVOKED_VIA_DISALLOWEDSTL AND (l_record.TRUST_CONTEXT_ID = 1) THEN
 					t_text := t_text || 'CC0000 style="font-weight:bold">Revoked</FONT> <FONT style="font-size:8pt;color:#CC0000">via<BR>disallowedcert.stl';
-				ELSIF (l_record.PURPOSE = 'Server Authentication') AND (l_record.TRUST_CONTEXT_ID = 6) THEN
-					t_text := t_text || '888888>Defer to OS';
 				ELSIF NOT l_record.HAS_TRUST THEN
 					t_text := t_text || '888888>No';
 					l_record.SHORTEST_CHAIN := NULL;
