@@ -279,7 +279,7 @@ BEGIN
 		t_outputType := 'json';
 		t_isJSONOutputSupported := TRUE;
 	ELSIF lower(t_outputType) IN ('revoked-intermediates', 'mozilla-certvalidations', 'mozilla-certvalidations-by-root', 'mozilla-certvalidations-by-owner', 'mozilla-certvalidations-by-version',
-									'mozilla-disclosures', 'mozilla-onecrl', 'microsoft-disclosures', 'apple-disclosures', 'ca-issuers', 'ocsp-responders', 'ocsp-response', 'test-websites', 'cert-populations') THEN
+									'mozilla-disclosures', 'mozilla-onecrl', 'microsoft-disclosures', 'apple-disclosures', 'chrome-disclosures', 'ca-issuers', 'ocsp-responders', 'ocsp-response', 'test-websites', 'cert-populations') THEN
 		t_type := lower(t_outputType);
 		t_title := t_type;
 		t_outputType := 'html';
@@ -566,7 +566,7 @@ Content-Type: application/json
 		t_output := t_output ||
 '  <STYLE type="text/css">
 ';
-		IF t_type NOT IN ('mozilla-disclosures', 'microsoft-disclosures', 'apple-disclosures', 'ca-issuers', 'ocsp-responders', 'test-websites') THEN
+		IF t_type NOT IN ('mozilla-disclosures', 'microsoft-disclosures', 'apple-disclosures', 'chrome-disclosures', 'ca-issuers', 'ocsp-responders', 'test-websites') THEN
 			t_output := t_output ||
 '    a {
       white-space: nowrap;
@@ -938,6 +938,12 @@ Content-Type: application/json
               <TD>Apple</TD>
               <TD>
                 <A href="/apple-disclosures">CA Certificate Disclosures</A>
+              </TD>
+            </TR>
+            <TR>
+              <TD>Chrome</TD>
+              <TD>
+                <A href="/chrome-disclosures">CA Certificate Disclosures</A>
               </TD>
             </TR>
           </TABLE>
@@ -1634,6 +1640,9 @@ Content-Type: text/plain; charset=UTF-8
 
 	ELSIF t_type = 'apple-disclosures' THEN
 		t_output := t_output || apple_disclosures();
+
+	ELSIF t_type = 'chrome-disclosures' THEN
+		t_output := t_output || chrome_disclosures();
 
 	ELSIF t_type = 'ca-issuers' THEN
 		t_cacheControlMaxAge := -1;

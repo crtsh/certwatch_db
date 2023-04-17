@@ -36,6 +36,8 @@ BEGIN
 		t_disclosureStatusField := 'MICROSOFT_DISCLOSURE_STATUS';
 	ELSIF trustContextID = 12 THEN
 		t_disclosureStatusField := 'APPLE_DISCLOSURE_STATUS';
+	ELSIF trustContextID = 6 THEN
+		t_disclosureStatusField := 'CHROME_DISCLOSURE_STATUS';
 	END IF;
 
 	t_query :=

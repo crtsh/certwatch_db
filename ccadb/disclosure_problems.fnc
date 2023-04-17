@@ -53,6 +53,8 @@ BEGIN
 		t_disclosureStatus := t_ccadbCertificate.MICROSOFT_DISCLOSURE_STATUS;
 	ELSIF trustContextID = 12 THEN
 		t_disclosureStatus := t_ccadbCertificate.APPLE_DISCLOSURE_STATUS;
+	ELSIF trustContextID = 6 THEN
+		t_disclosureStatus := t_ccadbCertificate.CHROME_DISCLOSURE_STATUS;
 	ELSE
 		RETURN NULL;
 	END IF;
