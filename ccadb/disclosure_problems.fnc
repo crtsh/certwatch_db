@@ -81,7 +81,7 @@ BEGIN
 		IF t_ccadbCertificate.STANDARD_AUDIT_END IS NULL THEN
 			t_problems := array_append(t_problems, '"Standard Audit Period End Date" is required');
 		END IF;
-		IF trustContextID = 12 THEN
+		IF trustContextID IN (12, 5) THEN
 			t_crlDisclosureRequired := TRUE;
 		END IF;
 
@@ -131,7 +131,7 @@ BEGIN
 				FROM ca_certificate cac, ca
 				WHERE cac.CERTIFICATE_ID = certificateID
 					AND cac.CA_ID = ca.ID;
-			IF trustContextID = 12 THEN
+			IF trustContextID IN (12, 5) THEN
 				IF t_count = 0 THEN
 					t_problems := array_append(t_problems, '"Full CRL Issued By This CA" or "JSON Array of Partitioned CRLs" may be required (<A href="/?ca=' || t_caID || '" target="_blank">no issuance observed</A>)');
 				ELSE

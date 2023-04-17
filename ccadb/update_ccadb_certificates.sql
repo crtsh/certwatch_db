@@ -956,10 +956,6 @@ UPDATE ccadb_certificate_temp cct
 					OR (cct.BRSSL_AUDIT_DATE IS NULL)
 					OR (cct.BRSSL_AUDIT_START IS NULL)
 					OR (cct.BRSSL_AUDIT_END IS NULL)
-					OR (
-						(nullif(cct.FULL_CRL_URL, '') IS NULL)
-						AND (nullif(cct.JSON_ARRAY_OF_CRL_URLS, '') IS NULL)
-					)
 				)
 			)
 			OR (
@@ -988,6 +984,18 @@ UPDATE ccadb_certificate_temp cct
 				)
 			)
 		);
+UPDATE ccadb_certificate_temp cct
+	SET MOZILLA_DISCLOSURE_STATUS = CASE coalesce(ca.NUM_ISSUED[1], 0) + coalesce(ca.NUM_ISSUED[2], 0)
+			WHEN 0 THEN 'CRLDisclosureIncompleteForPossiblyDormantCA'::disclosure_status_type
+			ELSE 'DisclosureIncomplete'::disclosure_status_type
+		END
+	FROM ca_certificate cac, ca
+	WHERE cct.MOZILLA_DISCLOSURE_STATUS = 'Disclosed'
+		AND cct.CERT_RECORD_TYPE IN ('Root Certificate', 'Intermediate Certificate')
+		AND nullif(cct.FULL_CRL_URL, '') IS NULL
+		AND nullif(cct.JSON_ARRAY_OF_CRL_URLS, '') IS NULL
+		AND cct.CERTIFICATE_ID = cac.CERTIFICATE_ID
+		AND cac.CA_ID = ca.ID;
 UPDATE ccadb_certificate_temp cct
 	SET MICROSOFT_DISCLOSURE_STATUS = 'DisclosureIncomplete'
 	FROM certificate c
