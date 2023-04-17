@@ -15,6 +15,7 @@ DECLARE
 	t_trustRevoked					text[];
 	t_notTrusted					text[];
 	t_expired						text[];
+	t_constrainedOther				text[];
 	t_parentRevokedButNotAllParents	text[];
 	t_parentRevoked					text[];
 	t_revokedButExpired				text[];
