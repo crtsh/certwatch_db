@@ -34,7 +34,7 @@ BEGIN
 	t_undisclosedSummary := ccadb_disclosure_group_summary(6, 'Undisclosed', 'undisclosedsummary', '#FE838A');
 	t_constrained := ccadb_disclosure_group2(6, 'TechnicallyConstrained', 'constrained', 'Technically Constrained (Trusted for serverAuth): Disclosure is required!', '#FE838A');
 	t_constrainedSummary := ccadb_disclosure_group_summary(6, 'TechnicallyConstrained', 'constrainedsummary', '#FE838A');
-	t_incomplete := ccadb_disclosure_group2(6, 'DisclosureIncomplete', 'disclosureincomplete', 'Certificate disclosed, but CP/CPS or Audit details missing: Further Disclosure is required!', '#FEA3AA');
+	t_incomplete := ccadb_disclosure_group2(6, 'DisclosureIncomplete', 'disclosureincomplete', 'Certificate disclosed, but CP/CPS or Audit details missing or incorrect: Further Disclosure is required!', '#FEA3AA');
 	t_incompleteSummary := ccadb_disclosure_group_summary(6, 'DisclosureIncomplete', 'disclosureincompletesummary', '#FEA3AA');
 	t_inconsistentAudit := ccadb_disclosure_group2(6, 'DisclosedWithInconsistentAudit', 'disclosedwithinconsistentaudit', 'Certificate disclosed, but Audit details for the Subject CA are inconsistent: Further Disclosure is required!', '#F8B88B');
 	t_inconsistentAuditSummary := ccadb_disclosure_group_summary(6, 'DisclosedWithInconsistentAudit', 'disclosedwithinconsistentauditsummary', '#F8B88B');
@@ -81,7 +81,7 @@ BEGIN
       &nbsp;<A href="#constrainedsummary" style="font-size:8pt">Summary</A></TD>
   </TR>
   <TR style="background-color:#FEA3AA">
-    <TD>Disclosure Incomplete</TD>
+    <TD>Disclosure Incomplete or Incorrect</TD>
     <TD><B><U>Yes!</U></B></TD>
     <TD><A href="#disclosureincomplete">' || t_incomplete[2] || ' + ' || t_incomplete[3] || '</A>
       &nbsp;<A href="#disclosureincompletesummary" style="font-size:8pt">Summary</A>

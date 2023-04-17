@@ -25,6 +25,7 @@ DECLARE
 	t_ccadbCertificate		ccadb_certificate%ROWTYPE;
 	t_disclosureStatus		disclosure_status_type;
 	t_crlDisclosureRequired	boolean		:= FALSE;
+	t_notAfter				timestamp;
 	t_caID					ca.ID%TYPE;
 	t_count					bigint;
 	t_problems				text[];
@@ -81,7 +82,7 @@ BEGIN
 		IF t_ccadbCertificate.STANDARD_AUDIT_END IS NULL THEN
 			t_problems := array_append(t_problems, '"Standard Audit Period End Date" is required');
 		END IF;
-		IF trustContextID IN (12, 5) THEN
+		IF trustContextID = 12 THEN
 			t_crlDisclosureRequired := TRUE;
 		END IF;
 
@@ -131,14 +132,22 @@ BEGIN
 				FROM ca_certificate cac, ca
 				WHERE cac.CERTIFICATE_ID = certificateID
 					AND cac.CA_ID = ca.ID;
-			IF trustContextID IN (12, 5) THEN
-				IF t_count = 0 THEN
-					t_problems := array_append(t_problems, '"Full CRL Issued By This CA" or "JSON Array of Partitioned CRLs" may be required (<A href="/?ca=' || t_caID || '" target="_blank">no issuance observed</A>)');
-				ELSE
-					t_problems := array_append(t_problems, '"Full CRL Issued By This CA" or "JSON Array of Partitioned CRLs" is required (<A href="/?ca=' || t_caID || '" target="_blank">' || t_count::text || ' (pre)cert(s) observed</A>)');
-				END IF;
+			IF t_count = 0 THEN
+				t_problems := array_append(t_problems, '"Full CRL Issued By This CA" or "JSON Array of Partitioned CRLs" may be required (<A href="/?ca=' || t_caID || '" target="_blank">no issuance observed</A>)');
 			ELSE
-				t_problems := array_append(t_problems, '"Full CRL Issued By This CA" or "JSON Array of Partitioned CRLs" is required');
+				t_problems := array_append(t_problems, '"Full CRL Issued By This CA" or "JSON Array of Partitioned CRLs" is required (<A href="/?ca=' || t_caID || '" target="_blank">' || t_count::text || ' (pre)cert(s) observed</A>)');
+			END IF;
+		ELSIF t_ccadbCertificate.FULL_CRL_URL = 'revoked' THEN
+			IF t_ccadbCertificate.REVOCATION_STATUS NOT IN ('Revoked', 'Parent Cert Revoked') THEN
+				t_problems := array_append(t_problems, '"Full CRL Issuer By This CA" indicates "revoked", but this certificate has not been disclosed as "Revoked" or "Parent Cert Revoked"');
+			END IF;
+		ELSIF t_ccadbCertificate.FULL_CRL_URL = 'expired' THEN
+			PERFORM
+				FROM certificate c
+				WHERE c.ID = certificateID
+					AND x509_notAfter(c.CERTIFICATE) > now() AT TIME ZONE 'UTC';
+			IF FOUND THEN
+				t_problems := array_append(t_problems, '"Full CRL Issuer By This CA" indicates "expired", but this certificate has not yet expired');
 			END IF;
 		END IF;
 

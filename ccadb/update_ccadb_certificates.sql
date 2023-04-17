@@ -983,6 +983,14 @@ UPDATE ccadb_certificate_temp cct
 					OR (cct.EVSSL_AUDIT_END IS NULL)
 				)
 			)
+			OR (
+				cct.FULL_CRL_URL = 'revoked'
+				AND cct.REVOCATION_STATUS NOT IN ('Revoked', 'Parent Cert Revoked')
+			)
+			OR (
+				cct.FULL_CRL_URL = 'expired'
+				AND x509_notAfter(c.CERTIFICATE) > now() AT TIME ZONE 'UTC'
+			)
 		);
 UPDATE ccadb_certificate_temp cct
 	SET MOZILLA_DISCLOSURE_STATUS = CASE coalesce(ca.NUM_ISSUED[1], 0) + coalesce(ca.NUM_ISSUED[2], 0)
@@ -995,7 +1003,14 @@ UPDATE ccadb_certificate_temp cct
 		AND nullif(cct.FULL_CRL_URL, '') IS NULL
 		AND nullif(cct.JSON_ARRAY_OF_CRL_URLS, '') IS NULL
 		AND cct.CERTIFICATE_ID = cac.CERTIFICATE_ID
-		AND cac.CA_ID = ca.ID;
+		AND cac.CA_ID = ca.ID
+		AND EXISTS (
+			SELECT 1
+				FROM ca_trust_purpose ctp
+				WHERE ctp.CA_ID = ca.ID
+					AND ctp.TRUST_CONTEXT_ID = 5
+					AND ctp.TRUST_PURPOSE_ID = 1
+		);
 UPDATE ccadb_certificate_temp cct
 	SET MICROSOFT_DISCLOSURE_STATUS = 'DisclosureIncomplete'
 	FROM certificate c
@@ -1122,6 +1137,14 @@ UPDATE ccadb_certificate_temp cct
 					OR (cct.EVSSL_AUDIT_START IS NULL)
 					OR (cct.EVSSL_AUDIT_END IS NULL)
 				)
+			)
+			OR (
+				cct.FULL_CRL_URL = 'revoked'
+				AND cct.REVOCATION_STATUS NOT IN ('Revoked', 'Parent Cert Revoked')
+			)
+			OR (
+				cct.FULL_CRL_URL = 'expired'
+				AND x509_notAfter(c.CERTIFICATE) > now() AT TIME ZONE 'UTC'
 			)
 		);
 UPDATE ccadb_certificate_temp cct
@@ -2156,7 +2179,7 @@ INSERT INTO crl (
 		FROM (
 			SELECT cac.CA_ID, cct.FULL_CRL_URL
 				FROM ccadb_certificate_temp cct, ca_certificate cac
-				WHERE nullif(cct.FULL_CRL_URL, '') IS NOT NULL
+				WHERE nullif(nullif(nullif(cct.FULL_CRL_URL, ''), 'revoked'), 'expired') IS NOT NULL
 					AND cct.CERTIFICATE_ID = cac.CERTIFICATE_ID
 					AND NOT EXISTS (
 						SELECT 1
