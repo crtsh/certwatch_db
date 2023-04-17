@@ -480,6 +480,7 @@ UPDATE ccadb_certificate_temp cct
 	WHERE cct.CERTIFICATE_ID = c.ID
 		AND coalesce(x509_notAfter(c.CERTIFICATE), 'infinity'::timestamp) < now();
 
+
 \echo Undisclosed -> NoKnownServerAuthTrustPath
 UPDATE ccadb_certificate_temp cct
 	SET MOZILLA_DISCLOSURE_STATUS = 'NoKnownServerAuthTrustPath'
@@ -519,7 +520,6 @@ UPDATE ccadb_certificate_temp cct
 				WHERE ctp.CA_ID = c.ISSUER_CA_ID
 					AND ctp.TRUST_CONTEXT_ID = 12
 					AND ctp.IS_TIME_VALID
-					AND NOT ctp.ALL_CHAINS_TECHNICALLY_CONSTRAINED
 		);
 UPDATE ccadb_certificate_temp cct
 	SET CHROME_DISCLOSURE_STATUS = 'NoKnownServerAuthTrustPath'
@@ -532,7 +532,6 @@ UPDATE ccadb_certificate_temp cct
 				WHERE ctp.CA_ID = c.ISSUER_CA_ID
 					AND ctp.TRUST_CONTEXT_ID = 6
 					AND ctp.IS_TIME_VALID
-					AND NOT ctp.ALL_CHAINS_TECHNICALLY_CONSTRAINED
 		);
 
 \echo Undisclosed -> AllServerAuthPathsRevoked
@@ -678,7 +677,7 @@ UPDATE ccadb_certificate_temp cct
 		AND is_technically_constrained(c.CERTIFICATE);
 UPDATE ccadb_certificate_temp cct
 	SET CHROME_DISCLOSURE_STATUS = CASE CHROME_DISCLOSURE_STATUS
-			WHEN 'Undisclosed' THEN 'TechnicallyConstrained'::disclosure_status_type
+			WHEN 'Undisclosed' THEN 'TechnicallyConstrainedOther'::disclosure_status_type
 			WHEN 'Disclosed' THEN 'DisclosedButConstrained'::disclosure_status_type
 			WHEN 'Revoked' THEN 'RevokedAndTechnicallyConstrained'::disclosure_status_type
 		END
@@ -720,6 +719,23 @@ UPDATE ccadb_certificate_temp cct
 				FROM ca_trust_purpose ctp
 				WHERE ctp.CA_ID = c.ISSUER_CA_ID
 					AND ctp.TRUST_CONTEXT_ID = 1
+					AND ctp.TRUST_PURPOSE_ID = 1
+		);
+UPDATE ccadb_certificate_temp cct
+	SET CHROME_DISCLOSURE_STATUS = 'TechnicallyConstrained'
+	FROM certificate c
+	WHERE cct.CHROME_DISCLOSURE_STATUS = 'TechnicallyConstrainedOther'
+		AND cct.CERTIFICATE_ID = c.ID
+		AND (
+			x509_isEKUPermitted(c.CERTIFICATE, '1.3.6.1.5.5.7.3.1')
+			OR x509_isEKUPermitted(c.CERTIFICATE, '1.3.6.1.4.1.311.10.3.3')	-- MS SGC.
+			OR x509_isEKUPermitted(c.CERTIFICATE, '2.16.840.1.113730.4.1')	-- NS Step-Up.
+		)
+		AND EXISTS (
+			SELECT 1
+				FROM ca_trust_purpose ctp
+				WHERE ctp.CA_ID = c.ISSUER_CA_ID
+					AND ctp.TRUST_CONTEXT_ID = 6
 					AND ctp.TRUST_PURPOSE_ID = 1
 		);
 
@@ -811,9 +827,9 @@ UPDATE ccadb_certificate_temp cct
 		AND c.ISSUER_CA_ID = cac.CA_ID
 		AND cac.CERTIFICATE_ID = cc2.CERTIFICATE_ID
 		AND cc2.MOZILLA_DISCLOSURE_STATUS NOT IN (
-			'TechnicallyConstrained',
 			'AllServerAuthPathsRevoked',
 			'NoKnownServerAuthTrustPath',
+			'TechnicallyConstrainedOther',
 			'Expired',
 			'Revoked',
 			'RevokedAndTechnicallyConstrained',
@@ -846,9 +862,9 @@ UPDATE ccadb_certificate_temp cct
 		AND c.ISSUER_CA_ID = cac.CA_ID
 		AND cac.CERTIFICATE_ID = cc2.CERTIFICATE_ID
 		AND cc2.APPLE_DISCLOSURE_STATUS NOT IN (
-			'TechnicallyConstrained',
 			'AllServerAuthPathsRevoked',
 			'NoKnownServerAuthTrustPath',
+			'TechnicallyConstrainedOther',
 			'Expired',
 			'Revoked',
 			'RevokedAndTechnicallyConstrained',
@@ -874,9 +890,9 @@ UPDATE ccadb_certificate_temp cct
 		AND c.ISSUER_CA_ID = cac.CA_ID
 		AND cac.CERTIFICATE_ID = cc2.CERTIFICATE_ID
 		AND cc2.CHROME_DISCLOSURE_STATUS NOT IN (
-			'TechnicallyConstrained',
 			'AllServerAuthPathsRevoked',
 			'NoKnownServerAuthTrustPath',
+			'TechnicallyConstrainedOther',
 			'Expired',
 			'Revoked',
 			'RevokedAndTechnicallyConstrained',
@@ -1505,7 +1521,6 @@ UPDATE ccadb_certificate_temp cct
 								AND cac2.CERTIFICATE_ID = cct2.CERTIFICATE_ID
 								AND cct2.REVOCATION_STATUS NOT IN ('Revoked', 'Parent Cert Revoked')
 								AND cct2.CERTIFICATE_ID = c.ID
-								AND NOT is_technically_constrained(c.CERTIFICATE)
 								AND cct2.CCADB_RECORD_ID IS NOT NULL	-- Ignore CA certificates not in CCADB (e.g., kernel mode cross-certificates).
 							GROUP BY coalesce(nullif(cct2.SUBORDINATE_CA_OWNER, ''), cct2.CA_OWNER)
 					) sub
@@ -1542,7 +1557,6 @@ UPDATE ccadb_certificate_temp cct
 								AND cac2.CERTIFICATE_ID = cct2.CERTIFICATE_ID
 								AND cct2.REVOCATION_STATUS NOT IN ('Revoked', 'Parent Cert Revoked')
 								AND cct2.CERTIFICATE_ID = c.ID
-								AND NOT is_technically_constrained(c.CERTIFICATE)
 								AND cct2.CCADB_RECORD_ID IS NOT NULL	-- Ignore CA certificates not in CCADB (e.g., kernel mode cross-certificates).
 							GROUP BY cct2.STANDARD_AUDIT_URL, cct2.STANDARD_AUDIT_TYPE, cct2.STANDARD_AUDIT_DATE, cct2.STANDARD_AUDIT_START, cct2.STANDARD_AUDIT_END
 					) sub
@@ -1580,7 +1594,6 @@ UPDATE ccadb_certificate_temp cct
 								AND cac2.CERTIFICATE_ID = cct2.CERTIFICATE_ID
 								AND cct2.REVOCATION_STATUS NOT IN ('Revoked', 'Parent Cert Revoked')
 								AND cct2.CERTIFICATE_ID = c.ID
-								AND NOT is_technically_constrained(c.CERTIFICATE)
 								AND cct2.CCADB_RECORD_ID IS NOT NULL	-- Ignore CA certificates not in CCADB (e.g., kernel mode cross-certificates).
 							GROUP BY cct2.BRSSL_AUDIT_URL, cct2.BRSSL_AUDIT_TYPE, cct2.BRSSL_AUDIT_DATE, cct2.BRSSL_AUDIT_START, cct2.BRSSL_AUDIT_END
 					) sub
@@ -1619,7 +1632,6 @@ UPDATE ccadb_certificate_temp cct
 								AND cac2.CERTIFICATE_ID = cct2.CERTIFICATE_ID
 								AND cct2.REVOCATION_STATUS NOT IN ('Revoked', 'Parent Cert Revoked')
 								AND cct2.CERTIFICATE_ID = c.ID
-								AND NOT is_technically_constrained(c.CERTIFICATE)
 								AND cct2.CCADB_RECORD_ID IS NOT NULL	-- Ignore CA certificates not in CCADB (e.g., kernel mode cross-certificates).
 							GROUP BY cct2.EVSSL_AUDIT_URL, cct2.EVSSL_AUDIT_TYPE, cct2.EVSSL_AUDIT_DATE, cct2.EVSSL_AUDIT_START, cct2.EVSSL_AUDIT_END
 					) sub
@@ -1658,7 +1670,6 @@ UPDATE ccadb_certificate_temp cct
 								AND cac2.CERTIFICATE_ID = cct2.CERTIFICATE_ID
 								AND cct2.REVOCATION_STATUS NOT IN ('Revoked', 'Parent Cert Revoked')
 								AND cct2.CERTIFICATE_ID = c.ID
-								AND NOT is_technically_constrained(c.CERTIFICATE)
 								AND cct2.CCADB_RECORD_ID IS NOT NULL	-- Ignore CA certificates not in CCADB (e.g., kernel mode cross-certificates).
 							GROUP BY coalesce(nullif(cct2.SUBORDINATE_CA_OWNER, ''), cct2.CA_OWNER)
 					) sub
@@ -1695,7 +1706,6 @@ UPDATE ccadb_certificate_temp cct
 								AND cac2.CERTIFICATE_ID = cct2.CERTIFICATE_ID
 								AND cct2.REVOCATION_STATUS NOT IN ('Revoked', 'Parent Cert Revoked')
 								AND cct2.CERTIFICATE_ID = c.ID
-								AND NOT is_technically_constrained(c.CERTIFICATE)
 								AND cct2.CCADB_RECORD_ID IS NOT NULL	-- Ignore CA certificates not in CCADB (e.g., kernel mode cross-certificates).
 							GROUP BY cct2.STANDARD_AUDIT_URL, cct2.STANDARD_AUDIT_TYPE, cct2.STANDARD_AUDIT_DATE, cct2.STANDARD_AUDIT_START, cct2.STANDARD_AUDIT_END
 					) sub
@@ -1733,7 +1743,6 @@ UPDATE ccadb_certificate_temp cct
 								AND cac2.CERTIFICATE_ID = cct2.CERTIFICATE_ID
 								AND cct2.REVOCATION_STATUS NOT IN ('Revoked', 'Parent Cert Revoked')
 								AND cct2.CERTIFICATE_ID = c.ID
-								AND NOT is_technically_constrained(c.CERTIFICATE)
 								AND cct2.CCADB_RECORD_ID IS NOT NULL	-- Ignore CA certificates not in CCADB (e.g., kernel mode cross-certificates).
 							GROUP BY cct2.BRSSL_AUDIT_URL, cct2.BRSSL_AUDIT_TYPE, cct2.BRSSL_AUDIT_DATE, cct2.BRSSL_AUDIT_START, cct2.BRSSL_AUDIT_END
 					) sub
@@ -1772,7 +1781,6 @@ UPDATE ccadb_certificate_temp cct
 								AND cac2.CERTIFICATE_ID = cct2.CERTIFICATE_ID
 								AND cct2.REVOCATION_STATUS NOT IN ('Revoked', 'Parent Cert Revoked')
 								AND cct2.CERTIFICATE_ID = c.ID
-								AND NOT is_technically_constrained(c.CERTIFICATE)
 								AND cct2.CCADB_RECORD_ID IS NOT NULL	-- Ignore CA certificates not in CCADB (e.g., kernel mode cross-certificates).
 							GROUP BY cct2.EVSSL_AUDIT_URL, cct2.EVSSL_AUDIT_TYPE, cct2.EVSSL_AUDIT_DATE, cct2.EVSSL_AUDIT_START, cct2.EVSSL_AUDIT_END
 					) sub
@@ -1888,7 +1896,6 @@ UPDATE ccadb_certificate_temp cct
 								AND cac2.CERTIFICATE_ID = cct2.CERTIFICATE_ID
 								AND cct2.REVOCATION_STATUS NOT IN ('Revoked', 'Parent Cert Revoked')
 								AND cct2.CERTIFICATE_ID = c.ID
-								AND NOT is_technically_constrained(c.CERTIFICATE)
 								AND cct2.CCADB_RECORD_ID IS NOT NULL	-- Ignore CA certificates not in CCADB (e.g., kernel mode cross-certificates).
 							GROUP BY cct2.CP_URL, cct2.CPS_URL
 					) sub
@@ -1926,7 +1933,6 @@ UPDATE ccadb_certificate_temp cct
 								AND cac2.CERTIFICATE_ID = cct2.CERTIFICATE_ID
 								AND cct2.REVOCATION_STATUS NOT IN ('Revoked', 'Parent Cert Revoked')
 								AND cct2.CERTIFICATE_ID = c.ID
-								AND NOT is_technically_constrained(c.CERTIFICATE)
 								AND cct2.CCADB_RECORD_ID IS NOT NULL	-- Ignore CA certificates not in CCADB (e.g., kernel mode cross-certificates).
 							GROUP BY cct2.CP_URL, cct2.CPS_URL
 					) sub

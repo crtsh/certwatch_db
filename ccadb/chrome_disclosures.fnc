@@ -22,16 +22,16 @@ DECLARE
 	t_revoked						text[];
 	t_disclosedButExpired			text[];
 	t_disclosedButNotTrusted		text[];
-	t_disclosedButConstrained		text[];
+	t_disclosedAndConstrained		text[];
 	t_disclosedWithErrors			text[];
 	t_disclosedButInCRL				text[];
 	t_disclosedAndUnrevokedFromCRL	text[];
 	t_disclosed						text[];
 	t_unknown						text[];
 BEGIN
-	t_undisclosed := ccadb_disclosure_group2(6, 'Undisclosed', 'undisclosed', 'Unconstrained Trust: Disclosure is required!', '#FE838A');
+	t_undisclosed := ccadb_disclosure_group2(6, 'Undisclosed', 'undisclosed', 'Unconstrained (Trusted for serverAuth): Disclosure is required!', '#FE838A');
 	t_undisclosedSummary := ccadb_disclosure_group_summary(6, 'Undisclosed', 'undisclosedsummary', '#FE838A');
-	t_constrained := ccadb_disclosure_group2(6, 'TechnicallyConstrained', 'constrained', 'Technically Constrained (Trusted): Disclosure is required!', '#FE838A');
+	t_constrained := ccadb_disclosure_group2(6, 'TechnicallyConstrained', 'constrained', 'Technically Constrained (Trusted for serverAuth): Disclosure is required!', '#FE838A');
 	t_constrainedSummary := ccadb_disclosure_group_summary(6, 'TechnicallyConstrained', 'constrainedsummary', '#FE838A');
 	t_incomplete := ccadb_disclosure_group2(6, 'DisclosureIncomplete', 'disclosureincomplete', 'Certificate disclosed, but CP/CPS or Audit details missing: Further Disclosure is required!', '#FEA3AA');
 	t_incompleteSummary := ccadb_disclosure_group_summary(6, 'DisclosureIncomplete', 'disclosureincompletesummary', '#FEA3AA');
@@ -42,6 +42,7 @@ BEGIN
 	t_trustRevoked := ccadb_disclosure_group(6, 'AllServerAuthPathsRevoked', 'trustrevoked', 'Unconstrained, although all unexpired paths contain at least one revoked intermediate: Disclosure is not known to be required', '#FAF884');
 	t_notTrusted := ccadb_disclosure_group(6, 'NoKnownServerAuthTrustPath', 'nottrusted', 'Unconstrained, but no unexpired trust paths have been observed: Disclosure is not known to be required', '#FAF884');
 	t_expired := ccadb_disclosure_group(6, 'Expired', 'expired', 'Expired: Disclosure is not required', '#BAED91');
+	t_constrainedOther := ccadb_disclosure_group(6, 'TechnicallyConstrainedOther', 'constrainedother', 'Technically Constrained (Other): Disclosure is required!', '#BAED91');
 	t_parentRevokedButNotAllParents := ccadb_disclosure_group(6, 'ParentRevokedButNotAllParents', 'parentrevokedbutnotallparents', 'Disclosed as Parent Revoked, but not all parent(s) are disclosed as Revoked', '#B2CEFE');
 	t_parentRevoked := ccadb_disclosure_group(6, 'ParentRevoked', 'parentrevoked', 'Disclosed as Parent Revoked', '#B2CEFE');
 	t_revokedButExpired := ccadb_disclosure_group(6, 'RevokedButExpired', 'revokedbutexpired', 'Disclosed as Revoked, but Expired', '#B2CEFE');
@@ -49,7 +50,7 @@ BEGIN
 	t_revoked := ccadb_disclosure_group(6, 'Revoked', 'revoked', 'Disclosed as Revoked', '#B2CEFE');
 	t_disclosedButExpired := ccadb_disclosure_group(6, 'DisclosedButExpired', 'disclosedbutexpired', 'Disclosed, but Expired', '#F2A2E8');
 	t_disclosedButNotTrusted := ccadb_disclosure_group(6, 'DisclosedButNoKnownServerAuthTrustPath', 'disclosedbutnottrusted', 'Disclosed, but no unexpired trust paths have been observed', '#F2A2E8');
-	t_disclosedButConstrained := ccadb_disclosure_group(6, 'DisclosedButConstrained', 'disclosedbutconstrained', 'Disclosed, but Technically Constrained', '#F2A2E8');
+	t_disclosedAndConstrained := ccadb_disclosure_group(6, 'DisclosedButConstrained', 'disclosedbutconstrained', 'Disclosed, and Technically Constrained', '#F2A2E8');
 	t_disclosedWithErrors := ccadb_disclosure_group(6, 'DisclosedWithErrors', 'disclosedwitherrors', 'Disclosed, but with Errors: Parent Certificate Name is set incorrectly', '#F2A2E8');
 	t_disclosedButInCRL := ccadb_disclosure_group(6, 'DisclosedButInCRL', 'disclosedbutincrl', 'Disclosed (as Not Revoked), but revoked via CRL', '#F2A2E8');
 	t_disclosedAndUnrevokedFromCRL := ccadb_disclosure_group(6, 'DisclosedButRemovedFromCRL', 'disclosedandunrevokedfromcrl', 'Disclosed (as Not Revoked) and "Unrevoked" from CRL', '#F2A2E8');
@@ -57,7 +58,7 @@ BEGIN
 	t_unknown := ccadb_disclosure_group(6, NULL::disclosure_status_type, 'unknown', 'Disclosed; Unknown to crt.sh or Incorrectly Encoded', '#FFFFFF');
 
 	RETURN
-'  <SPAN class="whiteongrey">Chrome CA Certificate Disclosures</SPAN>
+'  <SPAN class="whiteongrey">Chrome: CA Certificate Disclosures in CCADB</SPAN>
   <BR><SPAN class="small">Generated at ' || TO_CHAR(statement_timestamp() AT TIME ZONE 'UTC', 'YYYY-MM-DD HH24:MI:SS') || ' UTC</SPAN>
 <BR><BR>
 <TABLE>
@@ -67,13 +68,13 @@ BEGIN
     <TH># of CA certs</TH>
   </TR>
   <TR style="background-color:#FE838A">
-    <TD>Unconstrained Trust</TD>
+    <TD>Unconstrained (Trusted for serverAuth)</TD>
     <TD><B><U>Yes!</U></B></TD>
     <TD><A href="#undisclosed">' || t_undisclosed[2] || ' + ' || t_undisclosed[3] || '</A>
       &nbsp;<A href="#undisclosedsummary" style="font-size:8pt">Summary</A></TD>
   </TR>
   <TR style="background-color:#FE838A">
-    <TD>Technically Constrained (Trusted)</TD>
+    <TD>Technically Constrained (Trusted for serverAuth)</TD>
     <TD><B><U>Yes!</U></B></TD>
     <TD><A href="#constrained">' || t_constrained[2] || ' + ' || t_constrained[3] || '</A>
       &nbsp;<A href="#constrainedsummary" style="font-size:8pt">Summary</A></TD>
@@ -114,6 +115,11 @@ BEGIN
     <TD>No</TD>
     <TD><A href="#expired">' || t_expired[2] || '</A></TD>
   </TR>
+  <TR style="background-color:#BAED91">
+    <TD>Technically Constrained (Other)</TD>
+    <TD><B><U>Yes!</U></B></TD>
+    <TD><A href="#constrainedother">' || t_constrainedOther[2] || '</A></TD>
+  </TR>
   <TR style="background-color:#B2CEFE">
     <TD>Disclosed as Parent Revoked, but not all parent(s) are disclosed as Revoked</TD>
     <TD><B><U>Yes!</U></B></TD>
@@ -150,9 +156,9 @@ BEGIN
     <TD><A href="#disclosedbutnottrusted">' || t_disclosedButNotTrusted[2] || '</A></TD>
   </TR>
   <TR style="background-color:#F2A2E8">
-    <TD>Disclosed, but Technically Constrained</TD>
+    <TD>Disclosed, and Technically Constrained</TD>
     <TD>Already disclosed</TD>
-    <TD><A href="#disclosedbutconstrained">' || t_disclosedButConstrained[2] || '</A></TD>
+    <TD><A href="#disclosedbutconstrained">' || t_disclosedAndConstrained[2] || '</A></TD>
   </TR>
   <TR style="background-color:#F2A2E8">
     <TD>Disclosed, but with Errors</TD>
@@ -194,6 +200,7 @@ BEGIN
 		|| t_trustRevoked[1]
 		|| t_notTrusted[1]
 		|| t_expired[1]
+		|| t_constrainedOther[1]
 		|| t_parentRevokedButNotAllParents[1]
 		|| t_parentRevoked[1]
 		|| t_revokedButExpired[1]
@@ -201,7 +208,7 @@ BEGIN
 		|| t_revoked[1]
 		|| t_disclosedButExpired[1]
 		|| t_disclosedButNotTrusted[1]
-		|| t_disclosedButConstrained[1]
+		|| t_disclosedAndConstrained[1]
 		|| t_disclosedWithErrors[1]
 		|| t_disclosedButInCRL[1]
 		|| t_disclosedAndUnrevokedFromCRL[1]
