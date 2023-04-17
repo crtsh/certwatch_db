@@ -387,168 +387,68 @@ UPDATE ccadb_certificate_temp cct1
 
 /* Handle Subordinate CA Owner inheritance.  Repeat several times, to populate several levels of Sub-CA */
 \echo Handling Subordinate CA Owner inheritance
-UPDATE ccadb_certificate_temp cct
-	SET SUBORDINATE_CA_OWNER = coalesce(nullif(cct.SUBORDINATE_CA_OWNER, ''), cct_parent.SUBORDINATE_CA_OWNER)
-	FROM ccadb_certificate_temp cct_parent
-	WHERE cct.CERTIFICATE_ID IS NOT NULL
-		AND cct.PARENT_CERTIFICATE_ID = cct_parent.CERTIFICATE_ID;
-UPDATE ccadb_certificate_temp cct
-	SET SUBORDINATE_CA_OWNER = coalesce(nullif(cct.SUBORDINATE_CA_OWNER, ''), cct_parent.SUBORDINATE_CA_OWNER)
-	FROM ccadb_certificate_temp cct_parent
-	WHERE cct.CERTIFICATE_ID IS NOT NULL
-		AND cct.PARENT_CERTIFICATE_ID = cct_parent.CERTIFICATE_ID;
-UPDATE ccadb_certificate_temp cct
-	SET SUBORDINATE_CA_OWNER = coalesce(nullif(cct.SUBORDINATE_CA_OWNER, ''), cct_parent.SUBORDINATE_CA_OWNER)
-	FROM ccadb_certificate_temp cct_parent
-	WHERE cct.CERTIFICATE_ID IS NOT NULL
-		AND cct.PARENT_CERTIFICATE_ID = cct_parent.CERTIFICATE_ID;
-UPDATE ccadb_certificate_temp cct
-	SET SUBORDINATE_CA_OWNER = coalesce(nullif(cct.SUBORDINATE_CA_OWNER, ''), cct_parent.SUBORDINATE_CA_OWNER)
-	FROM ccadb_certificate_temp cct_parent
-	WHERE cct.CERTIFICATE_ID IS NOT NULL
-		AND cct.PARENT_CERTIFICATE_ID = cct_parent.CERTIFICATE_ID;
+DO $$
+BEGIN
+	FOR i IN 1..4 LOOP
+		UPDATE ccadb_certificate_temp cct
+			SET SUBORDINATE_CA_OWNER = coalesce(nullif(cct.SUBORDINATE_CA_OWNER, ''), cct_parent.SUBORDINATE_CA_OWNER)
+			FROM ccadb_certificate_temp cct_parent
+			WHERE cct.CERTIFICATE_ID IS NOT NULL
+				AND cct.PARENT_CERTIFICATE_ID = cct_parent.CERTIFICATE_ID;
+	END LOOP;
+END $$;
 
 
 /* Handle CP/CPS inheritance.  Repeat several times, to populate several levels of Sub-CA */
 \echo Handling CP/CPS Inheritance
-UPDATE ccadb_certificate_temp cct
-	SET CP_URL = coalesce(cct.CP_URL, cct_parent.CP_URL),
-		CPS_URL = coalesce(cct.CPS_URL, cct_parent.CPS_URL)
-	FROM ccadb_certificate_temp cct_parent
-	WHERE cct.CERTIFICATE_ID IS NOT NULL
-		AND cct.CP_CPS_SAME_AS_PARENT
-		AND cct.PARENT_CERTIFICATE_ID = cct_parent.CERTIFICATE_ID;
-UPDATE ccadb_certificate_temp cct
-	SET CP_URL = coalesce(cct.CP_URL, cct_parent.CP_URL),
-		CPS_URL = coalesce(cct.CPS_URL, cct_parent.CPS_URL)
-	FROM ccadb_certificate_temp cct_parent
-	WHERE cct.CERTIFICATE_ID IS NOT NULL
-		AND cct.CP_CPS_SAME_AS_PARENT
-		AND cct.PARENT_CERTIFICATE_ID = cct_parent.CERTIFICATE_ID;
-UPDATE ccadb_certificate_temp cct
-	SET CP_URL = coalesce(cct.CP_URL, cct_parent.CP_URL),
-		CPS_URL = coalesce(cct.CPS_URL, cct_parent.CPS_URL)
-	FROM ccadb_certificate_temp cct_parent
-	WHERE cct.CERTIFICATE_ID IS NOT NULL
-		AND cct.CP_CPS_SAME_AS_PARENT
-		AND cct.PARENT_CERTIFICATE_ID = cct_parent.CERTIFICATE_ID;
-UPDATE ccadb_certificate_temp cct
-	SET CP_URL = coalesce(cct.CP_URL, cct_parent.CP_URL),
-		CPS_URL = coalesce(cct.CPS_URL, cct_parent.CPS_URL)
-	FROM ccadb_certificate_temp cct_parent
-	WHERE cct.CERTIFICATE_ID IS NOT NULL
-		AND cct.CP_CPS_SAME_AS_PARENT
-		AND cct.PARENT_CERTIFICATE_ID = cct_parent.CERTIFICATE_ID;
+DO $$
+BEGIN
+	FOR i IN 1..4 LOOP
+		UPDATE ccadb_certificate_temp cct
+			SET CP_URL = coalesce(cct.CP_URL, cct_parent.CP_URL),
+				CPS_URL = coalesce(cct.CPS_URL, cct_parent.CPS_URL)
+			FROM ccadb_certificate_temp cct_parent
+			WHERE cct.CERTIFICATE_ID IS NOT NULL
+				AND cct.CP_CPS_SAME_AS_PARENT
+				AND cct.PARENT_CERTIFICATE_ID = cct_parent.CERTIFICATE_ID;
+	END LOOP;
+END $$;
+
 
 /* Handle inheritance of audit details.  Repeat several times, to populate several levels of Sub-CA */
 \echo Handling Audit Inheritance
-UPDATE ccadb_certificate_temp cct
-	SET STANDARD_AUDIT_URL = coalesce(cct.STANDARD_AUDIT_URL, cct_parent.STANDARD_AUDIT_URL),
-		STANDARD_AUDIT_TYPE = coalesce(cct.STANDARD_AUDIT_TYPE, cct_parent.STANDARD_AUDIT_TYPE),
-		STANDARD_AUDIT_DATE = coalesce(cct.STANDARD_AUDIT_DATE, cct_parent.STANDARD_AUDIT_DATE),
-		STANDARD_AUDIT_START = coalesce(cct.STANDARD_AUDIT_START, cct_parent.STANDARD_AUDIT_START),
-		STANDARD_AUDIT_END = coalesce(cct.STANDARD_AUDIT_END, cct_parent.STANDARD_AUDIT_END),
-		BRSSL_AUDIT_URL = coalesce(cct.BRSSL_AUDIT_URL, cct_parent.BRSSL_AUDIT_URL),
-		BRSSL_AUDIT_TYPE = coalesce(cct.BRSSL_AUDIT_TYPE, cct_parent.BRSSL_AUDIT_TYPE),
-		BRSSL_AUDIT_DATE = coalesce(cct.BRSSL_AUDIT_DATE, cct_parent.BRSSL_AUDIT_DATE),
-		BRSSL_AUDIT_START = coalesce(cct.BRSSL_AUDIT_START, cct_parent.BRSSL_AUDIT_START),
-		BRSSL_AUDIT_END = coalesce(cct.BRSSL_AUDIT_END, cct_parent.BRSSL_AUDIT_END),
-		EVSSL_AUDIT_URL = coalesce(cct.EVSSL_AUDIT_URL, cct_parent.EVSSL_AUDIT_URL),
-		EVSSL_AUDIT_TYPE = coalesce(cct.EVSSL_AUDIT_TYPE, cct_parent.EVSSL_AUDIT_TYPE),
-		EVSSL_AUDIT_DATE = coalesce(cct.EVSSL_AUDIT_DATE, cct_parent.EVSSL_AUDIT_DATE),
-		EVSSL_AUDIT_START = coalesce(cct.EVSSL_AUDIT_START, cct_parent.EVSSL_AUDIT_START),
-		EVSSL_AUDIT_END = coalesce(cct.EVSSL_AUDIT_END, cct_parent.EVSSL_AUDIT_END),
-		EVCODE_AUDIT_URL = coalesce(cct.EVCODE_AUDIT_URL, cct_parent.EVCODE_AUDIT_URL),
-		EVCODE_AUDIT_TYPE = coalesce(cct.EVCODE_AUDIT_TYPE, cct_parent.EVCODE_AUDIT_TYPE),
-		EVCODE_AUDIT_DATE = coalesce(cct.EVCODE_AUDIT_DATE, cct_parent.EVCODE_AUDIT_DATE),
-		EVCODE_AUDIT_START = coalesce(cct.EVCODE_AUDIT_START, cct_parent.EVCODE_AUDIT_START),
-		EVCODE_AUDIT_END = coalesce(cct.EVCODE_AUDIT_END, cct_parent.EVCODE_AUDIT_END),
-		AUDITOR = coalesce(cct.AUDITOR, cct_parent.AUDITOR)
-	FROM ccadb_certificate_temp cct_parent
-	WHERE cct.CERTIFICATE_ID IS NOT NULL
-		AND cct.AUDITS_SAME_AS_PARENT
-		AND cct.PARENT_CERTIFICATE_ID = cct_parent.CERTIFICATE_ID;
-\echo Handling Audit Inheritance
-UPDATE ccadb_certificate_temp cct
-	SET STANDARD_AUDIT_URL = coalesce(cct.STANDARD_AUDIT_URL, cct_parent.STANDARD_AUDIT_URL),
-		STANDARD_AUDIT_TYPE = coalesce(cct.STANDARD_AUDIT_TYPE, cct_parent.STANDARD_AUDIT_TYPE),
-		STANDARD_AUDIT_DATE = coalesce(cct.STANDARD_AUDIT_DATE, cct_parent.STANDARD_AUDIT_DATE),
-		STANDARD_AUDIT_START = coalesce(cct.STANDARD_AUDIT_START, cct_parent.STANDARD_AUDIT_START),
-		STANDARD_AUDIT_END = coalesce(cct.STANDARD_AUDIT_END, cct_parent.STANDARD_AUDIT_END),
-		BRSSL_AUDIT_URL = coalesce(cct.BRSSL_AUDIT_URL, cct_parent.BRSSL_AUDIT_URL),
-		BRSSL_AUDIT_TYPE = coalesce(cct.BRSSL_AUDIT_TYPE, cct_parent.BRSSL_AUDIT_TYPE),
-		BRSSL_AUDIT_DATE = coalesce(cct.BRSSL_AUDIT_DATE, cct_parent.BRSSL_AUDIT_DATE),
-		BRSSL_AUDIT_START = coalesce(cct.BRSSL_AUDIT_START, cct_parent.BRSSL_AUDIT_START),
-		BRSSL_AUDIT_END = coalesce(cct.BRSSL_AUDIT_END, cct_parent.BRSSL_AUDIT_END),
-		EVSSL_AUDIT_URL = coalesce(cct.EVSSL_AUDIT_URL, cct_parent.EVSSL_AUDIT_URL),
-		EVSSL_AUDIT_TYPE = coalesce(cct.EVSSL_AUDIT_TYPE, cct_parent.EVSSL_AUDIT_TYPE),
-		EVSSL_AUDIT_DATE = coalesce(cct.EVSSL_AUDIT_DATE, cct_parent.EVSSL_AUDIT_DATE),
-		EVSSL_AUDIT_START = coalesce(cct.EVSSL_AUDIT_START, cct_parent.EVSSL_AUDIT_START),
-		EVSSL_AUDIT_END = coalesce(cct.EVSSL_AUDIT_END, cct_parent.EVSSL_AUDIT_END),
-		EVCODE_AUDIT_URL = coalesce(cct.EVCODE_AUDIT_URL, cct_parent.EVCODE_AUDIT_URL),
-		EVCODE_AUDIT_TYPE = coalesce(cct.EVCODE_AUDIT_TYPE, cct_parent.EVCODE_AUDIT_TYPE),
-		EVCODE_AUDIT_DATE = coalesce(cct.EVCODE_AUDIT_DATE, cct_parent.EVCODE_AUDIT_DATE),
-		EVCODE_AUDIT_START = coalesce(cct.EVCODE_AUDIT_START, cct_parent.EVCODE_AUDIT_START),
-		EVCODE_AUDIT_END = coalesce(cct.EVCODE_AUDIT_END, cct_parent.EVCODE_AUDIT_END),
-		AUDITOR = coalesce(cct.AUDITOR, cct_parent.AUDITOR)
-	FROM ccadb_certificate_temp cct_parent
-	WHERE cct.CERTIFICATE_ID IS NOT NULL
-		AND cct.AUDITS_SAME_AS_PARENT
-		AND cct.PARENT_CERTIFICATE_ID = cct_parent.CERTIFICATE_ID;
-\echo Handling Audit Inheritance
-UPDATE ccadb_certificate_temp cct
-	SET STANDARD_AUDIT_URL = coalesce(cct.STANDARD_AUDIT_URL, cct_parent.STANDARD_AUDIT_URL),
-		STANDARD_AUDIT_TYPE = coalesce(cct.STANDARD_AUDIT_TYPE, cct_parent.STANDARD_AUDIT_TYPE),
-		STANDARD_AUDIT_DATE = coalesce(cct.STANDARD_AUDIT_DATE, cct_parent.STANDARD_AUDIT_DATE),
-		STANDARD_AUDIT_START = coalesce(cct.STANDARD_AUDIT_START, cct_parent.STANDARD_AUDIT_START),
-		STANDARD_AUDIT_END = coalesce(cct.STANDARD_AUDIT_END, cct_parent.STANDARD_AUDIT_END),
-		BRSSL_AUDIT_URL = coalesce(cct.BRSSL_AUDIT_URL, cct_parent.BRSSL_AUDIT_URL),
-		BRSSL_AUDIT_TYPE = coalesce(cct.BRSSL_AUDIT_TYPE, cct_parent.BRSSL_AUDIT_TYPE),
-		BRSSL_AUDIT_DATE = coalesce(cct.BRSSL_AUDIT_DATE, cct_parent.BRSSL_AUDIT_DATE),
-		BRSSL_AUDIT_START = coalesce(cct.BRSSL_AUDIT_START, cct_parent.BRSSL_AUDIT_START),
-		BRSSL_AUDIT_END = coalesce(cct.BRSSL_AUDIT_END, cct_parent.BRSSL_AUDIT_END),
-		EVSSL_AUDIT_URL = coalesce(cct.EVSSL_AUDIT_URL, cct_parent.EVSSL_AUDIT_URL),
-		EVSSL_AUDIT_TYPE = coalesce(cct.EVSSL_AUDIT_TYPE, cct_parent.EVSSL_AUDIT_TYPE),
-		EVSSL_AUDIT_DATE = coalesce(cct.EVSSL_AUDIT_DATE, cct_parent.EVSSL_AUDIT_DATE),
-		EVSSL_AUDIT_START = coalesce(cct.EVSSL_AUDIT_START, cct_parent.EVSSL_AUDIT_START),
-		EVSSL_AUDIT_END = coalesce(cct.EVSSL_AUDIT_END, cct_parent.EVSSL_AUDIT_END),
-		EVCODE_AUDIT_URL = coalesce(cct.EVCODE_AUDIT_URL, cct_parent.EVCODE_AUDIT_URL),
-		EVCODE_AUDIT_TYPE = coalesce(cct.EVCODE_AUDIT_TYPE, cct_parent.EVCODE_AUDIT_TYPE),
-		EVCODE_AUDIT_DATE = coalesce(cct.EVCODE_AUDIT_DATE, cct_parent.EVCODE_AUDIT_DATE),
-		EVCODE_AUDIT_START = coalesce(cct.EVCODE_AUDIT_START, cct_parent.EVCODE_AUDIT_START),
-		EVCODE_AUDIT_END = coalesce(cct.EVCODE_AUDIT_END, cct_parent.EVCODE_AUDIT_END),
-		AUDITOR = coalesce(cct.AUDITOR, cct_parent.AUDITOR)
-	FROM ccadb_certificate_temp cct_parent
-	WHERE cct.CERTIFICATE_ID IS NOT NULL
-		AND cct.AUDITS_SAME_AS_PARENT
-		AND cct.PARENT_CERTIFICATE_ID = cct_parent.CERTIFICATE_ID;
-\echo Handling Audit Inheritance
-UPDATE ccadb_certificate_temp cct
-	SET STANDARD_AUDIT_URL = coalesce(cct.STANDARD_AUDIT_URL, cct_parent.STANDARD_AUDIT_URL),
-		STANDARD_AUDIT_TYPE = coalesce(cct.STANDARD_AUDIT_TYPE, cct_parent.STANDARD_AUDIT_TYPE),
-		STANDARD_AUDIT_DATE = coalesce(cct.STANDARD_AUDIT_DATE, cct_parent.STANDARD_AUDIT_DATE),
-		STANDARD_AUDIT_START = coalesce(cct.STANDARD_AUDIT_START, cct_parent.STANDARD_AUDIT_START),
-		STANDARD_AUDIT_END = coalesce(cct.STANDARD_AUDIT_END, cct_parent.STANDARD_AUDIT_END),
-		BRSSL_AUDIT_URL = coalesce(cct.BRSSL_AUDIT_URL, cct_parent.BRSSL_AUDIT_URL),
-		BRSSL_AUDIT_TYPE = coalesce(cct.BRSSL_AUDIT_TYPE, cct_parent.BRSSL_AUDIT_TYPE),
-		BRSSL_AUDIT_DATE = coalesce(cct.BRSSL_AUDIT_DATE, cct_parent.BRSSL_AUDIT_DATE),
-		BRSSL_AUDIT_START = coalesce(cct.BRSSL_AUDIT_START, cct_parent.BRSSL_AUDIT_START),
-		BRSSL_AUDIT_END = coalesce(cct.BRSSL_AUDIT_END, cct_parent.BRSSL_AUDIT_END),
-		EVSSL_AUDIT_URL = coalesce(cct.EVSSL_AUDIT_URL, cct_parent.EVSSL_AUDIT_URL),
-		EVSSL_AUDIT_TYPE = coalesce(cct.EVSSL_AUDIT_TYPE, cct_parent.EVSSL_AUDIT_TYPE),
-		EVSSL_AUDIT_DATE = coalesce(cct.EVSSL_AUDIT_DATE, cct_parent.EVSSL_AUDIT_DATE),
-		EVSSL_AUDIT_START = coalesce(cct.EVSSL_AUDIT_START, cct_parent.EVSSL_AUDIT_START),
-		EVSSL_AUDIT_END = coalesce(cct.EVSSL_AUDIT_END, cct_parent.EVSSL_AUDIT_END),
-		EVCODE_AUDIT_URL = coalesce(cct.EVCODE_AUDIT_URL, cct_parent.EVCODE_AUDIT_URL),
-		EVCODE_AUDIT_TYPE = coalesce(cct.EVCODE_AUDIT_TYPE, cct_parent.EVCODE_AUDIT_TYPE),
-		EVCODE_AUDIT_DATE = coalesce(cct.EVCODE_AUDIT_DATE, cct_parent.EVCODE_AUDIT_DATE),
-		EVCODE_AUDIT_START = coalesce(cct.EVCODE_AUDIT_START, cct_parent.EVCODE_AUDIT_START),
-		EVCODE_AUDIT_END = coalesce(cct.EVCODE_AUDIT_END, cct_parent.EVCODE_AUDIT_END),
-		AUDITOR = coalesce(cct.AUDITOR, cct_parent.AUDITOR)
-	FROM ccadb_certificate_temp cct_parent
-	WHERE cct.CERTIFICATE_ID IS NOT NULL
-		AND cct.AUDITS_SAME_AS_PARENT
-		AND cct.PARENT_CERTIFICATE_ID = cct_parent.CERTIFICATE_ID;
+DO $$
+BEGIN
+	FOR i IN 1..4 LOOP
+		UPDATE ccadb_certificate_temp cct
+			SET STANDARD_AUDIT_URL = coalesce(cct.STANDARD_AUDIT_URL, cct_parent.STANDARD_AUDIT_URL),
+				STANDARD_AUDIT_TYPE = coalesce(cct.STANDARD_AUDIT_TYPE, cct_parent.STANDARD_AUDIT_TYPE),
+				STANDARD_AUDIT_DATE = coalesce(cct.STANDARD_AUDIT_DATE, cct_parent.STANDARD_AUDIT_DATE),
+				STANDARD_AUDIT_START = coalesce(cct.STANDARD_AUDIT_START, cct_parent.STANDARD_AUDIT_START),
+				STANDARD_AUDIT_END = coalesce(cct.STANDARD_AUDIT_END, cct_parent.STANDARD_AUDIT_END),
+				BRSSL_AUDIT_URL = coalesce(cct.BRSSL_AUDIT_URL, cct_parent.BRSSL_AUDIT_URL),
+				BRSSL_AUDIT_TYPE = coalesce(cct.BRSSL_AUDIT_TYPE, cct_parent.BRSSL_AUDIT_TYPE),
+				BRSSL_AUDIT_DATE = coalesce(cct.BRSSL_AUDIT_DATE, cct_parent.BRSSL_AUDIT_DATE),
+				BRSSL_AUDIT_START = coalesce(cct.BRSSL_AUDIT_START, cct_parent.BRSSL_AUDIT_START),
+				BRSSL_AUDIT_END = coalesce(cct.BRSSL_AUDIT_END, cct_parent.BRSSL_AUDIT_END),
+				EVSSL_AUDIT_URL = coalesce(cct.EVSSL_AUDIT_URL, cct_parent.EVSSL_AUDIT_URL),
+				EVSSL_AUDIT_TYPE = coalesce(cct.EVSSL_AUDIT_TYPE, cct_parent.EVSSL_AUDIT_TYPE),
+				EVSSL_AUDIT_DATE = coalesce(cct.EVSSL_AUDIT_DATE, cct_parent.EVSSL_AUDIT_DATE),
+				EVSSL_AUDIT_START = coalesce(cct.EVSSL_AUDIT_START, cct_parent.EVSSL_AUDIT_START),
+				EVSSL_AUDIT_END = coalesce(cct.EVSSL_AUDIT_END, cct_parent.EVSSL_AUDIT_END),
+				EVCODE_AUDIT_URL = coalesce(cct.EVCODE_AUDIT_URL, cct_parent.EVCODE_AUDIT_URL),
+				EVCODE_AUDIT_TYPE = coalesce(cct.EVCODE_AUDIT_TYPE, cct_parent.EVCODE_AUDIT_TYPE),
+				EVCODE_AUDIT_DATE = coalesce(cct.EVCODE_AUDIT_DATE, cct_parent.EVCODE_AUDIT_DATE),
+				EVCODE_AUDIT_START = coalesce(cct.EVCODE_AUDIT_START, cct_parent.EVCODE_AUDIT_START),
+				EVCODE_AUDIT_END = coalesce(cct.EVCODE_AUDIT_END, cct_parent.EVCODE_AUDIT_END),
+				AUDITOR = coalesce(cct.AUDITOR, cct_parent.AUDITOR)
+			FROM ccadb_certificate_temp cct_parent
+			WHERE cct.CERTIFICATE_ID IS NOT NULL
+				AND cct.AUDITS_SAME_AS_PARENT
+				AND cct.PARENT_CERTIFICATE_ID = cct_parent.CERTIFICATE_ID;
+	END LOOP;
+END $$;
+
 
 \echo Handle the Expired cases
 UPDATE ccadb_certificate_temp cct
