@@ -43,8 +43,8 @@ BEGIN
 	t_inconsistentAuditSummary := ccadb_disclosure_group_summary(12, 'DisclosedWithInconsistentAudit', 'disclosedwithinconsistentauditsummary', '#F8B88B');
 	t_inconsistentCPS := ccadb_disclosure_group2(12, 'DisclosedWithInconsistentCPS', 'disclosedwithinconsistentcps', 'Certificate disclosed, but CP/CPS details for the Subject CA are inconsistent: Further Disclosure is required!', '#F8B88B');
 	t_inconsistentCPSSummary := ccadb_disclosure_group_summary(12, 'DisclosedWithInconsistentCPS', 'disclosedwithinconsistentcpssummary', '#F8B88B');
-	t_trustRevoked := ccadb_disclosure_group(12, 'AllServerAuthPathsRevoked', 'trustrevoked', 'Unconstrained, although all unexpired paths contain at least one revoked intermediate: Disclosure is not known to be required', '#FAF884');
-	t_notTrusted := ccadb_disclosure_group(12, 'NoKnownServerAuthTrustPath', 'nottrusted', 'Unconstrained, but no unexpired trust paths have been observed: Disclosure is not known to be required', '#FAF884');
+	t_trustRevoked := ccadb_disclosure_group(12, 'AllSuitablePathsRevoked', 'trustrevoked', 'Unconstrained, although all unexpired paths contain at least one revoked intermediate: Disclosure is not known to be required', '#FAF884');
+	t_notTrusted := ccadb_disclosure_group(12, 'NoKnownSuitableTrustPath', 'nottrusted', 'Unconstrained, but no suitable unexpired trust paths have been observed: Disclosure is not known to be required', '#FAF884');
 	t_expired := ccadb_disclosure_group(12, 'Expired', 'expired', 'Expired: Disclosure is not required', '#BAED91');
 	t_parentRevokedButNotAllParents := ccadb_disclosure_group(12, 'ParentRevokedButNotAllParents', 'parentrevokedbutnotallparents', 'Disclosed as Parent Revoked, but not all parent(s) are disclosed as Revoked', '#B2CEFE');
 	t_parentRevoked := ccadb_disclosure_group(12, 'ParentRevoked', 'parentrevoked', 'Disclosed as Parent Revoked', '#B2CEFE');
@@ -52,7 +52,7 @@ BEGIN
 	t_revokedAndConstrained := ccadb_disclosure_group(12, 'RevokedAndTechnicallyConstrained', 'revokedandconstrained', 'Disclosed as Revoked and Technically Constrained', '#B2CEFE');
 	t_revoked := ccadb_disclosure_group(12, 'Revoked', 'revoked', 'Disclosed as Revoked', '#B2CEFE');
 	t_disclosedButExpired := ccadb_disclosure_group(12, 'DisclosedButExpired', 'disclosedbutexpired', 'Disclosed, but Expired', '#F2A2E8');
-	t_disclosedButNotTrusted := ccadb_disclosure_group(12, 'DisclosedButNoKnownServerAuthTrustPath', 'disclosedbutnottrusted', 'Disclosed, but no unexpired trust paths have been observed', '#F2A2E8');
+	t_disclosedButNotTrusted := ccadb_disclosure_group(12, 'DisclosedButNoKnownSuitableTrustPath', 'disclosedbutnottrusted', 'Disclosed, but no suitable unexpired trust paths have been observed', '#F2A2E8');
 	t_disclosedAndConstrained := ccadb_disclosure_group(12, 'DisclosedButConstrained', 'disclosedbutconstrained', 'Disclosed, and Technically Constrained', '#F2A2E8');
 	t_disclosedWithErrors := ccadb_disclosure_group(12, 'DisclosedWithErrors', 'disclosedwitherrors', 'Disclosed, but with Errors: Parent Certificate Name is set incorrectly', '#F2A2E8');
 	t_disclosedButInCRL := ccadb_disclosure_group(12, 'DisclosedButInCRL', 'disclosedbutincrl', 'Disclosed (as Not Revoked), but revoked via CRL', '#F2A2E8');

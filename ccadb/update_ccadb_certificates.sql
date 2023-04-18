@@ -481,9 +481,9 @@ UPDATE ccadb_certificate_temp cct
 		AND coalesce(x509_notAfter(c.CERTIFICATE), 'infinity'::timestamp) < now();
 
 
-\echo Undisclosed -> NoKnownServerAuthTrustPath
+\echo Undisclosed -> NoKnownSuitableTrustPath
 UPDATE ccadb_certificate_temp cct
-	SET MOZILLA_DISCLOSURE_STATUS = 'NoKnownServerAuthTrustPath'
+	SET MOZILLA_DISCLOSURE_STATUS = 'NoKnownSuitableTrustPath'
 	FROM certificate c
 	WHERE cct.MOZILLA_DISCLOSURE_STATUS = 'Undisclosed'
 		AND cct.CERTIFICATE_ID = c.ID
@@ -497,7 +497,7 @@ UPDATE ccadb_certificate_temp cct
 					AND NOT ctp.ALL_CHAINS_TECHNICALLY_CONSTRAINED
 		);
 UPDATE ccadb_certificate_temp cct
-	SET MICROSOFT_DISCLOSURE_STATUS = 'NoKnownServerAuthTrustPath'
+	SET MICROSOFT_DISCLOSURE_STATUS = 'NoKnownSuitableTrustPath'
 	FROM certificate c
 	WHERE cct.MICROSOFT_DISCLOSURE_STATUS = 'Undisclosed'
 		AND cct.CERTIFICATE_ID = c.ID
@@ -510,7 +510,7 @@ UPDATE ccadb_certificate_temp cct
 					AND NOT ctp.ALL_CHAINS_TECHNICALLY_CONSTRAINED
 		);
 UPDATE ccadb_certificate_temp cct
-	SET APPLE_DISCLOSURE_STATUS = 'NoKnownServerAuthTrustPath'
+	SET APPLE_DISCLOSURE_STATUS = 'NoKnownSuitableTrustPath'
 	FROM certificate c
 	WHERE cct.APPLE_DISCLOSURE_STATUS = 'Undisclosed'
 		AND cct.CERTIFICATE_ID = c.ID
@@ -522,7 +522,7 @@ UPDATE ccadb_certificate_temp cct
 					AND ctp.IS_TIME_VALID
 		);
 UPDATE ccadb_certificate_temp cct
-	SET CHROME_DISCLOSURE_STATUS = 'NoKnownServerAuthTrustPath'
+	SET CHROME_DISCLOSURE_STATUS = 'NoKnownSuitableTrustPath'
 	FROM certificate c
 	WHERE cct.CHROME_DISCLOSURE_STATUS = 'Undisclosed'
 		AND cct.CERTIFICATE_ID = c.ID
@@ -534,9 +534,9 @@ UPDATE ccadb_certificate_temp cct
 					AND ctp.IS_TIME_VALID
 		);
 
-\echo Undisclosed -> AllServerAuthPathsRevoked
+\echo Undisclosed -> AllSuitablePathsRevoked
 UPDATE ccadb_certificate_temp cct
-	SET MOZILLA_DISCLOSURE_STATUS = 'AllServerAuthPathsRevoked'
+	SET MOZILLA_DISCLOSURE_STATUS = 'AllSuitablePathsRevoked'
 	FROM certificate c
 	WHERE cct.MOZILLA_DISCLOSURE_STATUS = 'Undisclosed'
 		AND cct.CERTIFICATE_ID = c.ID
@@ -549,7 +549,7 @@ UPDATE ccadb_certificate_temp cct
 					AND NOT ctp.ALL_CHAINS_REVOKED_IN_SALESFORCE
 		);
 UPDATE ccadb_certificate_temp cct
-	SET MICROSOFT_DISCLOSURE_STATUS = 'AllServerAuthPathsRevoked'
+	SET MICROSOFT_DISCLOSURE_STATUS = 'AllSuitablePathsRevoked'
 	FROM certificate c
 	WHERE cct.MICROSOFT_DISCLOSURE_STATUS = 'Undisclosed'
 		AND cct.CERTIFICATE_ID = c.ID
@@ -561,7 +561,7 @@ UPDATE ccadb_certificate_temp cct
 					AND NOT ctp.ALL_CHAINS_REVOKED_IN_SALESFORCE
 		);
 UPDATE ccadb_certificate_temp cct
-	SET APPLE_DISCLOSURE_STATUS = 'AllServerAuthPathsRevoked'
+	SET APPLE_DISCLOSURE_STATUS = 'AllSuitablePathsRevoked'
 	FROM certificate c
 	WHERE cct.APPLE_DISCLOSURE_STATUS = 'Undisclosed'
 		AND cct.CERTIFICATE_ID = c.ID
@@ -573,7 +573,7 @@ UPDATE ccadb_certificate_temp cct
 					AND NOT ctp.ALL_CHAINS_REVOKED_IN_SALESFORCE
 		);
 UPDATE ccadb_certificate_temp cct
-	SET CHROME_DISCLOSURE_STATUS = 'AllServerAuthPathsRevoked'
+	SET CHROME_DISCLOSURE_STATUS = 'AllSuitablePathsRevoked'
 	FROM certificate c
 	WHERE cct.CHROME_DISCLOSURE_STATUS = 'Undisclosed'
 		AND cct.CERTIFICATE_ID = c.ID
@@ -766,9 +766,9 @@ UPDATE ccadb_certificate_temp cct
 					AND ctp.TRUST_PURPOSE_ID = 3
 		);
 
-\echo Disclosed -> DisclosedButNoKnownServerAuthTrustPath
+\echo Disclosed -> DisclosedButNoKnownSuitableTrustPath
 UPDATE ccadb_certificate_temp cct
-	SET MOZILLA_DISCLOSURE_STATUS = 'DisclosedButNoKnownServerAuthTrustPath'
+	SET MOZILLA_DISCLOSURE_STATUS = 'DisclosedButNoKnownSuitableTrustPath'
 	FROM certificate c
 	WHERE cct.MOZILLA_DISCLOSURE_STATUS IN ('Disclosed', 'Revoked', 'ParentRevoked')
 		AND cct.CERTIFICATE_ID = c.ID
@@ -781,7 +781,7 @@ UPDATE ccadb_certificate_temp cct
 					AND ctp.IS_TIME_VALID
 		);
 UPDATE ccadb_certificate_temp cct
-	SET MICROSOFT_DISCLOSURE_STATUS = 'DisclosedButNoKnownServerAuthTrustPath'
+	SET MICROSOFT_DISCLOSURE_STATUS = 'DisclosedButNoKnownSuitableTrustPath'
 	FROM certificate c
 	WHERE cct.MICROSOFT_DISCLOSURE_STATUS IN ('Disclosed', 'Revoked', 'ParentRevoked')
 		AND cct.CERTIFICATE_ID = c.ID
@@ -794,7 +794,7 @@ UPDATE ccadb_certificate_temp cct
 					AND ctp.IS_TIME_VALID
 		);
 UPDATE ccadb_certificate_temp cct
-	SET APPLE_DISCLOSURE_STATUS = 'DisclosedButNoKnownServerAuthTrustPath'
+	SET APPLE_DISCLOSURE_STATUS = 'DisclosedButNoKnownSuitableTrustPath'
 	FROM certificate c
 	WHERE cct.APPLE_DISCLOSURE_STATUS IN ('Disclosed', 'Revoked', 'ParentRevoked')
 		AND cct.CERTIFICATE_ID = c.ID
@@ -806,7 +806,7 @@ UPDATE ccadb_certificate_temp cct
 					AND ctp.IS_TIME_VALID
 		);
 UPDATE ccadb_certificate_temp cct
-	SET CHROME_DISCLOSURE_STATUS = 'DisclosedButNoKnownServerAuthTrustPath'
+	SET CHROME_DISCLOSURE_STATUS = 'DisclosedButNoKnownSuitableTrustPath'
 	FROM certificate c
 	WHERE cct.CHROME_DISCLOSURE_STATUS IN ('Disclosed', 'Revoked', 'ParentRevoked')
 		AND cct.CERTIFICATE_ID = c.ID
@@ -827,8 +827,8 @@ UPDATE ccadb_certificate_temp cct
 		AND c.ISSUER_CA_ID = cac.CA_ID
 		AND cac.CERTIFICATE_ID = cc2.CERTIFICATE_ID
 		AND cc2.MOZILLA_DISCLOSURE_STATUS NOT IN (
-			'AllServerAuthPathsRevoked',
-			'NoKnownServerAuthTrustPath',
+			'AllSuitablePathsRevoked',
+			'NoKnownSuitableTrustPath',
 			'TechnicallyConstrainedOther',
 			'Expired',
 			'Revoked',
@@ -842,7 +842,7 @@ UPDATE ccadb_certificate_temp cct
 			'RevokedViaOneCRLButTechnicallyConstrained',
 			'RevokedViaOneCRLButNotNeeded',
 			'DisclosedButExpired',
-			'DisclosedButNoKnownServerAuthTrustPath',
+			'DisclosedButNoKnownSuitableTrustPath',
 			'DisclosedButInOneCRL'
 		)
 		AND NOT (
@@ -862,8 +862,8 @@ UPDATE ccadb_certificate_temp cct
 		AND c.ISSUER_CA_ID = cac.CA_ID
 		AND cac.CERTIFICATE_ID = cc2.CERTIFICATE_ID
 		AND cc2.APPLE_DISCLOSURE_STATUS NOT IN (
-			'AllServerAuthPathsRevoked',
-			'NoKnownServerAuthTrustPath',
+			'AllSuitablePathsRevoked',
+			'NoKnownSuitableTrustPath',
 			'TechnicallyConstrainedOther',
 			'Expired',
 			'Revoked',
@@ -871,7 +871,7 @@ UPDATE ccadb_certificate_temp cct
 			'ParentRevoked',
 			'RevokedButExpired',
 			'DisclosedButExpired',
-			'DisclosedButNoKnownServerAuthTrustPath'
+			'DisclosedButNoKnownSuitableTrustPath'
 		)
 		AND NOT (
 			coalesce(cc2.CERT_RECORD_TYPE, '') = 'Root Certificate'
@@ -890,8 +890,8 @@ UPDATE ccadb_certificate_temp cct
 		AND c.ISSUER_CA_ID = cac.CA_ID
 		AND cac.CERTIFICATE_ID = cc2.CERTIFICATE_ID
 		AND cc2.CHROME_DISCLOSURE_STATUS NOT IN (
-			'AllServerAuthPathsRevoked',
-			'NoKnownServerAuthTrustPath',
+			'AllSuitablePathsRevoked',
+			'NoKnownSuitableTrustPath',
 			'TechnicallyConstrainedOther',
 			'Expired',
 			'Revoked',
@@ -899,7 +899,7 @@ UPDATE ccadb_certificate_temp cct
 			'ParentRevoked',
 			'RevokedButExpired',
 			'DisclosedButExpired',
-			'DisclosedButNoKnownServerAuthTrustPath'
+			'DisclosedButNoKnownSuitableTrustPath'
 		)
 		AND NOT (
 			coalesce(cc2.CERT_RECORD_TYPE, '') = 'Root Certificate'
@@ -1989,9 +1989,9 @@ UPDATE ccadb_certificate_temp cct
 		)
 		AND coalesce(cpcps_variations.NUMBER_OF_CP_CPS_VARIATIONS, 0) > 1;
 
-\echo DisclosureIncomplete, DisclosedWithInconsistentAudit, DisclosedWithInconsistentCPS -> AllServerAuthPathsRevoked
+\echo DisclosureIncomplete, DisclosedWithInconsistentAudit, DisclosedWithInconsistentCPS -> AllSuitablePathsRevoked
 UPDATE ccadb_certificate_temp cct
-	SET MOZILLA_DISCLOSURE_STATUS = 'AllServerAuthPathsRevoked'
+	SET MOZILLA_DISCLOSURE_STATUS = 'AllSuitablePathsRevoked'
 	FROM certificate c
 	WHERE cct.MOZILLA_DISCLOSURE_STATUS IN ('DisclosureIncomplete', 'DisclosedWithInconsistentAudit', 'DisclosedWithInconsistentCPS')
 		AND cct.CERTIFICATE_ID = c.ID
@@ -2004,7 +2004,7 @@ UPDATE ccadb_certificate_temp cct
 					AND NOT ctp.ALL_CHAINS_REVOKED_IN_SALESFORCE
 		);
 UPDATE ccadb_certificate_temp cct
-	SET MICROSOFT_DISCLOSURE_STATUS = 'AllServerAuthPathsRevoked'
+	SET MICROSOFT_DISCLOSURE_STATUS = 'AllSuitablePathsRevoked'
 	FROM certificate c
 	WHERE cct.MICROSOFT_DISCLOSURE_STATUS IN ('DisclosureIncomplete', 'DisclosedWithInconsistentAudit', 'DisclosedWithInconsistentCPS')
 		AND cct.CERTIFICATE_ID = c.ID
@@ -2016,7 +2016,7 @@ UPDATE ccadb_certificate_temp cct
 					AND NOT ctp.ALL_CHAINS_REVOKED_IN_SALESFORCE
 		);
 UPDATE ccadb_certificate_temp cct
-	SET APPLE_DISCLOSURE_STATUS = 'AllServerAuthPathsRevoked'
+	SET APPLE_DISCLOSURE_STATUS = 'AllSuitablePathsRevoked'
 	FROM certificate c
 	WHERE cct.APPLE_DISCLOSURE_STATUS IN ('DisclosureIncomplete', 'DisclosedWithInconsistentAudit', 'DisclosedWithInconsistentCPS')
 		AND cct.CERTIFICATE_ID = c.ID
@@ -2028,7 +2028,7 @@ UPDATE ccadb_certificate_temp cct
 					AND NOT ctp.ALL_CHAINS_REVOKED_IN_SALESFORCE
 		);
 UPDATE ccadb_certificate_temp cct
-	SET CHROME_DISCLOSURE_STATUS = 'AllServerAuthPathsRevoked'
+	SET CHROME_DISCLOSURE_STATUS = 'AllSuitablePathsRevoked'
 	FROM certificate c
 	WHERE cct.CHROME_DISCLOSURE_STATUS IN ('DisclosureIncomplete', 'DisclosedWithInconsistentAudit', 'DisclosedWithInconsistentCPS')
 		AND cct.CERTIFICATE_ID = c.ID
