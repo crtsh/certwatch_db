@@ -49,8 +49,8 @@ DECLARE
 BEGIN
 	t_undisclosed := ccadb_disclosure_group2(1, 'Undisclosed', 'undisclosed', 'Unconstrained Trust: Disclosure is required!', '#FE838A');
 	t_undisclosedSummary := ccadb_disclosure_group_summary(1, 'Undisclosed', 'undisclosedsummary', '#FE838A');
-	t_incomplete := ccadb_disclosure_group2(1, 'DisclosureIncomplete', 'disclosureincomplete', 'Certificate disclosed, but CP/CPS or Audit details missing or incorrect: Further Disclosure is required!', '#FEA3AA');
-	t_incompleteSummary := ccadb_disclosure_group_summary(1, 'DisclosureIncomplete', 'disclosureincompletesummary', '#FEA3AA');
+	t_incomplete := ccadb_disclosure_group2(1, 'DisclosureIncomplete', 'disclosureincomplete', 'Certificate disclosed, but CP/CPS or Audit details missing or incorrect: Further Disclosure is required!', '#FE838A');
+	t_incompleteSummary := ccadb_disclosure_group_summary(1, 'DisclosureIncomplete', 'disclosureincompletesummary', '#FE838A');
 	t_inconsistentAudit := ccadb_disclosure_group2(1, 'DisclosedWithInconsistentAudit', 'disclosedwithinconsistentaudit', '[EXPERIMENTAL] Certificate disclosed, but Audit details for the Subject CA are inconsistent: Further Disclosure is required!', '#F8B88B');
 	t_inconsistentAuditSummary := ccadb_disclosure_group_summary(1, 'DisclosedWithInconsistentAudit', 'disclosedwithinconsistentauditsummary', '#F8B88B');
 	t_inconsistentCPS := ccadb_disclosure_group2(1, 'DisclosedWithInconsistentCPS', 'disclosedwithinconsistentcps', '[EXPERIMENTAL] Certificate disclosed, but CP/CPS details for the Subject CA are inconsistent: Further Disclosure is required!', '#F8B88B');
@@ -90,7 +90,7 @@ BEGIN
     <TD><A href="#undisclosed">' || t_undisclosed[2] || ' + ' || t_undisclosed[3] || '</A>
       &nbsp;<A href="#undisclosedsummary" style="font-size:8pt">Summary</A></TD>
   </TR>
-  <TR style="background-color:#FEA3AA">
+  <TR style="background-color:#FE838A">
     <TD>Disclosure Incomplete or Incorrect</TD>
     <TD><B><U>Yes!</U></B></TD>
     <TD><A href="#disclosureincomplete">' || t_incomplete[2] || ' + ' || t_incomplete[3] || '</A>
