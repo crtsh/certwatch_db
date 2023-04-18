@@ -2185,20 +2185,32 @@ UPDATE ccadb_certificate_temp cct
 INSERT INTO crl (
 		CA_ID, DISTRIBUTION_POINT_URL, NEXT_CHECK_DUE, IS_ACTIVE
 	)
-	SELECT sub.CA_ID, sub.FULL_CRL_URL, now() AT TIME ZONE 'UTC', TRUE
-		FROM (
-			SELECT cac.CA_ID, cct.FULL_CRL_URL
-				FROM ccadb_certificate_temp cct, ca_certificate cac
-				WHERE nullif(nullif(nullif(cct.FULL_CRL_URL, ''), 'revoked'), 'expired') IS NOT NULL
-					AND cct.CERTIFICATE_ID = cac.CERTIFICATE_ID
-					AND NOT EXISTS (
-						SELECT 1
-							FROM crl
-							WHERE crl.CA_ID = cac.CA_ID
-								AND crl.DISTRIBUTION_POINT_URL = cct.FULL_CRL_URL
-					)
-				GROUP BY cac.CA_ID, cct.FULL_CRL_URL
-		) sub;
+	SELECT cac.CA_ID, cct.FULL_CRL_URL, now() AT TIME ZONE 'UTC', TRUE
+		FROM ccadb_certificate_temp cct, ca_certificate cac
+		WHERE nullif(nullif(nullif(cct.FULL_CRL_URL, ''), 'revoked'), 'expired') IS NOT NULL
+			AND cct.CERTIFICATE_ID = cac.CERTIFICATE_ID
+			AND NOT EXISTS (
+				SELECT 1
+					FROM crl
+					WHERE crl.CA_ID = cac.CA_ID
+						AND crl.DISTRIBUTION_POINT_URL = cct.FULL_CRL_URL
+			)
+		GROUP BY cac.CA_ID, cct.FULL_CRL_URL;
+
+INSERT INTO crl (
+		CA_ID, DISTRIBUTION_POINT_URL, NEXT_CHECK_DUE, IS_ACTIVE
+	)
+	SELECT cac.CA_ID, json_crl_url, now() AT TIME ZONE 'UTC', TRUE
+		FROM ccadb_certificate_temp cct, ca_certificate cac, json_array_elements_text(cct.JSON_ARRAY_OF_CRL_URLS::json) json_crl_url
+		WHERE cct.CERTIFICATE_ID = cac.CERTIFICATE_ID
+			AND length(cct.JSON_ARRAY_OF_CRL_URLS) > 4	-- Longer than [""].
+			AND NOT EXISTS (
+				SELECT 1
+					FROM crl
+					WHERE crl.CA_ID = cac.CA_ID
+						AND crl.DISTRIBUTION_POINT_URL = json_crl_url
+			)
+		GROUP BY cac.CA_ID, json_crl_url;
 
 LOCK ccadb_certificate;
 
