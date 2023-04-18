@@ -126,7 +126,7 @@ BEGIN
 			END IF;
 		END IF;
 
-		IF t_crlDisclosureRequired AND (nullif(t_ccadbCertificate.FULL_CRL_URL, '') IS NULL) AND (nullif(t_ccadbCertificate.JSON_ARRAY_OF_CRL_URLS, '') IS NULL) THEN
+		IF t_crlDisclosureRequired AND (nullif(t_ccadbCertificate.FULL_CRL_URL, '') IS NULL) AND (nullif(nullif(t_ccadbCertificate.JSON_ARRAY_OF_CRL_URLS, ''), '[""]') IS NULL) THEN
 			SELECT ca.ID, coalesce(ca.NUM_ISSUED[1], 0) + coalesce(ca.NUM_ISSUED[2], 0)
 				INTO t_caID, t_count
 				FROM ca_certificate cac, ca
