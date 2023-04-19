@@ -29,6 +29,7 @@ DECLARE
 	t_caID					ca.ID%TYPE;
 	t_count					bigint;
 	t_problems				text[];
+	t_errorMessage			text;
 	t_caOwner1				text;
 	t_caOwner2				text;
 	t_url1					text;
@@ -139,7 +140,7 @@ BEGIN
 			END IF;
 		ELSIF t_ccadbCertificate.FULL_CRL_URL = 'revoked' THEN
 			IF t_ccadbCertificate.REVOCATION_STATUS NOT IN ('Revoked', 'Parent Cert Revoked') THEN
-				t_problems := array_append(t_problems, '"Full CRL Issuer By This CA" indicates "revoked", but this certificate has not been disclosed as "Revoked" or "Parent Cert Revoked"');
+				t_problems := array_append(t_problems, '"Full CRL Issued By This CA" indicates "revoked", but this certificate has not been disclosed as "Revoked" or "Parent Cert Revoked"');
 			END IF;
 		ELSIF t_ccadbCertificate.FULL_CRL_URL = 'expired' THEN
 			PERFORM
@@ -147,7 +148,19 @@ BEGIN
 				WHERE c.ID = certificateID
 					AND x509_notAfter(c.CERTIFICATE) > now() AT TIME ZONE 'UTC';
 			IF FOUND THEN
-				t_problems := array_append(t_problems, '"Full CRL Issuer By This CA" indicates "expired", but this certificate has not yet expired');
+				t_problems := array_append(t_problems, '"Full CRL Issued By This CA" indicates "expired", but this certificate has not yet expired');
+			END IF;
+		ELSE
+			SELECT crl.ERROR_MESSAGE
+				INTO t_errorMessage
+				FROM ca_certificate cac, crl
+				WHERE cac.CERTIFICATE_ID = t_ccadbCertificate.CERTIFICATE_ID
+					AND cac.CA_ID = crl.CA_ID
+					AND crl.DISTRIBUTION_POINT_URL = t_ccadbCertificate.FULL_CRL_URL
+					AND crl.ERROR_MESSAGE IS NOT NULL
+				LIMIT 1;
+			IF FOUND THEN
+				t_problems := array_append(t_problems, '"Full CRL Issued By This CA" ERROR - ' || t_errorMessage);
 			END IF;
 		END IF;
 

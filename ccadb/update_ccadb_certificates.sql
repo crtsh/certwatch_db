@@ -983,14 +983,6 @@ UPDATE ccadb_certificate_temp cct
 					OR (cct.EVSSL_AUDIT_END IS NULL)
 				)
 			)
-			OR (
-				cct.FULL_CRL_URL = 'revoked'
-				AND cct.REVOCATION_STATUS NOT IN ('Revoked', 'Parent Cert Revoked')
-			)
-			OR (
-				cct.FULL_CRL_URL = 'expired'
-				AND x509_notAfter(c.CERTIFICATE) > now() AT TIME ZONE 'UTC'
-			)
 		);
 UPDATE ccadb_certificate_temp cct
 	SET MOZILLA_DISCLOSURE_STATUS = CASE coalesce(ca.NUM_ISSUED[1], 0) + coalesce(ca.NUM_ISSUED[2], 0)
@@ -1012,6 +1004,42 @@ UPDATE ccadb_certificate_temp cct
 					AND ctp.TRUST_PURPOSE_ID = 1
 					AND ctp.IS_TIME_VALID
 					AND NOT ctp.ALL_CHAINS_REVOKED_IN_SALESFORCE
+		);
+UPDATE ccadb_certificate_temp cct
+	SET MOZILLA_DISCLOSURE_STATUS = 'DisclosureIncomplete'
+	FROM certificate c, ca_certificate cac
+	WHERE cct.MOZILLA_DISCLOSURE_STATUS = 'Disclosed'
+		AND cct.CERT_RECORD_TYPE IN ('Root Certificate', 'Intermediate Certificate')
+		AND cct.CERTIFICATE_ID = c.ID
+		AND c.ID = cac.CERTIFICATE_ID
+		AND EXISTS (
+			SELECT 1
+				FROM ca_trust_purpose ctp
+				WHERE cac.CA_ID = ctp.CA_ID
+					AND ctp.TRUST_CONTEXT_ID = 5
+					AND ctp.TRUST_PURPOSE_ID = 1
+					AND ctp.IS_TIME_VALID
+					AND NOT ctp.ALL_CHAINS_REVOKED_IN_SALESFORCE
+		)
+		AND (
+			(
+				cct.FULL_CRL_URL = 'revoked'
+				AND cct.REVOCATION_STATUS NOT IN ('Revoked', 'Parent Cert Revoked')
+			)
+			OR (
+				cct.FULL_CRL_URL = 'expired'
+				AND x509_notAfter(c.CERTIFICATE) > now() AT TIME ZONE 'UTC'
+			)
+			OR (
+				(cct.FULL_CRL_URL LIKE '%://%')
+				AND EXISTS (
+					SELECT 1
+						FROM crl
+						WHERE cac.CA_ID = crl.CA_ID
+							AND cct.FULL_CRL_URL = crl.DISTRIBUTION_POINT_URL
+							AND crl.ERROR_MESSAGE IS NOT NULL
+				)
+			)
 		);
 UPDATE ccadb_certificate_temp cct
 	SET MICROSOFT_DISCLOSURE_STATUS = 'DisclosureIncomplete'
@@ -1140,14 +1168,6 @@ UPDATE ccadb_certificate_temp cct
 					OR (cct.EVSSL_AUDIT_END IS NULL)
 				)
 			)
-			OR (
-				cct.FULL_CRL_URL = 'revoked'
-				AND cct.REVOCATION_STATUS NOT IN ('Revoked', 'Parent Cert Revoked')
-			)
-			OR (
-				cct.FULL_CRL_URL = 'expired'
-				AND x509_notAfter(c.CERTIFICATE) > now() AT TIME ZONE 'UTC'
-			)
 		);
 UPDATE ccadb_certificate_temp cct
 	SET APPLE_DISCLOSURE_STATUS = CASE coalesce(ca.NUM_ISSUED[1], 0) + coalesce(ca.NUM_ISSUED[2], 0)
@@ -1168,6 +1188,30 @@ UPDATE ccadb_certificate_temp cct
 					AND ctp.TRUST_CONTEXT_ID = 12
 					AND ctp.IS_TIME_VALID
 					AND NOT ctp.ALL_CHAINS_REVOKED_IN_SALESFORCE
+		);
+UPDATE ccadb_certificate_temp cct
+	SET APPLE_DISCLOSURE_STATUS = 'DisclosureIncomplete'
+	FROM certificate c
+	WHERE cct.APPLE_DISCLOSURE_STATUS = 'Disclosed'
+		AND cct.CERT_RECORD_TYPE IN ('Root Certificate', 'Intermediate Certificate')
+		AND cct.CERTIFICATE_ID = c.ID
+		AND (
+			(
+				cct.FULL_CRL_URL = 'revoked'
+				AND cct.REVOCATION_STATUS NOT IN ('Revoked', 'Parent Cert Revoked')
+			)
+			OR (
+				cct.FULL_CRL_URL = 'expired'
+				AND x509_notAfter(c.CERTIFICATE) > now() AT TIME ZONE 'UTC'
+			)
+			OR EXISTS (
+				SELECT 1
+					FROM ca_certificate cac, crl
+					WHERE c.ID = cac.CERTIFICATE_ID
+						AND cac.CA_ID = crl.CA_ID
+						AND cct.FULL_CRL_URL = crl.DISTRIBUTION_POINT_URL
+						AND crl.ERROR_MESSAGE IS NOT NULL
+			)
 		);
 UPDATE ccadb_certificate_temp cct
 	SET CHROME_DISCLOSURE_STATUS = 'DisclosureIncomplete'
