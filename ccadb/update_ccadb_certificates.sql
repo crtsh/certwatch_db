@@ -1030,15 +1030,15 @@ UPDATE ccadb_certificate_temp cct
 				cct.FULL_CRL_URL = 'expired'
 				AND x509_notAfter(c.CERTIFICATE) > now() AT TIME ZONE 'UTC'
 			)
-			OR (
-				(cct.FULL_CRL_URL LIKE '%://%')
-				AND EXISTS (
-					SELECT 1
-						FROM crl
-						WHERE cac.CA_ID = crl.CA_ID
-							AND cct.FULL_CRL_URL = crl.DISTRIBUTION_POINT_URL
-							AND crl.ERROR_MESSAGE IS NOT NULL
-				)
+			OR EXISTS (
+				SELECT 1
+					FROM crl
+					WHERE cac.CA_ID = crl.CA_ID
+						AND cct.FULL_CRL_URL = crl.DISTRIBUTION_POINT_URL
+						AND (
+							(crl.ERROR_MESSAGE IS NOT NULL)
+							OR (crl.NEXT_UPDATE < now() AT TIME ZONE 'UTC')
+						)
 			)
 		);
 UPDATE ccadb_certificate_temp cct
@@ -1210,7 +1210,10 @@ UPDATE ccadb_certificate_temp cct
 					WHERE c.ID = cac.CERTIFICATE_ID
 						AND cac.CA_ID = crl.CA_ID
 						AND cct.FULL_CRL_URL = crl.DISTRIBUTION_POINT_URL
-						AND crl.ERROR_MESSAGE IS NOT NULL
+						AND (
+							(crl.ERROR_MESSAGE IS NOT NULL)
+							OR (crl.NEXT_UPDATE < now() AT TIME ZONE 'UTC')
+						)
 			)
 		);
 UPDATE ccadb_certificate_temp cct

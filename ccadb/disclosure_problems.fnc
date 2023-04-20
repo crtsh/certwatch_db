@@ -150,17 +150,20 @@ BEGIN
 			IF FOUND THEN
 				t_problems := array_append(t_problems, '"Full CRL Issued By This CA" indicates "expired", but this certificate has not yet expired');
 			END IF;
-		ELSE
-			SELECT crl.ERROR_MESSAGE
+		ELSIF nullif(t_ccadbCertificate.FULL_CRL_URL, '') IS NOT NULL THEN
+			SELECT coalesce(crl.ERROR_MESSAGE, 'EXPIRED (nextUpdate = ' || TO_CHAR(crl.NEXT_UPDATE, 'YYYY-MM-DD"T"HH24:MI:SS"Z"') || ')')
 				INTO t_errorMessage
 				FROM ca_certificate cac, crl
 				WHERE cac.CERTIFICATE_ID = t_ccadbCertificate.CERTIFICATE_ID
 					AND cac.CA_ID = crl.CA_ID
 					AND crl.DISTRIBUTION_POINT_URL = t_ccadbCertificate.FULL_CRL_URL
-					AND crl.ERROR_MESSAGE IS NOT NULL
+					AND (
+						(crl.ERROR_MESSAGE IS NOT NULL)
+						OR (crl.NEXT_UPDATE < now() AT TIME ZONE 'UTC')
+					)
 				LIMIT 1;
 			IF FOUND THEN
-				t_problems := array_append(t_problems, '"Full CRL Issued By This CA" ERROR - ' || t_errorMessage);
+				t_problems := array_append(t_problems, '"Full CRL Issued By This CA" ERROR: ' || t_ccadbCertificate.FULL_CRL_URL || ' => ' || t_errorMessage);
 			END IF;
 		END IF;
 
