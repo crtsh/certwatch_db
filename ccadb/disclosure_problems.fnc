@@ -25,6 +25,7 @@ DECLARE
 	t_ccadbCertificate		ccadb_certificate%ROWTYPE;
 	t_disclosureStatus		disclosure_status_type;
 	t_crlDisclosureRequired	boolean		:= FALSE;
+	l_crl					RECORD;
 	t_notAfter				timestamp;
 	t_caID					ca.ID%TYPE;
 	t_count					bigint;
@@ -127,43 +128,62 @@ BEGIN
 			END IF;
 		END IF;
 
-		IF t_crlDisclosureRequired AND (nullif(t_ccadbCertificate.FULL_CRL_URL, '') IS NULL) AND (nullif(nullif(t_ccadbCertificate.JSON_ARRAY_OF_CRL_URLS, ''), '[""]') IS NULL) THEN
-			SELECT ca.ID, coalesce(ca.NUM_ISSUED[1], 0) + coalesce(ca.NUM_ISSUED[2], 0)
-				INTO t_caID, t_count
-				FROM ca_certificate cac, ca
-				WHERE cac.CERTIFICATE_ID = certificateID
-					AND cac.CA_ID = ca.ID;
-			IF t_count = 0 THEN
-				t_problems := array_append(t_problems, '"Full CRL Issued By This CA" or "JSON Array of Partitioned CRLs" may be required (<A href="/?ca=' || t_caID || '" target="_blank">no issuance observed</A>)');
-			ELSE
-				t_problems := array_append(t_problems, '"Full CRL Issued By This CA" or "JSON Array of Partitioned CRLs" is required (<A href="/?ca=' || t_caID || '" target="_blank">' || t_count::text || ' (pre)cert(s) observed</A>)');
+		IF t_crlDisclosureRequired THEN
+			IF (nullif(t_ccadbCertificate.FULL_CRL_URL, '') IS NULL) AND (nullif(nullif(t_ccadbCertificate.JSON_ARRAY_OF_CRL_URLS, ''), '[""]') IS NULL) THEN
+				SELECT ca.ID, coalesce(ca.NUM_ISSUED[1], 0) + coalesce(ca.NUM_ISSUED[2], 0)
+					INTO t_caID, t_count
+					FROM ca_certificate cac, ca
+					WHERE cac.CERTIFICATE_ID = certificateID
+						AND cac.CA_ID = ca.ID;
+				IF t_count = 0 THEN
+					t_problems := array_append(t_problems, '"Full CRL Issued By This CA" or "JSON Array of Partitioned CRLs" may be required (<A href="/?ca=' || t_caID || '" target="_blank">no issuance observed</A>)');
+				ELSE
+					t_problems := array_append(t_problems, '"Full CRL Issued By This CA" or "JSON Array of Partitioned CRLs" is required (<A href="/?ca=' || t_caID || '" target="_blank">' || t_count::text || ' (pre)cert(s) observed</A>)');
+				END IF;
 			END IF;
-		ELSIF t_ccadbCertificate.FULL_CRL_URL = 'revoked' THEN
-			IF t_ccadbCertificate.REVOCATION_STATUS NOT IN ('Revoked', 'Parent Cert Revoked') THEN
-				t_problems := array_append(t_problems, '"Full CRL Issued By This CA" indicates "revoked", but this certificate has not been disclosed as "Revoked" or "Parent Cert Revoked"');
+			IF t_ccadbCertificate.FULL_CRL_URL = 'revoked' THEN
+				IF t_ccadbCertificate.REVOCATION_STATUS NOT IN ('Revoked', 'Parent Cert Revoked') THEN
+					t_problems := array_append(t_problems, '"Full CRL Issued By This CA" indicates "revoked", but this certificate has not been disclosed as "Revoked" or "Parent Cert Revoked"');
+				END IF;
+			ELSIF t_ccadbCertificate.FULL_CRL_URL = 'expired' THEN
+				PERFORM
+					FROM certificate c
+					WHERE c.ID = certificateID
+						AND x509_notAfter(c.CERTIFICATE) > now() AT TIME ZONE 'UTC';
+				IF FOUND THEN
+					t_problems := array_append(t_problems, '"Full CRL Issued By This CA" indicates "expired", but this certificate has not yet expired');
+				END IF;
+			ELSIF nullif(t_ccadbCertificate.FULL_CRL_URL, '') IS NOT NULL THEN
+				SELECT coalesce(crl.ERROR_MESSAGE, 'EXPIRED (nextUpdate = ' || TO_CHAR(crl.NEXT_UPDATE, 'YYYY-MM-DD"T"HH24:MI:SS"Z"') || ')')
+					INTO t_errorMessage
+					FROM ca_certificate cac, crl
+					WHERE cac.CERTIFICATE_ID = t_ccadbCertificate.CERTIFICATE_ID
+						AND cac.CA_ID = crl.CA_ID
+						AND crl.DISTRIBUTION_POINT_URL = t_ccadbCertificate.FULL_CRL_URL
+						AND (
+							(crl.ERROR_MESSAGE IS NOT NULL)
+							OR (crl.NEXT_UPDATE < now() AT TIME ZONE 'UTC')
+						)
+					LIMIT 1;
+				IF FOUND THEN
+					t_problems := array_append(t_problems, '"Full CRL Issued By This CA" ERROR: ' || t_ccadbCertificate.FULL_CRL_URL || ' => ' || t_errorMessage);
+				END IF;
 			END IF;
-		ELSIF t_ccadbCertificate.FULL_CRL_URL = 'expired' THEN
-			PERFORM
-				FROM certificate c
-				WHERE c.ID = certificateID
-					AND x509_notAfter(c.CERTIFICATE) > now() AT TIME ZONE 'UTC';
-			IF FOUND THEN
-				t_problems := array_append(t_problems, '"Full CRL Issued By This CA" indicates "expired", but this certificate has not yet expired');
-			END IF;
-		ELSIF nullif(t_ccadbCertificate.FULL_CRL_URL, '') IS NOT NULL THEN
-			SELECT coalesce(crl.ERROR_MESSAGE, 'EXPIRED (nextUpdate = ' || TO_CHAR(crl.NEXT_UPDATE, 'YYYY-MM-DD"T"HH24:MI:SS"Z"') || ')')
-				INTO t_errorMessage
-				FROM ca_certificate cac, crl
-				WHERE cac.CERTIFICATE_ID = t_ccadbCertificate.CERTIFICATE_ID
-					AND cac.CA_ID = crl.CA_ID
-					AND crl.DISTRIBUTION_POINT_URL = t_ccadbCertificate.FULL_CRL_URL
-					AND (
-						(crl.ERROR_MESSAGE IS NOT NULL)
-						OR (crl.NEXT_UPDATE < now() AT TIME ZONE 'UTC')
-					)
-				LIMIT 1;
-			IF FOUND THEN
-				t_problems := array_append(t_problems, '"Full CRL Issued By This CA" ERROR: ' || t_ccadbCertificate.FULL_CRL_URL || ' => ' || t_errorMessage);
+			IF nullif(nullif(t_ccadbCertificate.JSON_ARRAY_OF_CRL_URLS, ''), '[""]') IS NOT NULL THEN
+				FOR l_crl IN (
+					SELECT coalesce(crl.ERROR_MESSAGE, 'EXPIRED (nextUpdate = ' || TO_CHAR(crl.NEXT_UPDATE, 'YYYY-MM-DD"T"HH24:MI:SS"Z"') || ')') ERROR_MESSAGE, json_crl_url
+						FROM ca_certificate cac, crl, json_array_elements_text(t_ccadbCertificate.JSON_ARRAY_OF_CRL_URLS::json) json_crl_url
+						WHERE cac.CERTIFICATE_ID = t_ccadbCertificate.CERTIFICATE_ID
+							AND cac.CA_ID = crl.CA_ID
+							AND length(t_ccadbCertificate.JSON_ARRAY_OF_CRL_URLS) > 4	-- Longer than [""].
+							AND crl.DISTRIBUTION_POINT_URL = json_crl_url
+							AND (
+								(crl.ERROR_MESSAGE IS NOT NULL)
+								OR (crl.NEXT_UPDATE < now() AT TIME ZONE 'UTC')
+							)
+				) LOOP
+					t_problems := array_append(t_problems, '"JSON Array of Partitioned CRLs" ERROR: ' || l_crl.json_crl_url || ' => ' || l_crl.ERROR_MESSAGE);
+				END LOOP;
 			END IF;
 		END IF;
 

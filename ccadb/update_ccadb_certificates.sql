@@ -1040,6 +1040,17 @@ UPDATE ccadb_certificate_temp cct
 							OR (crl.NEXT_UPDATE < now() AT TIME ZONE 'UTC')
 						)
 			)
+			OR EXISTS (
+				SELECT 1
+					FROM crl, json_array_elements_text(cct.JSON_ARRAY_OF_CRL_URLS::json) json_crl_url
+					WHERE cac.CA_ID = crl.CA_ID
+						AND length(cct.JSON_ARRAY_OF_CRL_URLS) > 4	-- Longer than [""].
+						AND crl.DISTRIBUTION_POINT_URL = json_crl_url
+						AND (
+							(crl.ERROR_MESSAGE IS NOT NULL)
+							OR (crl.NEXT_UPDATE < now() AT TIME ZONE 'UTC')
+						)
+			)
 		);
 UPDATE ccadb_certificate_temp cct
 	SET MICROSOFT_DISCLOSURE_STATUS = 'DisclosureIncomplete'
@@ -1191,10 +1202,11 @@ UPDATE ccadb_certificate_temp cct
 		);
 UPDATE ccadb_certificate_temp cct
 	SET APPLE_DISCLOSURE_STATUS = 'DisclosureIncomplete'
-	FROM certificate c
+	FROM certificate c, ca_certificate cac
 	WHERE cct.APPLE_DISCLOSURE_STATUS = 'Disclosed'
 		AND cct.CERT_RECORD_TYPE IN ('Root Certificate', 'Intermediate Certificate')
 		AND cct.CERTIFICATE_ID = c.ID
+		AND c.ID = cac.CERTIFICATE_ID
 		AND (
 			(
 				cct.FULL_CRL_URL = 'revoked'
@@ -1206,10 +1218,20 @@ UPDATE ccadb_certificate_temp cct
 			)
 			OR EXISTS (
 				SELECT 1
-					FROM ca_certificate cac, crl
-					WHERE c.ID = cac.CERTIFICATE_ID
-						AND cac.CA_ID = crl.CA_ID
+					FROM crl
+					WHERE cac.CA_ID = crl.CA_ID
 						AND cct.FULL_CRL_URL = crl.DISTRIBUTION_POINT_URL
+						AND (
+							(crl.ERROR_MESSAGE IS NOT NULL)
+							OR (crl.NEXT_UPDATE < now() AT TIME ZONE 'UTC')
+						)
+			)
+			OR EXISTS (
+				SELECT 1
+					FROM crl, json_array_elements_text(cct.JSON_ARRAY_OF_CRL_URLS::json) json_crl_url
+					WHERE cac.CA_ID = crl.CA_ID
+						AND length(cct.JSON_ARRAY_OF_CRL_URLS) > 4	-- Longer than [""].
+						AND crl.DISTRIBUTION_POINT_URL = json_crl_url
 						AND (
 							(crl.ERROR_MESSAGE IS NOT NULL)
 							OR (crl.NEXT_UPDATE < now() AT TIME ZONE 'UTC')
