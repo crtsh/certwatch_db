@@ -307,7 +307,7 @@ CREATE TABLE ct_log (
 	TREE_SIZE					bigint,
 	BATCH_SIZE					integer,
 	CHUNK_SIZE					integer,
-	REQUESTS_PER_MINUTE			integer,
+	REQUESTS_THROTTLE			text,
 	REQUESTS_CONCURRENT			integer,
 	GOOGLE_UPTIME				text,
 	CHROME_VERSION_ADDED		integer,
