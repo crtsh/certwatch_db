@@ -2205,16 +2205,19 @@ Content-Type: text/plain; charset=UTF-8
 			END IF;
 
 			SELECT '<SPAN style="color:#CC0000">Revoked'
-					|| CASE coalesce(cr.REASON_CODE, 0)
+					|| CASE cr.REASON_CODE
+							WHEN NULL THEN ''
+							WHEN 0 THEN ' (unspecified)'
 							WHEN 1 THEN ' (keyCompromise)'
 							WHEN 2 THEN ' (cACompromise)'
 							WHEN 3 THEN ' (affiliationChanged)'
 							WHEN 4 THEN ' (superseded)'
 							WHEN 5 THEN ' (cessationOfOperation)'
 							WHEN 6 THEN ' (certificateHold)'
-							WHEN 7 THEN ' (privilegeWithdrawn)'
-							WHEN 8 THEN ' (aACompromise)'
-							ELSE ''
+							WHEN 8 THEN ' (removeFromCRL)'
+							WHEN 9 THEN ' (privilegeWithdrawn)'
+							WHEN 10 THEN ' (aACompromise)'
+							ELSE ' (UNKNOWN)'
 						END
 					|| '</SPAN></TD><TD>'
 					|| to_char(cr.REVOCATION_DATE, 'YYYY-MM-DD') || '&nbsp; <FONT class="small">'
@@ -2312,15 +2315,18 @@ Content-Type: text/plain; charset=UTF-8
 					t_offset := position('|' in t_temp4);
 					t_pos1 := position('|' in substring(t_temp4 from t_offset + 1)) + t_offset;
 					t_temp5 := '<SPAN style="color:#CC0000">Revoked' || CASE substring(t_temp4 from (t_pos1 + 1))::integer
+						WHEN NULL THEN ''
+						WHEN 0 THEN ' (unspecified)'
 						WHEN 1 THEN ' (keyCompromise)'
 						WHEN 2 THEN ' (cACompromise)'
 						WHEN 3 THEN ' (affiliationChanged)'
 						WHEN 4 THEN ' (superseded)'
 						WHEN 5 THEN ' (cessationOfOperation)'
 						WHEN 6 THEN ' (certificateHold)'
-						WHEN 7 THEN ' (privilegeWithdrawn)'
-						WHEN 8 THEN ' (aACompromise)'
-						ELSE ''
+						WHEN 8 THEN ' (removeFromCRL)'
+						WHEN 9 THEN ' (privilegeWithdrawn)'
+						WHEN 10 THEN ' (aACompromise)'
+						ELSE ' (UNKNOWN)'
 					END || '</SPAN>';
 					t_temp4 := t_temp5 || '</TD>
           <TD>' || to_char(substring(t_temp4 from (t_offset + 1) for 19)::timestamp, 'YYYY-MM-DD') || '&nbsp; <FONT class="small">'
