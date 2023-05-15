@@ -50,7 +50,9 @@ CREATE TEMPORARY TABLE ccadb_certificate_import (
 	MICROSOFT_STATUS			text,
 	SUBORDINATE_CA_OWNER		text,
 	FULL_CRL_URL				text,
-	JSON_ARRAY_OF_CRL_URLS		text
+	JSON_ARRAY_OF_CRL_URLS		text,
+	VALID_FROM					text,
+	VALID_TO					text
 ) ON COMMIT DROP;
 
 \COPY ccadb_certificate_import FROM 'ccadb_all_certificate_records.csv' CSV HEADER;
