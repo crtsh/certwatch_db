@@ -3795,8 +3795,18 @@ $.ajax({
 						'           x509_notBefore(sub.CERTIFICATE) NOT_BEFORE,' || chr(10) ||
 						'           x509_notAfter(sub.CERTIFICATE) NOT_AFTER,' || chr(10) ||
 						'           encode(x509_serialNumber(sub.CERTIFICATE), ''hex'') SERIAL_NUMBER' || chr(10) ||
-						'        FROM (SELECT *' || chr(10) ||
-						'                  FROM certificate_and_identities cai' || chr(10) ||
+						'        FROM (SELECT cai.*' || chr(10) ||
+						'                  FROM certificate_and_identities cai' || chr(10);
+				IF t_deduplicate THEN
+					t_query := t_query ||
+						'                      LEFT JOIN certificate c2 ON (' || chr(10) ||
+						'                          x509_serialNumber(c2.CERTIFICATE) = x509_serialNumber(cai.CERTIFICATE)' || chr(10) ||
+						'                          AND c2.ISSUER_CA_ID = cai.ISSUER_CA_ID' || chr(10) ||
+						'                          AND c2.ID < cai.CERTIFICATE_ID' || chr(10) ||
+						'                          AND x509_tbscert_strip_ct_ext(c2.CERTIFICATE) = x509_tbscert_strip_ct_ext(cai.CERTIFICATE)' || chr(10) ||
+						'                      )' || chr(10);
+				END IF;
+				t_query := t_query ||
 						'                  WHERE ' || t_tsqueryFunction || '(''certwatch'', $2) @@ identities(cai.CERTIFICATE)' || chr(10);
 				IF t_match = 'Single' THEN
 					t_query := t_query ||
@@ -3828,15 +3838,7 @@ $.ajax({
 				END IF;
 				IF t_deduplicate THEN
 					t_query := t_query ||
-						'                      AND NOT EXISTS (' || chr(10) ||
-						'                          SELECT 1' || chr(10) ||
-						'                              FROM certificate c2' || chr(10) ||
-						'                              WHERE x509_serialNumber(c2.CERTIFICATE) = x509_serialNumber(cai.CERTIFICATE)' || chr(10) ||
-						'                                  AND c2.ISSUER_CA_ID = cai.ISSUER_CA_ID' || chr(10) ||
-						'                                  AND c2.ID < cai.CERTIFICATE_ID' || chr(10) ||
-						'                                  AND x509_tbscert_strip_ct_ext(c2.CERTIFICATE) = x509_tbscert_strip_ct_ext(cai.CERTIFICATE)' || chr(10) ||
-						'                              LIMIT 1' || chr(10) ||
-						'                      )' || chr(10);
+						'                      AND c2.ID IS NULL' || chr(10);
 				END IF;
 				t_query := t_query ||
 						'                  LIMIT 10000' || chr(10) ||
@@ -4107,8 +4109,18 @@ $.ajax({
 							'           x509_notBefore(sub.CERTIFICATE) NOT_BEFORE,' || chr(10) ||
 							'           x509_notAfter(sub.CERTIFICATE) NOT_AFTER,' || chr(10) ||
 							'           encode(x509_serialNumber(sub.CERTIFICATE), ''hex'') SERIAL_NUMBER' || chr(10) ||
-							'        FROM (SELECT *' || chr(10) ||
-							'                  FROM certificate_and_identities cai' || chr(10) ||
+							'        FROM (SELECT cai.*' || chr(10) ||
+							'                  FROM certificate_and_identities cai' || chr(10);
+				IF t_deduplicate THEN
+					t_temp := t_temp ||
+							'                      LEFT JOIN certificate c2 ON (' || chr(10) ||
+							'                          x509_serialNumber(c2.CERTIFICATE) = x509_serialNumber(cai.CERTIFICATE)' || chr(10) ||
+							'                          AND c2.ISSUER_CA_ID = cai.ISSUER_CA_ID' || chr(10) ||
+							'                          AND c2.ID < cai.CERTIFICATE_ID' || chr(10) ||
+							'                          AND x509_tbscert_strip_ct_ext(c2.CERTIFICATE) = x509_tbscert_strip_ct_ext(cai.CERTIFICATE)' || chr(10) ||
+							'                      )' || chr(10);
+				END IF;
+				t_temp := t_temp ||
 							'                  WHERE ' || t_tsqueryFunction || '(''certwatch'', $1) @@ identities(cai.CERTIFICATE)' || chr(10);
 				IF t_match = 'Single' THEN
 					t_temp := t_temp ||
@@ -4143,15 +4155,7 @@ $.ajax({
 				END IF;
 				IF t_deduplicate THEN
 					t_temp := t_temp ||
-							'                      AND NOT EXISTS (' || chr(10) ||
-							'                          SELECT 1' || chr(10) ||
-							'                              FROM certificate c2' || chr(10) ||
-							'                              WHERE x509_serialNumber(c2.CERTIFICATE) = x509_serialNumber(cai.CERTIFICATE)' || chr(10) ||
-							'                                  AND c2.ISSUER_CA_ID = cai.ISSUER_CA_ID' || chr(10) ||
-							'                                  AND c2.ID < cai.CERTIFICATE_ID' || chr(10) ||
-							'                                  AND x509_tbscert_strip_ct_ext(c2.CERTIFICATE) = x509_tbscert_strip_ct_ext(cai.CERTIFICATE)' || chr(10) ||
-							'                              LIMIT 1' || chr(10) ||
-							'                      )' || chr(10);
+							'                      AND c2.ID IS NULL' || chr(10);
 				END IF;
 
 				t_select := t_temp ||
