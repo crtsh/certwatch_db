@@ -42,6 +42,7 @@ DECLARE
 		'ski', 'Subject Key Identifier', NULL,
 		'spkisha1', 'SHA-1(SubjectPublicKeyInfo)', NULL,
 		'spkisha256', 'SHA-256(SubjectPublicKeyInfo)', NULL,
+		'cnlspkisha256', 'ChromiumNetLogSHA256SPKI', NULL,
 		'subjectsha1', 'SHA-1(Subject)', NULL,
 		'identity', 'Identity', NULL,
 		'commonname', 'Common Name', NULL,
@@ -58,7 +59,7 @@ DECLARE
 		'esan', 'Email Address (SAN)', NULL,
 		'ipaddress', 'IP Address', NULL,
 		'ip', 'IP Address', NULL,
-		'q', 'ID', 'SHA-1(Certificate)', 'SHA-256(Certificate)', 'Identity', NULL,
+		'q', 'ID', 'SHA-1(Certificate)', 'SHA-256(Certificate)', 'ChromiumNetLogSHA256SPKI', 'Identity', NULL,
 		'a', 'Advanced', NULL,
 		's', 'Simple', NULL,
 		'cablint', 'CA/B Forum lint', NULL,
@@ -256,6 +257,17 @@ BEGIN
 				IF length(t_bytea) = 32 THEN
 					t_isJSONOutputSupported := TRUE;
 					EXIT;
+				END IF;
+			ELSIF t_type = 'ChromiumNetLogSHA256SPKI' THEN
+				IF t_value LIKE 'sha256/%' THEN
+					BEGIN
+						t_bytea := decode(substr(t_value, 8), 'base64');
+						t_value := substr(t_value, 8);
+						EXIT;
+					EXCEPTION
+						WHEN OTHERS THEN
+							NULL;
+					END;
 				END IF;
 			ELSIF t_type IN ('Serial Number', 'Subject Key Identifier') THEN
 				EXIT WHEN t_bytea IS NOT NULL;
@@ -3612,6 +3624,7 @@ $.ajax({
 				'Subject Key Identifier',
 				'SHA-1(SubjectPublicKeyInfo)',
 				'SHA-256(SubjectPublicKeyInfo)',
+				'ChromiumNetLogSHA256SPKI',
 				'SHA-1(Subject)',
 				'Identity',
 				'Common Name',
@@ -3737,7 +3750,7 @@ $.ajax({
 			t_temp := NULL;
 			IF (t_value = '%') OR t_type IN (
 				'Serial Number', 'Subject Key Identifier',
-				'SHA-1(SubjectPublicKeyInfo)', 'SHA-256(SubjectPublicKeyInfo)', 'SHA-1(Subject)'
+				'SHA-1(SubjectPublicKeyInfo)', 'SHA-256(SubjectPublicKeyInfo)', 'ChromiumNetLogSHA256SPKI', 'SHA-1(Subject)'
 			) THEN
 				t_match := NULL;
 				t_query :=
@@ -3761,6 +3774,9 @@ $.ajax({
 				ELSIF t_type = 'SHA-256(SubjectPublicKeyInfo)' THEN
 					t_query := t_query ||
 						'        AND digest(x509_publickey(c.CERTIFICATE), ''sha256'') = decode($2, ''hex'')' || chr(10);
+				ELSIF t_type = 'ChromiumNetLogSHA256SPKI' THEN
+					t_query := t_query ||
+						'        AND digest(x509_publickey(c.CERTIFICATE), ''sha256'') = decode($2, ''base64'')' || chr(10);
 				ELSIF t_type = 'SHA-1(Subject)' THEN
 					t_query := t_query ||
 						'        AND digest(x509_name(c.CERTIFICATE), ''sha1'') = decode($2, ''hex'')' || chr(10);
@@ -4077,6 +4093,13 @@ $.ajax({
 				t_certID_field := 'c.ID';
 				t_entryTimestamp_field := 'le.ENTRY_TIMESTAMP';
 				t_where :=	'digest(x509_publickey(c.CERTIFICATE), ''sha256'') = decode($1, ''hex'')';
+			ELSIF t_type = 'ChromiumNetLogSHA256SPKI' THEN
+				t_from := t_from || 'certificate c';
+				t_issuerCAID_table := 'c';
+				t_nameValue := 'encode(digest(x509_publickey(c.CERTIFICATE), ''sha256''), ''hex'')';
+				t_certID_field := 'c.ID';
+				t_entryTimestamp_field := 'le.ENTRY_TIMESTAMP';
+				t_where :=	'digest(x509_publickey(c.CERTIFICATE), ''sha256'') = decode($1, ''base64'')';
 			ELSIF t_type = 'SHA-1(Subject)' THEN
 				t_from := t_from || 'certificate c';
 				t_issuerCAID_table := 'c';
