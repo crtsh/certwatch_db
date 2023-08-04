@@ -52,7 +52,8 @@ CREATE TEMPORARY TABLE ccadb_certificate_import (
 	FULL_CRL_URL				text,
 	JSON_ARRAY_OF_CRL_URLS		text,
 	VALID_FROM					text,
-	VALID_TO					text
+	VALID_TO					text,
+	CHROME_STATUS				text
 ) ON COMMIT DROP;
 
 \COPY ccadb_certificate_import FROM 'ccadb_all_certificate_records.csv' CSV HEADER;
@@ -110,6 +111,7 @@ INSERT INTO ccadb_certificate_temp (
 		IS_TECHNICALLY_CONSTRAINED,
 		MOZILLA_STATUS,
 		MICROSOFT_STATUS,
+		CHROME_STATUS,
 		ISSUER_CN,
 		ISSUER_O,
 		SUBJECT_CN,
@@ -227,6 +229,7 @@ INSERT INTO ccadb_certificate_temp (
 			cci.IS_TECHNICALLY_CONSTRAINED,
 			cci.MOZILLA_STATUS,
 			cci.MICROSOFT_STATUS,
+			cci.CHROME_STATUS,
 			(SELECT x509_nameAttributes(c.CERTIFICATE, 'commonName', FALSE) LIMIT 1)		ISSUER_CN,
 			(SELECT x509_nameAttributes(c.CERTIFICATE, 'organizationName', FALSE) LIMIT 1)	ISSUER_O,
 			(SELECT x509_nameAttributes(c.CERTIFICATE, 'commonName', TRUE) LIMIT 1)			SUBJECT_CN,
