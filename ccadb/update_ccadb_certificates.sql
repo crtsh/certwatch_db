@@ -2153,6 +2153,7 @@ UPDATE ccadb_certificate_temp cct
 	SET MOZILLA_DISCLOSURE_STATUS = 'DisclosedButInCRL'
 	FROM certificate c, crl_revoked cr
 	WHERE cct.MOZILLA_DISCLOSURE_STATUS = 'Disclosed'
+		AND cct.CERT_RECORD_TYPE != 'Root Certificate'
 		AND cct.CERTIFICATE_ID = c.ID
 		AND x509_serialNumber(c.CERTIFICATE) = cr.SERIAL_NUMBER
 		AND c.ISSUER_CA_ID = cr.CA_ID;
@@ -2160,6 +2161,7 @@ UPDATE ccadb_certificate_temp cct
 	SET MICROSOFT_DISCLOSURE_STATUS = 'DisclosedButInCRL'
 	FROM certificate c, crl_revoked cr
 	WHERE cct.MICROSOFT_DISCLOSURE_STATUS = 'Disclosed'
+		AND cct.CERT_RECORD_TYPE != 'Root Certificate'
 		AND cct.CERTIFICATE_ID = c.ID
 		AND x509_serialNumber(c.CERTIFICATE) = cr.SERIAL_NUMBER
 		AND c.ISSUER_CA_ID = cr.CA_ID;
@@ -2167,6 +2169,7 @@ UPDATE ccadb_certificate_temp cct
 	SET APPLE_DISCLOSURE_STATUS = 'DisclosedButInCRL'
 	FROM certificate c, crl_revoked cr
 	WHERE cct.APPLE_DISCLOSURE_STATUS = 'Disclosed'
+		AND cct.CERT_RECORD_TYPE != 'Root Certificate'
 		AND cct.CERTIFICATE_ID = c.ID
 		AND x509_serialNumber(c.CERTIFICATE) = cr.SERIAL_NUMBER
 		AND c.ISSUER_CA_ID = cr.CA_ID;
