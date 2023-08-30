@@ -759,22 +759,22 @@ Content-Type: application/json
           alert("Sorry, Censys doesn''t support this search type");
           return;
         }
-        t_url = "//search.censys.io/certificates-legacy?q=";
+        t_url = "//search.censys.io/search?resource=certificates&q=";
         var t_field = "";
         if (value != "%") {
           if (type == "c")
-            t_url += "parsed.fingerprint_sha1:" + encodeURIComponent("\"" + value.toLowerCase() + "\"")
-                     + " OR parsed.fingerprint_sha256:" + encodeURIComponent("\"" + value.toLowerCase() + "\"");
+            t_url += "fingerprint_sha1:" + encodeURIComponent("\"" + value.toLowerCase() + "\"")
+                     + " OR fingerprint_sha256:" + encodeURIComponent("\"" + value.toLowerCase() + "\"");
           else if (type == "serial")
-            t_field = "parsed.serial_number";
+            t_url += "parsed.serial_number_hex:" + encodeURIComponent("\"" + value.toLowerCase().replace(/:/g, "") + "\"");
           else if (type == "sha1")
-            t_url += "parsed.fingerprint_sha1:" + encodeURIComponent("\"" + value.toLowerCase() + "\"");
+            t_url += "fingerprint_sha1:" + encodeURIComponent("\"" + value.toLowerCase() + "\"");
           else if (type == "sha256")
-            t_url += "parsed.fingerprint_sha256:" + encodeURIComponent("\"" + value.toLowerCase() + "\"");
+            t_url += "fingerprint_sha256:" + encodeURIComponent("\"" + value.toLowerCase() + "\"");
           else if ((type == "CA") || (type == "CAName"))
             t_field = "parsed.issuer_dn";
           else if (type == "Identity")
-            t_url += "parsed.names:" + encodeURIComponent("\"" + value + "\"");
+            t_url += "names:" + encodeURIComponent("\"" + value + "\"");
           else if (type == "CN")
             t_field = "parsed.subject.common_name";
           else if (type == "OU")
@@ -3189,12 +3189,12 @@ $.ajax({
             return;
           var t_url;
           if (document.search_form.searchCensys.checked) {
-            t_url = "//search.censys.io/certificates-legacy?q="
+            t_url = "//search.censys.io/search?resource=certificates&q="
                    + encodeURIComponent("parsed.issuer_dn=\"' || replace(t_caName, '"', '') || '\"");
             var t_field = "";
             if (value != "%") {
               if (type == "Identity") {
-                t_url += " AND (parsed.names:" + encodeURIComponent("\"" + value + "\"") + ")";
+                t_url += " AND (names:" + encodeURIComponent("\"" + value + "\"") + ")";
               }
               else if (type == "CN")
                 t_field = "parsed.subject.common_name";
