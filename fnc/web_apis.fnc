@@ -1717,7 +1717,8 @@ Content-Type: text/plain; charset=UTF-8
 		t_output := t_output || test_websites(
 			coalesce(get_parameter('dir', paramNames, paramValues), 'v'),
 			coalesce(get_parameter('sort', paramNames, paramValues), '2')::integer,
-			get_parameter('trustedby', paramNames, paramValues)
+			get_parameter('trustedby', paramNames, paramValues),
+			get_parameter('caOwner', paramNames, paramValues)
 		);
 
 	ELSIF t_type IN (

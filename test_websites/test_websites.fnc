@@ -1,6 +1,6 @@
 /* certwatch_db - Database schema
  * Written by Rob Stradling
- * Copyright (C) 2015-2020 Sectigo Limited
+ * Copyright (C) 2015-2023 Sectigo Limited
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -19,7 +19,8 @@
 CREATE OR REPLACE FUNCTION test_websites(
 	dir						text,
 	sort					integer,
-	trustedBy				text
+	trustedBy				text,
+	caOwner					text
 ) RETURNS text
 AS $$
 DECLARE
@@ -86,6 +87,10 @@ BEGIN
 					AND rtp.TRUST_CONTEXT_ID = tc.ID
 					AND tc.CTX = ' || coalesce(quote_literal(trustedBy), 'tc.CTX') || '
 		)';
+	END IF;
+	IF caOwner IS NOT NULL THEN
+		t_query := t_query || '
+		AND cc.INCLUDED_CERTIFICATE_OWNER = ' || coalesce(quote_literal(caOwner));
 	END IF;
 	t_query := t_query || '
 	ORDER BY ' || CASE sort
@@ -159,7 +164,13 @@ BEGIN
 	FOR l_root IN EXECUTE t_query LOOP
 		t_temp :=
 '  <TR>
-    <TD>' || coalesce(l_root.CA_OWNER, '') || '</TD>
+    <TD>';
+		IF l_root.CA_OWNER IS NOT NULL THEN
+			t_temp := t_temp || '<A href="?caOwner=' || l_root.CA_OWNER || '&dir=' || dir || '&sort=' || sort || t_params || '">' || coalesce(l_root.CA_OWNER) || '</A></TD>';
+		ELSE
+			t_temp := t_temp || '&nbsp;';
+		END IF;
+		t_temp := t_temp || '</TD>
     <TD>';
 		IF l_root.CERTIFICATE_ID IS NOT NULL THEN
 			t_temp := t_temp || '<A href="/?id=' || l_root.CERTIFICATE_ID::text || '" target="_blank">' || l_root.CERT_NAME || '</A>';
