@@ -90,21 +90,30 @@ DROP FUNCTION serial_number_bitlength(
 	serial_number			bytea
 );
 
-DROP FUNCTION process_new_entries(
+DROP FUNCTION process_cert_urls(
 );
 
 DROP FUNCTION is_technically_constrained(
 	cert_data				bytea
 );
 
-DROP FUNCTION import_chain_cert(
-	ca_cert_data			bytea,
-	issuer_ca_id			certificate.ISSUER_CA_ID%TYPE
+DROP FUNCTION import_leaf_certs(
 );
 
 DROP FUNCTION import_cert(
-	cert_data				bytea
+	_cert_data				IN		bytea
 );
+
+DROP FUNCTION import_any_cert(
+	_cert_data				IN		bytea,
+	_issuer_ca_id			IN		certificate.ISSUER_CA_ID%TYPE,
+	_subject_ca_id				OUT	ca.ID%TYPE,
+	_certificate_id				OUT	certificate.ID%TYPE
+);
+
+DROP FUNCTION find_issuer(
+	_cert_data				IN		certificate.CERTIFICATE%TYPE
+)
 
 DROP FUNCTION html_escape(
 	in_string				text
@@ -262,11 +271,6 @@ DROP TABLE invalid_certificate;
 DROP VIEW certificate_and_identities;
 
 DROP TRIGGER cert_counter;
-
-DROP FUNCTION update_expirations(
-	ca_id					ca.ID%TYPE,
-	max_interval			interval
-);
 
 DROP FUNCTION cert_counter(
 );

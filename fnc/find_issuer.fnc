@@ -16,17 +16,25 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-CREATE OR REPLACE FUNCTION import_cert(
-	_cert_data				IN		bytea
-) RETURNS certificate.ID%TYPE
+CREATE OR REPLACE FUNCTION find_issuer(
+	_cert_data				IN		certificate.CERTIFICATE%TYPE
+) RETURNS ca.ID%TYPE
 AS $$
 DECLARE
-	t_certificateID		certificate.ID%TYPE;
+	l_ca				RECORD;
 BEGIN
-	SELECT iac._certificate_id
-		INTO t_certificateID
-		FROM import_any_cert(_cert_data, NULL) iac;
+	FOR l_ca IN (
+		SELECT ca.ID, ca.PUBLIC_KEY
+			FROM ca
+			WHERE ca.NAME = x509_issuerName(_cert_data)
+				AND ca.PUBLIC_KEY != E'\\x00'
+			ORDER BY octet_length(ca.PUBLIC_KEY) DESC, ca.ID DESC
+	) LOOP
+		IF x509_verify(_cert_data, l_ca.PUBLIC_KEY) THEN
+			RETURN l_ca.ID;
+		END IF;
+	END LOOP;
 
-	RETURN t_certificateID;
+	RETURN -1;	-- Issuer not found.
 END;
 $$ LANGUAGE plpgsql;

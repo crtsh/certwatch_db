@@ -26,6 +26,7 @@ CREATE TABLE ca (
 	ID						serial,
 	NUM_ISSUED				bigint[],
 	NUM_EXPIRED				bigint[],
+	LAST_CERTIFICATE_ID		bigint,
 	LAST_NOT_AFTER			timestamp,
 	NEXT_NOT_AFTER			timestamp,
 	LINTING_APPLIES			boolean		DEFAULT TRUE						NOT NULL,
@@ -34,6 +35,10 @@ CREATE TABLE ca (
 	CONSTRAINT ca_pk
 		PRIMARY KEY (ID)
 );
+
+CREATE INDEX ca_last_cert
+	ON ca (LAST_CERTIFICATE_ID DESC NULLS LAST)
+	WHERE LAST_CERTIFICATE_ID IS NOT NULL;
 
 CREATE INDEX ca_next_not_after
 	ON ca (NEXT_NOT_AFTER)
@@ -141,7 +146,6 @@ CREATE INDEX c_identities ON certificate USING GIN (identities(CERTIFICATE));
 
 
 \i fnc/cert_counter.trg
-\i fnc/update_expirations.fnc
 
 CREATE TRIGGER cert_counter
 	AFTER UPDATE OR DELETE ON certificate
@@ -208,6 +212,7 @@ CREATE TABLE crl (
 	CRL_SHA256				bytea,
 	CRL_SIZE				integer,
 	IS_ACTIVE				boolean,
+	FIRST_CERTIFICATE_ID	bigint,
 	CONSTRAINT crl_pk
 		PRIMARY KEY (CA_ID, DISTRIBUTION_POINT_URL),
 	CONSTRAINT crl_ca_fk
@@ -242,6 +247,7 @@ CREATE TABLE ocsp_responder (
 	LAST_CHECKED				timestamp,
 	URL							text,
 	IGNORE_OTHER_URLS			boolean		NOT NULL	DEFAULT FALSE,
+	FIRST_CERTIFICATE_ID		bigint,
 	TESTED_CERTIFICATE_ID		bigint,
 	GET_RESULT					text,
 	GET_DUMP					bytea,
@@ -1119,10 +1125,13 @@ GRANT SELECT ON cached_response TO crtsh;
 \i fnc/get_parameter.fnc
 \i fnc/getsth_update.fnc
 \i fnc/html_escape.fnc
+\i fnc/find_issuer.fnc
+\i fnc/import_any_cert.fnc
 \i fnc/import_cert.fnc
-\i fnc/import_chain_cert.fnc
+\i fnc/import_leaf_certs.fnc
 \i fnc/is_technically_constrained.fnc
-\i fnc/process_new_entries.fnc
+\i fnc/process_cert_urls.fnc
+\i fnc/process_expirations.fnc
 \i fnc/serial_number_bitlength.fnc
 \i fnc/web_apis.fnc
 
