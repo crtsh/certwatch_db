@@ -44,7 +44,7 @@ BEGIN
 		WHERE ca.ID IN (old.ISSUER_CA_ID, coalesce(new.ISSUER_CA_ID, old.ISSUER_CA_ID))
 		FOR UPDATE;
 
-	t_notAfter := coalesce(x509_notAfter(coalesce(new.CERTIFICATE, old.CERTIFICATE)), 'infinity'::timestamp);
+	t_notAfter := coalesce(x509_notAfter(coalesce(new.CERTIFICATE, old.CERTIFICATE)), '-infinity'::timestamp);
 
 	IF x509_hasExtension(coalesce(new.CERTIFICATE, old.CERTIFICATE), '1.3.6.1.4.1.11129.2.4.3', TRUE) THEN
 		t_countIndex := 2;		-- Precertificate (RFC6962).

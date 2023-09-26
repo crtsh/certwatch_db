@@ -48,15 +48,15 @@ BEGIN
 					INNER JOIN x509_hasExtension(c.CERTIFICATE, '1.3.6.1.4.1.11129.2.4.3', TRUE) is_precertificate ON TRUE
 			WHERE c.ISSUER_CA_ID = l_ca.ID
 				AND c.ID <= l_ca.LAST_CERTIFICATE_ID
-				AND coalesce(x509_notAfter(c.CERTIFICATE), 'infinity'::timestamp) > l_ca.LAST_NOT_AFTER_OLD
-				AND coalesce(x509_notAfter(c.CERTIFICATE), 'infinity'::timestamp) <= l_ca.LAST_NOT_AFTER_NEW;
+				AND coalesce(x509_notAfter(c.CERTIFICATE), '-infinity'::timestamp) > l_ca.LAST_NOT_AFTER_OLD
+				AND coalesce(x509_notAfter(c.CERTIFICATE), '-infinity'::timestamp) <= l_ca.LAST_NOT_AFTER_NEW;
 
-		SELECT min(coalesce(x509_notAfter(c.CERTIFICATE), 'infinity'::timestamp))
+		SELECT min(coalesce(x509_notAfter(c.CERTIFICATE), '-infinity'::timestamp))
 			INTO t_nextNotAfter_new
 			FROM certificate c
 			WHERE c.ISSUER_CA_ID = l_ca.ID
 				AND c.ID <= l_ca.LAST_CERTIFICATE_ID
-				AND coalesce(x509_notAfter(c.CERTIFICATE), 'infinity'::timestamp) > l_ca.LAST_NOT_AFTER_NEW;
+				AND coalesce(x509_notAfter(c.CERTIFICATE), '-infinity'::timestamp) > l_ca.LAST_NOT_AFTER_NEW;
 
 		UPDATE ca
 			SET NUM_EXPIRED[1] = coalesce(ca.NUM_EXPIRED[1], 0) + t_newExpirationsC,
