@@ -38,7 +38,8 @@ BEGIN
 			FROM ca
 			WHERE ca.NEXT_NOT_AFTER < date_trunc('second', now() AT TIME ZONE 'UTC')
 			ORDER BY ca.NEXT_NOT_AFTER
-			FOR UPDATE SKIP LOCKED
+			FOR NO KEY UPDATE SKIP LOCKED
+			LIMIT 10
 	) LOOP
 		SELECT coalesce(sum(CASE WHEN is_precertificate THEN 0 ELSE 1 END), 0),
 				coalesce(sum(CASE WHEN is_precertificate THEN 1 ELSE 0 END), 0)
@@ -48,15 +49,18 @@ BEGIN
 					INNER JOIN x509_hasExtension(c.CERTIFICATE, '1.3.6.1.4.1.11129.2.4.3', TRUE) is_precertificate ON TRUE
 			WHERE c.ISSUER_CA_ID = l_ca.ID
 				AND c.ID <= l_ca.LAST_CERTIFICATE_ID
-				AND coalesce(x509_notAfter(c.CERTIFICATE), '-infinity'::timestamp) > l_ca.LAST_NOT_AFTER_OLD
-				AND coalesce(x509_notAfter(c.CERTIFICATE), '-infinity'::timestamp) <= l_ca.LAST_NOT_AFTER_NEW;
+				AND coalesce(x509_notAfter(c.CERTIFICATE), 'infinity'::timestamp) > l_ca.LAST_NOT_AFTER_OLD
+				AND coalesce(x509_notAfter(c.CERTIFICATE), 'infinity'::timestamp) <= l_ca.LAST_NOT_AFTER_NEW;
 
-		SELECT min(coalesce(x509_notAfter(c.CERTIFICATE), '-infinity'::timestamp))
+		SELECT x509_notAfter(c.CERTIFICATE)
 			INTO t_nextNotAfter_new
 			FROM certificate c
 			WHERE c.ISSUER_CA_ID = l_ca.ID
 				AND c.ID <= l_ca.LAST_CERTIFICATE_ID
-				AND coalesce(x509_notAfter(c.CERTIFICATE), '-infinity'::timestamp) > l_ca.LAST_NOT_AFTER_NEW;
+				AND coalesce(x509_notAfter(c.CERTIFICATE), 'infinity'::timestamp) > l_ca.LAST_NOT_AFTER_NEW
+				AND coalesce(x509_notAfter(c.CERTIFICATE), 'infinity'::timestamp) < 'infinity'::timestamp
+			ORDER BY coalesce(x509_notAfter(c.CERTIFICATE), 'infinity'::timestamp)
+			LIMIT 1;
 
 		UPDATE ca
 			SET NUM_EXPIRED[1] = coalesce(ca.NUM_EXPIRED[1], 0) + t_newExpirationsC,
