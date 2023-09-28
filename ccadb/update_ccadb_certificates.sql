@@ -53,7 +53,9 @@ CREATE TEMPORARY TABLE ccadb_certificate_import (
 	JSON_ARRAY_OF_CRL_URLS		text,
 	VALID_FROM					text,
 	VALID_TO					text,
-	CHROME_STATUS				text
+	CHROME_STATUS				text,
+	DERIVED_TRUST_BITS			text,
+	STATUS_OF_ROOT_CERT			text
 ) ON COMMIT DROP;
 
 \COPY ccadb_certificate_import FROM 'ccadb_all_certificate_records.csv' CSV HEADER;
@@ -112,6 +114,8 @@ INSERT INTO ccadb_certificate_temp (
 		MOZILLA_STATUS,
 		MICROSOFT_STATUS,
 		CHROME_STATUS,
+		DERIVED_TRUST_BITS,
+		STATUS_OF_ROOT_CERT,
 		ISSUER_CN,
 		ISSUER_O,
 		SUBJECT_CN,
@@ -230,6 +234,8 @@ INSERT INTO ccadb_certificate_temp (
 			cci.MOZILLA_STATUS,
 			cci.MICROSOFT_STATUS,
 			cci.CHROME_STATUS,
+			cci.DERIVED_TRUST_BITS,
+			cci.STATUS_OF_ROOT_CERT,
 			(SELECT x509_nameAttributes(c.CERTIFICATE, 'commonName', FALSE) LIMIT 1)		ISSUER_CN,
 			(SELECT x509_nameAttributes(c.CERTIFICATE, 'organizationName', FALSE) LIMIT 1)	ISSUER_O,
 			(SELECT x509_nameAttributes(c.CERTIFICATE, 'commonName', TRUE) LIMIT 1)			SUBJECT_CN,
