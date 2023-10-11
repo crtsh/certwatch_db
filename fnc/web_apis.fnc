@@ -1051,8 +1051,8 @@ Content-Type: application/json
   <BR>
   <TABLE>
     <TR><TD colspan="11" class="heading">CT Logs currently monitored';
-		IF t_temp = 'chromium' THEN
-			t_output := t_output || ' (that are Usable with Chromium-based browsers)';
+		IF t_temp IN ('chrome', 'chromium') THEN
+			t_output := t_output || ' (that are Usable with Chrome)';
 		END IF;
 		t_output := t_output || ':</TD></TR>
     <TR>
@@ -1063,7 +1063,7 @@ Content-Type: application/json
       <TH colspan="3">Entries</TH>
       <TH rowspan="2">Last get-sth call<BR><SPAN class="small">(UTC)</SPAN></TH>
       <TH>Google</TH>
-      <TH><A href="monitored-logs?recognizedBy=Chromium">Chromium</A></TH>
+      <TH><A href="monitored-logs?recognizedBy=Chrome">Chrome</A></TH>
       <TH>Apple</TH>
     </TR>
     <TR>
@@ -1108,7 +1108,7 @@ Content-Type: application/json
 						WHERE ctl.IS_ACTIVE
 						ORDER BY ctl.TREE_SIZE DESC NULLS LAST
 				) LOOP
-			IF (t_temp = 'chromium') AND (coalesce(l_record.CHROME_INCLUSION_STATUS, '') != 'Usable') THEN
+			IF (t_temp IN ('chrome', 'chromium')) AND (coalesce(l_record.CHROME_INCLUSION_STATUS, '') != 'Usable') THEN
 				CONTINUE;
 			END IF;
 
@@ -1170,8 +1170,8 @@ Content-Type: application/json
   </TABLE>
   <TABLE>
     <TR><TD colspan="9" class="heading">CT Logs no longer monitored';
-		IF t_temp = 'chromium' THEN
-			t_output := t_output || ' (that are no longer Usable with Chromium-based browsers)';
+		IF t_temp IN ('chrome', 'chromium') THEN
+			t_output := t_output || ' (that are no longer Usable with Chrome)';
 		END IF;
 		t_output := t_output || ':</TD></TR>
     <TR>
@@ -1181,7 +1181,7 @@ Content-Type: application/json
       <TH rowspan="2">Latest STH<BR><SPAN class="small">(UTC)</SPAN></TH>
       <TH colspan="2">Entries</TH>
       <TH rowspan="2">Last get-sth call<BR><SPAN class="small">(UTC)</SPAN></TH>
-      <TH rowspan="2"><A href="monitored-logs?recognizedBy=Chromium">Chromium</A> Status (Final<BR>Tree Size or Disqualified At)</TH>
+      <TH rowspan="2"><A href="monitored-logs?recognizedBy=Chrome">Chrome</A> Status (Final<BR>Tree Size or Disqualified At)</TH>
       <TH>Apple</TH>
     </TR>
     <TR>
@@ -1209,7 +1209,7 @@ Content-Type: application/json
 							AND ctl.LATEST_STH_TIMESTAMP IS NOT NULL
 						ORDER BY ctl.TREE_SIZE DESC NULLS LAST
 				) LOOP
-			IF (t_temp = 'chromium') AND (coalesce(l_record.CHROME_INCLUSION_STATUS, '') NOT IN ('Readonly', 'Retired')) THEN
+			IF (t_temp IN ('chrome', 'chromium')) AND ((l_record.CHROME_VERSION_ADDED IS NULL) OR (coalesce(l_record.CHROME_INCLUSION_STATUS, '') NOT IN ('Rejected', 'Retired'))) THEN
 				CONTINUE;
 			END IF;
 
@@ -2083,7 +2083,7 @@ Content-Type: text/plain; charset=UTF-8
     <TD colspan="4" style="border:none"><I>Active Logs for which this certificate is an Accepted Root Certificate:</I></TD>
   </TR>
   <TR>
-    <TH>Chromium Status</TH>
+    <TH>Chrome Status</TH>
     <TH>Apple Status</TH>
     <TH>Log Operator</TH>
     <TH>Log URL</TH>
