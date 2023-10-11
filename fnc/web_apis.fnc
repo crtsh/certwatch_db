@@ -1303,7 +1303,7 @@ Content-Type: application/json
   <A href="//googlechrome.github.io/CertificateTransparency/log_policy.html#:~:text=to%20accept%20logging%20submissions%20from%20CAs%20that%20are%20trusted%20by%20default%20in%20Chrome%20across%20all%20its%20supported%20platforms%2C%20including%20ChromeOS%2C%20Android%2C%20Linux%2C%20Windows%2C%20macOS%2C%20iOS" target="_blank">
     <I>"to accept logging submissions from CAs that are trusted by default in Chrome across all its supported platforms,<BR>including ChromeOS, Android, Linux, Windows, macOS, iOS"</I></A>.
   Chrome uses the Chrome Root Store on <A href="//chromium.googlesource.com/chromium/src/+/main/net/data/ssl/chrome_root_store/faq.md#when-are-these-changes-taking-place">all platforms except iOS</A>, on which it uses Apple''s trust store.
-  <BR><BR><A href="//support.apple.com/en-us/HT209255" target="_blank">Similarly, the Apple CT log program</A> requires logs to
+  <BR><BR>Similarly, <A href="//support.apple.com/en-us/HT209255" target="_blank">the Apple CT log program</A> requires logs to
   <A href="//support.apple.com/en-us/HT209255#:~:text=trust%20all%20root%20CA%20certificates%20included%20in%20Apple%27s%20trust%20store" target="_blank">
     <I>"trust all root CA certificates included in Apple''s trust store"</I></A>.
   <BR><BR>
