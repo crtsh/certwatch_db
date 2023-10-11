@@ -1317,7 +1317,7 @@ Content-Type: application/json
       <TH>Relevant Status(es)</TH>
       <TH>crt.sh ID</TH>
       <TH>Name</TH>
-      <TH>Trusted By</TH>
+      <TH>Root Stores</TH>
     </TR>
 ';
 		FOR l_record IN (
