@@ -1079,6 +1079,7 @@ Content-Type: application/json
       <TH style="border-left:2px solid black">Status (added)</TH>
       <TH style="border-left:2px solid black">Status (since)</TH>
     </TR>';
+		t_count := 0;
 		FOR l_record IN (
 					SELECT ctl.ID,
 							coalesce(ctlo.DISPLAY_STRING, ctl.OPERATOR) AS OPERATOR,
@@ -1155,6 +1156,10 @@ Content-Type: application/json
 				CONTINUE;
 			END IF;
 
+			IF l_record.BACKLOG > 0 THEN
+				t_count := t_count + l_record.BACKLOG;
+			END IF;
+
 			t_output := t_output || '
     <TR>
       <TD' || l_record.FONT_STYLE || '>' || l_record.OPERATOR || '</TD>
@@ -1193,17 +1198,6 @@ Content-Type: application/json
       <TD><SPAN style="color:' || l_record.APPLE_NUM_MISSING_ROOTS_COLOUR || '">' || l_record.APPLE_NUM_MISSING_ROOTS::text || '</SPAN></TD>
     </TR>';
 		END LOOP;
-
-		SELECT sum((coalesce(ctl.TREE_SIZE, 0) - latest.ENTRY_ID - 1)) AS TOTAL_BACKLOG
-			INTO t_count
-			FROM ct_log ctl
-					LEFT OUTER JOIN ct_log_operator ctlo ON (ctl.OPERATOR = ctlo.OPERATOR)
-					LEFT JOIN LATERAL (
-						SELECT coalesce(max(ENTRY_ID), -1) ENTRY_ID
-							FROM ct_log_entry ctle
-							WHERE ctle.CT_LOG_ID = ctl.ID
-						) latest ON TRUE
-				WHERE ctl.IS_ACTIVE;
 
 		t_output := t_output || '
     <TR>
