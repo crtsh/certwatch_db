@@ -1943,7 +1943,7 @@ UPDATE ccadb_certificate_temp cct
 								AND cct2.CERTIFICATE_ID = c.ID
 								AND NOT is_technically_constrained(c.CERTIFICATE)
 								AND cct2.CCADB_RECORD_ID IS NOT NULL	-- Ignore CA certificates not in CCADB (e.g., kernel mode cross-certificates).
-							GROUP BY cct2.CP_URL, cct2.CPS_URL
+							GROUP BY sort_delimited_list(cct2.CP_URL, ';'), sort_delimited_list(cct2.CPS_URL, ';')
 					) sub
 			) cpcps_variations ON TRUE
 	WHERE cct.MOZILLA_DISCLOSURE_STATUS = 'Disclosed'
@@ -1981,7 +1981,7 @@ UPDATE ccadb_certificate_temp cct
 								AND cct2.CERTIFICATE_ID = c.ID
 								AND NOT is_technically_constrained(c.CERTIFICATE)
 								AND cct2.CCADB_RECORD_ID IS NOT NULL	-- Ignore CA certificates not in CCADB (e.g., kernel mode cross-certificates).
-							GROUP BY cct2.CP_URL, cct2.CPS_URL
+							GROUP BY sort_delimited_list(cct2.CP_URL, ';'), sort_delimited_list(cct2.CPS_URL, ';')
 					) sub
 			) cpcps_variations ON TRUE
 	WHERE cct.MICROSOFT_DISCLOSURE_STATUS = 'Disclosed'
@@ -2018,7 +2018,7 @@ UPDATE ccadb_certificate_temp cct
 								AND cct2.REVOCATION_STATUS NOT IN ('Revoked', 'Parent Cert Revoked')
 								AND cct2.CERTIFICATE_ID = c.ID
 								AND cct2.CCADB_RECORD_ID IS NOT NULL	-- Ignore CA certificates not in CCADB (e.g., kernel mode cross-certificates).
-							GROUP BY cct2.CP_URL, cct2.CPS_URL
+							GROUP BY sort_delimited_list(cct2.CP_URL, ';'), sort_delimited_list(cct2.CPS_URL, ';')
 					) sub
 			) cpcps_variations ON TRUE
 	WHERE cct.APPLE_DISCLOSURE_STATUS = 'Disclosed'
@@ -2055,7 +2055,7 @@ UPDATE ccadb_certificate_temp cct
 								AND cct2.REVOCATION_STATUS NOT IN ('Revoked', 'Parent Cert Revoked')
 								AND cct2.CERTIFICATE_ID = c.ID
 								AND cct2.CCADB_RECORD_ID IS NOT NULL	-- Ignore CA certificates not in CCADB (e.g., kernel mode cross-certificates).
-							GROUP BY cct2.CP_URL, cct2.CPS_URL
+							GROUP BY sort_delimited_list(cct2.CP_URL, ';'), sort_delimited_list(cct2.CPS_URL, ';')
 					) sub
 			) cpcps_variations ON TRUE
 	WHERE cct.CHROME_DISCLOSURE_STATUS = 'Disclosed'

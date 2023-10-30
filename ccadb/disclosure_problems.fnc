@@ -381,10 +381,10 @@ BEGIN
 				)
 				AND cac2.CERTIFICATE_ID = cc2.CERTIFICATE_ID
 				AND cc2.CCADB_RECORD_ID IS NOT NULL;	-- Ignore CA certificates not in CCADB (e.g., kernel mode cross-certificates).
-		IF t_url1 != t_url2 THEN
+		IF sort_delimited_list(t_url1, ';') != sort_delimited_list(t_url2, ';') THEN
 			t_problems := array_append(t_problems, '"Certificate Policy (CP)" URLs: ' || t_url1 || ' != ' || t_url2);
 		END IF;
-		IF t_type1 != t_type2 THEN
+		IF sort_delimited_list(t_type1, ';') != sort_delimited_list(t_type2, ';') THEN
 			t_problems := array_append(t_problems, '"Certification Practice Statement (CPS)" URLs: ' || t_type1 || ' != ' || t_type2);
 		END IF;
 
