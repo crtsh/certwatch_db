@@ -3515,7 +3515,7 @@ $.ajax({
 											tp.PURPOSE,
 											tp.PURPOSE_OID
 										FROM trust_purpose tp, trust_context tc
-										WHERE tp.PURPOSE != 'EV Server Authentication'
+										WHERE tp.PURPOSE NOT IN ('EV Server Authentication', 'Qualified Website Authentication')
 									UNION
 									SELECT tc.DISPLAY_ORDER CTX_DISPLAY_ORDER,
 											tc.ID TRUST_CONTEXT_ID,
@@ -3526,7 +3526,7 @@ $.ajax({
 										FROM ca_trust_purpose ctp_ev, trust_purpose tp, trust_context tc
 										WHERE ctp_ev.CA_ID = t_caID
 											AND ctp_ev.TRUST_PURPOSE_ID = tp.ID
-											AND tp.PURPOSE = 'EV Server Authentication'
+											AND tp.PURPOSE IN ('EV Server Authentication', 'Qualified Website Authentication')
 										GROUP BY tc.CTX, tc.ID, tp.ID, tp.DISPLAY_ORDER, tp.PURPOSE, tp.PURPOSE_OID
 									) trustsrc
 								LEFT OUTER JOIN ca_trust_purpose ctp ON (
