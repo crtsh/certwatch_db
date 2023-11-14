@@ -3884,7 +3884,7 @@ $.ajax({
 						'       x509_notBefore(c.CERTIFICATE) NOT_BEFORE,' || chr(10) ||
 						'       x509_notAfter(c.CERTIFICATE) NOT_AFTER,' || chr(10) ||
 						'       encode(x509_serialNumber(c.CERTIFICATE), ''hex'') SERIAL_NUMBER,' || chr(10) ||
-						'       0 AS RESULT_COUNT' || chr(10) ||
+						'       0::bigint AS RESULT_COUNT' || chr(10) ||
 						'    FROM certificate c' || chr(10) ||
 						'    WHERE c.ISSUER_CA_ID = $1::integer' || chr(10);
 				IF t_type = 'Serial Number' THEN
@@ -3914,7 +3914,7 @@ $.ajax({
 						'       x509_notBefore(c.CERTIFICATE) NOT_BEFORE,' || chr(10) ||
 						'       x509_notAfter(c.CERTIFICATE) NOT_AFTER,' || chr(10) ||
 						'       encode(x509_serialNumber(c.CERTIFICATE), ''hex'') SERIAL_NUMBER,' || chr(10) ||
-						'       0 AS RESULT_COUNT' || chr(10) ||
+						'       0::bigint AS RESULT_COUNT' || chr(10) ||
 						'    FROM certificate c,' || chr(10) ||
 						'         lint_cert_issue lci, lint_issue li' || chr(10) ||
 						'    WHERE c.ISSUER_CA_ID = $1::integer' || chr(10) ||
@@ -4202,7 +4202,7 @@ $.ajax({
 			END IF;
 
 			t_temp := NULL;
-			t_resultCount_field := '0 AS RESULT_COUNT';
+			t_resultCount_field := '0::bigint AS RESULT_COUNT';
 			IF t_type = 'CT Entry ID' THEN
 				t_needMinEntryTimestamp := FALSE;
 
