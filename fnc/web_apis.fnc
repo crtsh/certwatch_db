@@ -157,6 +157,7 @@ DECLARE
 	t_notBefore_field	text;
 	t_notAfter_field	text;
 	t_serialNumber_field	text;
+	t_resultCount_field	text;
 	t_feedUpdated		timestamp;
 	t_caPublicKey		ca.PUBLIC_KEY%TYPE;
 	t_numIssued			ca.NUM_ISSUED%TYPE;
@@ -175,6 +176,7 @@ DECLARE
 	t_onlyOneChain		boolean;
 	t_isJSONOutputSupported    boolean	:= FALSE;
 	t_showSQL			boolean			:= FALSE;
+	c_resultLimit	CONSTANT	integer	:= 50000;
 BEGIN
 	FOR t_paramNo IN 1..array_length(c_params, 1) LOOP
 		IF t_cmd IS NULL THEN
@@ -3881,7 +3883,8 @@ $.ajax({
 						'       x509_subjectName(c.CERTIFICATE) SUBJECT_NAME,' || chr(10) ||
 						'       x509_notBefore(c.CERTIFICATE) NOT_BEFORE,' || chr(10) ||
 						'       x509_notAfter(c.CERTIFICATE) NOT_AFTER,' || chr(10) ||
-						'       encode(x509_serialNumber(c.CERTIFICATE), ''hex'') SERIAL_NUMBER' || chr(10) ||
+						'       encode(x509_serialNumber(c.CERTIFICATE), ''hex'') SERIAL_NUMBER,' || chr(10) ||
+						'       0 AS RESULT_COUNT' || chr(10) ||
 						'    FROM certificate c' || chr(10) ||
 						'    WHERE c.ISSUER_CA_ID = $1::integer' || chr(10);
 				IF t_type = 'Serial Number' THEN
@@ -3910,7 +3913,8 @@ $.ajax({
 						'       x509_subjectName(c.CERTIFICATE) SUBJECT_NAME,' || chr(10) ||
 						'       x509_notBefore(c.CERTIFICATE) NOT_BEFORE,' || chr(10) ||
 						'       x509_notAfter(c.CERTIFICATE) NOT_AFTER,' || chr(10) ||
-						'       encode(x509_serialNumber(c.CERTIFICATE), ''hex'') SERIAL_NUMBER' || chr(10) ||
+						'       encode(x509_serialNumber(c.CERTIFICATE), ''hex'') SERIAL_NUMBER,' || chr(10) ||
+						'       0 AS RESULT_COUNT' || chr(10) ||
 						'    FROM certificate c,' || chr(10) ||
 						'         lint_cert_issue lci, lint_issue li' || chr(10) ||
 						'    WHERE c.ISSUER_CA_ID = $1::integer' || chr(10) ||
@@ -3932,7 +3936,8 @@ $.ajax({
 						'           x509_subjectName(sub.CERTIFICATE) SUBJECT_NAME,' || chr(10) ||
 						'           x509_notBefore(sub.CERTIFICATE) NOT_BEFORE,' || chr(10) ||
 						'           x509_notAfter(sub.CERTIFICATE) NOT_AFTER,' || chr(10) ||
-						'           encode(x509_serialNumber(sub.CERTIFICATE), ''hex'') SERIAL_NUMBER' || chr(10) ||
+						'           encode(x509_serialNumber(sub.CERTIFICATE), ''hex'') SERIAL_NUMBER,' || chr(10) ||
+						'           count(sub.CERTIFICATE_ID) RESULT_COUNT' || chr(10) ||
 						'        FROM (SELECT cai.*' || chr(10) ||
 						'                  FROM certificate_and_identities cai' || chr(10);
 				IF t_deduplicate THEN
@@ -3979,7 +3984,7 @@ $.ajax({
 						'                      AND c2.ID IS NULL' || chr(10);
 				END IF;
 				t_query := t_query ||
-						'                  LIMIT 10000' || chr(10) ||
+						'                  LIMIT ' || c_resultLimit::text || chr(10) ||
 						'             ) sub' || chr(10) ||
 						'    GROUP BY sub.CERTIFICATE_ID, sub.ISSUER_CA_ID, sub.CERTIFICATE' || chr(10) ||
 						')' || chr(10) ||
@@ -3989,7 +3994,8 @@ $.ajax({
 						'       ci.SUBJECT_NAME,' || chr(10) ||
 						'       ci.NOT_BEFORE,' || chr(10) ||
 						'       ci.NOT_AFTER,' || chr(10) ||
-						'       ci.SERIAL_NUMBER' || chr(10) ||
+						'       ci.SERIAL_NUMBER,' || chr(10) ||
+						'       ci.RESULT_COUNT' || chr(10) ||
 						'    FROM ci' || chr(10) ||
 						'    WHERE ci.ISSUER_CA_ID = $1' || chr(10);
 			END IF;
@@ -4017,7 +4023,7 @@ $.ajax({
 			t_count := 0;
 			FOR l_record IN EXECUTE t_query
 							USING t_caID, t_value, t_minNotBefore LOOP
-				t_count := t_count + 1;
+				t_count := t_count + l_record.RESULT_COUNT;
 				t_text := t_text ||
 '  <TR>
     <TD style="text-align:center"><A href="?id=' || l_record.ID::text;
@@ -4038,6 +4044,25 @@ $.ajax({
   </TR>
 ';
 			END LOOP;
+
+			IF t_count >= c_resultLimit THEN
+				t_output := t_output ||
+'<DIV style="color:#CC0000;padding-bottom:20px">
+  <B>Sorry, your search results have been truncated.</B>
+  <BR>It is not currently possible to sort and paginate large result sets efficiently, so only a random subset is shown below.';
+				IF t_excludeExpired IS NULL THEN
+					t_temp := replace(
+						urlEncode(t_cmd) || '=' || urlEncode(t_value) || coalesce(t_excludeCAsString, ''),
+						'&', '&amp;'
+					);
+					t_output := t_output ||
+'  <BR>Please retry your search with <A href="?' || t_temp || '&exclude=expired' || t_minNotBeforeString || t_groupByParameter || '">expired certificates excluded</A>.
+';
+				END IF;
+				t_output := t_output ||
+'</DIV>
+';
+			END IF;
 
 			IF t_pageNo IS NOT NULL THEN
 				IF (t_value = '%') AND (t_excludeExpired IS NULL) THEN
@@ -4139,7 +4164,8 @@ $.ajax({
 							'        __entry_timestamp_field__,' || chr(10) ||
 							'        __not_before_field__,' || chr(10) ||
 							'        __not_after_field__,' || chr(10) ||
-							'        __serial_number_field__';
+							'        __serial_number_field__,' || chr(10) ||
+							'        __result_count_field__';
 				t_notBefore_field := 'x509_notBefore(c.CERTIFICATE) NOT_BEFORE';
 				t_notAfter_field := 'x509_notAfter(c.CERTIFICATE) NOT_AFTER';
 				t_serialNumber_field := 'encode(x509_serialNumber(c.CERTIFICATE), ''hex'') SERIAL_NUMBER';
@@ -4160,7 +4186,8 @@ $.ajax({
 				-- Group certs for the same identity issued by the same CA.
 				t_select := t_select ||
 							'        min(__cert_id_field__) ID,' || chr(10) ||
-							'        count(DISTINCT __cert_id_field__) NUM_CERTS';
+							'        count(DISTINCT __cert_id_field__) NUM_CERTS,' || chr(10) ||
+							'        sum(__result_count_field__)::bigint RESULT_COUNT';
 				t_notBefore_field := '';
 				t_notAfter_field := '';
 				t_serialNumber_field := '';
@@ -4175,6 +4202,7 @@ $.ajax({
 			END IF;
 
 			t_temp := NULL;
+			t_resultCount_field := '0 AS RESULT_COUNT';
 			IF t_type = 'CT Entry ID' THEN
 				t_needMinEntryTimestamp := FALSE;
 
@@ -4253,7 +4281,8 @@ $.ajax({
 							'           x509_commonName(sub.CERTIFICATE) COMMON_NAME,' || chr(10) ||
 							'           x509_notBefore(sub.CERTIFICATE) NOT_BEFORE,' || chr(10) ||
 							'           x509_notAfter(sub.CERTIFICATE) NOT_AFTER,' || chr(10) ||
-							'           encode(x509_serialNumber(sub.CERTIFICATE), ''hex'') SERIAL_NUMBER' || chr(10) ||
+							'           encode(x509_serialNumber(sub.CERTIFICATE), ''hex'') SERIAL_NUMBER,' || chr(10) ||
+							'           count(sub.CERTIFICATE_ID)::bigint RESULT_COUNT' || chr(10) ||
 							'        FROM (SELECT cai.*' || chr(10) ||
 							'                  FROM certificate_and_identities cai' || chr(10);
 				IF t_deduplicate THEN
@@ -4304,7 +4333,7 @@ $.ajax({
 				END IF;
 
 				t_select := t_temp ||
-							'                  LIMIT 10000' || chr(10) ||
+							'                  LIMIT ' || c_resultLimit::text || chr(10) ||
 							'             ) sub' || chr(10) ||
 							'        GROUP BY sub.CERTIFICATE' || chr(10) ||
 							')' || chr(10) ||
@@ -4320,6 +4349,7 @@ $.ajax({
 				t_issuerCAID_table := 'ci';
 				t_nameValue := 'array_to_string(ci.NAME_VALUES, chr(10))';
 				t_certID_field := 'ci.ID';
+				t_resultCount_field := 'ci.RESULT_COUNT';
 			END IF;
 
 			IF t_needMinEntryTimestamp THEN
@@ -4377,6 +4407,7 @@ $.ajax({
 			t_query := replace(t_query, '__not_before_field__', t_notBefore_field);
 			t_query := replace(t_query, '__not_after_field__', t_notAfter_field);
 			t_query := replace(t_query, '__serial_number_field__', t_serialNumber_field);
+			t_query := replace(t_query, '__result_count_field__', t_resultCount_field);
 
 			IF t_outputType = 'json' THEN
 				t_output := t_output || '[';
@@ -4385,8 +4416,10 @@ $.ajax({
 			t_text := '';
 			t_summary := '';
 			t_temp3 := '';
+			t_count := 0;
 			FOR l_record IN EXECUTE t_query
 							USING t_value, t_minNotBefore LOOP
+				t_count := t_count + l_record.RESULT_COUNT;
 				t_temp2 := '';
 				IF t_outputType = 'atom' THEN
 					IF coalesce(t_certificateID, -l_record.ID) != l_record.ID THEN
@@ -4497,6 +4530,25 @@ $.ajax({
 				END IF;
 				t_text := t_text || t_temp2;
 			END LOOP;
+
+			IF t_count >= c_resultLimit THEN
+				t_output := t_output ||
+'<DIV style="color:#CC0000;padding-bottom:20px">
+  <B>Sorry, your search results have been truncated.</B>
+  <BR>It is not currently possible to sort and paginate large result sets efficiently, so only a random subset is shown below.';
+				IF t_excludeExpired IS NULL THEN
+					t_temp := replace(
+						urlEncode(t_cmd) || '=' || urlEncode(t_value) || coalesce(t_excludeCAsString, ''),
+						'&', '&amp;'
+					);
+					t_output := t_output ||
+'  <BR>Please retry your search with <A href="?' || t_temp || '&exclude=expired' || t_minNotBeforeString || t_groupByParameter || '">expired certificates excluded</A>.
+';
+				END IF;
+				t_output := t_output ||
+'</DIV>
+';
+			END IF;
 
 			t_temp := replace(
 				urlEncode(t_cmd) || '=' || urlEncode(t_value) || coalesce(t_excludeExpired, '') || coalesce(t_excludeCAsString, ''),
