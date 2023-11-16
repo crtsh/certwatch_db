@@ -176,7 +176,7 @@ DECLARE
 	t_onlyOneChain		boolean;
 	t_isJSONOutputSupported    boolean	:= FALSE;
 	t_showSQL			boolean			:= FALSE;
-	c_resultLimit	CONSTANT	integer	:= 50000;
+	c_resultLimit	CONSTANT	integer	:= 10000;
 BEGIN
 	FOR t_paramNo IN 1..array_length(c_params, 1) LOOP
 		IF t_cmd IS NULL THEN
