@@ -1,6 +1,6 @@
 /* certwatch_db - Database schema
  * Written by Rob Stradling
- * Copyright (C) 2015-2020 Sectigo Limited
+ * Copyright (C) 2015-2023 Sectigo Limited
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -33,11 +33,11 @@ BEGIN
 					WHEN sub.TYPE IN ('1.2.840.113549.1.9.1', 'type1') THEN lower(substring(sub.VALUE FROM position('@' IN sub.VALUE) + 1))	-- emailAddress, rfc822Name.
 				END AS DOMAIN_NAME
 			FROM (
-				SELECT encode(RAW_VALUE, 'escape') AS VALUE,
+				SELECT convert_from(RAW_VALUE, 'UTF8') AS VALUE,
 						ATTRIBUTE_OID AS TYPE
 					FROM public.x509_nameAttributes_raw(cert, is_subject)
 				UNION
-				SELECT encode(RAW_VALUE, 'escape') AS VALUE,
+				SELECT convert_from(RAW_VALUE, 'UTF8') AS VALUE,
 						('type' || TYPE_NUM::text) AS TYPE
 					FROM public.x509_altNames_raw(cert, is_subject)
 			) sub
