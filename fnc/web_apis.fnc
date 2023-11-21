@@ -4045,7 +4045,7 @@ $.ajax({
 ';
 			END LOOP;
 
-			IF t_count >= c_resultLimit THEN
+			IF (t_outputType = 'html') AND (t_count >= c_resultLimit) THEN
 				t_output := t_output ||
 '<DIV style="color:#CC0000;padding-bottom:20px">
   <B>Sorry, your search results have been truncated.</B>
@@ -4202,7 +4202,7 @@ $.ajax({
 			END IF;
 
 			t_temp := NULL;
-			t_resultCount_field := '0::bigint AS RESULT_COUNT';
+			t_resultCount_field := '0';
 			IF t_type = 'CT Entry ID' THEN
 				t_needMinEntryTimestamp := FALSE;
 
@@ -4531,7 +4531,7 @@ $.ajax({
 				t_text := t_text || t_temp2;
 			END LOOP;
 
-			IF t_count >= c_resultLimit THEN
+			IF (t_outputType = 'html') AND (t_count >= c_resultLimit) THEN
 				t_output := t_output ||
 '<DIV style="color:#CC0000;padding-bottom:20px">
   <B>Sorry, your search results have been truncated.</B>
