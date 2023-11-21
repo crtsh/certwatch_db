@@ -158,6 +158,7 @@ DECLARE
 	t_notAfter_field	text;
 	t_serialNumber_field	text;
 	t_resultCount_field	text;
+	t_sumResultCount_field	text;
 	t_feedUpdated		timestamp;
 	t_caPublicKey		ca.PUBLIC_KEY%TYPE;
 	t_numIssued			ca.NUM_ISSUED%TYPE;
@@ -4187,7 +4188,7 @@ $.ajax({
 				t_select := t_select ||
 							'        min(__cert_id_field__) ID,' || chr(10) ||
 							'        count(DISTINCT __cert_id_field__) NUM_CERTS,' || chr(10) ||
-							'        sum(__result_count_field__)::bigint RESULT_COUNT';
+							'        sum(__sum_result_count_field__)::bigint RESULT_COUNT';
 				t_notBefore_field := '';
 				t_notAfter_field := '';
 				t_serialNumber_field := '';
@@ -4202,7 +4203,8 @@ $.ajax({
 			END IF;
 
 			t_temp := NULL;
-			t_resultCount_field := '0';
+			t_resultCount_field := '0::bigint AS RESULT_COUNT';
+			t_sumResultCount_field := '0';
 			IF t_type = 'CT Entry ID' THEN
 				t_needMinEntryTimestamp := FALSE;
 
@@ -4350,6 +4352,7 @@ $.ajax({
 				t_nameValue := 'array_to_string(ci.NAME_VALUES, chr(10))';
 				t_certID_field := 'ci.ID';
 				t_resultCount_field := 'ci.RESULT_COUNT';
+				t_sumResultCount_field := 'ci.RESULT_COUNT';
 			END IF;
 
 			IF t_needMinEntryTimestamp THEN
@@ -4408,6 +4411,7 @@ $.ajax({
 			t_query := replace(t_query, '__not_after_field__', t_notAfter_field);
 			t_query := replace(t_query, '__serial_number_field__', t_serialNumber_field);
 			t_query := replace(t_query, '__result_count_field__', t_resultCount_field);
+			t_query := replace(t_query, '__sum_result_count_field__', t_sumResultCount_field);
 
 			IF t_outputType = 'json' THEN
 				t_output := t_output || '[';
