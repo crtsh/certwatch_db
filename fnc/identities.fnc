@@ -33,11 +33,11 @@ BEGIN
 					WHEN sub.TYPE IN ('1.2.840.113549.1.9.1', 'type1') THEN lower(substring(sub.VALUE FROM position('@' IN sub.VALUE) + 1))	-- emailAddress, rfc822Name.
 				END AS DOMAIN_NAME
 			FROM (
-				SELECT safe_convert_utf8(RAW_VALUE) AS VALUE,
+				SELECT public.safe_convert_utf8(RAW_VALUE) AS VALUE,
 						ATTRIBUTE_OID AS TYPE
 					FROM public.x509_nameAttributes_raw(cert, is_subject)
 				UNION
-				SELECT safe_convert_utf8(RAW_VALUE) AS VALUE,
+				SELECT public.safe_convert_utf8(RAW_VALUE) AS VALUE,
 						('type' || TYPE_NUM::text) AS TYPE
 					FROM public.x509_altNames_raw(cert, is_subject)
 			) sub
