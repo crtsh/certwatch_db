@@ -1,6 +1,6 @@
 /* certwatch_db - Database schema
  * Written by Rob Stradling
- * Copyright (C) 2015-2020 Sectigo Limited
+ * Copyright (C) 2015-2024 Sectigo Limited
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -22,8 +22,8 @@ AS $$
 DECLARE
 BEGIN
 	UPDATE ct_log ctl
-		SET TREE_SIZE = CASE WHEN gut.LATEST_STH_TIMESTAMP > ctl.LATEST_STH_TIMESTAMP THEN gut.TREE_SIZE ELSE ctl.TREE_SIZE END,
-			LATEST_STH_TIMESTAMP = CASE WHEN gut.LATEST_STH_TIMESTAMP > ctl.LATEST_STH_TIMESTAMP THEN gut.LATEST_STH_TIMESTAMP ELSE ctl.LATEST_STH_TIMESTAMP END,
+		SET TREE_SIZE = CASE WHEN gut.LATEST_STH_TIMESTAMP > coalesce(ctl.LATEST_STH_TIMESTAMP, '-infinity'::date) THEN gut.TREE_SIZE ELSE ctl.TREE_SIZE END,
+			LATEST_STH_TIMESTAMP = CASE WHEN gut.LATEST_STH_TIMESTAMP > coalesce(ctl.LATEST_STH_TIMESTAMP, '-infinity'::date) THEN gut.LATEST_STH_TIMESTAMP ELSE ctl.LATEST_STH_TIMESTAMP END,
 			LATEST_UPDATE = gut.LATEST_UPDATE
 		FROM getsth_update_temp gut
 		WHERE ID = gut.CT_LOG_ID;
