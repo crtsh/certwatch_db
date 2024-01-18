@@ -119,6 +119,7 @@ DECLARE
 	t_issuerOParameter	text;
 	t_orderBy			text			:= 'ASC';
 	t_opt				text;
+	t_operator			text;
 	t_maxAge			timestamp without time zone;
 	t_cacheResponse		boolean			:= FALSE;
 	t_useCachedResponse	boolean			:= FALSE;
@@ -574,6 +575,11 @@ Content-Type: application/json
 '  <STYLE type="text/css">
     table tr:nth-child(2n+5) {
       background: #E7E7E7
+    }
+    a.nostyle:link, a.nostyle:visited {
+      text-decoration: inherit;
+      color: inherit;
+      cursor: auto;
     }
   </STYLE>
 ';
@@ -1050,6 +1056,7 @@ Content-Type: application/json
 
 	ELSIF t_type = 'monitored-logs' THEN
 		t_temp := lower(coalesce(get_parameter('recognizedBy', paramNames, paramValues), ''));
+		t_operator := get_parameter('operator', paramNames, paramValues);
 		t_output := t_output ||
 '  <SPAN class="whiteongrey">Monitored Logs</SPAN>
   <BR>
@@ -1084,8 +1091,8 @@ Content-Type: application/json
     </TR>';
 		t_count := 0;
 		FOR l_record IN (
-					SELECT ctl.ID,
-							coalesce(ctlo.DISPLAY_STRING, ctl.OPERATOR) AS OPERATOR,
+					SELECT ctl.ID, ctl.OPERATOR,
+							coalesce(ctlo.DISPLAY_STRING, ctl.OPERATOR) AS OPERATOR_DISPLAY,
 							ctl.URL, ctl.TREE_SIZE,
 							(coalesce(ctl.TREE_SIZE, 0) - latest.ENTRY_ID - 1) AS BACKLOG,
 							((now() AT TIME ZONE 'UTC') - coalesce(latest2.ENTRY_TIMESTAMP, now() AT TIME ZONE 'UTC')) AS BACKLOG_TIME,
@@ -1151,6 +1158,7 @@ Content-Type: application/json
 										) sub
 								) apple ON TRUE
 						WHERE ctl.IS_ACTIVE
+							AND ctl.OPERATOR = coalesce(t_operator, ctl.OPERATOR)
 						ORDER BY ctl.TREE_SIZE DESC NULLS LAST
 				) LOOP
 			IF (t_temp IN ('chrome', 'chromium')) AND (coalesce(l_record.CHROME_INCLUSION_STATUS, '') != 'Usable') THEN
@@ -1165,7 +1173,7 @@ Content-Type: application/json
 
 			t_output := t_output || '
     <TR>
-      <TD' || l_record.FONT_STYLE || '>' || l_record.OPERATOR || '</TD>
+      <TD' || l_record.FONT_STYLE || '><A class="nostyle" href="?operator=' || l_record.OPERATOR || '">' || l_record.OPERATOR_DISPLAY || '</A></TD>
       <TD' || l_record.FONT_STYLE || '>' || l_record.URL || '</TD>
       <TD' || l_record.FONT_STYLE || '>' || coalesce((l_record.MMD_IN_SECONDS / 60 / 60)::text, '?') || '</TD>
       <TD' || l_record.FONT_STYLE || '>' || coalesce(to_char(l_record.LATEST_STH_TIMESTAMP, 'YYYY-MM-DD HH24:MI:SS'), '') || '</TD>
@@ -1232,8 +1240,8 @@ Content-Type: application/json
       <TH>Status (since)</TH>
     </TR>';
 			FOR l_record IN (
-				SELECT ctl.ID,
-						coalesce(ctlo.DISPLAY_STRING, ctl.OPERATOR) AS OPERATOR,
+				SELECT ctl.ID, ctl.OPERATOR,
+						coalesce(ctlo.DISPLAY_STRING, ctl.OPERATOR) AS OPERATOR_DISPLAY,
 						ctl.URL, ctl.TREE_SIZE,
 						(coalesce(ctl.TREE_SIZE, 0) - latest.ENTRY_ID - 1) AS BACKLOG,
 						ctl.LATEST_UPDATE, ctl.LATEST_STH_TIMESTAMP, ctl.MMD_IN_SECONDS,
@@ -1249,11 +1257,12 @@ Content-Type: application/json
 							) latest ON TRUE
 					WHERE NOT ctl.IS_ACTIVE
 						AND ctl.LATEST_STH_TIMESTAMP IS NOT NULL
+						AND ctl.OPERATOR = coalesce(t_operator, ctl.OPERATOR)
 					ORDER BY ctl.TREE_SIZE DESC NULLS LAST
 			) LOOP
 				t_output := t_output || '
     <TR>
-      <TD>' || l_record.OPERATOR || '</TD>
+      <TD><A class="nostyle" href="?operator=' || l_record.OPERATOR || '">' || l_record.OPERATOR_DISPLAY || '</A></TD>
       <TD>' || l_record.URL || '</TD>
       <TD>' || coalesce((l_record.MMD_IN_SECONDS / 60 / 60)::text, '?') || '</TD>
       <TD>' || coalesce(to_char(l_record.LATEST_STH_TIMESTAMP, 'YYYY-MM-DD HH24:MI:SS'), '') || '</TD>
