@@ -84,7 +84,7 @@ BEGIN
 		IF t_ccadbCertificate.STANDARD_AUDIT_END IS NULL THEN
 			t_problems := array_append(t_problems, '"Standard Audit Period End Date" is required');
 		END IF;
-		IF trustContextID = 12 THEN
+		IF trustContextID IN (5, 12) THEN
 			t_crlDisclosureRequired := TRUE;
 		END IF;
 
@@ -122,9 +122,6 @@ BEGIN
 			END IF;
 			IF t_ccadbCertificate.BRSSL_AUDIT_END IS NULL THEN
 				t_problems := array_append(t_problems, '"BR Audit Period End Date" is required');
-			END IF;
-			IF trustContextID = 5 THEN
-				t_crlDisclosureRequired := TRUE;
 			END IF;
 		END IF;
 
