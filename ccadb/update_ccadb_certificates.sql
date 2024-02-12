@@ -467,7 +467,8 @@ BEGIN
 	FOR i IN 1..4 LOOP
 		UPDATE ccadb_certificate_temp cct
 			SET CP_URL = coalesce(cct.CP_URL, cct_parent.CP_URL),
-				CPS_URL = coalesce(cct.CPS_URL, cct_parent.CPS_URL)
+				CPS_URL = coalesce(cct.CPS_URL, cct_parent.CPS_URL),
+				CP_CPS_LAST_UPDATED = coalesce(cct.CP_CPS_LAST_UPDATED, cct_parent.CP_CPS_LAST_UPDATED)
 			FROM ccadb_certificate_temp cct_parent
 			WHERE cct.CERTIFICATE_ID IS NOT NULL
 				AND cct.CP_CPS_SAME_AS_PARENT
