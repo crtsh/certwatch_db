@@ -1061,11 +1061,13 @@ Content-Type: application/json
 '  <SPAN class="whiteongrey">Monitored Logs</SPAN>
   <BR>
   <TABLE>
-    <TR><TD colspan="13" class="heading">CT Logs currently monitored';
+    <TR><TD colspan="14" class="heading">CT Logs currently monitored';
 		IF t_temp IN ('chrome', 'chromium') THEN
 			t_output := t_output || ' (that are Usable with Chrome)';
 		ELSIF t_temp = 'apple' THEN
 			t_output := t_output || ' (that are Usable with Apple browsers)';
+		ELSIF t_temp = 'microsoft' THEN
+			t_output := t_output || ' (that are Usable with Microsoft)';
 		END IF;
 		t_output := t_output || ':</TD></TR>
     <TR>
@@ -1080,6 +1082,7 @@ Content-Type: application/json
       <TH rowspan="2"><A href="accepted-roots-missing"># Roots<BR>Missing</A></TH>
       <TH style="border-left:2px solid black"><A href="monitored-logs?recognizedBy=Apple">Apple</A>:</TH>
       <TH rowspan="2"><A href="accepted-roots-missing"># Roots<BR>Missing</A></TH>
+      <TH style="border-left:2px solid black"><A href="monitored-logs?recognizedBy=Microsoft">Microsoft</A>:</TH>
     </TR>
     <TR>
       <TH>Tree Size</TH>
@@ -1088,6 +1091,7 @@ Content-Type: application/json
       <TH style="border-left:2px solid black"><A href="//www.gstatic.com/ct/compliance/endpoint_uptime.csv">Uptime %</A></TH>
       <TH style="border-left:2px solid black">Status (added)</TH>
       <TH style="border-left:2px solid black">Status (since)</TH>
+      <TH style="border-left:2px solid black">Status</TH>
     </TR>';
 		t_count := 0;
 		FOR l_record IN (
@@ -1117,7 +1121,8 @@ Content-Type: application/json
 							CASE WHEN ctl.APPLE_INCLUSION_STATUS NOT IN ('Qualified', 'Usable') THEN '#CCCCCC'
 								WHEN apple.APPLE_NUM_MISSING_ROOTS > 0 THEN '#FF0000'
 								ELSE '#008800'
-							END APPLE_NUM_MISSING_ROOTS_COLOUR
+							END APPLE_NUM_MISSING_ROOTS_COLOUR,
+							ctl.MICROSOFT_INCLUSION_STATUS
 						FROM ct_log ctl
 								LEFT OUTER JOIN ct_log_operator ctlo ON (ctl.OPERATOR = ctlo.OPERATOR)
 								LEFT JOIN LATERAL (
@@ -1165,6 +1170,8 @@ Content-Type: application/json
 				CONTINUE;
 			ELSIF (t_temp = 'apple') AND (coalesce(l_record.APPLE_INCLUSION_STATUS, '') != 'Usable') THEN
 				CONTINUE;
+			ELSIF (t_temp = 'microsoft') AND (coalesce(l_record.MICROSOFT_INCLUSION_STATUS, '') != 'Usable') THEN
+				CONTINUE;
 			END IF;
 
 			IF l_record.BACKLOG > 0 THEN
@@ -1207,6 +1214,7 @@ Content-Type: application/json
 			END IF;
 			t_output := t_output || '</TD>
       <TD><SPAN style="color:' || l_record.APPLE_NUM_MISSING_ROOTS_COLOUR || '">' || l_record.APPLE_NUM_MISSING_ROOTS::text || '</SPAN></TD>
+      <TD style="border-left:2px solid black">' || coalesce(l_record.MICROSOFT_INCLUSION_STATUS, '') || '
     </TR>';
 		END LOOP;
 
@@ -1215,15 +1223,11 @@ Content-Type: application/json
       <TD colspan="4" style="border:0px"></TD>
       <TD>TOTAL</TD>
       <TD>' || t_count::text || ' </TD>
-      <TD colspan="7" style="border:0px"></TD>
+      <TD colspan="8" style="border:0px"></TD>
     </TR>
   </TABLE>
-';
-
-		IF t_temp NOT IN ('chrome', 'chromium', 'apple') THEN
-			t_output := t_output ||
-'  <TABLE>
-    <TR><TD colspan="9" class="heading">CT Logs no longer monitored:</TD></TR>
+  <TABLE>
+    <TR><TD colspan="10" class="heading">CT Logs no longer monitored:</TD></TR>
     <TR>
       <TH rowspan="2">Operator</TH>
       <TH rowspan="2">URL</TH>
@@ -1233,34 +1237,45 @@ Content-Type: application/json
       <TH rowspan="2">Last get-sth call<BR><SPAN class="small">(UTC)</SPAN></TH>
       <TH rowspan="2"><A href="monitored-logs?recognizedBy=Chrome">Chrome</A> Status (Final<BR>Tree Size or Disqualified At)</TH>
       <TH>Apple</TH>
+      <TH>Microsoft</TH>
     </TR>
     <TR>
       <TH>Tree Size</TH>
       <TH>Backlog</TH>
       <TH>Status (since)</TH>
+      <TH>Status</TH>
     </TR>';
-			FOR l_record IN (
-				SELECT ctl.ID, ctl.OPERATOR,
-						coalesce(ctlo.DISPLAY_STRING, ctl.OPERATOR) AS OPERATOR_DISPLAY,
-						ctl.URL, ctl.TREE_SIZE,
-						(coalesce(ctl.TREE_SIZE, 0) - latest.ENTRY_ID - 1) AS BACKLOG,
-						ctl.LATEST_UPDATE, ctl.LATEST_STH_TIMESTAMP, ctl.MMD_IN_SECONDS,
-						ctl.CHROME_VERSION_ADDED, ctl.CHROME_ISSUE_NUMBER, ctl.CHROME_INCLUSION_STATUS,
-						ctl.CHROME_FINAL_TREE_SIZE, ctl.CHROME_DISQUALIFIED_AT,
-						ctl.APPLE_INCLUSION_STATUS, ctl.APPLE_LAST_STATUS_CHANGE
-					FROM ct_log ctl
-							LEFT OUTER JOIN ct_log_operator ctlo ON (ctl.OPERATOR = ctlo.OPERATOR)
-							LEFT JOIN LATERAL (
-								SELECT coalesce(max(ENTRY_ID), -1) ENTRY_ID
-									FROM ct_log_entry ctle
-									WHERE ctle.CT_LOG_ID = ctl.ID
-							) latest ON TRUE
-					WHERE NOT ctl.IS_ACTIVE
-						AND ctl.LATEST_STH_TIMESTAMP IS NOT NULL
-						AND ctl.OPERATOR = coalesce(t_operator, ctl.OPERATOR)
-					ORDER BY ctl.TREE_SIZE DESC NULLS LAST
-			) LOOP
-				t_output := t_output || '
+		FOR l_record IN (
+			SELECT ctl.ID, ctl.OPERATOR,
+					coalesce(ctlo.DISPLAY_STRING, ctl.OPERATOR) AS OPERATOR_DISPLAY,
+					ctl.URL, ctl.TREE_SIZE,
+					(coalesce(ctl.TREE_SIZE, 0) - latest.ENTRY_ID - 1) AS BACKLOG,
+					ctl.LATEST_UPDATE, ctl.LATEST_STH_TIMESTAMP, ctl.MMD_IN_SECONDS,
+					ctl.CHROME_VERSION_ADDED, ctl.CHROME_ISSUE_NUMBER, ctl.CHROME_INCLUSION_STATUS,
+					ctl.CHROME_FINAL_TREE_SIZE, ctl.CHROME_DISQUALIFIED_AT,
+					ctl.APPLE_INCLUSION_STATUS, ctl.APPLE_LAST_STATUS_CHANGE,
+					ctl.MICROSOFT_INCLUSION_STATUS
+				FROM ct_log ctl
+						LEFT OUTER JOIN ct_log_operator ctlo ON (ctl.OPERATOR = ctlo.OPERATOR)
+						LEFT JOIN LATERAL (
+							SELECT coalesce(max(ENTRY_ID), -1) ENTRY_ID
+								FROM ct_log_entry ctle
+								WHERE ctle.CT_LOG_ID = ctl.ID
+						) latest ON TRUE
+				WHERE NOT ctl.IS_ACTIVE
+					AND ctl.LATEST_STH_TIMESTAMP IS NOT NULL
+					AND ctl.OPERATOR = coalesce(t_operator, ctl.OPERATOR)
+				ORDER BY ctl.TREE_SIZE DESC NULLS LAST
+		) LOOP
+			IF (t_temp IN ('chrome', 'chromium')) AND (coalesce(l_record.CHROME_INCLUSION_STATUS, '') != 'Usable') THEN
+				CONTINUE;
+			ELSIF (t_temp = 'apple') AND (coalesce(l_record.APPLE_INCLUSION_STATUS, '') != 'Usable') THEN
+				CONTINUE;
+			ELSIF (t_temp = 'microsoft') AND (coalesce(l_record.MICROSOFT_INCLUSION_STATUS, '') != 'Usable') THEN
+				CONTINUE;
+			END IF;
+
+			t_output := t_output || '
     <TR>
       <TD><A class="nostyle" href="?operator=' || l_record.OPERATOR || '">' || l_record.OPERATOR_DISPLAY || '</A></TD>
       <TD>' || l_record.URL || '</TD>
@@ -1271,35 +1286,35 @@ Content-Type: application/json
       <TD>' || coalesce(to_char(l_record.LATEST_UPDATE, 'YYYY-MM-DD HH24:MI:SS'), '') || '</TD>
       <TD>
 ';
-				IF l_record.CHROME_ISSUE_NUMBER IS NOT NULL THEN
-					t_output := t_output || '<A href="https://code.google.com/p/chromium/issues/detail?id='
-									|| l_record.CHROME_ISSUE_NUMBER::text || '" target="_blank">';
-					IF l_record.CHROME_VERSION_ADDED IS NOT NULL THEN
-						t_output := t_output || coalesce(l_record.CHROME_INCLUSION_STATUS, 'M' || l_record.CHROME_VERSION_ADDED::text) || '</A>';
-						IF l_record.CHROME_FINAL_TREE_SIZE IS NOT NULL THEN
-							t_output := t_output || ' <SPAN class="small">(' || l_record.CHROME_FINAL_TREE_SIZE::text || ')</SPAN>';
-						ELSIF l_record.CHROME_DISQUALIFIED_AT IS NOT NULL THEN
-							t_output := t_output || ' <SPAN class="small">(' || to_char(l_record.CHROME_DISQUALIFIED_AT, 'YYYY-MM-DD HH24:MI:SS') || ')</SPAN>';
-						END IF;
-						t_output := t_output || chr(10);
-					ELSE
-						t_output := t_output || coalesce(l_record.CHROME_INCLUSION_STATUS, 'Pending') || '</A>' || chr(10);
+			IF l_record.CHROME_ISSUE_NUMBER IS NOT NULL THEN
+				t_output := t_output || '<A href="https://code.google.com/p/chromium/issues/detail?id='
+								|| l_record.CHROME_ISSUE_NUMBER::text || '" target="_blank">';
+				IF l_record.CHROME_VERSION_ADDED IS NOT NULL THEN
+					t_output := t_output || coalesce(l_record.CHROME_INCLUSION_STATUS, 'M' || l_record.CHROME_VERSION_ADDED::text) || '</A>';
+					IF l_record.CHROME_FINAL_TREE_SIZE IS NOT NULL THEN
+						t_output := t_output || ' <SPAN class="small">(' || l_record.CHROME_FINAL_TREE_SIZE::text || ')</SPAN>';
+					ELSIF l_record.CHROME_DISQUALIFIED_AT IS NOT NULL THEN
+						t_output := t_output || ' <SPAN class="small">(' || to_char(l_record.CHROME_DISQUALIFIED_AT, 'YYYY-MM-DD HH24:MI:SS') || ')</SPAN>';
 					END IF;
-				ELSIF l_record.CHROME_INCLUSION_STATUS IS NOT NULL THEN
-					t_output := t_output || l_record.CHROME_INCLUSION_STATUS;
+					t_output := t_output || chr(10);
+				ELSE
+					t_output := t_output || coalesce(l_record.CHROME_INCLUSION_STATUS, 'Pending') || '</A>' || chr(10);
 				END IF;
-				t_output := t_output ||
+			ELSIF l_record.CHROME_INCLUSION_STATUS IS NOT NULL THEN
+				t_output := t_output || l_record.CHROME_INCLUSION_STATUS;
+			END IF;
+			t_output := t_output ||
 '      </TD>
       <TD>' || coalesce(l_record.APPLE_INCLUSION_STATUS, '');
-				IF l_record.APPLE_LAST_STATUS_CHANGE IS NOT NULL THEN
-					t_output := t_output || ' <SPAN class="small">(' || to_char(l_record.APPLE_LAST_STATUS_CHANGE, 'YYYY-MM-DD HH24:MI:SS') || ')</SPAN>';
-				END IF;
-				t_output := t_output || '</TD>
+			IF l_record.APPLE_LAST_STATUS_CHANGE IS NOT NULL THEN
+				t_output := t_output || ' <SPAN class="small">(' || to_char(l_record.APPLE_LAST_STATUS_CHANGE, 'YYYY-MM-DD HH24:MI:SS') || ')</SPAN>';
+			END IF;
+			t_output := t_output || '</TD>
+      <TD>' || coalesce(l_record.MICROSOFT_INCLUSION_STATUS, '') || '</TD>
     </TR>';
-			END LOOP;
-			t_output := t_output || '
+		END LOOP;
+		t_output := t_output || '
 </TABLE>';
-		END IF;
 
 	ELSIF t_type = 'accepted-roots-missing' THEN
 		t_output := t_output ||
