@@ -979,12 +979,25 @@ Content-Type: application/json
 
 	ELSIF t_type = 'cert-populations' THEN
 		t_cacheControlMaxAge := -1;
+		t_groupBy := lower(coalesce(nullif(nullif(t_groupBy, ''), 'none'), 'CAOwner'));
 		t_output := t_output ||
-'  <SPAN class="whiteongrey">Certificate Populations</SPAN>
+'  <SPAN class="whiteongrey">Certificate Populations</SPAN>&nbsp; &nbsp; &nbsp; <A style="font-size:8pt" href="?group=';
+		IF t_groupBy = 'rootowner' THEN
+			t_output := t_output || 'CAOwner">Group by CA Owner';
+		ELSE
+			t_output := t_output || 'RootOwner">Group by Root Owner';
+		END IF;
+		t_output := t_output || '</A>
   <BR><BR>
   <TABLE>
     <TR>
-      <TH rowspan="2">CA Owner</TH>
+      <TH rowspan="2">';
+		IF t_groupBy = 'caowner' THEN
+			t_output := t_output || 'CA';
+		ELSE
+			t_output := t_output || 'Root';
+		END IF;
+		t_output := t_output || ' Owner</TH>
       <TH colspan="2">Certificates</TH>
       <TH colspan="2">Precertificates</TH>
     </TR>
@@ -1002,7 +1015,9 @@ Content-Type: application/json
 					sum(coalesce(sub.NUM_ISSUED[2], 0)) PRECERT_POPULATION,
 					(sum(coalesce(sub.NUM_ISSUED[2], 0)) - sum(coalesce(sub.NUM_EXPIRED[2], 0))) PRECERT_POPULATION_UNEXPIRED
 				FROM (
-						SELECT max(coalesce(coalesce(nullif(trim(cc.SUBORDINATE_CA_OWNER), ''), nullif(trim(cc.CA_OWNER), '')), cc.INCLUDED_CERTIFICATE_OWNER)) as OWNER,
+						SELECT CASE WHEN t_groupBy = 'rootowner' THEN max(cc.INCLUDED_CERTIFICATE_OWNER)
+									ELSE max(coalesce(coalesce(nullif(trim(cc.SUBORDINATE_CA_OWNER), ''), nullif(trim(cc.CA_OWNER), '')), cc.INCLUDED_CERTIFICATE_OWNER))
+								END as OWNER,
 								ca.NUM_ISSUED, ca.NUM_EXPIRED
 							FROM ccadb_certificate cc, ca_certificate cac, ca
 							WHERE cc.CERTIFICATE_ID = cac.CERTIFICATE_ID
