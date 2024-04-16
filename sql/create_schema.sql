@@ -240,6 +240,9 @@ CREATE TABLE crl_revoked (
 		REFERENCES ca(ID)
 );
 
+CREATE INDEX crlr_ca_revdate
+	ON crl_revoked (CA_ID, REVOCATION_DATE);
+
 
 CREATE TABLE ocsp_responder (
 	CA_ID						integer,
