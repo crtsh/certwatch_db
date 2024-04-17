@@ -295,6 +295,7 @@ BEGIN
 		t_outputType := 'json';
 		t_isJSONOutputSupported := TRUE;
 	ELSIF lower(t_outputType) IN ('revoked-intermediates', 'mozilla-certvalidations', 'mozilla-certvalidations-by-root', 'mozilla-certvalidations-by-owner', 'mozilla-certvalidations-by-version',
+									'revocation-activity', 'revocation-activity-by-owner',
 									'mozilla-disclosures', 'mozilla-onecrl', 'microsoft-disclosures', 'apple-disclosures', 'chrome-disclosures', 'ca-issuers', 'ocsp-responders', 'ocsp-response', 'test-websites', 'cert-populations') THEN
 		t_type := lower(t_outputType);
 		t_title := t_type;
@@ -557,7 +558,7 @@ Content-Type: application/json
   <SCRIPT nomodule src="//unpkg.com/@peculiar/certificates-viewer@latest/dist/peculiar/peculiar.js"></SCRIPT>
   <LINK rel="stylesheet" href="//unpkg.com/@peculiar/certificates-viewer@latest/dist/peculiar/peculiar.css">
 ';
-		ELSIF t_type = 'mozilla-certvalidations' THEN
+		ELSIF t_type IN ('mozilla-certvalidations', 'revocation-activity') THEN
 			t_output := t_output ||
 '  <SCRIPT src="//cdnjs.cloudflare.com/ajax/libs/dygraph/2.0.0/dygraph.min.js"></SCRIPT>
   <LINK rel="stylesheet" src="//cdnjs.cloudflare.com/ajax/libs/dygraph/2.0.0/dygraph.min.css" />
@@ -1518,6 +1519,148 @@ Content-Type: text/plain; charset=UTF-8
 
 	ELSIF t_type = 'revoked-intermediates' THEN
 		t_output := t_output || revoked_intermediates();
+
+	ELSIF t_type = 'revocation-activity-by-owner' THEN
+		t_outputType := 'csv';
+		t_output := 'Date';
+		t_temp := coalesce(get_parameter('caOwners', paramNames, paramValues), '');
+		FOR l_record IN (
+			SELECT tcr.CA_OWNER
+				FROM temp_caowner_revocationday tcr
+				WHERE t_temp = ''
+					OR tcr.CA_OWNER = ANY(STRING_TO_ARRAY(t_temp, ','))
+				GROUP BY tcr.CA_OWNER
+				ORDER BY tcr.CA_OWNER
+		) LOOP
+			t_output := t_output || '|' || coalesce(l_record.CA_OWNER, 'UNKNOWN');
+		END LOOP;
+
+		t_date := coalesce(get_parameter('minRevocationDate', paramNames, paramValues)::date, date_trunc('year', now() AT TIME ZONE 'UTC') - interval '1 year');
+
+		t_temp2 := '';
+		FOR l_record IN (
+			WITH all_caowners AS (
+				SELECT tcr.CA_OWNER
+					FROM temp_caowner_revocationday tcr
+					WHERE t_temp = ''
+						OR tcr.CA_OWNER = ANY(STRING_TO_ARRAY(t_temp, ','))
+					GROUP BY tcr.CA_OWNER
+					ORDER BY tcr.CA_OWNER
+			)
+			SELECT ac.CA_OWNER, REVOCATION_DATE, sum(tcr.NUM_REVOCATIONS) AS NUM_REVOCATIONS
+				FROM all_caowners ac,
+					generate_series(
+						coalesce(get_parameter('minRevocationDate', paramNames, paramValues)::date, date_trunc('year', now() AT TIME ZONE 'UTC') - interval '1 year'),
+						coalesce(get_parameter('maxRevocationDate', paramNames, paramValues)::date, date_trunc('day', now() AT TIME ZONE 'UTC')),
+						'1 day'::interval
+					) AS REVOCATION_DATE
+						LEFT JOIN LATERAL (
+							SELECT tcr.NUM_REVOCATIONS
+								FROM temp_caowner_revocationday tcr
+								WHERE REVOCATION_DATE = tcr.REVOCATION_DAY
+									AND ac.CA_OWNER = tcr.CA_OWNER
+						) tcr ON TRUE
+				GROUP BY REVOCATION_DATE, ac.CA_OWNER
+				ORDER BY REVOCATION_DATE, ac.CA_OWNER
+		) LOOP
+			IF l_record.REVOCATION_DATE::text != t_temp2 THEN
+				t_temp2 := l_record.REVOCATION_DATE::text;
+				t_output := t_output || chr(10) || t_temp2;
+			END IF;
+			t_output := t_output || '|' || coalesce(l_record.NUM_REVOCATIONS, 0);
+		END LOOP;
+
+	ELSIF t_type = 'revocation-activity' THEN
+		t_output := t_output ||
+'  <SPAN class="whiteongrey">CRL Revocation Activity</SPAN>
+<BR><SPAN class="small">CRL revocation entries per day, per Included Certificate Owner</SPAN>
+<BR><BR>
+<DIV id="root" style="text-align:left;font:8pt Roboto;font-weight:normal">
+  <DIV id="spinner" style="margin:0 auto;width:400px;padding-top:70px;"><IMG src="/spinner.gif" style="display:inline-block" /><SPAN style="font-size:20px;display:inline-block;position:relative;top:-52px;left:30px">Loading...</SPAN></DIV>
+  <DIV id="graph" class="many" style="width:100%"></DIV>
+  <DIV id="options">
+    <BUTTON onclick="toggleAll(true)">Select All</BUTTON>
+    <BUTTON onclick="toggleAll(false)">Deselect All</BUTTON>
+  </DIV>
+  <DIV style="height:400px;width:500px;overflow:auto"><FORM id="graph_toggles"></FORM></DIV>
+  <DIV id="graph_labels" style="text-align:left"></DIV>
+</DIV>
+<SCRIPT type="text/javascript">
+  var graph = new Dygraph(
+    document.getElementById("graph"),
+    "/revocation-activity-by-owner?minRevocationDate=' || to_char(coalesce(get_parameter('minRevocationDate', paramNames, paramValues)::date, date_trunc('year', now() AT TIME ZONE 'UTC') - interval '1 year'), 'YYYY-MM-DD') || '&maxRevocationDate=' || to_char(coalesce(get_parameter('maxRevocationDate', paramNames, paramValues)::date, date_trunc('day', now() AT TIME ZONE 'UTC')), 'YYYY-MM-DD') ||
+    '&caOwners=' || coalesce(get_parameter('caOwners', paramNames, paramValues), '') ||
+    '", {
+    axes: {
+      x: {
+        drawGrid: false
+      },
+      y: {
+        drawAxis: true,
+        drawGrid: true
+      }
+    },
+    connectSeparatedPoints: true,
+    delimiter: ''|'',
+    highlightCircleSize: 2,
+    highlightSeriesOpts: {
+      strokeWidth: 2,
+      strokeBorderWidth: 1,
+      highlightCircleSize: 3
+    },
+    includeZero: true,
+    panEdgeFraction: 0.1,
+    strokeBorderWidth: 1,
+    strokeWidth: 1,
+    labelsKMB: true,
+    xRangePad: 50
+  });
+
+  var onclick = function(ev) {
+    if (graph.isSeriesLocked()) {
+      graph.clearSelection();
+    } else {
+      graph.setSelection(graph.getSelection(), graph.getHighlightSeries(), true);
+    }
+  };
+  graph.updateOptions({clickCallback: onclick}, true);
+
+  graph.ready(function() {
+    document.getElementById("spinner").style.display = "none";
+
+    var toggles_form = document.getElementById("graph_toggles");
+    var labels = graph.getLabels();
+    var colors = graph.getColors();
+    for (var i = 1; i < labels.length; ++i) {
+      (function(series) {
+        var label_elt = document.createElement("label");
+        label_elt.style.color = colors[series];
+        var checkbox = document.createElement("input");
+        checkbox.type = "checkbox";
+        checkbox.onclick = function () {
+          graph.setVisibility(series, this.checked);
+        };
+        checkbox.checked = true;
+        label_elt.appendChild(checkbox);
+        var label_span = document.createElement("span");
+        label_span.innerHTML = " " + labels[series + 1];
+        label_elt.appendChild(label_span);
+
+        toggles_form.appendChild(label_elt);
+      })(i - 1);
+    }
+  });
+
+  function toggleAll(clicked) {
+    var w = document.getElementsByTagName(''input'');
+    for(var i = 0; i < w.length; i++) {
+      if ((w[i].type == ''checkbox'') && (w[i].checked != clicked)) {
+        w[i].click();
+      }
+    }
+  }
+</SCRIPT>
+';
 
 	ELSIF t_type = 'mozilla-certvalidations-by-root' THEN
 		t_outputType := 'csv';
