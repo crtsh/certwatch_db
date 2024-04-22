@@ -3497,7 +3497,7 @@ $.ajax({
           var t_url;
           if (document.search_form.searchCensys.checked) {
             t_url = "//search.censys.io/search?resource=certificates&q="
-                   + encodeURIComponent("parsed.issuer_dn=\"' || replace(t_caName, '"', '') || '\"");
+                   + encodeURIComponent("parsed.issuer_dn=\"' || replace(replace(replace(t_caName, '"', ''), '<', '\<'), '>', '\>') || '\"");
             var t_field = "";
             if (value != "%") {
               if (type == "Identity") {
