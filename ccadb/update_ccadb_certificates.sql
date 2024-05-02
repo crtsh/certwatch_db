@@ -65,7 +65,14 @@ CREATE TEMPORARY TABLE ccadb_certificate_import (
 	CHROME_STATUS				text,
 	MICROSOFT_STATUS			text,
 	MOZILLA_STATUS				text,
-	STATUS_OF_ROOT_CERT			text
+	STATUS_OF_ROOT_CERT			text,
+	AUTHORITY_KEY_IDENTIFIER	text,
+	SUBJECT_KEY_IDENTIFIER		text,
+	COUNTRY						text,
+	TLS_CAPABLE					text,
+	TLSEV_CAPABLE				text,
+	CODESIGNING_CAPABLE			text,
+	SMIME_CAPABLE				text
 ) ON COMMIT DROP;
 
 \COPY ccadb_certificate_import FROM 'ccadb_all_certificate_records.csv' CSV HEADER;
