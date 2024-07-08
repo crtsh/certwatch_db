@@ -1153,12 +1153,14 @@ Content-Type: application/json
 											AND ctle2.ENTRY_ID = latest.ENTRY_ID
 								) latest2 ON TRUE
 								LEFT JOIN LATERAL (
-									SELECT count(*) AS CHROME_NUM_MISSING_ROOTS
+									SELECT count(DISTINCT sub.CERTIFICATE_ID) AS CHROME_NUM_MISSING_ROOTS
 										FROM (
 											SELECT rtp.CERTIFICATE_ID
 												FROM root_trust_purpose rtp
 												WHERE rtp.TRUST_CONTEXT_ID IN (6, 12)  -- 6=Chrome; 12=Apple (because Chrome on iOS).
 													AND rtp.TRUST_PURPOSE_ID = 1  -- Server Authentication.
+													AND 'now' AT TIME ZONE 'UTC' < coalesce(rtp.DISABLED_FROM, 'infinity'::timestamp)
+													AND 'now' AT TIME ZONE 'UTC' - interval '398 days' < coalesce(rtp.NOTBEFORE_UNTIL, 'infinity'::timestamp)
 											EXCEPT
 											SELECT ar.CERTIFICATE_ID
 												FROM accepted_roots ar
@@ -1166,12 +1168,14 @@ Content-Type: application/json
 										) sub
 								) chrome ON TRUE
 								LEFT JOIN LATERAL (
-									SELECT count(*) AS APPLE_NUM_MISSING_ROOTS
+									SELECT count(DISTINCT sub.CERTIFICATE_ID) AS APPLE_NUM_MISSING_ROOTS
 										FROM (
 											SELECT rtp.CERTIFICATE_ID
 												FROM root_trust_purpose rtp
 												WHERE rtp.TRUST_CONTEXT_ID = 12  -- Apple.
 													AND rtp.TRUST_PURPOSE_ID = 1  -- Server Authentication.
+													AND 'now' AT TIME ZONE 'UTC' < coalesce(rtp.DISABLED_FROM, 'infinity'::timestamp)
+													AND 'now' AT TIME ZONE 'UTC' - interval '398 days' < coalesce(rtp.NOTBEFORE_UNTIL, 'infinity'::timestamp)
 											EXCEPT
 											SELECT ar.CERTIFICATE_ID
 												FROM accepted_roots ar
@@ -1370,6 +1374,8 @@ Content-Type: application/json
 								JOIN ct_log ctl ON true
 						WHERE rtp.TRUST_CONTEXT_ID IN (6, 12)  -- 6=Chrome; 12=Apple (because Chrome on iOS).
 							AND rtp.TRUST_PURPOSE_ID = 1  -- Server Authentication.
+							AND 'now' AT TIME ZONE 'UTC' < coalesce(rtp.DISABLED_FROM, 'infinity'::timestamp)
+							AND 'now' AT TIME ZONE 'UTC' - interval '398 days' < coalesce(rtp.NOTBEFORE_UNTIL, 'infinity'::timestamp)
 							AND (
 								(ctl.CHROME_INCLUSION_STATUS IN ('Qualified', 'Usable'))
 								OR (  -- Pending.
@@ -1392,6 +1398,8 @@ Content-Type: application/json
 								JOIN ct_log ctl ON true
 						WHERE rtp.TRUST_CONTEXT_ID = 12  -- 12=Apple.
 							AND rtp.TRUST_PURPOSE_ID = 1  -- Server Authentication.
+							AND 'now' AT TIME ZONE 'UTC' < coalesce(rtp.DISABLED_FROM, 'infinity'::timestamp)
+							AND 'now' AT TIME ZONE 'UTC' - interval '398 days' < coalesce(rtp.NOTBEFORE_UNTIL, 'infinity'::timestamp)
 							AND ctl.APPLE_INCLUSION_STATUS IN ('Qualified', 'Usable')  -- Can't determine "Pending".
 							AND NOT EXISTS (
 								SELECT 1
