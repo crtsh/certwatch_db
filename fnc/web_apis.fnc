@@ -1211,7 +1211,7 @@ Content-Type: application/json
       <TD style="border-left:2px solid black;text-align:right' || l_record.UPTIME_FONT_STYLE || '">' || coalesce(l_record.GOOGLE_UPTIME, '') || '</TD>
       <TD style="border-left:2px solid black">';
 			IF l_record.CHROME_ISSUE_NUMBER IS NOT NULL THEN
-				t_output := t_output || '<A href="https://code.google.com/p/chromium/issues/detail?id='
+				t_output := t_output || '<A href="https://issues.chromium.org/issues/'
 									|| l_record.CHROME_ISSUE_NUMBER::text || '" target="_blank">';
 			END IF;
 			t_output := t_output || coalesce(l_record.CHROME_INCLUSION_STATUS, 'Pending');
@@ -1307,7 +1307,7 @@ Content-Type: application/json
       <TD>
 ';
 			IF l_record.CHROME_ISSUE_NUMBER IS NOT NULL THEN
-				t_output := t_output || '<A href="https://code.google.com/p/chromium/issues/detail?id='
+				t_output := t_output || '<A href="https://issues.chromium.org/issues/'
 								|| l_record.CHROME_ISSUE_NUMBER::text || '" target="_blank">';
 				IF l_record.CHROME_VERSION_ADDED IS NOT NULL THEN
 					t_output := t_output || coalesce(l_record.CHROME_INCLUSION_STATUS, 'M' || l_record.CHROME_VERSION_ADDED::text) || '</A>';
