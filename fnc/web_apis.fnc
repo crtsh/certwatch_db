@@ -381,6 +381,9 @@ Content-Type: application/json
 		t_title := 'CA:' || t_value;
 	ELSIF t_type = 'Serial Number' THEN
 		t_value := encode(t_bytea, 'hex');
+		IF upper(substr(t_value, 1, 1)) IN ('8','9','A','B','C','D','E','F') THEN
+			t_value := '00' || t_value;
+		END IF;
 		t_title := 'Serial#' || t_value;
 		t_match := '=';
 	ELSIF t_type = 'Subject Key Identifier' THEN
