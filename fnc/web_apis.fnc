@@ -2795,54 +2795,55 @@ Content-Type: text/plain; charset=UTF-8
         var xhttp = new XMLHttpRequest();
         xhttp.onreadystatechange = function() {
           if (this.readyState == 4 && this.status == 200) {
-            var findings = JSON.parse(xhttp.responseText);
-            var linter = ""
+            var findings = JSON.parse(xhttp.responseText)
+            var dummyFinding = Object.assign({}, findings[0])
+            dummyFinding.Linter = ""
+            findings.push(dummyFinding)
+            var linter = "pkimetal"
             var output = ""
             var temp = ""
             var version = ""
             for (i in findings) {
+              if (findings[i].Linter != linter) {
+                if (version != "") {
+                  output += "<B>" + linter + "</B> " + version + ":<BR>" + temp
+                }
+                temp = ""
+                linter = findings[i].Linter
+                version = ""
+              }
               var temp2 = ""
               switch (findings[i].Severity) {
                 case "meta":
-                  m = findings[i].Finding.split(";");
+                  m = findings[i].Finding.split(";")
                   for (j in m) {
-                    m2 = m[j].replace("Version: ", "");
+                    m2 = m[j].replace("Version: ", "")
                     if (m[j] != m2) {
-                      version = m2;
-                      break;
+                      if (linter == "pkimetal") {
+                        document.getElementById("pkimetalVersion").innerHTML = m2
+                      } else {
+                        version = m2
+                      }
+                      break
                     }
                   }
                   break;
-                case "info": temp2 += "<SPAN>&nbsp; &nbsp; INFO:"; break;
-                case "notice": temp2 += "<SPAN class=\"notice\">&nbsp; NOTICE:"; break;
-                case "warning": temp2 += "<SPAN class=\"warning\">&nbsp;WARNING:"; break;
-                case "error": temp2 += "<SPAN class=\"error\">&nbsp; &nbsp;ERROR:"; break;
-                case "bug": temp2 += "<SPAN>&nbsp; &nbsp; &nbsp;BUG:"; break;
-                case "fatal": temp2 += "<SPAN class=\"fatal\">&nbsp; &nbsp;FATAL:"; break;
-              }
-              if (findings[i].Linter != linter) {
-                if (temp != "") {
-                  output += "<B>" + linter + "</B> " + version + ":<BR>" + temp;
-                  temp = "";
-                }
-                linter = findings[i].Linter;
-                if (linter == "pkimetal") {
-                  document.getElementById("pkimetalVersion").innerHTML = version;
-                }
-                version = "";
+                case "info": temp2 += "<SPAN>&nbsp; &nbsp; INFO:"; break
+                case "notice": temp2 += "<SPAN class=\"notice\">&nbsp; NOTICE:"; break
+                case "warning": temp2 += "<SPAN class=\"warning\">&nbsp;WARNING:"; break
+                case "error": temp2 += "<SPAN class=\"error\">&nbsp; &nbsp;ERROR:"; break
+                case "bug": temp2 += "<SPAN>&nbsp; &nbsp; &nbsp;BUG:"; break
+                case "fatal": temp2 += "<SPAN class=\"fatal\">&nbsp; &nbsp;FATAL:"; break
               }
               if (findings[i].Severity != "meta") {
-                temp2 += " ";
+                temp2 += " "
                 if (findings[i].Field != undefined) {
-                  temp2 += "[" + findings[i].Field + "] ";
+                  temp2 += "[" + findings[i].Field + "] "
                 }
-                temp += temp2 + findings[i].Finding + "&nbsp;</SPAN><BR>";
+                temp += temp2 + findings[i].Finding + "&nbsp;</SPAN><BR>"
               }
             }
-            if (temp != "") {
-              output += "<B>" + linter + "</B> " + version + "<BR>" + temp;
-            }
-            document.getElementById("linterFindings").innerHTML = output;
+            document.getElementById("linterFindings").innerHTML = output
           }
         };
         xhttp.open("POST", "https://pkimet.al/lintcert", true);
@@ -2851,7 +2852,7 @@ Content-Type: text/plain; charset=UTF-8
       </SCRIPT>
     </TH>
     <TD class="text">
-      <DIV id="linterFindings"></DIV>
+      <DIV id="linterFindings"><I>Loading...</I></DIV>
     </TD>
   </TR>
 ';
