@@ -125,6 +125,7 @@ DECLARE
 	t_useCachedResponse	boolean			:= FALSE;
 	t_linter			linter_type;
 	t_linters			text;
+	t_showPkimetal		boolean;
 	t_showCABLint		boolean;
 	t_showX509Lint		boolean;
 	t_showZLint			boolean;
@@ -2780,133 +2781,78 @@ Content-Type: text/plain; charset=UTF-8
   </TR>
 ';
 
-		t_showCABLint := (',' || t_opt) LIKE '%,cablint,%';
-		IF t_showCABLint THEN
+		t_showPkimetal := ((',' || t_opt) LIKE '%,pkimetal,%')
+						OR ((',' || t_opt) LIKE '%,cablint,%')
+						OR ((',' || t_opt) LIKE '%,x509lint,%')
+						OR ((',' || t_opt) LIKE '%,zlint,%');
+		IF t_showPkimetal THEN
 			t_output := t_output ||
 '  <TR>
-    <TH class="outer">CA/B Forum lint<BR>
-      <DIV class="small" style="padding-top:3px">Powered by <A href="//github.com/certlint/certlint" target="_blank">certlint</A></DIV>
+    <TH class="outer">Linter Findings<BR>
+      <SPAN class="small" style="padding-top:3px">Powered by <A href="//github.com/pkimetal/pkimetal" target="_blank">pkimetal</A></SPAN>
+      <SPAN class="small" style="padding-top:3px" id="pkimetalVersion"></SPAN>
+      <SCRIPT type-"text/javascript">
+        var xhttp = new XMLHttpRequest();
+        xhttp.onreadystatechange = function() {
+          if (this.readyState == 4 && this.status == 200) {
+            var findings = JSON.parse(xhttp.responseText);
+            var linter = ""
+            var output = ""
+            var temp = ""
+            var version = ""
+            for (i in findings) {
+              var temp2 = ""
+              switch (findings[i].Severity) {
+                case "meta":
+                  m = findings[i].Finding.split(";");
+                  for (j in m) {
+                    m2 = m[j].replace("Version: ", "");
+                    if (m[j] != m2) {
+                      version = m2;
+                      break;
+                    }
+                  }
+                  break;
+                case "info": temp2 += "<SPAN>&nbsp; &nbsp; INFO:"; break;
+                case "notice": temp2 += "<SPAN class=\"notice\">&nbsp; NOTICE:"; break;
+                case "warning": temp2 += "<SPAN class=\"warning\">&nbsp;WARNING:"; break;
+                case "error": temp2 += "<SPAN class=\"error\">&nbsp; &nbsp;ERROR:"; break;
+                case "bug": temp2 += "<SPAN>&nbsp; &nbsp; &nbsp;BUG:"; break;
+                case "fatal": temp2 += "<SPAN class=\"fatal\">&nbsp; &nbsp;FATAL:"; break;
+              }
+              if (findings[i].Linter != linter) {
+                if (temp != "") {
+                  output += "<B>" + linter + "</B> " + version + ":<BR>" + temp;
+                  temp = "";
+                }
+                linter = findings[i].Linter;
+                if (linter == "pkimetal") {
+                  document.getElementById("pkimetalVersion").innerHTML = version;
+                }
+                version = "";
+              }
+              if (findings[i].Severity != "meta") {
+                temp2 += " ";
+                if (findings[i].Field != undefined) {
+                  temp2 += "[" + findings[i].Field + "] ";
+                }
+                temp += temp2 + findings[i].Finding + "&nbsp;</SPAN><BR>";
+              }
+            }
+            if (temp != "") {
+              output += "<B>" + linter + "</B> " + version + "<BR>" + temp;
+            }
+            document.getElementById("linterFindings").innerHTML = output;
+          }
+        };
+        xhttp.open("POST", "https://pkimet.al/lintcert", true);
+        xhttp.setRequestHeader("Content-Type", "application/x-www-form-urlencoded");
+        xhttp.send("severity=meta&format=json&b64cert=' || urlEncode(replace(encode(t_certificate, 'base64'), chr(10), '')) || '");
+      </SCRIPT>
     </TH>
     <TD class="text">
-';
-			FOR l_record IN (
-						SELECT substr(CABLINT, 4) ISSUE_TEXT,
-								CASE substr(CABLINT, 1, 2)
-									WHEN 'B:' THEN 1
-									WHEN 'I:' THEN 2
-									WHEN 'N:' THEN 3
-									WHEN 'F:' THEN 4
-									WHEN 'E:' THEN 5
-									WHEN 'W:' THEN 6
-									ELSE 5
-								END ISSUE_TYPE,
-								CASE substr(CABLINT, 1, 2)
-									WHEN 'B:' THEN '<SPAN>&nbsp; &nbsp; &nbsp;BUG:'
-									WHEN 'I:' THEN '<SPAN>&nbsp; &nbsp; INFO:'
-									WHEN 'N:' THEN '<SPAN class="notice">&nbsp; NOTICE:'
-									WHEN 'F:' THEN '<SPAN class="fatal">&nbsp; &nbsp;FATAL:'
-									WHEN 'E:' THEN '<SPAN class="error">&nbsp; &nbsp;ERROR:'
-									WHEN 'W:' THEN '<SPAN class="warning">&nbsp;WARNING:'
-									ELSE '<SPAN>&nbsp; &nbsp; &nbsp; &nbsp;' || substr(CABLINT, 1, 2)
-								END ISSUE_HEADING
-							FROM cablint_embedded(t_certificate) CABLINT
-							ORDER BY ISSUE_TYPE, ISSUE_TEXT
-					) LOOP
-				t_output := t_output ||
-'      ' || l_record.ISSUE_HEADING || ' ' || l_record.ISSUE_TEXT || '&nbsp;</SPAN><BR>';
-			END LOOP;
-			t_output := t_output ||
-'    </TD>
-  </TR>
-';
-		END IF;
-
-		t_showX509Lint := (',' || t_opt) LIKE '%,x509lint,%';
-		IF t_showX509Lint THEN
-			IF NOT x509_canIssueCerts(t_certificate) THEN
-				t_certType := 0;
-			ELSIF t_caID != t_issuerCAID THEN
-				t_certType := 1;
-			ELSE
-				t_certType := 2;
-			END IF;
-
-			t_output := t_output ||
-'  <TR>
-    <TH class="outer">X.509 lint<BR>
-      <DIV class="small" style="padding-top:3px">Powered by <A href="//github.com/kroeckx/x509lint" target="_blank">x509lint</A></DIV>
-    </TH>
-    <TD class="text">
-';
-			FOR l_record IN (
-						SELECT substr(X509LINT, 4) ISSUE_TEXT,
-								CASE substr(X509LINT, 1, 2)
-									WHEN 'B:' THEN 1
-									WHEN 'I:' THEN 2
-									WHEN 'N:' THEN 3
-									WHEN 'F:' THEN 4
-									WHEN 'E:' THEN 5
-									WHEN 'W:' THEN 6
-									ELSE 5
-								END ISSUE_TYPE,
-								CASE substr(X509LINT, 1, 2)
-									WHEN 'B:' THEN '<SPAN>&nbsp; &nbsp; &nbsp;BUG:'
-									WHEN 'I:' THEN '<SPAN>&nbsp; &nbsp; INFO:'
-									WHEN 'N:' THEN '<SPAN class="notice">&nbsp; NOTICE:'
-									WHEN 'F:' THEN '<SPAN class="fatal">&nbsp; &nbsp;FATAL:'
-									WHEN 'E:' THEN '<SPAN class="error">&nbsp; &nbsp;ERROR:'
-									WHEN 'W:' THEN '<SPAN class="warning">&nbsp;WARNING:'
-									ELSE '<SPAN>&nbsp; &nbsp; &nbsp; &nbsp;' || substr(X509LINT, 1, 2)
-								END ISSUE_HEADING
-							FROM x509lint_embedded(t_certificate, t_certType) X509LINT
-							ORDER BY ISSUE_TYPE, ISSUE_TEXT
-					) LOOP
-				t_output := t_output ||
-'      ' || l_record.ISSUE_HEADING || ' ' || l_record.ISSUE_TEXT || '&nbsp;</SPAN><BR>';
-			END LOOP;
-			t_output := t_output ||
-'    </TD>
-  </TR>
-';
-		END IF;
-
-		t_showZLint := (',' || t_opt) LIKE '%,zlint,%';
-		IF t_showZLint THEN
-			t_output := t_output ||
-'  <TR>
-    <TH class="outer">ZLint<BR>
-      <DIV class="small" style="padding-top:3px">Powered by <A href="//github.com/zmap/zlint" target="_blank">zlint</A></DIV>
-    </TH>
-    <TD class="text">
-';
-			FOR l_record IN (
-						SELECT substr(ZLINT, 4) ISSUE_TEXT,
-								CASE substr(ZLINT, 1, 2)
-									WHEN 'B:' THEN 1
-									WHEN 'I:' THEN 2
-									WHEN 'N:' THEN 3
-									WHEN 'F:' THEN 4
-									WHEN 'E:' THEN 5
-									WHEN 'W:' THEN 6
-									ELSE 5
-								END ISSUE_TYPE,
-								CASE substr(ZLINT, 1, 2)
-									WHEN 'B:' THEN '<SPAN>&nbsp; &nbsp; &nbsp;BUG:'
-									WHEN 'I:' THEN '<SPAN>&nbsp; &nbsp; INFO:'
-									WHEN 'N:' THEN '<SPAN class="notice">&nbsp; NOTICE:'
-									WHEN 'F:' THEN '<SPAN class="fatal">&nbsp; &nbsp;FATAL:'
-									WHEN 'E:' THEN '<SPAN class="error">&nbsp; &nbsp;ERROR:'
-									WHEN 'W:' THEN '<SPAN class="warning">&nbsp;WARNING:'
-									ELSE '<SPAN>&nbsp; &nbsp; &nbsp; &nbsp;' || substr(ZLINT, 1, 2)
-								END ISSUE_HEADING
-							FROM zlint_embedded(t_certificate) ZLINT
-							ORDER BY ISSUE_TYPE, ISSUE_TEXT
-					) LOOP
-				t_output := t_output ||
-'      ' || l_record.ISSUE_HEADING || ' ' || l_record.ISSUE_TEXT || '&nbsp;</SPAN><BR>';
-			END LOOP;
-			t_output := t_output ||
-'    </TD>
+      <DIV id="linterFindings"></DIV>
+    </TD>
   </TR>
 ';
 		END IF;
@@ -3012,19 +2958,9 @@ Content-Type: text/plain; charset=UTF-8
 '      <BR><BR><A href="?' || t_action || '=' || t_certificateID::text || t_temp || '">Show metadata</A>
 ';
 		END IF;
-		IF NOT t_showCABLint THEN
+		IF NOT t_showPkimetal THEN
 			t_output := t_output ||
-'      <BR><BR><A href="?' || t_action || '=' || t_certificateID::text || '&opt=' || t_opt || 'cablint">Run cablint</A>
-';
-		END IF;
-		IF NOT t_showX509Lint THEN
-			t_output := t_output ||
-'      <BR><BR><A href="?' || t_action || '=' || t_certificateID::text || '&opt=' || t_opt || 'x509lint">Run x509lint</A>
-';
-		END IF;
-		IF NOT t_showZLint THEN
-			t_output := t_output ||
-'      <BR><BR><A href="?' || t_action || '=' || t_certificateID::text || '&opt=' || t_opt || 'zlint">Run zlint</A>
+'      <BR><BR><A href="?' || t_action || '=' || t_certificateID::text || '&opt=' || t_opt || 'pkimetal">Run linters using pkimetal</A>
 ';
 		END IF;
 		t_output := t_output ||
