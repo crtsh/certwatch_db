@@ -35,7 +35,8 @@ BEGIN
 			WHERE cac.CA_ID = t_caID
 				AND cac.CERTIFICATE_ID = c.ID
 				AND c.ID = cc.CERTIFICATE_ID
-				AND cc.CCADB_RECORD_ID IS NOT NULL;
+				AND cc.CCADB_RECORD_ID IS NOT NULL
+			LIMIT 1;
 	END IF;
 
 	IF ignore_cert_ids IS NULL THEN
@@ -89,7 +90,7 @@ BEGIN
 				t_temp := t_temp || ']</B></FONT> ';
 			END IF;
 			t_temp := t_temp || '<A style="' || t_style || '" href="/?h=' || l_certificate.ID::text || '&opt=nometadata">' || l_certificate.ID::text || '</A> by '
-							|| '<A href="/?caid=' || l_certificate.ISSUER_CA_ID::text || '">' || l_certificate.FRIENDLY_NAME
+							|| '<A href="/?caid=' || l_certificate.ISSUER_CA_ID::text || '">' || coalesce(l_certificate.FRIENDLY_NAME, '')
 							|| '</A>&nbsp; <SPAN class="small">notAfter=' || l_certificate.NOT_AFTER::date || '&nbsp; pathLenConstraint=';
 			IF coalesce(t_pathLenConstraint, 1048576) > 1000000 THEN
 				t_temp := t_temp || 'unlimited';
