@@ -2836,11 +2836,19 @@ Content-Type: text/plain; charset=UTF-8
                 case "fatal": temp2 += "<SPAN class=\"fatal\">&nbsp; &nbsp;FATAL:"; break
               }
               if (findings[i].Severity != "meta") {
-                temp2 += " "
-                if (findings[i].Field != undefined) {
-                  temp2 += "[" + findings[i].Field + "] "
+                var hasCodeOrFinding = false
+                if (findings[i].Code != undefined) {
+                  temp2 += " " + findings[i].Code
+                  hasCodeOrFinding = true
                 }
-                temp += temp2 + findings[i].Finding + "&nbsp;</SPAN><BR>"
+                if (findings[i].Field != undefined) {
+                  temp2 += " (" + findings[i].Field + ")"
+                  hasCodeOrFinding = true
+                }
+                if (hasCodeOrFinding) {
+                  temp2 += " -"
+                }
+                temp += temp2 + " " + findings[i].Finding + "&nbsp;</SPAN><BR>"
               }
             }
             document.getElementById("linterFindings").innerHTML = output
