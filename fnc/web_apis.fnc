@@ -2491,6 +2491,11 @@ Content-Type: text/plain; charset=UTF-8
 '      <A href="' || t_temp3 || '" target="blank">CPS</A>
 ';
 					END LOOP;
+					FOREACH t_temp3 IN ARRAY string_to_array(coalesce(l_record.CP_CPS_URL, ''), '; ') LOOP
+						t_temp := t_temp ||
+'      <A href="' || t_temp3 || '" target="blank">CP/CPS</A>
+';
+					END LOOP;
 					t_temp := t_temp ||
 '    </TD>
     <TD style="vertical-align:middle">';

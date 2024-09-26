@@ -72,7 +72,12 @@ CREATE TEMPORARY TABLE ccadb_certificate_import (
 	TLS_CAPABLE					text,
 	TLSEV_CAPABLE				text,
 	CODESIGNING_CAPABLE			text,
-	SMIME_CAPABLE				text
+	SMIME_CAPABLE				text,
+	CP_SAME_AS_PARENT			text,
+	CP_LAST_UPDATED				text,
+	CPS_SAME_AS_PARENT			text,
+	CPS_LAST_UPDATED			text,
+	CP_CPS_URL					text
 ) ON COMMIT DROP;
 
 \COPY ccadb_certificate_import FROM 'ccadb_all_certificate_records.csv' CSV HEADER;
@@ -80,8 +85,7 @@ CREATE TEMPORARY TABLE ccadb_certificate_import (
 DELETE FROM ccadb_certificate_import
 	WHERE LENGTH(CERT_SHA256) != 64;
 
-CREATE TEMPORARY TABLE ccadb_certificate_temp (LIKE ccadb_certificate INCLUDING INDEXES)
-	ON COMMIT DROP;
+CREATE TEMPORARY TABLE ccadb_certificate_temp (LIKE ccadb_certificate INCLUDING INDEXES);
 
 INSERT INTO ccadb_certificate_temp (
 		CERTIFICATE_ID,
@@ -130,9 +134,14 @@ INSERT INTO ccadb_certificate_temp (
 		SMIME_AUDIT_DATE,
 		SMIME_AUDIT_START,
 		SMIME_AUDIT_END,
-		CP_CPS_SAME_AS_PARENT,
+		CP_SAME_AS_PARENT,
 		CP_URL,
+		CP_LAST_UPDATED,
+		CPS_SAME_AS_PARENT,
 		CPS_URL,
+		CPS_LAST_UPDATED,
+		CP_CPS_SAME_AS_PARENT,
+		CP_CPS_URL,
 		CP_CPS_LAST_UPDATED,
 		TEST_WEBSITE_VALID,
 		TEST_WEBSITE_EXPIRED,
@@ -272,15 +281,30 @@ INSERT INTO ccadb_certificate_temp (
 			CASE WHEN (cci.SMIME_AUDIT_END = '') THEN NULL
 				ELSE to_date(cci.SMIME_AUDIT_END, 'YYYY.MM.DD')
 			END SMIME_AUDIT_END,
-			CASE WHEN (cci.CP_CPS_SAME_AS_PARENT = '') THEN FALSE
-				ELSE (lower(cci.CP_CPS_SAME_AS_PARENT) = 'true')
-			END CP_CPS_SAME_AS_PARENT,
+			CASE WHEN (cci.CP_SAME_AS_PARENT = '') THEN FALSE
+				ELSE (lower(cci.CP_SAME_AS_PARENT) = 'true')
+			END CP_SAME_AS_PARENT,
 			CASE WHEN (cci.CP_URL = '') THEN NULL
 				ELSE cci.CP_URL
 			END CP_URL,
+			CASE WHEN (cci.CP_LAST_UPDATED = '') THEN NULL
+				ELSE to_date(cci.CP_LAST_UPDATED, 'YYYY.MM.DD')
+			END CP_LAST_UPDATED,
+			CASE WHEN (cci.CPS_SAME_AS_PARENT = '') THEN FALSE
+				ELSE (lower(cci.CPS_SAME_AS_PARENT) = 'true')
+			END CPS_SAME_AS_PARENT,
 			CASE WHEN (cci.CPS_URL = '') THEN NULL
 				ELSE cci.CPS_URL
 			END CPS_URL,
+			CASE WHEN (cci.CPS_LAST_UPDATED = '') THEN NULL
+				ELSE to_date(cci.CPS_LAST_UPDATED, 'YYYY.MM.DD')
+			END CPS_LAST_UPDATED,
+			CASE WHEN (cci.CP_CPS_SAME_AS_PARENT = '') THEN FALSE
+				ELSE (lower(cci.CP_CPS_SAME_AS_PARENT) = 'true')
+			END CP_CPS_SAME_AS_PARENT,
+			CASE WHEN (cci.CP_CPS_URL = '') THEN NULL
+				ELSE cci.CP_CPS_URL
+			END CP_CPS_URL,
 			CASE WHEN (cci.CP_CPS_LAST_UPDATED = '') THEN NULL
 				ELSE to_date(cci.CP_CPS_LAST_UPDATED, 'YYYY.MM.DD')
 			END CP_CPS_LAST_UPDATED,
@@ -467,14 +491,27 @@ BEGIN
 END $$;
 
 
-/* Handle CP/CPS inheritance.  Repeat several times, to populate several levels of Sub-CA */
-\echo Handling CP/CPS Inheritance
+/* Handle CP, CPS, and CP/CPS inheritance.  Repeat several times, to populate several levels of Sub-CA */
+\echo Handling CP, CPS, and CP/CPS Inheritance
 DO $$
 BEGIN
 	FOR i IN 1..4 LOOP
 		UPDATE ccadb_certificate_temp cct
 			SET CP_URL = coalesce(cct.CP_URL, cct_parent.CP_URL),
-				CPS_URL = coalesce(cct.CPS_URL, cct_parent.CPS_URL),
+				CP_LAST_UPDATED = coalesce(cct.CP_LAST_UPDATED, cct_parent.CP_LAST_UPDATED)
+			FROM ccadb_certificate_temp cct_parent
+			WHERE cct.CERTIFICATE_ID IS NOT NULL
+				AND cct.CP_SAME_AS_PARENT
+				AND cct.PARENT_CERTIFICATE_ID = cct_parent.CERTIFICATE_ID;
+		UPDATE ccadb_certificate_temp cct
+			SET CPS_URL = coalesce(cct.CPS_URL, cct_parent.CPS_URL),
+				CPS_LAST_UPDATED = coalesce(cct.CPS_LAST_UPDATED, cct_parent.CPS_LAST_UPDATED)
+			FROM ccadb_certificate_temp cct_parent
+			WHERE cct.CERTIFICATE_ID IS NOT NULL
+				AND cct.CPS_SAME_AS_PARENT
+				AND cct.PARENT_CERTIFICATE_ID = cct_parent.CERTIFICATE_ID;
+		UPDATE ccadb_certificate_temp cct
+			SET CP_CPS_URL = coalesce(cct.CP_CPS_URL, cct_parent.CP_CPS_URL),
 				CP_CPS_LAST_UPDATED = coalesce(cct.CP_CPS_LAST_UPDATED, cct_parent.CP_CPS_LAST_UPDATED)
 			FROM ccadb_certificate_temp cct_parent
 			WHERE cct.CERTIFICATE_ID IS NOT NULL
@@ -482,7 +519,6 @@ BEGIN
 				AND cct.PARENT_CERTIFICATE_ID = cct_parent.CERTIFICATE_ID;
 	END LOOP;
 END $$;
-
 
 /* Handle inheritance of audit details.  Repeat several times, to populate several levels of Sub-CA */
 \echo Handling Audit Inheritance
@@ -1006,8 +1042,10 @@ UPDATE ccadb_certificate_temp cct
 		AND cct.CERT_RECORD_TYPE != 'Root Certificate'
 		AND (
 			(
-				(coalesce(cct.CP_URL, cct.CPS_URL) IS NULL)
-				OR (coalesce(cct.CP_CPS_LAST_UPDATED, now() AT TIME ZONE 'UTC') < (now() AT TIME ZONE 'UTC' - interval '365 days'))
+				(coalesce(cct.CP_URL, cct.CP_CPS_URL) IS NULL)
+				OR (coalesce(cct.CPS_URL, cct.CP_CPS_URL) IS NULL)
+				OR (coalesce(coalesce(cct.CP_LAST_UPDATED, cct.CP_CPS_LAST_UPDATED), '-infinity'::timestamp) < (now() AT TIME ZONE 'UTC' - interval '365 days'))
+				OR (coalesce(coalesce(cct.CPS_LAST_UPDATED, cct.CP_CPS_LAST_UPDATED), '-infinity'::timestamp) < (now() AT TIME ZONE 'UTC' - interval '365 days'))
 				OR (cct.STANDARD_AUDIT_URL IS NULL)
 				OR (cct.STANDARD_AUDIT_TYPE IS NULL)
 				OR (cct.STANDARD_AUDIT_DATE IS NULL)
@@ -1139,8 +1177,10 @@ UPDATE ccadb_certificate_temp cct
 		AND cct.CERT_RECORD_TYPE != 'Root Certificate'
 		AND (
 			(
-				(coalesce(cct.CP_URL, cct.CPS_URL) IS NULL)
-				OR (coalesce(cct.CP_CPS_LAST_UPDATED, now() AT TIME ZONE 'UTC') < (now() AT TIME ZONE 'UTC' - interval '365 days'))
+				(coalesce(cct.CP_URL, cct.CP_CPS_URL) IS NULL)
+				OR (coalesce(cct.CPS_URL, cct.CP_CPS_URL) IS NULL)
+				OR (coalesce(coalesce(cct.CP_LAST_UPDATED, cct.CP_CPS_LAST_UPDATED), '-infinity'::timestamp) < (now() AT TIME ZONE 'UTC' - interval '365 days'))
+				OR (coalesce(coalesce(cct.CPS_LAST_UPDATED, cct.CP_CPS_LAST_UPDATED), '-infinity'::timestamp) < (now() AT TIME ZONE 'UTC' - interval '365 days'))
 				OR (cct.STANDARD_AUDIT_URL IS NULL)
 				OR (cct.STANDARD_AUDIT_TYPE IS NULL)
 				OR (cct.STANDARD_AUDIT_DATE IS NULL)
@@ -1204,8 +1244,10 @@ UPDATE ccadb_certificate_temp cct
 		AND cct.CERT_RECORD_TYPE != 'Root Certificate'
 		AND (
 			(
-				(coalesce(cct.CP_URL, cct.CPS_URL) IS NULL)
-				OR (coalesce(cct.CP_CPS_LAST_UPDATED, now() AT TIME ZONE 'UTC') < (now() AT TIME ZONE 'UTC' - interval '365 days'))
+				(coalesce(cct.CP_URL, cct.CP_CPS_URL) IS NULL)
+				OR (coalesce(cct.CPS_URL, cct.CP_CPS_URL) IS NULL)
+				OR (coalesce(coalesce(cct.CP_LAST_UPDATED, cct.CP_CPS_LAST_UPDATED), '-infinity'::timestamp) < (now() AT TIME ZONE 'UTC' - interval '365 days'))
+				OR (coalesce(coalesce(cct.CPS_LAST_UPDATED, cct.CP_CPS_LAST_UPDATED), '-infinity'::timestamp) < (now() AT TIME ZONE 'UTC' - interval '365 days'))
 				OR (cct.STANDARD_AUDIT_URL IS NULL)
 				OR (cct.STANDARD_AUDIT_TYPE IS NULL)
 				OR (cct.STANDARD_AUDIT_DATE IS NULL)
@@ -1325,8 +1367,10 @@ UPDATE ccadb_certificate_temp cct
 		AND cct.CERT_RECORD_TYPE != 'Root Certificate'
 		AND (
 			(
-				(coalesce(cct.CP_URL, cct.CPS_URL) IS NULL)
-				OR (coalesce(cct.CP_CPS_LAST_UPDATED, now() AT TIME ZONE 'UTC') < (now() AT TIME ZONE 'UTC' - interval '365 days'))
+				(coalesce(cct.CP_URL, cct.CP_CPS_URL) IS NULL)
+				OR (coalesce(cct.CPS_URL, cct.CP_CPS_URL) IS NULL)
+				OR (coalesce(coalesce(cct.CP_LAST_UPDATED, cct.CP_CPS_LAST_UPDATED), '-infinity'::timestamp) < (now() AT TIME ZONE 'UTC' - interval '365 days'))
+				OR (coalesce(coalesce(cct.CPS_LAST_UPDATED, cct.CP_CPS_LAST_UPDATED), '-infinity'::timestamp) < (now() AT TIME ZONE 'UTC' - interval '365 days'))
 				OR (cct.STANDARD_AUDIT_URL IS NULL)
 				OR (cct.STANDARD_AUDIT_TYPE IS NULL)
 				OR (cct.STANDARD_AUDIT_DATE IS NULL)
@@ -2011,7 +2055,7 @@ UPDATE ccadb_certificate_temp cct
 								AND cct2.CERTIFICATE_ID = c.ID
 								AND NOT is_technically_constrained(c.CERTIFICATE)
 								AND cct2.CCADB_RECORD_ID IS NOT NULL	-- Ignore CA certificates not in CCADB (e.g., kernel mode cross-certificates).
-							GROUP BY sort_delimited_list(cct2.CP_URL, ';'), sort_delimited_list(cct2.CPS_URL, ';')
+							GROUP BY sort_delimited_list(cct2.CP_URL, ';'), sort_delimited_list(cct2.CPS_URL, ';'), sort_delimited_list(cct2.CP_CPS_URL, ';')
 					) sub
 			) cpcps_variations ON TRUE
 	WHERE cct.MOZILLA_DISCLOSURE_STATUS = 'Disclosed'
@@ -2049,7 +2093,7 @@ UPDATE ccadb_certificate_temp cct
 								AND cct2.CERTIFICATE_ID = c.ID
 								AND NOT is_technically_constrained(c.CERTIFICATE)
 								AND cct2.CCADB_RECORD_ID IS NOT NULL	-- Ignore CA certificates not in CCADB (e.g., kernel mode cross-certificates).
-							GROUP BY sort_delimited_list(cct2.CP_URL, ';'), sort_delimited_list(cct2.CPS_URL, ';')
+							GROUP BY sort_delimited_list(cct2.CP_URL, ';'), sort_delimited_list(cct2.CPS_URL, ';'), sort_delimited_list(cct2.CP_CPS_URL, ';')
 					) sub
 			) cpcps_variations ON TRUE
 	WHERE cct.MICROSOFT_DISCLOSURE_STATUS = 'Disclosed'
@@ -2086,7 +2130,7 @@ UPDATE ccadb_certificate_temp cct
 								AND cct2.REVOCATION_STATUS NOT IN ('Revoked', 'Parent Cert Revoked')
 								AND cct2.CERTIFICATE_ID = c.ID
 								AND cct2.CCADB_RECORD_ID IS NOT NULL	-- Ignore CA certificates not in CCADB (e.g., kernel mode cross-certificates).
-							GROUP BY sort_delimited_list(cct2.CP_URL, ';'), sort_delimited_list(cct2.CPS_URL, ';')
+							GROUP BY sort_delimited_list(cct2.CP_URL, ';'), sort_delimited_list(cct2.CPS_URL, ';'), sort_delimited_list(cct2.CP_CPS_URL, ';')
 					) sub
 			) cpcps_variations ON TRUE
 	WHERE cct.APPLE_DISCLOSURE_STATUS = 'Disclosed'
@@ -2123,7 +2167,7 @@ UPDATE ccadb_certificate_temp cct
 								AND cct2.REVOCATION_STATUS NOT IN ('Revoked', 'Parent Cert Revoked')
 								AND cct2.CERTIFICATE_ID = c.ID
 								AND cct2.CCADB_RECORD_ID IS NOT NULL	-- Ignore CA certificates not in CCADB (e.g., kernel mode cross-certificates).
-							GROUP BY sort_delimited_list(cct2.CP_URL, ';'), sort_delimited_list(cct2.CPS_URL, ';')
+							GROUP BY sort_delimited_list(cct2.CP_URL, ';'), sort_delimited_list(cct2.CPS_URL, ';'), sort_delimited_list(cct2.CP_CPS_URL, ';')
 					) sub
 			) cpcps_variations ON TRUE
 	WHERE cct.CHROME_DISCLOSURE_STATUS = 'Disclosed'
@@ -2363,6 +2407,11 @@ INSERT INTO crl (
 			)
 		GROUP BY cac.CA_ID, json_crl_url;
 
+COMMIT WORK;
+
+
+BEGIN WORK;
+
 LOCK ccadb_certificate;
 
 TRUNCATE ccadb_certificate;
@@ -2372,6 +2421,7 @@ INSERT INTO ccadb_certificate
 		FROM ccadb_certificate_temp;
 
 COMMIT WORK;
+
 
 SELECT substr(web_apis(NULL, '{output,maxage}'::text[], '{mozilla-disclosures,0}'::text[]), 1, 6);
 

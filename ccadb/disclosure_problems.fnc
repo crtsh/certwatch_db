@@ -43,6 +43,12 @@ DECLARE
 	t_start2				text;
 	t_end1					text;
 	t_end2					text;
+	t_cpUrl1				text;
+	t_cpUrl2				text;
+	t_cpsUrl1				text;
+	t_cpsUrl2				text;
+	t_cpCpsUrl1				text;
+	t_cpCpsUrl2				text;
 BEGIN
 	SELECT cc.*
 		INTO t_ccadbCertificate
@@ -63,11 +69,21 @@ BEGIN
 	END IF;
 
 	IF t_disclosureStatus = 'DisclosureIncomplete' THEN
-		IF coalesce(t_ccadbCertificate.CP_URL, t_ccadbCertificate.CPS_URL) IS NULL THEN
-			t_problems := array_append(t_problems, '"Certificate Policy (CP)" and/or "Certification Practice Statement (CPS)" is required');
+		IF coalesce(t_ccadbCertificate.CP_URL, t_ccadbCertificate.CP_CPS_URL) IS NULL THEN
+			t_problems := array_append(t_problems, '"Certificate Policy (CP)" or "Certificate Practice & Policy Statement" is required');
 		END IF;
-		IF coalesce(t_ccadbCertificate.CP_CPS_LAST_UPDATED, now() AT TIME ZONE 'UTC') < (now() AT TIME ZONE 'UTC' - interval '365 days') THEN
-			t_problems := array_append(t_problems, '"CP/CPS Last Updated Date" is older than 365 days');
+		IF coalesce(t_ccadbCertificate.CP_LAST_UPDATED, t_ccadbCertificate.CP_CPS_LAST_UPDATED) IS NULL THEN
+			t_problems := array_append(t_problems, '"CP Last Updated Date" or "CP/CPS Last Updated Date" is required');
+		ELSIF coalesce(t_ccadbCertificate.CP_LAST_UPDATED, t_ccadbCertificate.CP_CPS_LAST_UPDATED) < (now() AT TIME ZONE 'UTC' - interval '365 days') THEN
+			t_problems := array_append(t_problems, '"CP Last Updated Date" or "CP/CPS Last Updated Date" is older than 365 days');
+		END IF;
+		IF coalesce(t_ccadbCertificate.CPS_URL, t_ccadbCertificate.CP_CPS_URL) IS NULL THEN
+			t_problems := array_append(t_problems, '"Certification Practice Statement (CPS)" or "Certificate Practice & Policy Statement" is required');
+		END IF;
+		IF coalesce(t_ccadbCertificate.CPS_LAST_UPDATED, t_ccadbCertificate.CP_CPS_LAST_UPDATED) IS NULL THEN
+			t_problems := array_append(t_problems, '"CPS Last Updated Date" or "CP/CPS Last Updated Date" is required');
+		ELSIF coalesce(t_ccadbCertificate.CPS_LAST_UPDATED, t_ccadbCertificate.CP_CPS_LAST_UPDATED) < (now() AT TIME ZONE 'UTC' - interval '365 days') THEN
+			t_problems := array_append(t_problems, '"CPS Last Updated Date" or "CP/CPS Last Updated Date" is older than 365 days');
 		END IF;
 		IF t_ccadbCertificate.STANDARD_AUDIT_URL IS NULL THEN
 			t_problems := array_append(t_problems, '"Standard Audit" URL is required');
@@ -360,9 +376,11 @@ BEGIN
 
 	ELSIF t_disclosureStatus = 'DisclosedWithInconsistentCPS' THEN
 		SELECT min(coalesce(cc2.CP_URL, '&lt;omitted&gt;')), max(coalesce(cc2.CP_URL, '&lt;omitted&gt;')),
-				min(coalesce(cc2.CPS_URL, '&lt;omitted&gt;')), max(coalesce(cc2.CPS_URL, '&lt;omitted&gt;'))
-			INTO t_url1, t_url2,
-				t_type1, t_type2
+				min(coalesce(cc2.CPS_URL, '&lt;omitted&gt;')), max(coalesce(cc2.CPS_URL, '&lt;omitted&gt;')),
+				min(coalesce(cc2.CP_CPS_URL, '&lt;omitted&gt;')), max(coalesce(cc2.CP_CPS_URL, '&lt;omitted&gt;'))
+			INTO t_cpUrl1, t_cpUrl2,
+				t_cpsUrl1, t_cpsUrl2,
+				t_cpCpsUrl1, t_cpCpsUrl2
 			FROM ca_certificate cac, ca_certificate cac2, ccadb_certificate cc2
 			WHERE cac.CERTIFICATE_ID = certificateID
 				AND cac.CA_ID = cac2.CA_ID
@@ -378,11 +396,14 @@ BEGIN
 				)
 				AND cac2.CERTIFICATE_ID = cc2.CERTIFICATE_ID
 				AND cc2.CCADB_RECORD_ID IS NOT NULL;	-- Ignore CA certificates not in CCADB (e.g., kernel mode cross-certificates).
-		IF sort_delimited_list(t_url1, ';') != sort_delimited_list(t_url2, ';') THEN
-			t_problems := array_append(t_problems, '"Certificate Policy (CP)" URLs: ' || t_url1 || ' != ' || t_url2);
+		IF sort_delimited_list(t_cpUrl1, ';') != sort_delimited_list(t_cpUrl2, ';') THEN
+			t_problems := array_append(t_problems, '"Certificate Policy (CP)" URLs: ' || t_cpUrl1 || ' != ' || t_cpUrl2);
 		END IF;
-		IF sort_delimited_list(t_type1, ';') != sort_delimited_list(t_type2, ';') THEN
-			t_problems := array_append(t_problems, '"Certification Practice Statement (CPS)" URLs: ' || t_type1 || ' != ' || t_type2);
+		IF sort_delimited_list(t_cpsUrl1, ';') != sort_delimited_list(t_cpsUrl2, ';') THEN
+			t_problems := array_append(t_problems, '"Certification Practice Statement (CPS)" URLs: ' || t_cpsUrl1 || ' != ' || t_cpsUrl2);
+		END IF;
+		IF sort_delimited_list(t_cpCpsUrl1, ';') != sort_delimited_list(t_cpCpsUrl2, ';') THEN
+			t_problems := array_append(t_problems, '"Certificate Practice & Policy Statement" URLs: ' || t_cpCpsUrl1 || ' != ' || t_cpCpsUrl2);
 		END IF;
 
 	END IF;
