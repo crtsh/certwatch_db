@@ -2803,6 +2803,9 @@ Content-Type: text/plain; charset=UTF-8
             var output = ""
             var temp = ""
             var version = ""
+            if (findings.length == 2 && findings[0].Linter == "pkimetal" && findings[0].Severity == "fatal") {
+              output = "<B>pkimetal</B>:<BR><SPAN class=\"fatal\">&nbsp; &nbsp;FATAL: " + findings[0].Finding + "&nbsp;</SPAN>"
+            }
             for (i in findings) {
               if (findings[i].Linter != linter) {
                 if (version != "") {
