@@ -9,6 +9,10 @@ CREATE DATABASE certwatch ENCODING=UTF8;
 
 CREATE ROLE certwatch WITH LOGIN;
 
+GRANT USAGE, CREATE ON SCHEMA public TO certwatch;
+
+ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT UPDATE, INSERT, SELECT, DELETE ON TABLES TO certwatch;
+
 CREATE ROLE guest WITH LOGIN PASSWORD 'guest';
 
 CREATE ROLE httpd WITH LOGIN PASSWORD 'httpd';
@@ -140,6 +144,7 @@ CREATE TEXT SEARCH CONFIGURATION certwatch (
     COPY = pg_catalog.simple
 );
 
+\i fnc/safe_convert_utf8.fnc
 \i fnc/identities.fnc
 
 CREATE INDEX c_identities ON certificate USING GIN (identities(CERTIFICATE));
@@ -846,7 +851,7 @@ CREATE TABLE ccadb_certificate(
 	CPS_URL							text,
 	CPS_LAST_UPDATED				text,
 	CP_CPS_SAME_AS_PARENT			boolean,
-	CP_CPS_URL						text
+	CP_CPS_URL						text,
 	CP_CPS_LAST_UPDATED				text,
 	TEST_WEBSITE_VALID				text,
 	TEST_WEBSITE_EXPIRED			text,
@@ -1059,44 +1064,44 @@ CREATE TABLE cached_response (
 
 
 GRANT SELECT ON ca TO guest;
-GRANT SELECT ON ca TO crtsh;
+GRANT SELECT ON ca TO httpd;
 
-GRANT USAGE ON ca_id_seq TO crtsh;
+GRANT USAGE ON ca_id_seq TO httpd;
 
 GRANT SELECT ON certificate TO guest;
-GRANT SELECT ON certificate TO crtsh;
+GRANT SELECT ON certificate TO httpd;
 
-GRANT USAGE ON certificate_id_seq TO crtsh;
+GRANT USAGE ON certificate_id_seq TO httpd;
 
 GRANT SELECT ON certificate_and_identities TO guest;
-GRANT SELECT ON certificate_and_identities TO crtsh;
+GRANT SELECT ON certificate_and_identities TO httpd;
 
 GRANT SELECT ON invalid_certificate TO guest;
-GRANT SELECT ON invalid_certificate TO crtsh;
+GRANT SELECT ON invalid_certificate TO httpd;
 
 GRANT SELECT ON ca_certificate TO guest;
-GRANT SELECT ON ca_certificate TO crtsh;
+GRANT SELECT ON ca_certificate TO httpd;
 
 GRANT SELECT ON crl TO guest;
-GRANT SELECT ON crl TO crtsh;
+GRANT SELECT ON crl TO httpd;
 
 GRANT SELECT ON crl_revoked TO guest;
-GRANT SELECT ON crl_revoked TO crtsh;
+GRANT SELECT ON crl_revoked TO httpd;
 
 GRANT SELECT ON ocsp_responder TO guest;
-GRANT SELECT ON ocsp_responder TO crtsh;
+GRANT SELECT ON ocsp_responder TO httpd;
 
 GRANT SELECT ON ca_issuer TO guest;
 GRANT SELECT ON ca_issuer TO httpd;
 
 GRANT SELECT ON ct_log TO guest;
-GRANT SELECT ON ct_log TO crtsh;
+GRANT SELECT ON ct_log TO httpd;
 
 GRANT SELECT ON ct_log_operator TO guest;
-GRANT SELECT ON ct_log_operator TO crtsh;
+GRANT SELECT ON ct_log_operator TO httpd;
 
 GRANT SELECT ON ct_log_entry TO guest;
-GRANT SELECT ON ct_log_entry TO crtsh;
+GRANT SELECT ON ct_log_entry TO httpd;
 
 GRANT SELECT ON accepted_roots TO guest;
 GRANT SELECT ON accepted_roots TO httpd;
@@ -1105,61 +1110,61 @@ GRANT SELECT ON linter_version TO guest;
 GRANT SELECT ON linter_version TO httpd;
 
 GRANT SELECT ON lint_issue TO guest;
-GRANT SELECT ON lint_issue TO crtsh;
+GRANT SELECT ON lint_issue TO httpd;
 
 GRANT SELECT ON lint_cert_issue TO guest;
-GRANT SELECT ON lint_cert_issue TO crtsh;
+GRANT SELECT ON lint_cert_issue TO httpd;
 
 GRANT SELECT ON lint_summary TO guest;
-GRANT SELECT ON lint_summary TO crtsh;
+GRANT SELECT ON lint_summary TO httpd;
 
 GRANT SELECT ON trust_context TO guest;
-GRANT SELECT ON trust_context TO crtsh;
+GRANT SELECT ON trust_context TO httpd;
 
 GRANT SELECT ON trust_purpose TO guest;
-GRANT SELECT ON trust_purpose TO crtsh;
+GRANT SELECT ON trust_purpose TO httpd;
 
 GRANT SELECT ON root_trust_purpose TO guest;
-GRANT SELECT ON root_trust_purpose TO crtsh;
+GRANT SELECT ON root_trust_purpose TO httpd;
 
 GRANT SELECT ON ca_trust_purpose TO guest;
-GRANT SELECT ON ca_trust_purpose TO crtsh;
+GRANT SELECT ON ca_trust_purpose TO httpd;
 
 GRANT SELECT ON applicable_purpose TO guest;
-GRANT SELECT ON applicable_purpose TO crtsh;
+GRANT SELECT ON applicable_purpose TO httpd;
 
 GRANT SELECT ON ccadb_certificate TO guest;
-GRANT SELECT ON ccadb_certificate TO crtsh;
+GRANT SELECT ON ccadb_certificate TO httpd;
 
 GRANT SELECT ON ccadb_caowner TO guest;
-GRANT SELECT ON ccadb_caowner TO crtsh;
+GRANT SELECT ON ccadb_caowner TO httpd;
 
 GRANT SELECT ON debian_weak_key TO guest;
-GRANT SELECT ON debian_weak_key TO crtsh;
+GRANT SELECT ON debian_weak_key TO httpd;
 
 GRANT SELECT ON microsoft_disallowedcert TO guest;
-GRANT SELECT ON microsoft_disallowedcert TO crtsh;
+GRANT SELECT ON microsoft_disallowedcert TO httpd;
 
 GRANT SELECT ON mozilla_onecrl TO guest;
-GRANT SELECT ON mozilla_onecrl TO crtsh;
+GRANT SELECT ON mozilla_onecrl TO httpd;
 
 GRANT SELECT ON google_revoked TO guest;
-GRANT SELECT ON google_revoked TO crtsh;
+GRANT SELECT ON google_revoked TO httpd;
 
 GRANT SELECT ON mozilla_cert_validation_success_import TO guest;
-GRANT SELECT ON mozilla_cert_validation_success_import TO crtsh;
+GRANT SELECT ON mozilla_cert_validation_success_import TO httpd;
 
 GRANT SELECT ON mozilla_cert_validation_success TO guest;
-GRANT SELECT ON mozilla_cert_validation_success TO crtsh;
+GRANT SELECT ON mozilla_cert_validation_success TO httpd;
 
 GRANT SELECT ON mozilla_root_hashes TO guest;
-GRANT SELECT ON mozilla_root_hashes TO crtsh;
+GRANT SELECT ON mozilla_root_hashes TO httpd;
 
 GRANT SELECT ON bugzilla_bug TO guest;
 GRANT SELECT ON bugzilla_bug TO httpd;
 
 GRANT SELECT ON cached_response TO guest;
-GRANT SELECT ON cached_response TO crtsh;
+GRANT SELECT ON cached_response TO httpd;
 
 
 \i fnc/ci_error_message.fnc
