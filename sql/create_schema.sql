@@ -303,10 +303,16 @@ CREATE TABLE ca_issuer (
 );
 
 
+CREATE TYPE ct_log_type AS ENUM (
+	'rfc6962', 'static'
+);
+
 CREATE TABLE ct_log (
 	ID							integer,
 	OPERATOR					text,
+	TYPE						ct_log_type	DEFAULT 'rfc6962'	NOT NULL,
 	URL							text,
+	SUBMISSION_URL				text,
 	NAME						text,
 	PUBLIC_KEY					bytea,
 	IS_ACTIVE					boolean,
@@ -330,7 +336,9 @@ CREATE TABLE ct_log (
 	CONSTRAINT ctl_pk
 		PRIMARY KEY (ID),
 	CONSTRAINT ctl_url_unq
-		UNIQUE (URL)
+		UNIQUE (URL),
+	CONSTRAINT ctl_reqconcurrent_chk
+		CHECK (REQUESTS_CONCURRENT > 1)
 );
 
 CREATE UNIQUE INDEX ctl_sha256_pubkey
