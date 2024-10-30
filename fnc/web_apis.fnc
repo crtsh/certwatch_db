@@ -179,6 +179,7 @@ DECLARE
 	t_onlyOneChain		boolean;
 	t_isJSONOutputSupported    boolean	:= FALSE;
 	t_showSQL			boolean			:= FALSE;
+	t_sanSometimes		boolean			:= FALSE;
 	c_resultLimit	CONSTANT	integer	:= 10000;
 BEGIN
 	FOR t_paramNo IN 1..array_length(c_params, 1) LOOP
@@ -4170,6 +4171,14 @@ $.ajax({
 			t_count := 0;
 			FOR l_record IN EXECUTE t_query
 							USING t_caID, t_value, t_minNotBefore LOOP
+				IF nullif(l_record.SUBJECT_NAME, '') IS NULL THEN
+					SELECT array_to_string(array_agg(x509_altNames), CHR(10))
+						INTO l_record.SUBJECT_NAME
+						FROM certificate c, x509_altNames(c.CERTIFICATE)
+						WHERE c.ID = l_record.ID;
+					t_sanSometimes := TRUE;
+				END IF;
+
 				t_count := t_count + l_record.RESULT_COUNT;
 				t_text := t_text ||
 '  <TR>
@@ -4277,7 +4286,11 @@ $.ajax({
 ';
 				END IF;
 				t_output := t_output ||
-'    <TH>Subject Name</TH>
+'    <TH>Subject Name';
+				IF t_sanSometimes THEN
+					t_output := t_output || ' or (when empty then) SAN';
+				END IF;
+				t_output := t_output || '</TH>
   </TR>
 ' || t_text ||
 '</TABLE>
