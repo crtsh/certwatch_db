@@ -3962,6 +3962,7 @@ $.ajax({
 '  <SPAN style="position:absolute">
     &nbsp; &nbsp; &nbsp; <A href="atom?' || t_temp || '"><IMG src="/feed-icon-28x28.png"></A>
     <A href="csv?' || t_temp || '"><IMG src="/csv-icon-28x28.png"></A>
+    <A href="json?' || t_temp || '"><IMG src="/json-icon-28x28.png"></A>
     &nbsp; &nbsp; &nbsp; <A style="font-size:8pt" href="?' || t_temp || '&dir=' || t_direction || '&sort=' || t_sort::text;
 				IF t_groupBy = 'none' THEN
 					t_output := t_output || '&group=icaid">Group';
