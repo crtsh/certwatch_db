@@ -180,6 +180,7 @@ DECLARE
 	t_isJSONOutputSupported    boolean	:= FALSE;
 	t_showSQL			boolean			:= FALSE;
 	t_sanSometimes		boolean			:= FALSE;
+	t_csvHeaders		text;
 	c_resultLimit	CONSTANT	integer	:= 10000;
 BEGIN
 	FOR t_paramNo IN 1..array_length(c_params, 1) LOOP
@@ -317,7 +318,7 @@ BEGIN
 Content-Type: application/json
 [END_HEADERS]
 ';
-	ELSIF t_outputType NOT IN ('html', 'atom') THEN
+	ELSIF t_outputType NOT IN ('html', 'atom', 'csv') THEN
 		RAISE no_data_found USING MESSAGE = 'Unsupported output type: ' || html_escape(t_outputType);
 	END IF;
 
@@ -3960,6 +3961,7 @@ $.ajax({
 				t_output := t_output ||
 '  <SPAN style="position:absolute">
     &nbsp; &nbsp; &nbsp; <A href="atom?' || t_temp || '"><IMG src="/feed-icon-28x28.png"></A>
+    <A href="csv?' || t_temp || '"><IMG src="/csv-icon-28x28.png"></A>
     &nbsp; &nbsp; &nbsp; <A style="font-size:8pt" href="?' || t_temp || '&dir=' || t_direction || '&sort=' || t_sort::text;
 				IF t_groupBy = 'none' THEN
 					t_output := t_output || '&group=icaid">Group';
@@ -4690,8 +4692,50 @@ $.ajax({
 					t_temp2 := t_temp2 || '</TD>
   </TR>
 ';
+				ELSIF t_outputType = 'csv' THEN
+					IF coalesce(t_groupBy, '') = 'none' THEN
+						t_temp2 := t_temp2 || l_record.ID::text
+									|| ',' || coalesce(to_char(l_record.ENTRY_TIMESTAMP, 'YYYY-MM-DD'), '&nbsp;')
+									|| ',' || to_char(l_record.NOT_BEFORE, 'YYYY-MM-DD')
+									|| ',' || to_char(l_record.NOT_AFTER, 'YYYY-MM-DD');
+						t_csvHeaders := 'crt.sh ID,Logged At,Not Before,Not After';
+						IF t_commonName_field IS NOT NULL THEN
+							t_temp2 := t_temp2 || ',"' || coalesce(replace(l_record.COMMON_NAME, '"', '\"'), '') || '"';
+							t_csvHeaders := t_csvHeaders || ',Common Name';
+						END IF;
+					ELSIF (l_record.NUM_CERTS = 1)
+							AND (l_record.ID IS NOT NULL) THEN
+						t_temp2 := t_temp2 || ',' || l_record.ID::text
+											|| ',' || l_record.NUM_CERTS::text;
+						t_csvHeaders := 'crt.sh ID,# of Certificates';
+					ELSE
+						t_temp2 := t_temp2 || ',' || l_record.NUM_CERTS::text;
+						t_csvHeaders := '# of Certificates';
+					END IF;
+					IF t_showIdentity THEN
+						t_temp2 := t_temp2 || ',"' || coalesce(replace(l_record.NAME_VALUE, '"', '\"'), '') || '"';
+						t_csvHeaders := t_csvHeaders || ',Matching Identities';
+					END IF;
+					IF l_record.ISSUER_CA_ID IS NOT NULL THEN
+						t_temp2 := t_temp2 || ',"' || coalesce(replace(l_record.ISSUER_NAME, '"', '\"'), '') || '"';
+					ELSE
+						t_temp2 := t_temp2 || ',"' || coalesce(replace(l_record.ISSUER_NAME, '"', '\"'), '?') || '"';
+					END IF;
+					t_csvHeaders := t_csvHeaders || ',Issuer Name';
+					IF lower(t_type) LIKE '%lint' THEN
+						SELECT cc.INCLUDED_CERTIFICATE_OWNER
+							INTO t_temp
+							FROM ca_certificate cac, ccadb_certificate cc
+							WHERE cac.CA_ID = l_record.ISSUER_CA_ID
+								AND cac.CERTIFICATE_ID = cc.CERTIFICATE_ID
+							GROUP BY cc.INCLUDED_CERTIFICATE_OWNER
+							ORDER BY count(*) DESC
+							LIMIT 1;
+						t_temp2 := t_temp2 || ',"' || coalesce(replace(t_temp, '"', '\"'), '') || '"';
+						t_csvHeaders := t_csvHeaders || ',CA Owner';
+					END IF;
 				END IF;
-				t_text := t_text || t_temp2;
+				t_text := t_text || t_temp2 || chr(10);
 			END LOOP;
 
 			IF (t_outputType = 'html') AND (t_count >= c_resultLimit) THEN
@@ -4859,6 +4903,14 @@ Content-Type: application/atom+xml
 ';
 			ELSIF t_outputType = 'json' THEN
 				t_output := t_output || ']';
+			ELSIF t_outputType = 'csv' THEN
+				t_output :=
+'[BEGIN_HEADERS]
+Cache-Control: max-age=' || t_cacheControlMaxAge::text || '
+Content-Disposition: attachment; filename="' || (now()::date)::text || '_' || regexp_replace(t_value, '\W+', '', 'g') || '.csv"
+Content-Type: text/csv
+[END_HEADERS]
+' || t_csvHeaders || chr(10) || t_text;
 			END IF;
 		END IF;
 
