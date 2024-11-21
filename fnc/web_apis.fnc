@@ -1083,13 +1083,15 @@ Content-Type: application/json
 '  <SPAN class="whiteongrey">Monitored Logs</SPAN>
   <BR>
   <TABLE>
-    <TR><TD colspan="14" class="heading">CT Logs currently monitored';
+    <TR><TD colspan="16" class="heading">CT Logs currently monitored';
 		IF t_temp IN ('chrome', 'chromium') THEN
 			t_output := t_output || ' (that are Usable with Chrome)';
 		ELSIF t_temp = 'apple' THEN
 			t_output := t_output || ' (that are Usable with Apple browsers)';
 		ELSIF t_temp = 'microsoft' THEN
 			t_output := t_output || ' (that are Usable with Microsoft)';
+		ELSIF t_temp = 'mozilla' THEN
+			t_output := t_output || ' (that are Admissible with Mozilla)';
 		END IF;
 		t_output := t_output || ':</TD></TR>
     <TR>
@@ -1105,6 +1107,8 @@ Content-Type: application/json
       <TH style="border-left:2px solid black"><A href="monitored-logs?recognizedBy=Apple">Apple</A>:</TH>
       <TH rowspan="2"><A href="accepted-roots-missing"># Roots<BR>Missing</A></TH>
       <TH style="border-left:2px solid black"><A href="monitored-logs?recognizedBy=Microsoft">Microsoft</A>:</TH>
+      <TH style="border-left:2px solid black"><A href="monitored-logs?recognizedBy=Mozilla">Mozilla</A>:</TH>
+      <TH rowspan="2"><A href="accepted-roots-missing"># Roots<BR>Missing</A></TH>
     </TR>
     <TR>
       <TH>Tree Size</TH>
@@ -1112,8 +1116,9 @@ Content-Type: application/json
       <TH>Latest Entry Age</TH>
       <TH style="border-left:2px solid black"><A href="//www.gstatic.com/ct/compliance/endpoint_uptime.csv">Uptime %</A></TH>
       <TH style="border-left:2px solid black">Status (added)</TH>
-      <TH style="border-left:2px solid black">Status (since)</TH>
+      <TH style="border-left:2px solid black">Status <SPAN style="font-weight:normal">[since]</SPAN></TH>
       <TH style="border-left:2px solid black">Status</TH>
+      <TH style="border-left:2px solid black">Status <SPAN style="font-weight:normal">[since]</SPAN></TH>
     </TR>';
 		t_count := 0;
 		FOR l_record IN (
@@ -1134,17 +1139,23 @@ Content-Type: application/json
 								ELSE ';color:#008800'
 							END UPTIME_FONT_STYLE,
 							chrome.CHROME_NUM_MISSING_ROOTS,
-							CASE WHEN ctl.CHROME_INCLUSION_STATUS NOT IN ('Qualified', 'Usable') THEN '#CCCCCC'
+							CASE WHEN coalesce(ctl.CHROME_INCLUSION_STATUS, 'Pending') NOT IN ('Qualified', 'Usable') THEN '#CCCCCC'
 								WHEN chrome.CHROME_NUM_MISSING_ROOTS > 0 THEN '#FF0000'
 								ELSE '#008800'
 							END CHROME_NUM_MISSING_ROOTS_COLOUR,
 							ctl.APPLE_INCLUSION_STATUS, ctl.APPLE_LAST_STATUS_CHANGE,
 							apple.APPLE_NUM_MISSING_ROOTS,
-							CASE WHEN ctl.APPLE_INCLUSION_STATUS NOT IN ('Qualified', 'Usable') THEN '#CCCCCC'
+							CASE WHEN coalesce(ctl.APPLE_INCLUSION_STATUS, 'Pending') NOT IN ('Qualified', 'Usable') THEN '#CCCCCC'
 								WHEN apple.APPLE_NUM_MISSING_ROOTS > 0 THEN '#FF0000'
 								ELSE '#008800'
 							END APPLE_NUM_MISSING_ROOTS_COLOUR,
-							ctl.MICROSOFT_INCLUSION_STATUS
+							ctl.MICROSOFT_INCLUSION_STATUS,
+							ctl.MOZILLA_INCLUSION_STATUS, ctl.MOZILLA_LAST_STATUS_CHANGE,
+							mozilla.MOZILLA_NUM_MISSING_ROOTS,
+							CASE WHEN coalesce(ctl.MOZILLA_INCLUSION_STATUS, 'Pending') NOT IN ('Admissible', 'Qualified', 'Usable') THEN '#CCCCCC'
+								WHEN mozilla.MOZILLA_NUM_MISSING_ROOTS > 0 THEN '#FF0000'
+								ELSE '#008800'
+							END MOZILLA_NUM_MISSING_ROOTS_COLOUR
 						FROM ct_log ctl
 								LEFT OUTER JOIN ct_log_operator ctlo ON (ctl.OPERATOR = ctlo.OPERATOR)
 								LEFT JOIN LATERAL (
@@ -1188,6 +1199,21 @@ Content-Type: application/json
 												WHERE ar.CT_LOG_ID = ctl.ID
 										) sub
 								) apple ON TRUE
+								LEFT JOIN LATERAL (
+									SELECT count(DISTINCT sub.CERTIFICATE_ID) AS MOZILLA_NUM_MISSING_ROOTS
+										FROM (
+											SELECT rtp.CERTIFICATE_ID
+												FROM root_trust_purpose rtp
+												WHERE rtp.TRUST_CONTEXT_ID = 5  -- Mozilla.
+													AND rtp.TRUST_PURPOSE_ID = 1  -- Server Authentication.
+													AND 'now' AT TIME ZONE 'UTC' < coalesce(rtp.DISABLED_FROM, 'infinity'::timestamp)
+													AND 'now' AT TIME ZONE 'UTC' - interval '398 days' < coalesce(rtp.NOTBEFORE_UNTIL, 'infinity'::timestamp)
+											EXCEPT
+											SELECT ar.CERTIFICATE_ID
+												FROM accepted_roots ar
+												WHERE ar.CT_LOG_ID = ctl.ID
+										) sub
+								) mozilla ON TRUE
 						WHERE ctl.IS_ACTIVE
 							AND ctl.OPERATOR = coalesce(t_operator, ctl.OPERATOR)
 						ORDER BY ctl.TREE_SIZE DESC NULLS LAST
@@ -1197,6 +1223,8 @@ Content-Type: application/json
 			ELSIF (t_temp = 'apple') AND (coalesce(l_record.APPLE_INCLUSION_STATUS, '') != 'Usable') THEN
 				CONTINUE;
 			ELSIF (t_temp = 'microsoft') AND (coalesce(l_record.MICROSOFT_INCLUSION_STATUS, '') != 'Usable') THEN
+				CONTINUE;
+			ELSIF (t_temp = 'mozilla') AND (coalesce(l_record.MOZILLA_INCLUSION_STATUS, '') NOT IN ('Admissible', 'Usable')) THEN
 				CONTINUE;
 			END IF;
 
@@ -1234,13 +1262,23 @@ Content-Type: application/json
 			t_output := t_output ||
 '      </TD>
       <TD><SPAN style="color:' || l_record.CHROME_NUM_MISSING_ROOTS_COLOUR || '">' || l_record.CHROME_NUM_MISSING_ROOTS::text || '</SPAN></TD>
-      <TD style="border-left:2px solid black">' || coalesce(l_record.APPLE_INCLUSION_STATUS, '');
-			IF l_record.APPLE_LAST_STATUS_CHANGE IS NOT NULL THEN
-				t_output := t_output || ' <SPAN class="small">(' || to_char(l_record.APPLE_LAST_STATUS_CHANGE, 'YYYY-MM-DD HH24:MI:SS') || ')</SPAN>';
+      <TD style="border-left:2px solid black">';
+			IF l_record.APPLE_LAST_STATUS_CHANGE IS NULL THEN
+				t_output := t_output || coalesce(l_record.APPLE_INCLUSION_STATUS, '');
+			ELSE
+				t_output := t_output || '<A title="' || to_char(l_record.APPLE_LAST_STATUS_CHANGE, 'YYYY-MM-DD HH24:MI:SS') || '">' || coalesce(l_record.APPLE_INCLUSION_STATUS, '') || '</A';
 			END IF;
 			t_output := t_output || '</TD>
       <TD><SPAN style="color:' || l_record.APPLE_NUM_MISSING_ROOTS_COLOUR || '">' || l_record.APPLE_NUM_MISSING_ROOTS::text || '</SPAN></TD>
-      <TD style="border-left:2px solid black">' || coalesce(l_record.MICROSOFT_INCLUSION_STATUS, '') || '
+      <TD style="border-left:2px solid black">' || coalesce(l_record.MICROSOFT_INCLUSION_STATUS, '') || '</TD>
+      <TD style="border-left:2px solid black">';
+			IF l_record.MOZILLA_LAST_STATUS_CHANGE IS NULL THEN
+				t_output := t_output || coalesce(l_record.MOZILLA_INCLUSION_STATUS, '');
+			ELSE
+				t_output := t_output || '<A title="' || to_char(l_record.MOZILLA_LAST_STATUS_CHANGE, 'YYYY-MM-DD HH24:MI:SS') || '">' || coalesce(l_record.MOZILLA_INCLUSION_STATUS, '') || '</A>';
+			END IF;
+			t_output := t_output || '</TD>
+      <TD><SPAN style="color:' || l_record.MOZILLA_NUM_MISSING_ROOTS_COLOUR || '">' || l_record.MOZILLA_NUM_MISSING_ROOTS::text || '</SPAN></TD>
     </TR>';
 		END LOOP;
 
@@ -1249,11 +1287,11 @@ Content-Type: application/json
       <TD colspan="4" style="border:0px"></TD>
       <TD>TOTAL</TD>
       <TD>' || t_count::text || ' </TD>
-      <TD colspan="8" style="border:0px"></TD>
+      <TD colspan="10" style="border:0px"></TD>
     </TR>
   </TABLE>
   <TABLE>
-    <TR><TD colspan="10" class="heading">CT Logs no longer monitored:</TD></TR>
+    <TR><TD colspan="11" class="heading">CT Logs no longer monitored:</TD></TR>
     <TR>
       <TH rowspan="2">Operator</TH>
       <TH rowspan="2">URL</TH>
@@ -1264,12 +1302,14 @@ Content-Type: application/json
       <TH rowspan="2"><A href="monitored-logs?recognizedBy=Chrome">Chrome</A> Status (Final<BR>Tree Size or Disqualified At)</TH>
       <TH>Apple</TH>
       <TH>Microsoft</TH>
+      <TH>Mozilla</TH>
     </TR>
     <TR>
       <TH>Tree Size</TH>
       <TH>Backlog</TH>
-      <TH>Status (since)</TH>
+      <TH>Status <SPAN style="font-weight:normal">[since]</SPAN></TH>
       <TH>Status</TH>
+      <TH>Status <SPAN style="font-weight:normal">[since]</SPAN></TH>
     </TR>';
 		FOR l_record IN (
 			SELECT ctl.ID, ctl.OPERATOR,
@@ -1280,7 +1320,8 @@ Content-Type: application/json
 					ctl.CHROME_VERSION_ADDED, ctl.CHROME_ISSUE_NUMBER, ctl.CHROME_INCLUSION_STATUS,
 					ctl.CHROME_FINAL_TREE_SIZE, ctl.CHROME_DISQUALIFIED_AT,
 					ctl.APPLE_INCLUSION_STATUS, ctl.APPLE_LAST_STATUS_CHANGE,
-					ctl.MICROSOFT_INCLUSION_STATUS
+					ctl.MICROSOFT_INCLUSION_STATUS,
+					ctl.MOZILLA_INCLUSION_STATUS, ctl.MOZILLA_LAST_STATUS_CHANGE
 				FROM ct_log ctl
 						LEFT OUTER JOIN ct_log_operator ctlo ON (ctl.OPERATOR = ctlo.OPERATOR)
 						LEFT JOIN LATERAL (
@@ -1298,6 +1339,8 @@ Content-Type: application/json
 			ELSIF (t_temp = 'apple') AND (coalesce(l_record.APPLE_INCLUSION_STATUS, '') != 'Usable') THEN
 				CONTINUE;
 			ELSIF (t_temp = 'microsoft') AND (coalesce(l_record.MICROSOFT_INCLUSION_STATUS, '') != 'Usable') THEN
+				CONTINUE;
+			ELSIF (t_temp = 'mozilla') AND (coalesce(l_record.MOZILLA_INCLUSION_STATUS, '') NOT IN ('Admissible', 'Usable')) THEN
 				CONTINUE;
 			END IF;
 
@@ -1331,12 +1374,21 @@ Content-Type: application/json
 			END IF;
 			t_output := t_output ||
 '      </TD>
-      <TD>' || coalesce(l_record.APPLE_INCLUSION_STATUS, '');
-			IF l_record.APPLE_LAST_STATUS_CHANGE IS NOT NULL THEN
-				t_output := t_output || ' <SPAN class="small">(' || to_char(l_record.APPLE_LAST_STATUS_CHANGE, 'YYYY-MM-DD HH24:MI:SS') || ')</SPAN>';
+      <TD>';
+			IF l_record.APPLE_LAST_STATUS_CHANGE IS NULL THEN
+				t_output := t_output || coalesce(l_record.APPLE_INCLUSION_STATUS, '');
+			ELSE
+				t_output := t_output || '<A title="' || to_char(l_record.APPLE_LAST_STATUS_CHANGE, 'YYYY-MM-DD HH24:MI:SS') || '">' || coalesce(l_record.APPLE_INCLUSION_STATUS, '') || '</A';
 			END IF;
 			t_output := t_output || '</TD>
       <TD>' || coalesce(l_record.MICROSOFT_INCLUSION_STATUS, '') || '</TD>
+      <TD>';
+			IF l_record.MOZILLA_LAST_STATUS_CHANGE IS NULL THEN
+				t_output := t_output || coalesce(l_record.MOZILLA_INCLUSION_STATUS, '');
+			ELSE
+				t_output := t_output || '<A title="' || to_char(l_record.MOZILLA_LAST_STATUS_CHANGE, 'YYYY-MM-DD HH24:MI:SS') || '">' || coalesce(l_record.MOZILLA_INCLUSION_STATUS, '') || '</A>';
+			END IF;
+			t_output := t_output || '</TD>
     </TR>';
 		END LOOP;
 		t_output := t_output || '
@@ -1353,6 +1405,7 @@ Content-Type: application/json
   <BR><BR>Similarly, <A href="//support.apple.com/en-us/HT209255" target="_blank">the Apple CT log program</A> requires logs to
   <A href="//support.apple.com/en-us/HT209255#:~:text=trust%20all%20root%20CA%20certificates%20included%20in%20Apple%27s%20trust%20store" target="_blank">
     <I>"trust all root CA certificates included in Apple''s trust store"</I></A>.
+  <BR><BR>Also, it is expected that the forthcoming Mozilla CT log program will require logs to trust all root CA certificates that have the Websites trust bit set in Mozilla''s trust store.
   <BR><BR>
   <TABLE>
     <TR>
@@ -1407,6 +1460,24 @@ Content-Type: application/json
 							AND 'now' AT TIME ZONE 'UTC' < coalesce(rtp.DISABLED_FROM, 'infinity'::timestamp)
 							AND 'now' AT TIME ZONE 'UTC' - interval '398 days' < coalesce(rtp.NOTBEFORE_UNTIL, 'infinity'::timestamp)
 							AND ctl.APPLE_INCLUSION_STATUS IN ('Qualified', 'Usable')  -- Can't determine "Pending".
+							AND NOT EXISTS (
+								SELECT 1
+									FROM accepted_roots ar
+									WHERE ar.CERTIFICATE_ID = rtp.CERTIFICATE_ID
+										AND ar.CT_LOG_ID = ctl.ID
+							)
+					UNION
+					SELECT ctl.URL, 'Mozilla [' || ctl.MOZILLA_INCLUSION_STATUS || ']' AS STATUS,
+							rtp.CERTIFICATE_ID, get_ca_name_attribute(cac.CA_ID) FRIENDLY_NAME,
+							rtp.TRUST_CONTEXT_ID
+						FROM root_trust_purpose rtp
+								JOIN ca_certificate cac ON (rtp.CERTIFICATE_ID = cac.CERTIFICATE_ID)
+								JOIN ct_log ctl ON true
+						WHERE rtp.TRUST_CONTEXT_ID = 5  -- 5=Mozilla.
+							AND rtp.TRUST_PURPOSE_ID = 1  -- Server Authentication.
+							AND 'now' AT TIME ZONE 'UTC' < coalesce(rtp.DISABLED_FROM, 'infinity'::timestamp)
+							AND 'now' AT TIME ZONE 'UTC' - interval '398 days' < coalesce(rtp.NOTBEFORE_UNTIL, 'infinity'::timestamp)
+							AND ctl.MOZILLA_INCLUSION_STATUS IN ('Admissible', 'Qualified', 'Usable')  -- Can't determine "Pending".
 							AND NOT EXISTS (
 								SELECT 1
 									FROM accepted_roots ar
