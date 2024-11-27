@@ -270,6 +270,7 @@ BEGIN
 					BEGIN
 						t_bytea := decode(substr(t_value, 8), 'base64');
 						t_value := substr(t_value, 8);
+						t_isJSONOutputSupported := TRUE;
 						EXIT;
 					EXCEPTION
 						WHEN OTHERS THEN
@@ -277,7 +278,10 @@ BEGIN
 					END;
 				END IF;
 			ELSIF t_type IN ('Serial Number', 'Subject Key Identifier') THEN
-				EXIT WHEN t_bytea IS NOT NULL;
+				IF t_bytea IS NOT NULL THEN
+					t_isJSONOutputSupported := TRUE;
+					EXIT;
+				END IF;
 			ELSE
 				t_type := 'Invalid value';
 				EXIT;
@@ -4033,8 +4037,14 @@ $.ajax({
 '  <SPAN style="position:absolute">
     &nbsp; &nbsp; &nbsp; <A href="atom?' || t_temp || '"><IMG src="/feed-icon-28x28.png"></A>
     <A href="csv?' || t_temp || '"><IMG src="/csv-icon-28x28.png"></A>
-    <A href="json?' || t_temp || '"><IMG src="/json-icon-28x28.png"></A>
-    &nbsp; &nbsp; &nbsp; <A style="font-size:8pt" href="?' || t_temp || '&dir=' || t_direction || '&sort=' || t_sort::text;
+';
+				IF t_isJSONOutputSupported THEN
+					t_output := t_output ||
+'				<A href="json?' || t_temp || '"><IMG src="/json-icon-28x28.png"></A>
+';
+				END IF;
+				t_output := t_output ||
+'    &nbsp; &nbsp; &nbsp; <A style="font-size:8pt" href="?' || t_temp || '&dir=' || t_direction || '&sort=' || t_sort::text;
 				IF t_groupBy = 'none' THEN
 					t_output := t_output || '&group=icaid">Group';
 				ELSE
