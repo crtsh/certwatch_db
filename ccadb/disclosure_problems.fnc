@@ -266,6 +266,7 @@ BEGIN
 							AND ctp.IS_TIME_VALID
 				)
 				AND cac2.CERTIFICATE_ID = cc2.CERTIFICATE_ID
+				AND cc2.REVOCATION_STATUS NOT IN ('Revoked', 'Parent Cert Revoked')
 				AND cc2.CCADB_RECORD_ID IS NOT NULL;	-- Ignore CA certificates not in CCADB (e.g., kernel mode cross-certificates).
 		IF t_caOwner1 != t_caOwner2 THEN
 			t_problems := array_append(t_problems, '"(Subordinate) CA Owner"s: "' || replace(html_escape(t_caOwner1), ' ', '&nbsp;') || '" != "' || replace(html_escape(t_caOwner2), ' ', '&nbsp;') || '"');
@@ -311,6 +312,7 @@ BEGIN
 							AND ctp.IS_TIME_VALID
 				)
 				AND cac2.CERTIFICATE_ID = cc2.CERTIFICATE_ID
+				AND cc2.REVOCATION_STATUS NOT IN ('Revoked', 'Parent Cert Revoked')
 				AND cc2.CCADB_RECORD_ID IS NOT NULL;	-- Ignore CA certificates not in CCADB (e.g., kernel mode cross-certificates).
 		IF FOUND THEN
 			IF t_url1 != t_url2 THEN
@@ -355,6 +357,7 @@ BEGIN
 							AND ctp.IS_TIME_VALID
 				)
 				AND cac2.CERTIFICATE_ID = cc2.CERTIFICATE_ID
+				AND cc2.REVOCATION_STATUS NOT IN ('Revoked', 'Parent Cert Revoked')
 				AND cc2.CCADB_RECORD_ID IS NOT NULL;	-- Ignore CA certificates not in CCADB (e.g., kernel mode cross-certificates).
 		IF FOUND THEN
 			IF t_url1 != t_url2 THEN
