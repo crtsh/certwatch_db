@@ -1059,11 +1059,12 @@ UPDATE ccadb_certificate_temp cct
 				OR (cct.STANDARD_AUDIT_DATE IS NULL)
 				OR (cct.STANDARD_AUDIT_START IS NULL)
 				OR (cct.STANDARD_AUDIT_END IS NULL)
-				OR (cct.NETSEC_AUDIT_URL IS NULL)
+				-- TODO: Standalone NetSec audits will be required by MRSP 3.0. Uncomment these lines once every CA should have one.
+/*				OR (cct.NETSEC_AUDIT_URL IS NULL)
 				OR (cct.NETSEC_AUDIT_TYPE IS NULL)
 				OR (cct.NETSEC_AUDIT_DATE IS NULL)
 				OR (cct.NETSEC_AUDIT_START IS NULL)
-				OR (cct.NETSEC_AUDIT_END IS NULL)
+				OR (cct.NETSEC_AUDIT_END IS NULL)*/
 			)
 			OR (
 				EXISTS (
@@ -1218,11 +1219,12 @@ UPDATE ccadb_certificate_temp cct
 				OR (cct.STANDARD_AUDIT_DATE IS NULL)
 				OR (cct.STANDARD_AUDIT_START IS NULL)
 				OR (cct.STANDARD_AUDIT_END IS NULL)
-				OR (cct.NETSEC_AUDIT_URL IS NULL)
+				-- TODO: Uncomment these lines once every CA should have a Standalone NetSec audit.
+/*				OR (cct.NETSEC_AUDIT_URL IS NULL)
 				OR (cct.NETSEC_AUDIT_TYPE IS NULL)
 				OR (cct.NETSEC_AUDIT_DATE IS NULL)
 				OR (cct.NETSEC_AUDIT_START IS NULL)
-				OR (cct.NETSEC_AUDIT_END IS NULL)
+				OR (cct.NETSEC_AUDIT_END IS NULL)*/
 			)
 			OR (
 				EXISTS (
@@ -1328,11 +1330,12 @@ UPDATE ccadb_certificate_temp cct
 				OR (cct.STANDARD_AUDIT_DATE IS NULL)
 				OR (cct.STANDARD_AUDIT_START IS NULL)
 				OR (cct.STANDARD_AUDIT_END IS NULL)
-				OR (cct.NETSEC_AUDIT_URL IS NULL)
+				-- TODO: Uncomment these lines once every CA should have a Standalone NetSec audit.
+/*				OR (cct.NETSEC_AUDIT_URL IS NULL)
 				OR (cct.NETSEC_AUDIT_TYPE IS NULL)
 				OR (cct.NETSEC_AUDIT_DATE IS NULL)
 				OR (cct.NETSEC_AUDIT_START IS NULL)
-				OR (cct.NETSEC_AUDIT_END IS NULL)
+				OR (cct.NETSEC_AUDIT_END IS NULL)*/
 			)
 			OR (
 				EXISTS (
@@ -1474,11 +1477,12 @@ UPDATE ccadb_certificate_temp cct
 				OR (cct.STANDARD_AUDIT_DATE IS NULL)
 				OR (cct.STANDARD_AUDIT_START IS NULL)
 				OR (cct.STANDARD_AUDIT_END IS NULL)
-				OR (cct.NETSEC_AUDIT_URL IS NULL)
+				-- TODO: Uncomment these lines once every CA should have a Standalone NetSec audit.
+/*				OR (cct.NETSEC_AUDIT_URL IS NULL)
 				OR (cct.NETSEC_AUDIT_TYPE IS NULL)
 				OR (cct.NETSEC_AUDIT_DATE IS NULL)
 				OR (cct.NETSEC_AUDIT_START IS NULL)
-				OR (cct.NETSEC_AUDIT_END IS NULL)
+				OR (cct.NETSEC_AUDIT_END IS NULL)*/
 			)
 			OR (
 				EXISTS (
@@ -1603,7 +1607,8 @@ UPDATE ccadb_certificate_temp cct
 					AND ctp.TRUST_CONTEXT_ID = 5
 		)
 		AND coalesce(audit_variations.NUMBER_OF_AUDIT_VARIATIONS, 0) > 1;
-UPDATE ccadb_certificate_temp cct
+-- TODO: Uncomment this UPDATE statement once every CA should have a Standalone NetSec audit.
+/*UPDATE ccadb_certificate_temp cct
 	SET MOZILLA_DISCLOSURE_STATUS = 'DisclosedWithInconsistentAudit'
 	FROM ca_certificate cac
 			LEFT JOIN LATERAL (
@@ -1639,7 +1644,7 @@ UPDATE ccadb_certificate_temp cct
 				WHERE ctp.CA_ID = cac.CA_ID
 					AND ctp.TRUST_CONTEXT_ID = 5
 		)
-		AND coalesce(audit_variations.NUMBER_OF_AUDIT_VARIATIONS, 0) > 1;
+		AND coalesce(audit_variations.NUMBER_OF_AUDIT_VARIATIONS, 0) > 1;*/
 UPDATE ccadb_certificate_temp cct
 	SET MOZILLA_DISCLOSURE_STATUS = 'DisclosedWithInconsistentAudit'
 	FROM ca_certificate cac
@@ -1832,7 +1837,8 @@ UPDATE ccadb_certificate_temp cct
 					AND ctp.TRUST_CONTEXT_ID = 1
 		)
 		AND coalesce(audit_variations.NUMBER_OF_AUDIT_VARIATIONS, 0) > 1;
-UPDATE ccadb_certificate_temp cct
+-- TODO: Uncomment this UPDATE statement once every CA should have a Standalone NetSec audit.
+/*UPDATE ccadb_certificate_temp cct
 	SET MICROSOFT_DISCLOSURE_STATUS = 'DisclosedWithInconsistentAudit'
 	FROM ca_certificate cac
 			LEFT JOIN LATERAL (
@@ -1868,7 +1874,7 @@ UPDATE ccadb_certificate_temp cct
 				WHERE ctp.CA_ID = cac.CA_ID
 					AND ctp.TRUST_CONTEXT_ID = 1
 		)
-		AND coalesce(audit_variations.NUMBER_OF_AUDIT_VARIATIONS, 0) > 1;
+		AND coalesce(audit_variations.NUMBER_OF_AUDIT_VARIATIONS, 0) > 1;*/
 UPDATE ccadb_certificate_temp cct
 	SET MICROSOFT_DISCLOSURE_STATUS = 'DisclosedWithInconsistentAudit'
 	FROM ca_certificate cac
@@ -2098,7 +2104,8 @@ UPDATE ccadb_certificate_temp cct
 					AND ctp.TRUST_CONTEXT_ID = 12
 		)
 		AND coalesce(audit_variations.NUMBER_OF_AUDIT_VARIATIONS, 0) > 1;
-UPDATE ccadb_certificate_temp cct
+-- TODO: Uncomment this UPDATE statement once every CA should have a Standalone NetSec audit.
+/*UPDATE ccadb_certificate_temp cct
 	SET APPLE_DISCLOSURE_STATUS = 'DisclosedWithInconsistentAudit'
 	FROM ca_certificate cac
 			LEFT JOIN LATERAL (
@@ -2133,7 +2140,7 @@ UPDATE ccadb_certificate_temp cct
 				WHERE ctp.CA_ID = cac.CA_ID
 					AND ctp.TRUST_CONTEXT_ID = 12
 		)
-		AND coalesce(audit_variations.NUMBER_OF_AUDIT_VARIATIONS, 0) > 1;
+		AND coalesce(audit_variations.NUMBER_OF_AUDIT_VARIATIONS, 0) > 1;*/
 UPDATE ccadb_certificate_temp cct
 	SET APPLE_DISCLOSURE_STATUS = 'DisclosedWithInconsistentAudit'
 	FROM ca_certificate cac
@@ -2321,7 +2328,8 @@ UPDATE ccadb_certificate_temp cct
 					AND ctp.TRUST_CONTEXT_ID = 6
 		)
 		AND coalesce(audit_variations.NUMBER_OF_AUDIT_VARIATIONS, 0) > 1;
-UPDATE ccadb_certificate_temp cct
+-- TODO: Uncomment this UPDATE statement once every CA should have a Standalone NetSec audit.
+/*UPDATE ccadb_certificate_temp cct
 	SET CHROME_DISCLOSURE_STATUS = 'DisclosedWithInconsistentAudit'
 	FROM ca_certificate cac
 			LEFT JOIN LATERAL (
@@ -2356,7 +2364,7 @@ UPDATE ccadb_certificate_temp cct
 				WHERE ctp.CA_ID = cac.CA_ID
 					AND ctp.TRUST_CONTEXT_ID = 6
 		)
-		AND coalesce(audit_variations.NUMBER_OF_AUDIT_VARIATIONS, 0) > 1;
+		AND coalesce(audit_variations.NUMBER_OF_AUDIT_VARIATIONS, 0) > 1;*/
 UPDATE ccadb_certificate_temp cct
 	SET CHROME_DISCLOSURE_STATUS = 'DisclosedWithInconsistentAudit'
 	FROM ca_certificate cac
