@@ -1281,7 +1281,7 @@ UPDATE ccadb_certificate_temp cct
 							AND ctp.TRUST_PURPOSE_ID = 3
 							AND x509_isEKUPermitted(c.CERTIFICATE, '1.3.6.1.5.5.7.3.4')
 							AND ctp.IS_TIME_VALID
-							AND (NOT ctp.ALL_CHAINS_REVOKED_VIA_ONECRL)
+							AND (NOT ctp.ALL_CHAINS_REVOKED_VIA_DISALLOWEDSTL)
 				)
 				AND (
 					(cct.SMIME_AUDIT_URL IS NULL)
@@ -1289,6 +1289,25 @@ UPDATE ccadb_certificate_temp cct
 					OR (cct.SMIME_AUDIT_DATE IS NULL)
 					OR (cct.SMIME_AUDIT_START IS NULL)
 					OR (cct.SMIME_AUDIT_END IS NULL)
+				)
+			)
+			OR (
+				EXISTS (
+					SELECT 1
+						FROM ca_trust_purpose ctp
+						WHERE ctp.CA_ID = c.ISSUER_CA_ID
+							AND ctp.TRUST_CONTEXT_ID = 1
+							AND ctp.TRUST_PURPOSE_ID = 4
+							AND x509_isEKUPermitted(c.CERTIFICATE, '1.3.6.1.5.5.7.3.3')
+							AND ctp.IS_TIME_VALID
+							AND (NOT ctp.ALL_CHAINS_REVOKED_VIA_DISALLOWEDSTL)
+				)
+				AND (
+					(cct.CODE_AUDIT_URL IS NULL)
+					OR (cct.CODE_AUDIT_TYPE IS NULL)
+					OR (cct.CODE_AUDIT_DATE IS NULL)
+					OR (cct.CODE_AUDIT_START IS NULL)
+					OR (cct.CODE_AUDIT_END IS NULL)
 				)
 			)
 		);
@@ -1370,8 +1389,7 @@ UPDATE ccadb_certificate_temp cct
 							AND ctp.TRUST_PURPOSE_ID = 3
 							AND x509_isEKUPermitted(c.CERTIFICATE, '1.3.6.1.5.5.7.3.4')
 							AND ctp.IS_TIME_VALID
-							AND (NOT ctp.ALL_CHAINS_REVOKED_VIA_ONECRL)
-				)
+					)
 				AND (
 					(cct.SMIME_AUDIT_URL IS NULL)
 					OR (cct.SMIME_AUDIT_TYPE IS NULL)
@@ -1966,6 +1984,45 @@ UPDATE ccadb_certificate_temp cct
 				WHERE ctp.CA_ID = cac.CA_ID
 					AND ctp.TRUST_CONTEXT_ID = 1
 					AND ctp.TRUST_PURPOSE_ID = 3
+		)
+		AND coalesce(audit_variations.NUMBER_OF_AUDIT_VARIATIONS, 0) > 1;
+UPDATE ccadb_certificate_temp cct
+	SET MICROSOFT_DISCLOSURE_STATUS = 'DisclosedWithInconsistentAudit'
+	FROM ca_certificate cac
+			LEFT JOIN LATERAL (
+				SELECT COUNT(*) AS NUMBER_OF_AUDIT_VARIATIONS
+					FROM (
+						SELECT 1
+							FROM ca_certificate cac2, ccadb_certificate_temp cct2, certificate c
+							WHERE cac.CA_ID = cac2.CA_ID
+								AND EXISTS (
+									SELECT 1
+										FROM certificate c, ca_trust_purpose ctp
+										WHERE c.ID = cac2.CERTIFICATE_ID
+											AND coalesce(x509_notAfter(c.CERTIFICATE), 'infinity'::timestamp) > now() AT TIME ZONE 'UTC'
+											AND c.ISSUER_CA_ID = ctp.CA_ID
+											AND ctp.TRUST_CONTEXT_ID = 1
+											AND ctp.TRUST_PURPOSE_ID = 4
+											AND NOT ctp.ALL_CHAINS_REVOKED_IN_SALESFORCE
+											AND ctp.IS_TIME_VALID
+								)
+								AND cac2.CERTIFICATE_ID = cct2.CERTIFICATE_ID
+								AND cct2.REVOCATION_STATUS NOT IN ('Revoked', 'Parent Cert Revoked')
+								AND cct2.CERTIFICATE_ID = c.ID
+								AND NOT is_technically_constrained(c.CERTIFICATE)
+								AND cct2.CCADB_RECORD_ID IS NOT NULL	-- Ignore CA certificates not in CCADB (e.g., kernel mode cross-certificates).
+							GROUP BY cct2.CODE_AUDIT_URL, cct2.CODE_AUDIT_TYPE, cct2.CODE_AUDIT_DATE, cct2.CODE_AUDIT_START, cct2.CODE_AUDIT_END
+					) sub
+			) audit_variations ON TRUE
+	WHERE cct.MICROSOFT_DISCLOSURE_STATUS = 'Disclosed'
+		AND cct.CERT_RECORD_TYPE != 'Root Certificate'
+		AND cct.CERTIFICATE_ID = cac.CERTIFICATE_ID
+		AND EXISTS (			-- Code Signing audit inconsistencies are only relevant if the CA is trusted by Microsoft to issue Code Signing certificates.
+			SELECT 1
+				FROM ca_trust_purpose ctp
+				WHERE ctp.CA_ID = cac.CA_ID
+					AND ctp.TRUST_CONTEXT_ID = 1
+					AND ctp.TRUST_PURPOSE_ID = 4
 		)
 		AND coalesce(audit_variations.NUMBER_OF_AUDIT_VARIATIONS, 0) > 1;
 
