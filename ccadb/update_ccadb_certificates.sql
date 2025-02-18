@@ -1059,6 +1059,11 @@ UPDATE ccadb_certificate_temp cct
 				OR (cct.STANDARD_AUDIT_DATE IS NULL)
 				OR (cct.STANDARD_AUDIT_START IS NULL)
 				OR (cct.STANDARD_AUDIT_END IS NULL)
+				OR (cct.NETSEC_AUDIT_URL IS NULL)
+				OR (cct.NETSEC_AUDIT_TYPE IS NULL)
+				OR (cct.NETSEC_AUDIT_DATE IS NULL)
+				OR (cct.NETSEC_AUDIT_START IS NULL)
+				OR (cct.NETSEC_AUDIT_END IS NULL)
 			)
 			OR (
 				EXISTS (
@@ -1194,6 +1199,11 @@ UPDATE ccadb_certificate_temp cct
 				OR (cct.STANDARD_AUDIT_DATE IS NULL)
 				OR (cct.STANDARD_AUDIT_START IS NULL)
 				OR (cct.STANDARD_AUDIT_END IS NULL)
+				OR (cct.NETSEC_AUDIT_URL IS NULL)
+				OR (cct.NETSEC_AUDIT_TYPE IS NULL)
+				OR (cct.NETSEC_AUDIT_DATE IS NULL)
+				OR (cct.NETSEC_AUDIT_START IS NULL)
+				OR (cct.NETSEC_AUDIT_END IS NULL)
 			)
 			OR (
 				EXISTS (
@@ -1261,6 +1271,11 @@ UPDATE ccadb_certificate_temp cct
 				OR (cct.STANDARD_AUDIT_DATE IS NULL)
 				OR (cct.STANDARD_AUDIT_START IS NULL)
 				OR (cct.STANDARD_AUDIT_END IS NULL)
+				OR (cct.NETSEC_AUDIT_URL IS NULL)
+				OR (cct.NETSEC_AUDIT_TYPE IS NULL)
+				OR (cct.NETSEC_AUDIT_DATE IS NULL)
+				OR (cct.NETSEC_AUDIT_START IS NULL)
+				OR (cct.NETSEC_AUDIT_END IS NULL)
 			)
 			OR (
 				EXISTS (
@@ -1384,6 +1399,11 @@ UPDATE ccadb_certificate_temp cct
 				OR (cct.STANDARD_AUDIT_DATE IS NULL)
 				OR (cct.STANDARD_AUDIT_START IS NULL)
 				OR (cct.STANDARD_AUDIT_END IS NULL)
+				OR (cct.NETSEC_AUDIT_URL IS NULL)
+				OR (cct.NETSEC_AUDIT_TYPE IS NULL)
+				OR (cct.NETSEC_AUDIT_DATE IS NULL)
+				OR (cct.NETSEC_AUDIT_START IS NULL)
+				OR (cct.NETSEC_AUDIT_END IS NULL)
 			)
 			OR (
 				EXISTS (
@@ -1464,7 +1484,7 @@ UPDATE ccadb_certificate_temp cct
 	WHERE cct.MOZILLA_DISCLOSURE_STATUS = 'Disclosed'
 		AND cct.CERT_RECORD_TYPE != 'Root Certificate'
 		AND cct.CERTIFICATE_ID = cac.CERTIFICATE_ID
-		AND EXISTS (			-- Standard audit inconsistencies are only relevant if the CA is trusted by Mozilla.
+		AND EXISTS (			-- Audit inconsistencies are only relevant if the CA is trusted by Mozilla.
 			SELECT 1
 				FROM ca_trust_purpose ctp
 				WHERE ctp.CA_ID = cac.CA_ID
@@ -1524,6 +1544,43 @@ UPDATE ccadb_certificate_temp cct
 											AND coalesce(x509_notAfter(c.CERTIFICATE), 'infinity'::timestamp) > now() AT TIME ZONE 'UTC'
 											AND c.ISSUER_CA_ID = ctp.CA_ID
 											AND ctp.TRUST_CONTEXT_ID = 5
+											AND NOT ctp.ALL_CHAINS_REVOKED_IN_SALESFORCE
+											AND ctp.IS_TIME_VALID
+								)
+								AND cac2.CERTIFICATE_ID = cct2.CERTIFICATE_ID
+								AND cct2.REVOCATION_STATUS NOT IN ('Revoked', 'Parent Cert Revoked')
+								AND cct2.CERTIFICATE_ID = c.ID
+								AND NOT is_technically_constrained(c.CERTIFICATE)
+								AND cct2.CCADB_RECORD_ID IS NOT NULL	-- Ignore CA certificates not in CCADB (e.g., kernel mode cross-certificates).
+							GROUP BY cct2.NETSEC_AUDIT_URL, cct2.NETSEC_AUDIT_TYPE, cct2.NETSEC_AUDIT_DATE, cct2.NETSEC_AUDIT_START, cct2.NETSEC_AUDIT_END
+					) sub
+			) audit_variations ON TRUE
+	WHERE cct.MOZILLA_DISCLOSURE_STATUS = 'Disclosed'
+		AND cct.CERT_RECORD_TYPE != 'Root Certificate'
+		AND cct.CERTIFICATE_ID = cac.CERTIFICATE_ID
+		AND EXISTS (			-- NetSec audit inconsistencies are only relevant if the CA is trusted by Mozilla.
+			SELECT 1
+				FROM ca_trust_purpose ctp
+				WHERE ctp.CA_ID = cac.CA_ID
+					AND ctp.TRUST_CONTEXT_ID = 5
+		)
+		AND coalesce(audit_variations.NUMBER_OF_AUDIT_VARIATIONS, 0) > 1;
+UPDATE ccadb_certificate_temp cct
+	SET MOZILLA_DISCLOSURE_STATUS = 'DisclosedWithInconsistentAudit'
+	FROM ca_certificate cac
+			LEFT JOIN LATERAL (
+				SELECT COUNT(*) AS NUMBER_OF_AUDIT_VARIATIONS
+					FROM (
+						SELECT 1
+							FROM ca_certificate cac2, ccadb_certificate_temp cct2, certificate c
+							WHERE cac.CA_ID = cac2.CA_ID
+								AND EXISTS (
+									SELECT 1
+										FROM certificate c, ca_trust_purpose ctp
+										WHERE c.ID = cac2.CERTIFICATE_ID
+											AND coalesce(x509_notAfter(c.CERTIFICATE), 'infinity'::timestamp) > now() AT TIME ZONE 'UTC'
+											AND c.ISSUER_CA_ID = ctp.CA_ID
+											AND ctp.TRUST_CONTEXT_ID = 5
 											AND ctp.TRUST_PURPOSE_ID = 1
 											AND NOT ctp.ALL_CHAINS_REVOKED_IN_SALESFORCE
 											AND ctp.IS_TIME_VALID
@@ -1539,7 +1596,7 @@ UPDATE ccadb_certificate_temp cct
 	WHERE cct.MOZILLA_DISCLOSURE_STATUS = 'Disclosed'
 		AND cct.CERT_RECORD_TYPE != 'Root Certificate'
 		AND cct.CERTIFICATE_ID = cac.CERTIFICATE_ID
-		AND EXISTS (			-- BR SSL audit inconsistencies are only relevant if the CA is trusted to issue Server Authentication certificates.
+		AND EXISTS (			-- BR SSL audit inconsistencies are only relevant if the CA is trusted by Mozilla to issue Server Authentication certificates.
 			SELECT 1
 				FROM ca_trust_purpose ctp
 				WHERE ctp.CA_ID = cac.CA_ID
@@ -1578,7 +1635,7 @@ UPDATE ccadb_certificate_temp cct
 	WHERE cct.MOZILLA_DISCLOSURE_STATUS = 'Disclosed'
 		AND cct.CERT_RECORD_TYPE != 'Root Certificate'
 		AND cct.CERTIFICATE_ID = cac.CERTIFICATE_ID
-		AND EXISTS (			-- EV SSL audit inconsistencies are only relevant if the CA is trusted to issue EV SSL certificates.
+		AND EXISTS (			-- EV SSL audit inconsistencies are only relevant if the CA is trusted by Mozilla to issue EV SSL certificates.
 			SELECT 1
 				FROM ca_trust_purpose ctp
 				WHERE ctp.CA_ID = cac.CA_ID
@@ -1617,7 +1674,7 @@ UPDATE ccadb_certificate_temp cct
 	WHERE cct.MICROSOFT_DISCLOSURE_STATUS = 'Disclosed'
 		AND cct.CERT_RECORD_TYPE != 'Root Certificate'
 		AND cct.CERTIFICATE_ID = cac.CERTIFICATE_ID
-		AND EXISTS (			-- Standard audit inconsistencies are only relevant if the CA is trusted by Microsoft.
+		AND EXISTS (			-- Audit inconsistencies are only relevant if the CA is trusted by Microsoft.
 			SELECT 1
 				FROM ca_trust_purpose ctp
 				WHERE ctp.CA_ID = cac.CA_ID
@@ -1677,6 +1734,43 @@ UPDATE ccadb_certificate_temp cct
 											AND coalesce(x509_notAfter(c.CERTIFICATE), 'infinity'::timestamp) > now() AT TIME ZONE 'UTC'
 											AND c.ISSUER_CA_ID = ctp.CA_ID
 											AND ctp.TRUST_CONTEXT_ID = 1
+											AND NOT ctp.ALL_CHAINS_REVOKED_IN_SALESFORCE
+											AND ctp.IS_TIME_VALID
+								)
+								AND cac2.CERTIFICATE_ID = cct2.CERTIFICATE_ID
+								AND cct2.REVOCATION_STATUS NOT IN ('Revoked', 'Parent Cert Revoked')
+								AND cct2.CERTIFICATE_ID = c.ID
+								AND NOT is_technically_constrained(c.CERTIFICATE)
+								AND cct2.CCADB_RECORD_ID IS NOT NULL	-- Ignore CA certificates not in CCADB (e.g., kernel mode cross-certificates).
+							GROUP BY cct2.NETSEC_AUDIT_URL, cct2.NETSEC_AUDIT_TYPE, cct2.NETSEC_AUDIT_DATE, cct2.NETSEC_AUDIT_START, cct2.NETSEC_AUDIT_END
+					) sub
+			) audit_variations ON TRUE
+	WHERE cct.MICROSOFT_DISCLOSURE_STATUS = 'Disclosed'
+		AND cct.CERT_RECORD_TYPE != 'Root Certificate'
+		AND cct.CERTIFICATE_ID = cac.CERTIFICATE_ID
+		AND EXISTS (			-- NetSec audit inconsistencies are only relevant if the CA is trusted by Microsoft.
+			SELECT 1
+				FROM ca_trust_purpose ctp
+				WHERE ctp.CA_ID = cac.CA_ID
+					AND ctp.TRUST_CONTEXT_ID = 1
+		)
+		AND coalesce(audit_variations.NUMBER_OF_AUDIT_VARIATIONS, 0) > 1;
+UPDATE ccadb_certificate_temp cct
+	SET MICROSOFT_DISCLOSURE_STATUS = 'DisclosedWithInconsistentAudit'
+	FROM ca_certificate cac
+			LEFT JOIN LATERAL (
+				SELECT COUNT(*) AS NUMBER_OF_AUDIT_VARIATIONS
+					FROM (
+						SELECT 1
+							FROM ca_certificate cac2, ccadb_certificate_temp cct2, certificate c
+							WHERE cac.CA_ID = cac2.CA_ID
+								AND EXISTS (
+									SELECT 1
+										FROM certificate c, ca_trust_purpose ctp
+										WHERE c.ID = cac2.CERTIFICATE_ID
+											AND coalesce(x509_notAfter(c.CERTIFICATE), 'infinity'::timestamp) > now() AT TIME ZONE 'UTC'
+											AND c.ISSUER_CA_ID = ctp.CA_ID
+											AND ctp.TRUST_CONTEXT_ID = 1
 											AND ctp.TRUST_PURPOSE_ID = 1
 											AND NOT ctp.ALL_CHAINS_REVOKED_IN_SALESFORCE
 											AND ctp.IS_TIME_VALID
@@ -1692,7 +1786,7 @@ UPDATE ccadb_certificate_temp cct
 	WHERE cct.MICROSOFT_DISCLOSURE_STATUS = 'Disclosed'
 		AND cct.CERT_RECORD_TYPE != 'Root Certificate'
 		AND cct.CERTIFICATE_ID = cac.CERTIFICATE_ID
-		AND EXISTS (			-- BR SSL audit inconsistencies are only relevant if the CA is trusted to issue Server Authentication certificates.
+		AND EXISTS (			-- BR SSL audit inconsistencies are only relevant if the CA is trusted by Microsoft to issue Server Authentication certificates.
 			SELECT 1
 				FROM ca_trust_purpose ctp
 				WHERE ctp.CA_ID = cac.CA_ID
@@ -1731,7 +1825,7 @@ UPDATE ccadb_certificate_temp cct
 	WHERE cct.MICROSOFT_DISCLOSURE_STATUS = 'Disclosed'
 		AND cct.CERT_RECORD_TYPE != 'Root Certificate'
 		AND cct.CERTIFICATE_ID = cac.CERTIFICATE_ID
-		AND EXISTS (			-- EV SSL audit inconsistencies are only relevant if the CA is trusted to issue EV SSL certificates.
+		AND EXISTS (			-- EV SSL audit inconsistencies are only relevant if the CA is trusted by Microsoft to issue EV SSL certificates.
 			SELECT 1
 				FROM ca_trust_purpose ctp
 				WHERE ctp.CA_ID = cac.CA_ID
@@ -1769,7 +1863,7 @@ UPDATE ccadb_certificate_temp cct
 	WHERE cct.APPLE_DISCLOSURE_STATUS = 'Disclosed'
 		AND cct.CERT_RECORD_TYPE != 'Root Certificate'
 		AND cct.CERTIFICATE_ID = cac.CERTIFICATE_ID
-		AND EXISTS (			-- Standard audit inconsistencies are only relevant if the CA is trusted by Apple.
+		AND EXISTS (			-- Audit inconsistencies are only relevant if the CA is trusted by Apple.
 			SELECT 1
 				FROM ca_trust_purpose ctp
 				WHERE ctp.CA_ID = cac.CA_ID
@@ -1828,6 +1922,42 @@ UPDATE ccadb_certificate_temp cct
 											AND coalesce(x509_notAfter(c.CERTIFICATE), 'infinity'::timestamp) > now() AT TIME ZONE 'UTC'
 											AND c.ISSUER_CA_ID = ctp.CA_ID
 											AND ctp.TRUST_CONTEXT_ID = 12
+											AND NOT ctp.ALL_CHAINS_REVOKED_IN_SALESFORCE
+											AND ctp.IS_TIME_VALID
+								)
+								AND cac2.CERTIFICATE_ID = cct2.CERTIFICATE_ID
+								AND cct2.REVOCATION_STATUS NOT IN ('Revoked', 'Parent Cert Revoked')
+								AND cct2.CERTIFICATE_ID = c.ID
+								AND cct2.CCADB_RECORD_ID IS NOT NULL	-- Ignore CA certificates not in CCADB (e.g., kernel mode cross-certificates).
+							GROUP BY cct2.NETSEC_AUDIT_URL, cct2.NETSEC_AUDIT_TYPE, cct2.NETSEC_AUDIT_DATE, cct2.NETSEC_AUDIT_START, cct2.NETSEC_AUDIT_END
+					) sub
+			) audit_variations ON TRUE
+	WHERE cct.APPLE_DISCLOSURE_STATUS = 'Disclosed'
+		AND cct.CERT_RECORD_TYPE != 'Root Certificate'
+		AND cct.CERTIFICATE_ID = cac.CERTIFICATE_ID
+		AND EXISTS (			-- NetSec audit inconsistencies are only relevant if the CA is trusted by Apple.
+			SELECT 1
+				FROM ca_trust_purpose ctp
+				WHERE ctp.CA_ID = cac.CA_ID
+					AND ctp.TRUST_CONTEXT_ID = 12
+		)
+		AND coalesce(audit_variations.NUMBER_OF_AUDIT_VARIATIONS, 0) > 1;
+UPDATE ccadb_certificate_temp cct
+	SET APPLE_DISCLOSURE_STATUS = 'DisclosedWithInconsistentAudit'
+	FROM ca_certificate cac
+			LEFT JOIN LATERAL (
+				SELECT COUNT(*) AS NUMBER_OF_AUDIT_VARIATIONS
+					FROM (
+						SELECT 1
+							FROM ca_certificate cac2, ccadb_certificate_temp cct2, certificate c
+							WHERE cac.CA_ID = cac2.CA_ID
+								AND EXISTS (
+									SELECT 1
+										FROM certificate c, ca_trust_purpose ctp
+										WHERE c.ID = cac2.CERTIFICATE_ID
+											AND coalesce(x509_notAfter(c.CERTIFICATE), 'infinity'::timestamp) > now() AT TIME ZONE 'UTC'
+											AND c.ISSUER_CA_ID = ctp.CA_ID
+											AND ctp.TRUST_CONTEXT_ID = 12
 											AND ctp.TRUST_PURPOSE_ID = 1
 											AND NOT ctp.ALL_CHAINS_REVOKED_IN_SALESFORCE
 											AND ctp.IS_TIME_VALID
@@ -1842,7 +1972,7 @@ UPDATE ccadb_certificate_temp cct
 	WHERE cct.APPLE_DISCLOSURE_STATUS = 'Disclosed'
 		AND cct.CERT_RECORD_TYPE != 'Root Certificate'
 		AND cct.CERTIFICATE_ID = cac.CERTIFICATE_ID
-		AND EXISTS (			-- BR SSL audit inconsistencies are only relevant if the CA is trusted to issue Server Authentication certificates.
+		AND EXISTS (			-- BR SSL audit inconsistencies are only relevant if the CA is trusted by Apple to issue Server Authentication certificates.
 			SELECT 1
 				FROM ca_trust_purpose ctp
 				WHERE ctp.CA_ID = cac.CA_ID
@@ -1880,7 +2010,7 @@ UPDATE ccadb_certificate_temp cct
 	WHERE cct.APPLE_DISCLOSURE_STATUS = 'Disclosed'
 		AND cct.CERT_RECORD_TYPE != 'Root Certificate'
 		AND cct.CERTIFICATE_ID = cac.CERTIFICATE_ID
-		AND EXISTS (			-- EV SSL audit inconsistencies are only relevant if the CA is trusted to issue EV SSL certificates.
+		AND EXISTS (			-- EV SSL audit inconsistencies are only relevant if the CA is trusted by Apple to issue EV SSL certificates.
 			SELECT 1
 				FROM ca_trust_purpose ctp
 				WHERE ctp.CA_ID = cac.CA_ID
@@ -1918,7 +2048,7 @@ UPDATE ccadb_certificate_temp cct
 	WHERE cct.CHROME_DISCLOSURE_STATUS = 'Disclosed'
 		AND cct.CERT_RECORD_TYPE != 'Root Certificate'
 		AND cct.CERTIFICATE_ID = cac.CERTIFICATE_ID
-		AND EXISTS (			-- Standard audit inconsistencies are only relevant if the CA is trusted by Chrome.
+		AND EXISTS (			-- Audit inconsistencies are only relevant if the CA is trusted by Chrome.
 			SELECT 1
 				FROM ca_trust_purpose ctp
 				WHERE ctp.CA_ID = cac.CA_ID
@@ -1977,6 +2107,42 @@ UPDATE ccadb_certificate_temp cct
 											AND coalesce(x509_notAfter(c.CERTIFICATE), 'infinity'::timestamp) > now() AT TIME ZONE 'UTC'
 											AND c.ISSUER_CA_ID = ctp.CA_ID
 											AND ctp.TRUST_CONTEXT_ID = 6
+											AND NOT ctp.ALL_CHAINS_REVOKED_IN_SALESFORCE
+											AND ctp.IS_TIME_VALID
+								)
+								AND cac2.CERTIFICATE_ID = cct2.CERTIFICATE_ID
+								AND cct2.REVOCATION_STATUS NOT IN ('Revoked', 'Parent Cert Revoked')
+								AND cct2.CERTIFICATE_ID = c.ID
+								AND cct2.CCADB_RECORD_ID IS NOT NULL	-- Ignore CA certificates not in CCADB (e.g., kernel mode cross-certificates).
+							GROUP BY cct2.NETSEC_AUDIT_URL, cct2.NETSEC_AUDIT_TYPE, cct2.NETSEC_AUDIT_DATE, cct2.NETSEC_AUDIT_START, cct2.NETSEC_AUDIT_END
+					) sub
+			) audit_variations ON TRUE
+	WHERE cct.CHROME_DISCLOSURE_STATUS = 'Disclosed'
+		AND cct.CERT_RECORD_TYPE != 'Root Certificate'
+		AND cct.CERTIFICATE_ID = cac.CERTIFICATE_ID
+		AND EXISTS (			-- NetSec audit inconsistencies are only relevant if the CA is trusted by Chrome.
+			SELECT 1
+				FROM ca_trust_purpose ctp
+				WHERE ctp.CA_ID = cac.CA_ID
+					AND ctp.TRUST_CONTEXT_ID = 6
+		)
+		AND coalesce(audit_variations.NUMBER_OF_AUDIT_VARIATIONS, 0) > 1;
+UPDATE ccadb_certificate_temp cct
+	SET CHROME_DISCLOSURE_STATUS = 'DisclosedWithInconsistentAudit'
+	FROM ca_certificate cac
+			LEFT JOIN LATERAL (
+				SELECT COUNT(*) AS NUMBER_OF_AUDIT_VARIATIONS
+					FROM (
+						SELECT 1
+							FROM ca_certificate cac2, ccadb_certificate_temp cct2, certificate c
+							WHERE cac.CA_ID = cac2.CA_ID
+								AND EXISTS (
+									SELECT 1
+										FROM certificate c, ca_trust_purpose ctp
+										WHERE c.ID = cac2.CERTIFICATE_ID
+											AND coalesce(x509_notAfter(c.CERTIFICATE), 'infinity'::timestamp) > now() AT TIME ZONE 'UTC'
+											AND c.ISSUER_CA_ID = ctp.CA_ID
+											AND ctp.TRUST_CONTEXT_ID = 6
 											AND ctp.TRUST_PURPOSE_ID = 1
 											AND NOT ctp.ALL_CHAINS_REVOKED_IN_SALESFORCE
 											AND ctp.IS_TIME_VALID
@@ -1991,7 +2157,7 @@ UPDATE ccadb_certificate_temp cct
 	WHERE cct.CHROME_DISCLOSURE_STATUS = 'Disclosed'
 		AND cct.CERT_RECORD_TYPE != 'Root Certificate'
 		AND cct.CERTIFICATE_ID = cac.CERTIFICATE_ID
-		AND EXISTS (			-- BR SSL audit inconsistencies are only relevant if the CA is trusted to issue Server Authentication certificates.
+		AND EXISTS (			-- BR SSL audit inconsistencies are only relevant if the CA is trusted by Chrome to issue Server Authentication certificates.
 			SELECT 1
 				FROM ca_trust_purpose ctp
 				WHERE ctp.CA_ID = cac.CA_ID
@@ -2029,7 +2195,7 @@ UPDATE ccadb_certificate_temp cct
 	WHERE cct.CHROME_DISCLOSURE_STATUS = 'Disclosed'
 		AND cct.CERT_RECORD_TYPE != 'Root Certificate'
 		AND cct.CERTIFICATE_ID = cac.CERTIFICATE_ID
-		AND EXISTS (			-- EV SSL audit inconsistencies are only relevant if the CA is trusted to issue EV SSL certificates.
+		AND EXISTS (			-- EV SSL audit inconsistencies are only relevant if the CA is trusted by Chrome to issue EV SSL certificates.
 			SELECT 1
 				FROM ca_trust_purpose ctp
 				WHERE ctp.CA_ID = cac.CA_ID
