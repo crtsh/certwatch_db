@@ -1123,7 +1123,6 @@ UPDATE ccadb_certificate_temp cct
 							AND ctp.TRUST_PURPOSE_ID = 3
 							AND x509_isEKUPermitted(c.CERTIFICATE, '1.3.6.1.5.5.7.3.4')
 							AND ctp.IS_TIME_VALID
-							AND (NOT ctp.ALL_CHAINS_REVOKED_VIA_ONECRL)
 				)
 				AND (
 					(cct.SMIME_AUDIT_URL IS NULL)
