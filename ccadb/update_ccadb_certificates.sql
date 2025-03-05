@@ -1539,7 +1539,7 @@ UPDATE ccadb_certificate_temp cct
 				SELECT COUNT(*) AS NUMBER_OF_AUDIT_VARIATIONS
 					FROM (
 						SELECT 1
-							FROM ca_certificate cac2, ccadb_certificate_temp cct2, certificate c
+							FROM ca_certificate cac2, ccadb_certificate_temp cct2, certificate c2
 							WHERE cac.CA_ID = cac2.CA_ID
 								AND EXISTS (
 									SELECT 1
@@ -1553,8 +1553,8 @@ UPDATE ccadb_certificate_temp cct
 								)
 								AND cac2.CERTIFICATE_ID = cct2.CERTIFICATE_ID
 								AND cct2.REVOCATION_STATUS NOT IN ('Revoked', 'Parent Cert Revoked')
-								AND cct2.CERTIFICATE_ID = c.ID
-								AND NOT is_technically_constrained(c.CERTIFICATE)
+								AND cct2.CERTIFICATE_ID = c2.ID
+								AND NOT is_technically_constrained(c2.CERTIFICATE)
 								AND cct2.CCADB_RECORD_ID IS NOT NULL	-- Ignore CA certificates not in CCADB (e.g., kernel mode cross-certificates).
 							GROUP BY coalesce(nullif(cct2.SUBORDINATE_CA_OWNER, ''), cct2.CA_OWNER)
 					) sub
@@ -1576,7 +1576,7 @@ UPDATE ccadb_certificate_temp cct
 				SELECT COUNT(*) AS NUMBER_OF_AUDIT_VARIATIONS
 					FROM (
 						SELECT 1
-							FROM ca_certificate cac2, ccadb_certificate_temp cct2, certificate c
+							FROM ca_certificate cac2, ccadb_certificate_temp cct2, certificate c2
 							WHERE cac.CA_ID = cac2.CA_ID
 								AND EXISTS (
 									SELECT 1
@@ -1590,8 +1590,8 @@ UPDATE ccadb_certificate_temp cct
 								)
 								AND cac2.CERTIFICATE_ID = cct2.CERTIFICATE_ID
 								AND cct2.REVOCATION_STATUS NOT IN ('Revoked', 'Parent Cert Revoked')
-								AND cct2.CERTIFICATE_ID = c.ID
-								AND NOT is_technically_constrained(c.CERTIFICATE)
+								AND cct2.CERTIFICATE_ID = c2.ID
+								AND NOT is_technically_constrained(c2.CERTIFICATE)
 								AND cct2.CCADB_RECORD_ID IS NOT NULL	-- Ignore CA certificates not in CCADB (e.g., kernel mode cross-certificates).
 							GROUP BY cct2.STANDARD_AUDIT_URL, cct2.STANDARD_AUDIT_TYPE, cct2.STANDARD_AUDIT_DATE, cct2.STANDARD_AUDIT_START, cct2.STANDARD_AUDIT_END
 					) sub
@@ -1614,7 +1614,7 @@ UPDATE ccadb_certificate_temp cct
 				SELECT COUNT(*) AS NUMBER_OF_AUDIT_VARIATIONS
 					FROM (
 						SELECT 1
-							FROM ca_certificate cac2, ccadb_certificate_temp cct2, certificate c
+							FROM ca_certificate cac2, ccadb_certificate_temp cct2, certificate c2
 							WHERE cac.CA_ID = cac2.CA_ID
 								AND EXISTS (
 									SELECT 1
@@ -1628,8 +1628,8 @@ UPDATE ccadb_certificate_temp cct
 								)
 								AND cac2.CERTIFICATE_ID = cct2.CERTIFICATE_ID
 								AND cct2.REVOCATION_STATUS NOT IN ('Revoked', 'Parent Cert Revoked')
-								AND cct2.CERTIFICATE_ID = c.ID
-								AND NOT is_technically_constrained(c.CERTIFICATE)
+								AND cct2.CERTIFICATE_ID = c2.ID
+								AND NOT is_technically_constrained(c2.CERTIFICATE)
 								AND cct2.CCADB_RECORD_ID IS NOT NULL	-- Ignore CA certificates not in CCADB (e.g., kernel mode cross-certificates).
 							GROUP BY cct2.NETSEC_AUDIT_URL, cct2.NETSEC_AUDIT_TYPE, cct2.NETSEC_AUDIT_DATE, cct2.NETSEC_AUDIT_START, cct2.NETSEC_AUDIT_END
 					) sub
@@ -1651,7 +1651,7 @@ UPDATE ccadb_certificate_temp cct
 				SELECT COUNT(*) AS NUMBER_OF_AUDIT_VARIATIONS
 					FROM (
 						SELECT 1
-							FROM ca_certificate cac2, ccadb_certificate_temp cct2, certificate c
+							FROM ca_certificate cac2, ccadb_certificate_temp cct2, certificate c2
 							WHERE cac.CA_ID = cac2.CA_ID
 								AND EXISTS (
 									SELECT 1
@@ -1666,12 +1666,12 @@ UPDATE ccadb_certificate_temp cct
 								)	-- Consider all Parent CAs that are trusted by Mozilla to issue Server Authentication certificates.
 								AND cac2.CERTIFICATE_ID = cct2.CERTIFICATE_ID
 								AND cct2.REVOCATION_STATUS NOT IN ('Revoked', 'Parent Cert Revoked')
-								AND cct2.CERTIFICATE_ID = c.ID
-								AND NOT is_technically_constrained(c.CERTIFICATE)
+								AND cct2.CERTIFICATE_ID = c2.ID
+								AND NOT is_technically_constrained(c2.CERTIFICATE)
 								AND (
-									x509_isEKUPermitted(c.CERTIFICATE, '1.3.6.1.5.5.7.3.1')
-									OR x509_isEKUPermitted(c.CERTIFICATE, '1.3.6.1.4.1.311.10.3.3')	-- MS SGC.
-									OR x509_isEKUPermitted(c.CERTIFICATE, '2.16.840.1.113730.4.1')	-- NS Step-Up.
+									x509_isEKUPermitted(c2.CERTIFICATE, '1.3.6.1.5.5.7.3.1')
+									OR x509_isEKUPermitted(c2.CERTIFICATE, '1.3.6.1.4.1.311.10.3.3')	-- MS SGC.
+									OR x509_isEKUPermitted(c2.CERTIFICATE, '2.16.840.1.113730.4.1')	-- NS Step-Up.
 								)
 								AND cct2.CCADB_RECORD_ID IS NOT NULL	-- Ignore CA certificates not in CCADB (e.g., kernel mode cross-certificates).
 							GROUP BY cct2.BRSSL_AUDIT_URL, cct2.BRSSL_AUDIT_TYPE, cct2.BRSSL_AUDIT_DATE, cct2.BRSSL_AUDIT_START, cct2.BRSSL_AUDIT_END
@@ -1695,7 +1695,7 @@ UPDATE ccadb_certificate_temp cct
 				SELECT COUNT(*) AS NUMBER_OF_AUDIT_VARIATIONS
 					FROM (
 						SELECT 1
-							FROM ca_certificate cac2, ccadb_certificate_temp cct2, certificate c
+							FROM ca_certificate cac2, ccadb_certificate_temp cct2, certificate c2
 							WHERE cac.CA_ID = cac2.CA_ID
 								AND EXISTS (
 									SELECT 1
@@ -1710,12 +1710,12 @@ UPDATE ccadb_certificate_temp cct
 								)	-- Consider all Parent CAs that are trusted by Mozilla to issue Server Authentication certificates.
 								AND cac2.CERTIFICATE_ID = cct2.CERTIFICATE_ID
 								AND cct2.REVOCATION_STATUS NOT IN ('Revoked', 'Parent Cert Revoked')
-								AND cct2.CERTIFICATE_ID = c.ID
-								AND NOT is_technically_constrained(c.CERTIFICATE)
+								AND cct2.CERTIFICATE_ID = c2.ID
+								AND NOT is_technically_constrained(c2.CERTIFICATE)
 								AND (
-									x509_isEKUPermitted(c.CERTIFICATE, '1.3.6.1.5.5.7.3.1')
-									OR x509_isEKUPermitted(c.CERTIFICATE, '1.3.6.1.4.1.311.10.3.3')	-- MS SGC.
-									OR x509_isEKUPermitted(c.CERTIFICATE, '2.16.840.1.113730.4.1')	-- NS Step-Up.
+									x509_isEKUPermitted(c2.CERTIFICATE, '1.3.6.1.5.5.7.3.1')
+									OR x509_isEKUPermitted(c2.CERTIFICATE, '1.3.6.1.4.1.311.10.3.3')	-- MS SGC.
+									OR x509_isEKUPermitted(c2.CERTIFICATE, '2.16.840.1.113730.4.1')	-- NS Step-Up.
 								)
 								AND cct2.CCADB_RECORD_ID IS NOT NULL	-- Ignore CA certificates not in CCADB (e.g., kernel mode cross-certificates).
 							GROUP BY cct2.EVSSL_AUDIT_URL, cct2.EVSSL_AUDIT_TYPE, cct2.EVSSL_AUDIT_DATE, cct2.EVSSL_AUDIT_START, cct2.EVSSL_AUDIT_END
@@ -1739,7 +1739,7 @@ UPDATE ccadb_certificate_temp cct
 				SELECT COUNT(*) AS NUMBER_OF_AUDIT_VARIATIONS
 					FROM (
 						SELECT 1
-							FROM ca_certificate cac2, ccadb_certificate_temp cct2, certificate c
+							FROM ca_certificate cac2, ccadb_certificate_temp cct2, certificate c2
 							WHERE cac.CA_ID = cac2.CA_ID
 								AND EXISTS (
 									SELECT 1
@@ -1754,9 +1754,9 @@ UPDATE ccadb_certificate_temp cct
 								)	-- Consider all Parent CAs that are trusted by Mozilla to issue S/MIME certificates.
 								AND cac2.CERTIFICATE_ID = cct2.CERTIFICATE_ID
 								AND cct2.REVOCATION_STATUS NOT IN ('Revoked', 'Parent Cert Revoked')
-								AND cct2.CERTIFICATE_ID = c.ID
-								AND NOT is_technically_constrained(c.CERTIFICATE)
-								AND x509_isEKUPermitted(c.CERTIFICATE, '1.3.6.1.5.5.7.3.4')
+								AND cct2.CERTIFICATE_ID = c2.ID
+								AND NOT is_technically_constrained(c2.CERTIFICATE)
+								AND x509_isEKUPermitted(c2.CERTIFICATE, '1.3.6.1.5.5.7.3.4')
 								AND cct2.CCADB_RECORD_ID IS NOT NULL	-- Ignore CA certificates not in CCADB (e.g., kernel mode cross-certificates).
 							GROUP BY cct2.SMIME_AUDIT_URL, cct2.SMIME_AUDIT_TYPE, cct2.SMIME_AUDIT_DATE, cct2.SMIME_AUDIT_START, cct2.SMIME_AUDIT_END
 					) sub
@@ -1780,7 +1780,7 @@ UPDATE ccadb_certificate_temp cct
 				SELECT COUNT(*) AS NUMBER_OF_AUDIT_VARIATIONS
 					FROM (
 						SELECT 1
-							FROM ca_certificate cac2, ccadb_certificate_temp cct2, certificate c
+							FROM ca_certificate cac2, ccadb_certificate_temp cct2, certificate c2
 							WHERE cac.CA_ID = cac2.CA_ID
 								AND EXISTS (
 									SELECT 1
@@ -1794,8 +1794,8 @@ UPDATE ccadb_certificate_temp cct
 								)
 								AND cac2.CERTIFICATE_ID = cct2.CERTIFICATE_ID
 								AND cct2.REVOCATION_STATUS NOT IN ('Revoked', 'Parent Cert Revoked')
-								AND cct2.CERTIFICATE_ID = c.ID
-								AND NOT is_technically_constrained(c.CERTIFICATE)
+								AND cct2.CERTIFICATE_ID = c2.ID
+								AND NOT is_technically_constrained(c2.CERTIFICATE)
 								AND cct2.CCADB_RECORD_ID IS NOT NULL	-- Ignore CA certificates not in CCADB (e.g., kernel mode cross-certificates).
 							GROUP BY coalesce(nullif(cct2.SUBORDINATE_CA_OWNER, ''), cct2.CA_OWNER)
 					) sub
@@ -1817,7 +1817,7 @@ UPDATE ccadb_certificate_temp cct
 				SELECT COUNT(*) AS NUMBER_OF_AUDIT_VARIATIONS
 					FROM (
 						SELECT 1
-							FROM ca_certificate cac2, ccadb_certificate_temp cct2, certificate c
+							FROM ca_certificate cac2, ccadb_certificate_temp cct2, certificate c2
 							WHERE cac.CA_ID = cac2.CA_ID
 								AND EXISTS (
 									SELECT 1
@@ -1831,8 +1831,8 @@ UPDATE ccadb_certificate_temp cct
 								)
 								AND cac2.CERTIFICATE_ID = cct2.CERTIFICATE_ID
 								AND cct2.REVOCATION_STATUS NOT IN ('Revoked', 'Parent Cert Revoked')
-								AND cct2.CERTIFICATE_ID = c.ID
-								AND NOT is_technically_constrained(c.CERTIFICATE)
+								AND cct2.CERTIFICATE_ID = c2.ID
+								AND NOT is_technically_constrained(c2.CERTIFICATE)
 								AND cct2.CCADB_RECORD_ID IS NOT NULL	-- Ignore CA certificates not in CCADB (e.g., kernel mode cross-certificates).
 							GROUP BY cct2.STANDARD_AUDIT_URL, cct2.STANDARD_AUDIT_TYPE, cct2.STANDARD_AUDIT_DATE, cct2.STANDARD_AUDIT_START, cct2.STANDARD_AUDIT_END
 					) sub
@@ -1855,7 +1855,7 @@ UPDATE ccadb_certificate_temp cct
 				SELECT COUNT(*) AS NUMBER_OF_AUDIT_VARIATIONS
 					FROM (
 						SELECT 1
-							FROM ca_certificate cac2, ccadb_certificate_temp cct2, certificate c
+							FROM ca_certificate cac2, ccadb_certificate_temp cct2, certificate c2
 							WHERE cac.CA_ID = cac2.CA_ID
 								AND EXISTS (
 									SELECT 1
@@ -1869,8 +1869,8 @@ UPDATE ccadb_certificate_temp cct
 								)
 								AND cac2.CERTIFICATE_ID = cct2.CERTIFICATE_ID
 								AND cct2.REVOCATION_STATUS NOT IN ('Revoked', 'Parent Cert Revoked')
-								AND cct2.CERTIFICATE_ID = c.ID
-								AND NOT is_technically_constrained(c.CERTIFICATE)
+								AND cct2.CERTIFICATE_ID = c2.ID
+								AND NOT is_technically_constrained(c2.CERTIFICATE)
 								AND cct2.CCADB_RECORD_ID IS NOT NULL	-- Ignore CA certificates not in CCADB (e.g., kernel mode cross-certificates).
 							GROUP BY cct2.NETSEC_AUDIT_URL, cct2.NETSEC_AUDIT_TYPE, cct2.NETSEC_AUDIT_DATE, cct2.NETSEC_AUDIT_START, cct2.NETSEC_AUDIT_END
 					) sub
@@ -1892,7 +1892,7 @@ UPDATE ccadb_certificate_temp cct
 				SELECT COUNT(*) AS NUMBER_OF_AUDIT_VARIATIONS
 					FROM (
 						SELECT 1
-							FROM ca_certificate cac2, ccadb_certificate_temp cct2, certificate c
+							FROM ca_certificate cac2, ccadb_certificate_temp cct2, certificate c2
 							WHERE cac.CA_ID = cac2.CA_ID
 								AND EXISTS (
 									SELECT 1
@@ -1907,12 +1907,12 @@ UPDATE ccadb_certificate_temp cct
 								)	-- Consider all Parent CAs that are trusted by Microsoft to issue Server Authentication certificates.
 								AND cac2.CERTIFICATE_ID = cct2.CERTIFICATE_ID
 								AND cct2.REVOCATION_STATUS NOT IN ('Revoked', 'Parent Cert Revoked')
-								AND cct2.CERTIFICATE_ID = c.ID
-								AND NOT is_technically_constrained(c.CERTIFICATE)
+								AND cct2.CERTIFICATE_ID = c2.ID
+								AND NOT is_technically_constrained(c2.CERTIFICATE)
 								AND (
-									x509_isEKUPermitted(c.CERTIFICATE, '1.3.6.1.5.5.7.3.1')
-									OR x509_isEKUPermitted(c.CERTIFICATE, '1.3.6.1.4.1.311.10.3.3')	-- MS SGC.
-									OR x509_isEKUPermitted(c.CERTIFICATE, '2.16.840.1.113730.4.1')	-- NS Step-Up.
+									x509_isEKUPermitted(c2.CERTIFICATE, '1.3.6.1.5.5.7.3.1')
+									OR x509_isEKUPermitted(c2.CERTIFICATE, '1.3.6.1.4.1.311.10.3.3')	-- MS SGC.
+									OR x509_isEKUPermitted(c2.CERTIFICATE, '2.16.840.1.113730.4.1')	-- NS Step-Up.
 								)
 								AND cct2.CCADB_RECORD_ID IS NOT NULL	-- Ignore CA certificates not in CCADB (e.g., kernel mode cross-certificates).
 							GROUP BY cct2.BRSSL_AUDIT_URL, cct2.BRSSL_AUDIT_TYPE, cct2.BRSSL_AUDIT_DATE, cct2.BRSSL_AUDIT_START, cct2.BRSSL_AUDIT_END
@@ -1936,7 +1936,7 @@ UPDATE ccadb_certificate_temp cct
 				SELECT COUNT(*) AS NUMBER_OF_AUDIT_VARIATIONS
 					FROM (
 						SELECT 1
-							FROM ca_certificate cac2, ccadb_certificate_temp cct2, certificate c
+							FROM ca_certificate cac2, ccadb_certificate_temp cct2, certificate c2
 							WHERE cac.CA_ID = cac2.CA_ID
 								AND EXISTS (
 									SELECT 1
@@ -1951,12 +1951,12 @@ UPDATE ccadb_certificate_temp cct
 								)	-- Consider all Parent CAs that are trusted by Microsoft to issue Server Authentication certificates.
 								AND cac2.CERTIFICATE_ID = cct2.CERTIFICATE_ID
 								AND cct2.REVOCATION_STATUS NOT IN ('Revoked', 'Parent Cert Revoked')
-								AND cct2.CERTIFICATE_ID = c.ID
-								AND NOT is_technically_constrained(c.CERTIFICATE)
+								AND cct2.CERTIFICATE_ID = c2.ID
+								AND NOT is_technically_constrained(c2.CERTIFICATE)
 								AND (
-									x509_isEKUPermitted(c.CERTIFICATE, '1.3.6.1.5.5.7.3.1')
-									OR x509_isEKUPermitted(c.CERTIFICATE, '1.3.6.1.4.1.311.10.3.3')	-- MS SGC.
-									OR x509_isEKUPermitted(c.CERTIFICATE, '2.16.840.1.113730.4.1')	-- NS Step-Up.
+									x509_isEKUPermitted(c2.CERTIFICATE, '1.3.6.1.5.5.7.3.1')
+									OR x509_isEKUPermitted(c2.CERTIFICATE, '1.3.6.1.4.1.311.10.3.3')	-- MS SGC.
+									OR x509_isEKUPermitted(c2.CERTIFICATE, '2.16.840.1.113730.4.1')	-- NS Step-Up.
 								)
 								AND cct2.CCADB_RECORD_ID IS NOT NULL	-- Ignore CA certificates not in CCADB (e.g., kernel mode cross-certificates).
 							GROUP BY cct2.EVSSL_AUDIT_URL, cct2.EVSSL_AUDIT_TYPE, cct2.EVSSL_AUDIT_DATE, cct2.EVSSL_AUDIT_START, cct2.EVSSL_AUDIT_END
@@ -1980,7 +1980,7 @@ UPDATE ccadb_certificate_temp cct
 				SELECT COUNT(*) AS NUMBER_OF_AUDIT_VARIATIONS
 					FROM (
 						SELECT 1
-							FROM ca_certificate cac2, ccadb_certificate_temp cct2, certificate c
+							FROM ca_certificate cac2, ccadb_certificate_temp cct2, certificate c2
 							WHERE cac.CA_ID = cac2.CA_ID
 								AND EXISTS (
 									SELECT 1
@@ -1995,9 +1995,9 @@ UPDATE ccadb_certificate_temp cct
 								)	-- Consider all Parent CAs that are trusted by Microsoft to issue S/MIME certificates.
 								AND cac2.CERTIFICATE_ID = cct2.CERTIFICATE_ID
 								AND cct2.REVOCATION_STATUS NOT IN ('Revoked', 'Parent Cert Revoked')
-								AND cct2.CERTIFICATE_ID = c.ID
-								AND NOT is_technically_constrained(c.CERTIFICATE)
-								AND x509_isEKUPermitted(c.CERTIFICATE, '1.3.6.1.5.5.7.3.4')
+								AND cct2.CERTIFICATE_ID = c2.ID
+								AND NOT is_technically_constrained(c2.CERTIFICATE)
+								AND x509_isEKUPermitted(c2.CERTIFICATE, '1.3.6.1.5.5.7.3.4')
 								AND cct2.CCADB_RECORD_ID IS NOT NULL	-- Ignore CA certificates not in CCADB (e.g., kernel mode cross-certificates).
 							GROUP BY cct2.SMIME_AUDIT_URL, cct2.SMIME_AUDIT_TYPE, cct2.SMIME_AUDIT_DATE, cct2.SMIME_AUDIT_START, cct2.SMIME_AUDIT_END
 					) sub
@@ -2020,7 +2020,7 @@ UPDATE ccadb_certificate_temp cct
 				SELECT COUNT(*) AS NUMBER_OF_AUDIT_VARIATIONS
 					FROM (
 						SELECT 1
-							FROM ca_certificate cac2, ccadb_certificate_temp cct2, certificate c
+							FROM ca_certificate cac2, ccadb_certificate_temp cct2, certificate c2
 							WHERE cac.CA_ID = cac2.CA_ID
 								AND EXISTS (
 									SELECT 1
@@ -2035,9 +2035,9 @@ UPDATE ccadb_certificate_temp cct
 								)	-- Consider all Parent CAs that are trusted by Microsoft to issue Code Signing certificates.
 								AND cac2.CERTIFICATE_ID = cct2.CERTIFICATE_ID
 								AND cct2.REVOCATION_STATUS NOT IN ('Revoked', 'Parent Cert Revoked')
-								AND cct2.CERTIFICATE_ID = c.ID
-								AND NOT is_technically_constrained(c.CERTIFICATE)
-								AND x509_isEKUPermitted(c.CERTIFICATE, '1.3.6.1.5.5.7.3.3')
+								AND cct2.CERTIFICATE_ID = c2.ID
+								AND NOT is_technically_constrained(c2.CERTIFICATE)
+								AND x509_isEKUPermitted(c2.CERTIFICATE, '1.3.6.1.5.5.7.3.3')
 								AND cct2.CCADB_RECORD_ID IS NOT NULL	-- Ignore CA certificates not in CCADB (e.g., kernel mode cross-certificates).
 							GROUP BY cct2.CODE_AUDIT_URL, cct2.CODE_AUDIT_TYPE, cct2.CODE_AUDIT_DATE, cct2.CODE_AUDIT_START, cct2.CODE_AUDIT_END
 					) sub
@@ -2061,7 +2061,7 @@ UPDATE ccadb_certificate_temp cct
 				SELECT COUNT(*) AS NUMBER_OF_AUDIT_VARIATIONS
 					FROM (
 						SELECT 1
-							FROM ca_certificate cac2, ccadb_certificate_temp cct2, certificate c
+							FROM ca_certificate cac2, ccadb_certificate_temp cct2, certificate c2
 							WHERE cac.CA_ID = cac2.CA_ID
 								AND EXISTS (
 									SELECT 1
@@ -2075,7 +2075,7 @@ UPDATE ccadb_certificate_temp cct
 								)
 								AND cac2.CERTIFICATE_ID = cct2.CERTIFICATE_ID
 								AND cct2.REVOCATION_STATUS NOT IN ('Revoked', 'Parent Cert Revoked')
-								AND cct2.CERTIFICATE_ID = c.ID
+								AND cct2.CERTIFICATE_ID = c2.ID
 								AND cct2.CCADB_RECORD_ID IS NOT NULL	-- Ignore CA certificates not in CCADB (e.g., kernel mode cross-certificates).
 							GROUP BY coalesce(nullif(cct2.SUBORDINATE_CA_OWNER, ''), cct2.CA_OWNER)
 					) sub
@@ -2097,7 +2097,7 @@ UPDATE ccadb_certificate_temp cct
 				SELECT COUNT(*) AS NUMBER_OF_AUDIT_VARIATIONS
 					FROM (
 						SELECT 1
-							FROM ca_certificate cac2, ccadb_certificate_temp cct2, certificate c
+							FROM ca_certificate cac2, ccadb_certificate_temp cct2, certificate c2
 							WHERE cac.CA_ID = cac2.CA_ID
 								AND EXISTS (
 									SELECT 1
@@ -2111,7 +2111,7 @@ UPDATE ccadb_certificate_temp cct
 								)
 								AND cac2.CERTIFICATE_ID = cct2.CERTIFICATE_ID
 								AND cct2.REVOCATION_STATUS NOT IN ('Revoked', 'Parent Cert Revoked')
-								AND cct2.CERTIFICATE_ID = c.ID
+								AND cct2.CERTIFICATE_ID = c2.ID
 								AND cct2.CCADB_RECORD_ID IS NOT NULL	-- Ignore CA certificates not in CCADB (e.g., kernel mode cross-certificates).
 							GROUP BY cct2.STANDARD_AUDIT_URL, cct2.STANDARD_AUDIT_TYPE, cct2.STANDARD_AUDIT_DATE, cct2.STANDARD_AUDIT_START, cct2.STANDARD_AUDIT_END
 					) sub
@@ -2134,7 +2134,7 @@ UPDATE ccadb_certificate_temp cct
 				SELECT COUNT(*) AS NUMBER_OF_AUDIT_VARIATIONS
 					FROM (
 						SELECT 1
-							FROM ca_certificate cac2, ccadb_certificate_temp cct2, certificate c
+							FROM ca_certificate cac2, ccadb_certificate_temp cct2, certificate c2
 							WHERE cac.CA_ID = cac2.CA_ID
 								AND EXISTS (
 									SELECT 1
@@ -2148,7 +2148,7 @@ UPDATE ccadb_certificate_temp cct
 								)
 								AND cac2.CERTIFICATE_ID = cct2.CERTIFICATE_ID
 								AND cct2.REVOCATION_STATUS NOT IN ('Revoked', 'Parent Cert Revoked')
-								AND cct2.CERTIFICATE_ID = c.ID
+								AND cct2.CERTIFICATE_ID = c2.ID
 								AND cct2.CCADB_RECORD_ID IS NOT NULL	-- Ignore CA certificates not in CCADB (e.g., kernel mode cross-certificates).
 							GROUP BY cct2.NETSEC_AUDIT_URL, cct2.NETSEC_AUDIT_TYPE, cct2.NETSEC_AUDIT_DATE, cct2.NETSEC_AUDIT_START, cct2.NETSEC_AUDIT_END
 					) sub
@@ -2170,7 +2170,7 @@ UPDATE ccadb_certificate_temp cct
 				SELECT COUNT(*) AS NUMBER_OF_AUDIT_VARIATIONS
 					FROM (
 						SELECT 1
-							FROM ca_certificate cac2, ccadb_certificate_temp cct2, certificate c
+							FROM ca_certificate cac2, ccadb_certificate_temp cct2, certificate c2
 							WHERE cac.CA_ID = cac2.CA_ID
 								AND EXISTS (
 									SELECT 1
@@ -2185,11 +2185,11 @@ UPDATE ccadb_certificate_temp cct
 								)	-- Consider all Parent CAs that are trusted by Apple to issue Server Authentication certificates.
 								AND cac2.CERTIFICATE_ID = cct2.CERTIFICATE_ID
 								AND cct2.REVOCATION_STATUS NOT IN ('Revoked', 'Parent Cert Revoked')
-								AND cct2.CERTIFICATE_ID = c.ID
+								AND cct2.CERTIFICATE_ID = c2.ID
 								AND (
-									x509_isEKUPermitted(c.CERTIFICATE, '1.3.6.1.5.5.7.3.1')
-									OR x509_isEKUPermitted(c.CERTIFICATE, '1.3.6.1.4.1.311.10.3.3')	-- MS SGC.
-									OR x509_isEKUPermitted(c.CERTIFICATE, '2.16.840.1.113730.4.1')	-- NS Step-Up.
+									x509_isEKUPermitted(c2.CERTIFICATE, '1.3.6.1.5.5.7.3.1')
+									OR x509_isEKUPermitted(c2.CERTIFICATE, '1.3.6.1.4.1.311.10.3.3')	-- MS SGC.
+									OR x509_isEKUPermitted(c2.CERTIFICATE, '2.16.840.1.113730.4.1')	-- NS Step-Up.
 								)
 								AND cct2.CCADB_RECORD_ID IS NOT NULL	-- Ignore CA certificates not in CCADB (e.g., kernel mode cross-certificates).
 							GROUP BY cct2.BRSSL_AUDIT_URL, cct2.BRSSL_AUDIT_TYPE, cct2.BRSSL_AUDIT_DATE, cct2.BRSSL_AUDIT_START, cct2.BRSSL_AUDIT_END
@@ -2213,7 +2213,7 @@ UPDATE ccadb_certificate_temp cct
 				SELECT COUNT(*) AS NUMBER_OF_AUDIT_VARIATIONS
 					FROM (
 						SELECT 1
-							FROM ca_certificate cac2, ccadb_certificate_temp cct2, certificate c
+							FROM ca_certificate cac2, ccadb_certificate_temp cct2, certificate c2
 							WHERE cac.CA_ID = cac2.CA_ID
 								AND EXISTS (
 									SELECT 1
@@ -2228,11 +2228,11 @@ UPDATE ccadb_certificate_temp cct
 								)	-- Consider all Parent CAs that are trusted by Apple to issue Server Authentication certificates.
 								AND cac2.CERTIFICATE_ID = cct2.CERTIFICATE_ID
 								AND cct2.REVOCATION_STATUS NOT IN ('Revoked', 'Parent Cert Revoked')
-								AND cct2.CERTIFICATE_ID = c.ID
+								AND cct2.CERTIFICATE_ID = c2.ID
 								AND (
-									x509_isEKUPermitted(c.CERTIFICATE, '1.3.6.1.5.5.7.3.1')
-									OR x509_isEKUPermitted(c.CERTIFICATE, '1.3.6.1.4.1.311.10.3.3')	-- MS SGC.
-									OR x509_isEKUPermitted(c.CERTIFICATE, '2.16.840.1.113730.4.1')	-- NS Step-Up.
+									x509_isEKUPermitted(c2.CERTIFICATE, '1.3.6.1.5.5.7.3.1')
+									OR x509_isEKUPermitted(c2.CERTIFICATE, '1.3.6.1.4.1.311.10.3.3')	-- MS SGC.
+									OR x509_isEKUPermitted(c2.CERTIFICATE, '2.16.840.1.113730.4.1')	-- NS Step-Up.
 								)
 								AND cct2.CCADB_RECORD_ID IS NOT NULL	-- Ignore CA certificates not in CCADB (e.g., kernel mode cross-certificates).
 							GROUP BY cct2.EVSSL_AUDIT_URL, cct2.EVSSL_AUDIT_TYPE, cct2.EVSSL_AUDIT_DATE, cct2.EVSSL_AUDIT_START, cct2.EVSSL_AUDIT_END
@@ -2256,7 +2256,7 @@ UPDATE ccadb_certificate_temp cct
 				SELECT COUNT(*) AS NUMBER_OF_AUDIT_VARIATIONS
 					FROM (
 						SELECT 1
-							FROM ca_certificate cac2, ccadb_certificate_temp cct2, certificate c
+							FROM ca_certificate cac2, ccadb_certificate_temp cct2, certificate c2
 							WHERE cac.CA_ID = cac2.CA_ID
 								AND EXISTS (
 									SELECT 1
@@ -2271,8 +2271,8 @@ UPDATE ccadb_certificate_temp cct
 								)	-- Consider all Parent CAs that are trusted by Apple to issue S/MIME certificates.
 								AND cac2.CERTIFICATE_ID = cct2.CERTIFICATE_ID
 								AND cct2.REVOCATION_STATUS NOT IN ('Revoked', 'Parent Cert Revoked')
-								AND cct2.CERTIFICATE_ID = c.ID
-								AND x509_isEKUPermitted(c.CERTIFICATE, '1.3.6.1.5.5.7.3.4')
+								AND cct2.CERTIFICATE_ID = c2.ID
+								AND x509_isEKUPermitted(c2.CERTIFICATE, '1.3.6.1.5.5.7.3.4')
 								AND cct2.CCADB_RECORD_ID IS NOT NULL	-- Ignore CA certificates not in CCADB (e.g., kernel mode cross-certificates).
 							GROUP BY cct2.SMIME_AUDIT_URL, cct2.SMIME_AUDIT_TYPE, cct2.SMIME_AUDIT_DATE, cct2.SMIME_AUDIT_START, cct2.SMIME_AUDIT_END
 					) sub
@@ -2296,7 +2296,7 @@ UPDATE ccadb_certificate_temp cct
 				SELECT COUNT(*) AS NUMBER_OF_AUDIT_VARIATIONS
 					FROM (
 						SELECT 1
-							FROM ca_certificate cac2, ccadb_certificate_temp cct2, certificate c
+							FROM ca_certificate cac2, ccadb_certificate_temp cct2, certificate c2
 							WHERE cac.CA_ID = cac2.CA_ID
 								AND EXISTS (
 									SELECT 1
@@ -2310,7 +2310,7 @@ UPDATE ccadb_certificate_temp cct
 								)
 								AND cac2.CERTIFICATE_ID = cct2.CERTIFICATE_ID
 								AND cct2.REVOCATION_STATUS NOT IN ('Revoked', 'Parent Cert Revoked')
-								AND cct2.CERTIFICATE_ID = c.ID
+								AND cct2.CERTIFICATE_ID = c2.ID
 								AND cct2.CCADB_RECORD_ID IS NOT NULL	-- Ignore CA certificates not in CCADB (e.g., kernel mode cross-certificates).
 							GROUP BY coalesce(nullif(cct2.SUBORDINATE_CA_OWNER, ''), cct2.CA_OWNER)
 					) sub
@@ -2332,7 +2332,7 @@ UPDATE ccadb_certificate_temp cct
 				SELECT COUNT(*) AS NUMBER_OF_AUDIT_VARIATIONS
 					FROM (
 						SELECT 1
-							FROM ca_certificate cac2, ccadb_certificate_temp cct2, certificate c
+							FROM ca_certificate cac2, ccadb_certificate_temp cct2, certificate c2
 							WHERE cac.CA_ID = cac2.CA_ID
 								AND EXISTS (
 									SELECT 1
@@ -2346,7 +2346,7 @@ UPDATE ccadb_certificate_temp cct
 								)
 								AND cac2.CERTIFICATE_ID = cct2.CERTIFICATE_ID
 								AND cct2.REVOCATION_STATUS NOT IN ('Revoked', 'Parent Cert Revoked')
-								AND cct2.CERTIFICATE_ID = c.ID
+								AND cct2.CERTIFICATE_ID = c2.ID
 								AND cct2.CCADB_RECORD_ID IS NOT NULL	-- Ignore CA certificates not in CCADB (e.g., kernel mode cross-certificates).
 							GROUP BY cct2.STANDARD_AUDIT_URL, cct2.STANDARD_AUDIT_TYPE, cct2.STANDARD_AUDIT_DATE, cct2.STANDARD_AUDIT_START, cct2.STANDARD_AUDIT_END
 					) sub
@@ -2369,7 +2369,7 @@ UPDATE ccadb_certificate_temp cct
 				SELECT COUNT(*) AS NUMBER_OF_AUDIT_VARIATIONS
 					FROM (
 						SELECT 1
-							FROM ca_certificate cac2, ccadb_certificate_temp cct2, certificate c
+							FROM ca_certificate cac2, ccadb_certificate_temp cct2, certificate c2
 							WHERE cac.CA_ID = cac2.CA_ID
 								AND EXISTS (
 									SELECT 1
@@ -2383,7 +2383,7 @@ UPDATE ccadb_certificate_temp cct
 								)
 								AND cac2.CERTIFICATE_ID = cct2.CERTIFICATE_ID
 								AND cct2.REVOCATION_STATUS NOT IN ('Revoked', 'Parent Cert Revoked')
-								AND cct2.CERTIFICATE_ID = c.ID
+								AND cct2.CERTIFICATE_ID = c2.ID
 								AND cct2.CCADB_RECORD_ID IS NOT NULL	-- Ignore CA certificates not in CCADB (e.g., kernel mode cross-certificates).
 							GROUP BY cct2.NETSEC_AUDIT_URL, cct2.NETSEC_AUDIT_TYPE, cct2.NETSEC_AUDIT_DATE, cct2.NETSEC_AUDIT_START, cct2.NETSEC_AUDIT_END
 					) sub
@@ -2405,7 +2405,7 @@ UPDATE ccadb_certificate_temp cct
 				SELECT COUNT(*) AS NUMBER_OF_AUDIT_VARIATIONS
 					FROM (
 						SELECT 1
-							FROM ca_certificate cac2, ccadb_certificate_temp cct2, certificate c
+							FROM ca_certificate cac2, ccadb_certificate_temp cct2, certificate c2
 							WHERE cac.CA_ID = cac2.CA_ID
 								AND EXISTS (
 									SELECT 1
@@ -2420,11 +2420,11 @@ UPDATE ccadb_certificate_temp cct
 								)	-- Consider all Parent CAs that are trusted by Chrome to issue Server Authentication certificates.
 								AND cac2.CERTIFICATE_ID = cct2.CERTIFICATE_ID
 								AND cct2.REVOCATION_STATUS NOT IN ('Revoked', 'Parent Cert Revoked')
-								AND cct2.CERTIFICATE_ID = c.ID
+								AND cct2.CERTIFICATE_ID = c2.ID
 								AND (
-									x509_isEKUPermitted(c.CERTIFICATE, '1.3.6.1.5.5.7.3.1')
-									OR x509_isEKUPermitted(c.CERTIFICATE, '1.3.6.1.4.1.311.10.3.3')	-- MS SGC.
-									OR x509_isEKUPermitted(c.CERTIFICATE, '2.16.840.1.113730.4.1')	-- NS Step-Up.
+									x509_isEKUPermitted(c2.CERTIFICATE, '1.3.6.1.5.5.7.3.1')
+									OR x509_isEKUPermitted(c2.CERTIFICATE, '1.3.6.1.4.1.311.10.3.3')	-- MS SGC.
+									OR x509_isEKUPermitted(c2.CERTIFICATE, '2.16.840.1.113730.4.1')	-- NS Step-Up.
 								)
 								AND cct2.CCADB_RECORD_ID IS NOT NULL	-- Ignore CA certificates not in CCADB (e.g., kernel mode cross-certificates).
 							GROUP BY cct2.BRSSL_AUDIT_URL, cct2.BRSSL_AUDIT_TYPE, cct2.BRSSL_AUDIT_DATE, cct2.BRSSL_AUDIT_START, cct2.BRSSL_AUDIT_END
@@ -2448,7 +2448,7 @@ UPDATE ccadb_certificate_temp cct
 				SELECT COUNT(*) AS NUMBER_OF_AUDIT_VARIATIONS
 					FROM (
 						SELECT 1
-							FROM ca_certificate cac2, ccadb_certificate_temp cct2, certificate c
+							FROM ca_certificate cac2, ccadb_certificate_temp cct2, certificate c2
 							WHERE cac.CA_ID = cac2.CA_ID
 								AND EXISTS (
 									SELECT 1
@@ -2463,11 +2463,11 @@ UPDATE ccadb_certificate_temp cct
 								)	-- Consider all Parent CAs that are trusted by Chrome to issue Server Authentication certificates.
 								AND cac2.CERTIFICATE_ID = cct2.CERTIFICATE_ID
 								AND cct2.REVOCATION_STATUS NOT IN ('Revoked', 'Parent Cert Revoked')
-								AND cct2.CERTIFICATE_ID = c.ID
+								AND cct2.CERTIFICATE_ID = c2.ID
 								AND (
-									x509_isEKUPermitted(c.CERTIFICATE, '1.3.6.1.5.5.7.3.1')
-									OR x509_isEKUPermitted(c.CERTIFICATE, '1.3.6.1.4.1.311.10.3.3')	-- MS SGC.
-									OR x509_isEKUPermitted(c.CERTIFICATE, '2.16.840.1.113730.4.1')	-- NS Step-Up.
+									x509_isEKUPermitted(c2.CERTIFICATE, '1.3.6.1.5.5.7.3.1')
+									OR x509_isEKUPermitted(c2.CERTIFICATE, '1.3.6.1.4.1.311.10.3.3')	-- MS SGC.
+									OR x509_isEKUPermitted(c2.CERTIFICATE, '2.16.840.1.113730.4.1')	-- NS Step-Up.
 								)
 								AND cct2.CCADB_RECORD_ID IS NOT NULL	-- Ignore CA certificates not in CCADB (e.g., kernel mode cross-certificates).
 							GROUP BY cct2.EVSSL_AUDIT_URL, cct2.EVSSL_AUDIT_TYPE, cct2.EVSSL_AUDIT_DATE, cct2.EVSSL_AUDIT_START, cct2.EVSSL_AUDIT_END
@@ -2493,7 +2493,7 @@ UPDATE ccadb_certificate_temp cct
 				SELECT COUNT(*) AS NUMBER_OF_CP_CPS_VARIATIONS
 					FROM (
 						SELECT 1
-							FROM ca_certificate cac2, ccadb_certificate_temp cct2, certificate c
+							FROM ca_certificate cac2, ccadb_certificate_temp cct2, certificate c2
 							WHERE cac.CA_ID = cac2.CA_ID
 								AND EXISTS (
 									SELECT 1
@@ -2507,8 +2507,8 @@ UPDATE ccadb_certificate_temp cct
 								)
 								AND cac2.CERTIFICATE_ID = cct2.CERTIFICATE_ID
 								AND cct2.REVOCATION_STATUS NOT IN ('Revoked', 'Parent Cert Revoked')
-								AND cct2.CERTIFICATE_ID = c.ID
-								AND NOT is_technically_constrained(c.CERTIFICATE)
+								AND cct2.CERTIFICATE_ID = c2.ID
+								AND NOT is_technically_constrained(c2.CERTIFICATE)
 								AND cct2.CCADB_RECORD_ID IS NOT NULL	-- Ignore CA certificates not in CCADB (e.g., kernel mode cross-certificates).
 							GROUP BY sort_delimited_list(cct2.CP_URL, ';'), sort_delimited_list(cct2.CPS_URL, ';'), sort_delimited_list(cct2.CP_CPS_URL, ';')
 					) sub
@@ -2531,7 +2531,7 @@ UPDATE ccadb_certificate_temp cct
 				SELECT COUNT(*) AS NUMBER_OF_CP_CPS_VARIATIONS
 					FROM (
 						SELECT 1
-							FROM ca_certificate cac2, ccadb_certificate_temp cct2, certificate c
+							FROM ca_certificate cac2, ccadb_certificate_temp cct2, certificate c2
 							WHERE cac.CA_ID = cac2.CA_ID
 								AND EXISTS (
 									SELECT 1
@@ -2545,8 +2545,8 @@ UPDATE ccadb_certificate_temp cct
 								)
 								AND cac2.CERTIFICATE_ID = cct2.CERTIFICATE_ID
 								AND cct2.REVOCATION_STATUS NOT IN ('Revoked', 'Parent Cert Revoked')
-								AND cct2.CERTIFICATE_ID = c.ID
-								AND NOT is_technically_constrained(c.CERTIFICATE)
+								AND cct2.CERTIFICATE_ID = c2.ID
+								AND NOT is_technically_constrained(c2.CERTIFICATE)
 								AND cct2.CCADB_RECORD_ID IS NOT NULL	-- Ignore CA certificates not in CCADB (e.g., kernel mode cross-certificates).
 							GROUP BY sort_delimited_list(cct2.CP_URL, ';'), sort_delimited_list(cct2.CPS_URL, ';'), sort_delimited_list(cct2.CP_CPS_URL, ';')
 					) sub
@@ -2569,7 +2569,7 @@ UPDATE ccadb_certificate_temp cct
 				SELECT COUNT(*) AS NUMBER_OF_CP_CPS_VARIATIONS
 					FROM (
 						SELECT 1
-							FROM ca_certificate cac2, ccadb_certificate_temp cct2, certificate c
+							FROM ca_certificate cac2, ccadb_certificate_temp cct2, certificate c2
 							WHERE cac.CA_ID = cac2.CA_ID
 								AND EXISTS (
 									SELECT 1
@@ -2583,7 +2583,7 @@ UPDATE ccadb_certificate_temp cct
 								)
 								AND cac2.CERTIFICATE_ID = cct2.CERTIFICATE_ID
 								AND cct2.REVOCATION_STATUS NOT IN ('Revoked', 'Parent Cert Revoked')
-								AND cct2.CERTIFICATE_ID = c.ID
+								AND cct2.CERTIFICATE_ID = c2.ID
 								AND cct2.CCADB_RECORD_ID IS NOT NULL	-- Ignore CA certificates not in CCADB (e.g., kernel mode cross-certificates).
 							GROUP BY sort_delimited_list(cct2.CP_URL, ';'), sort_delimited_list(cct2.CPS_URL, ';'), sort_delimited_list(cct2.CP_CPS_URL, ';')
 					) sub
@@ -2606,7 +2606,7 @@ UPDATE ccadb_certificate_temp cct
 				SELECT COUNT(*) AS NUMBER_OF_CP_CPS_VARIATIONS
 					FROM (
 						SELECT 1
-							FROM ca_certificate cac2, ccadb_certificate_temp cct2, certificate c
+							FROM ca_certificate cac2, ccadb_certificate_temp cct2, certificate c2
 							WHERE cac.CA_ID = cac2.CA_ID
 								AND EXISTS (
 									SELECT 1
@@ -2620,7 +2620,7 @@ UPDATE ccadb_certificate_temp cct
 								)
 								AND cac2.CERTIFICATE_ID = cct2.CERTIFICATE_ID
 								AND cct2.REVOCATION_STATUS NOT IN ('Revoked', 'Parent Cert Revoked')
-								AND cct2.CERTIFICATE_ID = c.ID
+								AND cct2.CERTIFICATE_ID = c2.ID
 								AND cct2.CCADB_RECORD_ID IS NOT NULL	-- Ignore CA certificates not in CCADB (e.g., kernel mode cross-certificates).
 							GROUP BY sort_delimited_list(cct2.CP_URL, ';'), sort_delimited_list(cct2.CPS_URL, ';'), sort_delimited_list(cct2.CP_CPS_URL, ';')
 					) sub
