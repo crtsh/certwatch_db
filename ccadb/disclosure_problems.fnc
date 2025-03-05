@@ -419,7 +419,7 @@ BEGIN
 				t_date1, t_date2,
 				t_start1, t_start2,
 				t_end1, t_end2
-			FROM ca_certificate cac, ca_certificate cac2, ccadb_certificate cc2
+			FROM ca_certificate cac, ca_certificate cac2, ccadb_certificate cc2, certificate c2
 			WHERE cac.CERTIFICATE_ID = certificateID
 				AND cac.CA_ID = cac2.CA_ID
 				AND EXISTS (
@@ -435,6 +435,12 @@ BEGIN
 				)
 				AND cac2.CERTIFICATE_ID = cc2.CERTIFICATE_ID
 				AND cc2.REVOCATION_STATUS NOT IN ('Revoked', 'Parent Cert Revoked')
+				AND cc2.CERTIFICATE_ID = c2.ID
+				AND (
+					x509_isEKUPermitted(c2.CERTIFICATE, '1.3.6.1.5.5.7.3.1')
+					OR x509_isEKUPermitted(c2.CERTIFICATE, '1.3.6.1.4.1.311.10.3.3')	-- MS SGC.
+					OR x509_isEKUPermitted(c2.CERTIFICATE, '2.16.840.1.113730.4.1')	-- NS Step-Up.
+				)
 				AND cc2.CCADB_RECORD_ID IS NOT NULL;	-- Ignore CA certificates not in CCADB (e.g., kernel mode cross-certificates).
 		IF FOUND THEN
 			IF t_url1 != t_url2 THEN
@@ -464,7 +470,7 @@ BEGIN
 				t_date1, t_date2,
 				t_start1, t_start2,
 				t_end1, t_end2
-			FROM ca_certificate cac, ca_certificate cac2, ccadb_certificate cc2
+			FROM ca_certificate cac, ca_certificate cac2, ccadb_certificate cc2, certificate c2
 			WHERE cac.CERTIFICATE_ID = certificateID
 				AND cac.CA_ID = cac2.CA_ID
 				AND EXISTS (
@@ -480,6 +486,12 @@ BEGIN
 				)
 				AND cac2.CERTIFICATE_ID = cc2.CERTIFICATE_ID
 				AND cc2.REVOCATION_STATUS NOT IN ('Revoked', 'Parent Cert Revoked')
+				AND cc2.CERTIFICATE_ID = c2.ID
+				AND (
+					x509_isEKUPermitted(c2.CERTIFICATE, '1.3.6.1.5.5.7.3.1')
+					OR x509_isEKUPermitted(c2.CERTIFICATE, '1.3.6.1.4.1.311.10.3.3')	-- MS SGC.
+					OR x509_isEKUPermitted(c2.CERTIFICATE, '2.16.840.1.113730.4.1')	-- NS Step-Up.
+				)
 				AND cc2.CCADB_RECORD_ID IS NOT NULL;	-- Ignore CA certificates not in CCADB (e.g., kernel mode cross-certificates).
 		IF FOUND THEN
 			IF t_url1 != t_url2 THEN
@@ -509,7 +521,7 @@ BEGIN
 				t_date1, t_date2,
 				t_start1, t_start2,
 				t_end1, t_end2
-			FROM ca_certificate cac, ca_certificate cac2, ccadb_certificate cc2
+			FROM ca_certificate cac, ca_certificate cac2, ccadb_certificate cc2, certificate c2
 			WHERE cac.CERTIFICATE_ID = certificateID
 				AND cac.CA_ID = cac2.CA_ID
 				AND EXISTS (
@@ -525,6 +537,8 @@ BEGIN
 				)
 				AND cac2.CERTIFICATE_ID = cc2.CERTIFICATE_ID
 				AND cc2.REVOCATION_STATUS NOT IN ('Revoked', 'Parent Cert Revoked')
+				AND cc2.CERTIFICATE_ID = c2.ID
+				AND x509_isEKUPermitted(c2.CERTIFICATE, '1.3.6.1.5.5.7.3.4')
 				AND cc2.CCADB_RECORD_ID IS NOT NULL;	-- Ignore CA certificates not in CCADB (e.g., kernel mode cross-certificates).
 		IF FOUND THEN
 			IF t_url1 != t_url2 THEN
@@ -554,7 +568,7 @@ BEGIN
 				t_date1, t_date2,
 				t_start1, t_start2,
 				t_end1, t_end2
-			FROM ca_certificate cac, ca_certificate cac2, ccadb_certificate cc2
+			FROM ca_certificate cac, ca_certificate cac2, ccadb_certificate cc2, certificate c2
 			WHERE cac.CERTIFICATE_ID = certificateID
 				AND cac.CA_ID = cac2.CA_ID
 				AND EXISTS (
@@ -570,6 +584,8 @@ BEGIN
 				)
 				AND cac2.CERTIFICATE_ID = cc2.CERTIFICATE_ID
 				AND cc2.REVOCATION_STATUS NOT IN ('Revoked', 'Parent Cert Revoked')
+				AND cc2.CERTIFICATE_ID = c2.ID
+				AND x509_isEKUPermitted(c2.CERTIFICATE, '1.3.6.1.5.5.7.3.3')
 				AND cc2.CCADB_RECORD_ID IS NOT NULL;	-- Ignore CA certificates not in CCADB (e.g., kernel mode cross-certificates).
 		IF FOUND THEN
 			IF t_url1 != t_url2 THEN
