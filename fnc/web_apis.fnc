@@ -320,6 +320,7 @@ BEGIN
 		t_output :=
 '[BEGIN_HEADERS]
 Content-Type: application/json
+Access-Control-Allow-Origin: *
 [END_HEADERS]
 ';
 	ELSIF t_outputType NOT IN ('html', 'atom', 'csv') THEN
