@@ -556,13 +556,13 @@ CREATE TABLE trust_purpose (
 CREATE UNIQUE INDEX tp_purpose_uniq
 	ON trust_purpose (PURPOSE text_pattern_ops, PURPOSE_OID text_pattern_ops);
 
-INSERT INTO trust_purpose ( ID, PURPOSE, PURPOSE_OID, DISPLAY_ORDER ) VALUES ( 1, 'Server Authentication', '1.3.6.1.5.5.7.3.1', 2 );
-INSERT INTO trust_purpose ( ID, PURPOSE, PURPOSE_OID, DISPLAY_ORDER ) VALUES ( 2, 'Client Authentication', '1.3.6.1.5.5.7.3.2', 10 );
-INSERT INTO trust_purpose ( ID, PURPOSE, PURPOSE_OID, DISPLAY_ORDER ) VALUES ( 3, 'Secure Email', '1.3.6.1.5.5.7.3.4', 11 );
-INSERT INTO trust_purpose ( ID, PURPOSE, PURPOSE_OID, DISPLAY_ORDER ) VALUES ( 4, 'Code Signing', '1.3.6.1.5.5.7.3.3', 20 );
-INSERT INTO trust_purpose ( ID, PURPOSE, PURPOSE_OID, DISPLAY_ORDER ) VALUES ( 5, 'Time Stamping', '1.3.6.1.5.5.7.3.8', 22 );
-INSERT INTO trust_purpose ( ID, PURPOSE, PURPOSE_OID, DISPLAY_ORDER ) VALUES ( 6, 'OCSP Signing', '1.3.6.1.5.5.7.3.9', 30 );
-INSERT INTO trust_purpose ( ID, PURPOSE, PURPOSE_OID, DISPLAY_ORDER ) VALUES ( 7, 'Document Signing', '1.3.6.1.4.1.311.10.3.12', 31 );
+INSERT INTO trust_purpose ( ID, PURPOSE, PURPOSE_OID, OID_NAME, DISPLAY_ORDER ) VALUES ( 1, 'Server Authentication', '1.3.6.1.5.5.7.3.1', 'serverAuth', 2 );
+INSERT INTO trust_purpose ( ID, PURPOSE, PURPOSE_OID, OID_NAME, DISPLAY_ORDER ) VALUES ( 2, 'Client Authentication', '1.3.6.1.5.5.7.3.2', 'clientAuth', 10 );
+INSERT INTO trust_purpose ( ID, PURPOSE, PURPOSE_OID, OID_NAME, DISPLAY_ORDER ) VALUES ( 3, 'Secure Email', '1.3.6.1.5.5.7.3.4', 'secureEmail', 11 );
+INSERT INTO trust_purpose ( ID, PURPOSE, PURPOSE_OID, OID_NAME, DISPLAY_ORDER ) VALUES ( 4, 'Code Signing', '1.3.6.1.5.5.7.3.3', 'codeSigning', 20 );
+INSERT INTO trust_purpose ( ID, PURPOSE, PURPOSE_OID, OID_NAME, DISPLAY_ORDER ) VALUES ( 5, 'Time Stamping', '1.3.6.1.5.5.7.3.8', 'timeStamping', 22 );
+INSERT INTO trust_purpose ( ID, PURPOSE, PURPOSE_OID, OID_NAME, DISPLAY_ORDER ) VALUES ( 6, 'OCSP Signing', '1.3.6.1.5.5.7.3.9', 'ocspSigning', 30 );
+INSERT INTO trust_purpose ( ID, PURPOSE, PURPOSE_OID, OID_NAME, DISPLAY_ORDER ) VALUES ( 7, 'Document Signing', '1.3.6.1.4.1.311.10.3.12', 'documentSigning', 31 );
 INSERT INTO trust_purpose ( ID, PURPOSE, PURPOSE_OID, DISPLAY_ORDER ) VALUES ( 8, 'Encrypting File System', '1.3.6.1.4.1.311.10.3.4', 32 );
 INSERT INTO trust_purpose ( ID, PURPOSE, PURPOSE_OID, DISPLAY_ORDER ) VALUES ( 9, 'IP security end system', '1.3.6.1.5.5.7.3.5', 40 );
 INSERT INTO trust_purpose ( ID, PURPOSE, PURPOSE_OID, DISPLAY_ORDER ) VALUES ( 10, 'IP security IKE intermediate', '1.3.6.1.5.5.8.2.2', 41 );
@@ -874,8 +874,11 @@ CREATE TABLE ccadb_certificate(
 	TEST_WEBSITE_REVOKED			text,
 	IS_TECHNICALLY_CONSTRAINED		text,
 	APPLE_STATUS					text,
+	APPLE_TRUST_BITS				text,
 	MOZILLA_STATUS					text,
+	MOZILLA_TRUST_BITS				text,
 	MICROSOFT_STATUS				text,
+	MICROSOFT_EKUS					text,
 	CHROME_STATUS					text,
 	DERIVED_TRUST_BITS				text,
 	STATUS_OF_ROOT_CERT				text,
