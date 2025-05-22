@@ -1102,7 +1102,7 @@ Access-Control-Allow-Origin: *
     <TR>
       <TH rowspan="2">Operator</TH>
       <TH rowspan="2">URL</TH>
-      <TH rowspan="2">MMD<BR><SPAN class="small">(hrs)</SPAN></TH>
+      <TH rowspan="2">MMD</TH>
       <TH rowspan="2">Latest STH<BR><SPAN class="small">(UTC)</SPAN></TH>
       <TH colspan="3">Entries</TH>
       <TH rowspan="2">Last get-sth call<BR><SPAN class="small">(UTC)</SPAN></TH>
@@ -1241,7 +1241,17 @@ Access-Control-Allow-Origin: *
     <TR>
       <TD' || l_record.FONT_STYLE || '><A class="nostyle" href="?operator=' || l_record.OPERATOR || '">' || l_record.OPERATOR_DISPLAY || '</A></TD>
       <TD' || l_record.FONT_STYLE || '>' || l_record.URL || '</TD>
-      <TD' || l_record.FONT_STYLE || '>' || coalesce((l_record.MMD_IN_SECONDS / 60 / 60)::text, '?') || '</TD>
+      <TD' || l_record.FONT_STYLE || '>';
+			IF l_record.MMD_IN_SECONDS >= 3600 THEN
+				t_output := t_output || (l_record.MMD_IN_SECONDS / 3600)::text || 'h';
+			END IF;
+			IF (l_record.MMD_IN_SECONDS % 3600) / 60 > 0 THEN
+				t_output := t_output || ((l_record.MMD_IN_SECONDS % 3600) / 60)::text || 'm';
+			END IF;
+			IF (l_record.MMD_IN_SECONDS % 60) > 0 THEN
+				t_output := t_output || (l_record.MMD_IN_SECONDS % 60)::text || 's';
+			END IF;
+			t_output := t_output || '</TD>
       <TD' || l_record.FONT_STYLE || '>' || coalesce(to_char(l_record.LATEST_STH_TIMESTAMP, 'YYYY-MM-DD HH24:MI:SS'), '') || '</TD>
       <TD' || l_record.FONT_STYLE || '>' || coalesce(l_record.TREE_SIZE::text, '') || '</TD>
       <TD' || l_record.FONT_STYLE || '>' || l_record.BACKLOG::text || '</TD>
@@ -1300,7 +1310,7 @@ Access-Control-Allow-Origin: *
     <TR>
       <TH rowspan="2">Operator</TH>
       <TH rowspan="2">URL</TH>
-      <TH rowspan="2">MMD<BR><SPAN class="small">(hrs)</SPAN></TH>
+      <TH rowspan="2">MMD</TH>
       <TH rowspan="2">Latest STH<BR><SPAN class="small">(UTC)</SPAN></TH>
       <TH colspan="2">Entries</TH>
       <TH rowspan="2">Last get-sth call<BR><SPAN class="small">(UTC)</SPAN></TH>
@@ -1353,7 +1363,17 @@ Access-Control-Allow-Origin: *
     <TR>
       <TD><A class="nostyle" href="?operator=' || l_record.OPERATOR || '">' || l_record.OPERATOR_DISPLAY || '</A></TD>
       <TD>' || l_record.URL || '</TD>
-      <TD>' || coalesce((l_record.MMD_IN_SECONDS / 60 / 60)::text, '?') || '</TD>
+      <TD' || l_record.FONT_STYLE || '>';
+			IF l_record.MMD_IN_SECONDS >= 3600 THEN
+				t_output := t_output || (l_record.MMD_IN_SECONDS / 3600)::text || 'h';
+			END IF;
+			IF (l_record.MMD_IN_SECONDS % 3600) / 60 > 0 THEN
+				t_output := t_output || ((l_record.MMD_IN_SECONDS % 3600) / 60)::text || 'm';
+			END IF;
+			IF (l_record.MMD_IN_SECONDS % 60) > 0 THEN
+				t_output := t_output || (l_record.MMD_IN_SECONDS % 60)::text || 's';
+			END IF;
+			t_output := t_output || '</TD>
       <TD>' || coalesce(to_char(l_record.LATEST_STH_TIMESTAMP, 'YYYY-MM-DD HH24:MI:SS'), '') || '</TD>
       <TD>' || coalesce(l_record.TREE_SIZE::text, '') || '</TD>
       <TD>' || l_record.BACKLOG::text || '</TD>
