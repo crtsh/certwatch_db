@@ -85,7 +85,9 @@ CREATE TEMPORARY TABLE ccadb_certificate_import (
 	TLSEV_CAPABLE				text,
 	CODESIGNING_CAPABLE			text,
 	SMIME_CAPABLE				text,
-	COUNTRY						text
+	COUNTRY						text,
+	TRUST_BITS_FOR_ROOT_CERT	text,
+	EV_OIDS_FOR_ROOT_CERT		text
 ) ON COMMIT DROP;
 
 \COPY ccadb_certificate_import FROM 'ccadb_all_certificate_records.csv' CSV HEADER;
@@ -176,7 +178,9 @@ INSERT INTO ccadb_certificate_temp (
 		LAST_APPLE_DISCLOSURE_STATUS_CHANGE,
 		LAST_CHROME_DISCLOSURE_STATUS_CHANGE,
 		FULL_CRL_URL,
-		JSON_ARRAY_OF_CRL_URLS
+		JSON_ARRAY_OF_CRL_URLS,
+		TRUST_BITS_FOR_ROOT_CERT,
+		EV_OIDS_FOR_ROOT_CERT
 	)
 	SELECT	c.ID					CERTIFICATE_ID,
 			NULL					PARENT_CERTIFICATE_ID,
@@ -360,7 +364,9 @@ INSERT INTO ccadb_certificate_temp (
 			now() AT TIME ZONE 'UTC'	LAST_APPLE_DISCLOSURE_STATUS_CHANGE,
 			now() AT TIME ZONE 'UTC'	LAST_CHROME_DISCLOSURE_STATUS_CHANGE,
 			cci.FULL_CRL_URL,
-			cci.JSON_ARRAY_OF_CRL_URLS
+			cci.JSON_ARRAY_OF_CRL_URLS,
+			cci.TRUST_BITS_FOR_ROOT_CERT,
+			cci.EV_OIDS_FOR_ROOT_CERT
 		FROM ccadb_certificate_import cci
 			LEFT OUTER JOIN certificate c ON (decode(replace(cci.CERT_SHA256, ':', ''), 'hex') = digest(c.CERTIFICATE, 'sha256'))
 		WHERE cci.CA_OWNER != 'Example CA';
