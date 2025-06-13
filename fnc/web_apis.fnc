@@ -1363,7 +1363,7 @@ Access-Control-Allow-Origin: *
     <TR>
       <TD><A class="nostyle" href="?operator=' || l_record.OPERATOR || '">' || l_record.OPERATOR_DISPLAY || '</A></TD>
       <TD>' || l_record.URL || '</TD>
-      <TD' || l_record.FONT_STYLE || '>';
+      <TD>';
 			IF l_record.MMD_IN_SECONDS >= 3600 THEN
 				t_output := t_output || (l_record.MMD_IN_SECONDS / 3600)::text || 'h';
 			END IF;
