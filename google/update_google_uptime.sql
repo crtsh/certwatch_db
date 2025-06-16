@@ -19,6 +19,6 @@ UPDATE ct_log
 UPDATE ct_log cl
 	SET GOOGLE_UPTIME = gu.UPTIME_PERCENTAGE
 	FROM google_uptime gu
-	WHERE cl.URL = RTRIM(gu.LOG_URL, '/');
+	WHERE coalesce(cl.SUBMISSION_URL, cl.URL) = RTRIM(gu.LOG_URL, '/');
 
 COMMIT WORK;
