@@ -5,7 +5,7 @@ ALLGETROOTS=`mktemp`
 WORKDIR=`mktemp -d`
 TSVTEMP=`mktemp`
 
-psql -h $PGHOST -d certwatch -U certwatch -c "\COPY (SELECT ctl.ID::text || ' ' || (ctl.URL || '/ct/v1/get-roots') FROM ct_log ctl WHERE ctl.IS_ACTIVE) TO '$ALLGETROOTS'"
+psql -h $PGHOST -d certwatch -U certwatch -c "\COPY (SELECT ctl.ID::text || ' ' || (coalesce(ctl.SUBMISSION_URL, ctl.URL) || '/ct/v1/get-roots') FROM ct_log ctl WHERE ctl.IS_ACTIVE) TO '$ALLGETROOTS'"
 
 cd $WORKDIR
 while read line; do
