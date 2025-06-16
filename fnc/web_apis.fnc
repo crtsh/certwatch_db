@@ -1133,7 +1133,7 @@ Access-Control-Allow-Origin: *
 							(coalesce(ctl.TREE_SIZE, 0) - latest.ENTRY_ID - 1) AS BACKLOG,
 							((now() AT TIME ZONE 'UTC') - coalesce(latest2.ENTRY_TIMESTAMP, now() AT TIME ZONE 'UTC')) AS BACKLOG_TIME,
 							ctl.LATEST_UPDATE, ctl.LATEST_STH_TIMESTAMP, ctl.MMD_IN_SECONDS,
-							CASE WHEN coalesce(ctl.LATEST_STH_TIMESTAMP + (ctl.MMD_IN_SECONDS || ' seconds')::interval, now() AT TIME ZONE 'UTC') <= now() AT TIME ZONE 'UTC'
+							CASE WHEN coalesce(ctl.LATEST_STH_TIMESTAMP + (ctl.MMD_IN_SECONDS || ' seconds')::interval, now() AT TIME ZONE 'UTC') <= LATEST_UPDATE
 								THEN ' style="color:#FF0000"'
 								ELSE ''
 							END FONT_STYLE,
