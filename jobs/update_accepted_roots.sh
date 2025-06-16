@@ -16,7 +16,7 @@ while read line; do
   echo >> $TSVTEMP
 done <$ALLGETROOTS
 
-sort $TSVTEMP | uniq | sed '/^[[:space:]]*$/d' > ~/certwatch/jobs/accepted-roots.tsv
+sort $TSVTEMP | uniq | sed '/^[[:space:]]*$/d' | grep "\t" > ~/certwatch/jobs/accepted-roots.tsv
 
 psql -f ~/certwatch/sql/update_accepted_roots.sql -h $PGHOST -d certwatch -U certwatch
 
