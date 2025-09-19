@@ -5403,7 +5403,7 @@ Content-Type: text/html; charset=UTF-8
 			t_output := t_output || '<BR><BR><TEXTAREA cols="160" rows="30">' || t_query || ';</TEXTAREA>';
 		END IF;
 		t_output := t_output || '
-  <P class="copyright">&copy; Sectigo Limited 2015-2025. All rights reserved.</P>
+  <P class="copyright">&copy; <A href="//sectigo.com/">Sectigo</A> Limited 2015-2025. All rights reserved.</P>
   <DIV>
     <A href="https://sectigo.com/"><IMG src="/sectigo_s.png"></A>
     &nbsp;<A href="https://github.com/crtsh"><IMG src="/GitHub-Mark-32px.png"></A>
