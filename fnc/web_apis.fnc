@@ -329,7 +329,9 @@ Access-Control-Allow-Origin: *
 
 	t_temp := upper(get_parameter('match', paramNames, paramValues));
 	IF t_temp IS NULL THEN
-		IF (position(' -' in coalesce(t_value, '')) > 0)
+		IF position('-' in coalesce(t_value, '')) > 0 THEN
+			t_match := 'Single';
+		ELSIF (position(' -' in coalesce(t_value, '')) > 0)
 				OR (position(' +' in coalesce(t_value, '')) > 0)
 				OR (position(' OR ' in upper(coalesce(t_value, ''))) > 0)
 				OR (position(' AND ' in upper(coalesce(t_value, ''))) > 0) THEN
@@ -4018,13 +4020,17 @@ $.ajax({
 		ELSIF position('%' in t_value) = length(t_value) THEN
 			IF t_value LIKE '% %' THEN
 				t_value := substr(t_value, 1, length(t_value) - 1);
-			ELSE
+			ELSIF position('-' IN t_value) = 0 THEN
 				t_value := substr(t_value, 1, length(t_value) - 1) || ':*';
 				t_match := 'FTS';
 				t_tsqueryFunction := 'to_tsquery';
 			END IF;
 		ELSIF position('%' in t_value) > 0 THEN
 			RAISE no_data_found USING MESSAGE = 'Unsupported use of ''%''';
+		END IF;
+
+		IF (t_value LIKE '%-%') AND (t_match IN ('Any', 'FTS')) THEN
+			RAISE no_data_found USING MESSAGE = 'Unsupported Identity Matching option with search term containing ''-''';
 		END IF;
 
 		t_caID := get_parameter('icaid', paramNames, paramValues)::integer;
