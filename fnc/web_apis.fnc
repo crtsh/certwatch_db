@@ -125,6 +125,7 @@ DECLARE
 	t_useCachedResponse	boolean			:= FALSE;
 	t_linter			linter_type;
 	t_linters			text;
+	t_pkimetalHost		text			:= 'pkimet.al';
 	t_showPkimetal		boolean;
 	t_showCABLint		boolean;
 	t_showX509Lint		boolean;
@@ -2887,10 +2888,14 @@ Content-Type: text/plain; charset=UTF-8
 ';
 
 		t_showPkimetal := ((',' || t_opt) LIKE '%,pkimetal,%')
+						OR ((',' || t_opt) LIKE '%,pkimetal-dev,%')
 						OR ((',' || t_opt) LIKE '%,cablint,%')
 						OR ((',' || t_opt) LIKE '%,x509lint,%')
 						OR ((',' || t_opt) LIKE '%,zlint,%');
 		IF t_showPkimetal THEN
+			IF ((',' || t_opt) LIKE '%,pkimetal-dev,%') THEN
+				t_pkimetalHost := 'dev.pkimet.al';
+			END IF;
 			t_output := t_output ||
 '  <TR>
     <TH class="outer">Linter Findings<BR>
@@ -2962,7 +2967,7 @@ Content-Type: text/plain; charset=UTF-8
             document.getElementById("linterFindings").innerHTML = output
           }
         };
-        xhttp.open("POST", "https://pkimet.al/lintcert", true);
+        xhttp.open("POST", "https://' || t_pkimetalHost || '/lintcert", true);
         xhttp.setRequestHeader("Content-Type", "application/x-www-form-urlencoded");
         xhttp.send("severity=meta&format=json&b64cert=' || urlEncode(replace(encode(t_certificate, 'base64'), chr(10), '')) || '");
       </SCRIPT>
