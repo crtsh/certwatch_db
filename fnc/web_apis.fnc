@@ -1084,6 +1084,74 @@ Access-Control-Allow-Origin: *
 		END LOOP;
 		t_output := rtrim(t_output, ',' || chr(10)) || chr(10) || '  ]' || chr(10) || '}';
 
+	ELSIF t_type = 'v3/logs.json' THEN
+		t_temp := coalesce(get_parameter('include', paramNames, paramValues), 'active');
+		t_output := t_output
+								|| '{' || chr(10)
+								|| '  "operators": [' || chr(10);
+		FOR l_record IN (
+			SELECT DISTINCT ctl.OPERATOR
+				FROM ct_log ctl
+				ORDER BY ctl.OPERATOR
+		) LOOP
+			t_output := t_output
+								|| '    {' || chr(10)
+								|| '      "name": "' || l_record.OPERATOR || '",' || chr(10)
+								|| '      "logs": [' || chr(10);
+			FOR l_record2 IN (
+				SELECT ctl.NAME, ctl.PUBLIC_KEY, ctl.URL, ctl.MMD_IN_SECONDS
+					FROM ct_log ctl
+					WHERE ctl.OPERATOR = l_record.OPERATOR
+						AND ctl.TYPE = 'rfc6962'
+						AND ctl.IS_ACTIVE = CASE WHEN t_temp = 'all' THEN ctl.IS_ACTIVE ELSE 't' END
+					ORDER BY ctl.NAME
+			) LOOP
+				t_output := t_output
+								|| '        {' || chr(10)
+								|| '          "description": "' || l_record2.NAME || '",' || chr(10);
+				IF l_record2.PUBLIC_KEY IS NOT NULL THEN
+					t_output := t_output
+								|| '          "log_id": "' || encode(digest(l_record2.PUBLIC_KEY, 'sha256'), 'base64') || '",' || chr(10)
+								|| '          "key": "' || replace(encode(l_record2.PUBLIC_KEY, 'base64'), chr(10), '') || '",' || chr(10);
+				END IF;
+				t_output := t_output
+								|| '          "url": "' || l_record2.URL || '",' || chr(10)
+								|| '          "mmd": ' || coalesce(l_record2.MMD_IN_SECONDS::text, '') || chr(10)
+								|| '        },' || chr(10);
+			END LOOP;
+			t_output := rtrim(t_output, ',' || chr(10)) || chr(10)
+								|| '      ],' || chr(10)
+								|| '      "tiled_logs": [' || chr(10);
+			FOR l_record2 IN (
+				SELECT ctl.NAME, ctl.PUBLIC_KEY, coalesce(ctl.SUBMISSION_URL, ctl.URL) SUBMISSION_URL, ctl.URL, ctl.MMD_IN_SECONDS
+					FROM ct_log ctl
+					WHERE ctl.OPERATOR = l_record.OPERATOR
+						AND ctl.TYPE = 'static'
+						AND ctl.IS_ACTIVE = CASE WHEN t_temp = 'all' THEN ctl.IS_ACTIVE ELSE 't' END
+					ORDER BY ctl.NAME
+			) LOOP
+				t_output := t_output
+								|| '        {' || chr(10)
+								|| '          "description": "' || l_record2.NAME || '",' || chr(10);
+				IF l_record2.PUBLIC_KEY IS NOT NULL THEN
+					t_output := t_output
+								|| '          "log_id": "' || encode(digest(l_record2.PUBLIC_KEY, 'sha256'), 'base64') || '",' || chr(10)
+								|| '          "key": "' || replace(encode(l_record2.PUBLIC_KEY, 'base64'), chr(10), '') || '",' || chr(10);
+				END IF;
+				t_output := t_output
+								|| '          "submission_url": "' || l_record2.SUBMISSION_URL || '",' || chr(10)
+								|| '          "monitoring_url": "' || l_record2.URL || '",' || chr(10)
+								|| '          "mmd": ' || coalesce(l_record2.MMD_IN_SECONDS::text, '') || chr(10)
+								|| '        },' || chr(10);
+			END LOOP;
+			t_output := rtrim(t_output, ',' || chr(10)) || chr(10)
+								|| '      ]' || chr(10)
+								|| '    },' || chr(10);
+		END LOOP;
+		t_output := rtrim(t_output, ',' || chr(10)) || chr(10)
+								|| '  ]' || chr(10)
+								|| '}' || chr(10);
+
 	ELSIF t_type = 'monitored-logs' THEN
 		t_temp := lower(coalesce(get_parameter('recognizedBy', paramNames, paramValues), ''));
 		t_operator := get_parameter('operator', paramNames, paramValues);
