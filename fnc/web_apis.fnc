@@ -1494,14 +1494,14 @@ Access-Control-Allow-Origin: *
 		t_output := t_output ||
 '  <SPAN class="whiteongrey">Accepted Roots Missing</SPAN>
   <BR><BR>
-  <A href="//googlechrome.github.io/CertificateTransparency/log_policy.html" target="_blank">The Chrome CT Log Policy</A> expects logs
+  The <A href="//googlechrome.github.io/CertificateTransparency/log_policy.html" target="_blank">Chrome CT Log Policy</A> expects logs
   <A href="//googlechrome.github.io/CertificateTransparency/log_policy.html#:~:text=to%20accept%20logging%20submissions%20from%20CAs%20that%20are%20trusted%20by%20default%20in%20Chrome%20across%20all%20its%20supported%20platforms%2C%20including%20ChromeOS%2C%20Android%2C%20Linux%2C%20Windows%2C%20macOS%2C%20iOS" target="_blank">
     <I>"to accept logging submissions from CAs that are trusted by default in Chrome across all its supported platforms,<BR>including ChromeOS, Android, Linux, Windows, macOS, iOS"</I></A>.
-  Chrome uses the Chrome Root Store on <A href="//chromium.googlesource.com/chromium/src/+/main/net/data/ssl/chrome_root_store/faq.md#when-are-these-changes-taking-place">all platforms except iOS</A>, on which it uses Apple''s trust store.
-  <BR><BR>Similarly, <A href="//support.apple.com/en-us/HT209255" target="_blank">the Apple CT log program</A> requires logs to
+  Chrome uses the Chrome Root Store on <A href="//chromium.googlesource.com/chromium/src/+/main/net/data/ssl/chrome_root_store/faq.md#when-did-these-features-land" target="_blank">all platforms except iOS</A>, on which it uses Apple''s trust store.
+  <BR><BR>The <A href="//support.apple.com/en-us/HT209255" target="_blank">Apple CT log program</A> requires logs to
   <A href="//support.apple.com/en-us/HT209255#:~:text=trust%20all%20root%20CA%20certificates%20included%20in%20Apple%27s%20trust%20store" target="_blank">
     <I>"trust all root CA certificates included in Apple''s trust store"</I></A>.
-  <BR><BR>Also, it is expected that the forthcoming Mozilla CT log program will require logs to trust all root CA certificates that have the Websites trust bit set in Mozilla''s trust store.
+  <BR><BR>The <A href="//wiki.mozilla.org/SecurityEngineering/Certificate_Transparency#CT_Log_Policy" target="_blank">Mozilla CT Log Policy</A> requires logs to <A href="//wiki.mozilla.org/SecurityEngineering/Certificate_Transparency#Enterprise_Policies:~:text=to%20update%20their%20Accepted,its%20Accepted%20Roots%20list" target="_blank"><I>"to update their Accepted Roots list within a reasonable time after new NSS roots are added, so that logs accept<BR>submissions from all root CAs that have the websites trust bit enabled, with Mozilla allowing some flexibility to accommodate operational constraints provided the operator<BR>notifies Mozilla, documents the rationale and impact, and commits to a timeline for updating its Accepted Roots list"</I></A>.
   <BR><BR>
   <TABLE>
     <TR>
@@ -1555,7 +1555,7 @@ Access-Control-Allow-Origin: *
 							AND rtp.TRUST_PURPOSE_ID = 1  -- Server Authentication.
 							AND 'now' AT TIME ZONE 'UTC' < coalesce(rtp.DISABLED_FROM, 'infinity'::timestamp)
 							AND 'now' AT TIME ZONE 'UTC' - interval '398 days' < coalesce(rtp.NOTBEFORE_UNTIL, 'infinity'::timestamp)
-							AND ctl.APPLE_INCLUSION_STATUS IN ('Qualified', 'Usable')  -- Can't determine "Pending".
+							AND ctl.APPLE_INCLUSION_STATUS IN ('Qualified', 'Usable')
 							AND NOT EXISTS (
 								SELECT 1
 									FROM accepted_roots ar
@@ -1573,7 +1573,7 @@ Access-Control-Allow-Origin: *
 							AND rtp.TRUST_PURPOSE_ID = 1  -- Server Authentication.
 							AND 'now' AT TIME ZONE 'UTC' < coalesce(rtp.DISABLED_FROM, 'infinity'::timestamp)
 							AND 'now' AT TIME ZONE 'UTC' - interval '398 days' < coalesce(rtp.NOTBEFORE_UNTIL, 'infinity'::timestamp)
-							AND ctl.MOZILLA_INCLUSION_STATUS IN ('Admissible', 'Qualified', 'Usable')  -- Can't determine "Pending".
+							AND ctl.MOZILLA_INCLUSION_STATUS IN ('Admissible', 'Qualified', 'Usable')
 							AND NOT EXISTS (
 								SELECT 1
 									FROM accepted_roots ar
