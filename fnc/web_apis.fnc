@@ -1229,6 +1229,7 @@ Access-Control-Allow-Origin: *
 							ctl.MOZILLA_INCLUSION_STATUS, ctl.MOZILLA_LAST_STATUS_CHANGE,
 							mozilla.MOZILLA_NUM_MISSING_ROOTS,
 							CASE WHEN coalesce(ctl.MOZILLA_INCLUSION_STATUS, 'Pending') NOT IN ('Admissible', 'Qualified', 'Usable') THEN '#CCCCCC'
+								WHEN ctl.CHROME_INCLUSION_STATUS NOT IN ('Qualified', 'Usable') THEN '#CCCCCC'
 								WHEN mozilla.MOZILLA_NUM_MISSING_ROOTS > 0 THEN '#FF0000'
 								ELSE '#008800'
 							END MOZILLA_NUM_MISSING_ROOTS_COLOUR
@@ -1501,7 +1502,7 @@ Access-Control-Allow-Origin: *
   <BR><BR>The <A href="//support.apple.com/en-us/HT209255" target="_blank">Apple CT log program</A> requires logs to
   <A href="//support.apple.com/en-us/HT209255#:~:text=trust%20all%20root%20CA%20certificates%20included%20in%20Apple%27s%20trust%20store" target="_blank">
     <I>"trust all root CA certificates included in Apple''s trust store"</I></A>.
-  <BR><BR>The <A href="//wiki.mozilla.org/SecurityEngineering/Certificate_Transparency#CT_Log_Policy" target="_blank">Mozilla CT Log Policy</A> requires logs to <A href="//wiki.mozilla.org/SecurityEngineering/Certificate_Transparency#Enterprise_Policies:~:text=to%20update%20their%20Accepted,its%20Accepted%20Roots%20list" target="_blank"><I>"to update their Accepted Roots list within a reasonable time after new NSS roots are added, so that logs accept<BR>submissions from all root CAs that have the websites trust bit enabled, with Mozilla allowing some flexibility to accommodate operational constraints provided the operator<BR>notifies Mozilla, documents the rationale and impact, and commits to a timeline for updating its Accepted Roots list"</I></A>.
+  <BR><BR>The <A href="//wiki.mozilla.org/SecurityEngineering/Certificate_Transparency#CT_Log_Policy" target="_blank">Mozilla CT Log Policy</A> requires <A href="//wiki.mozilla.org/SecurityEngineering/Certificate_Transparency#Enterprise_Policies:~:text=to%20update%20their%20Accepted,its%20Accepted%20Roots%20list" target="_blank"><I>"Qualified and Usable logs...to update their Accepted Roots list within a reasonable time after new NSS roots are added, so that logs accept<BR>submissions from all root CAs that have the websites trust bit enabled, with Mozilla allowing some flexibility to accommodate operational constraints provided the operator<BR>notifies Mozilla, documents the rationale and impact, and commits to a timeline for updating its Accepted Roots list"</I></A>.
   <BR><BR>
   <TABLE>
     <TR>
@@ -1574,6 +1575,7 @@ Access-Control-Allow-Origin: *
 							AND 'now' AT TIME ZONE 'UTC' < coalesce(rtp.DISABLED_FROM, 'infinity'::timestamp)
 							AND 'now' AT TIME ZONE 'UTC' - interval '398 days' < coalesce(rtp.NOTBEFORE_UNTIL, 'infinity'::timestamp)
 							AND ctl.MOZILLA_INCLUSION_STATUS IN ('Admissible', 'Qualified', 'Usable')
+							AND ctl.CHROME_INCLUSION_STATUS IN ('Qualified', 'Usable')
 							AND NOT EXISTS (
 								SELECT 1
 									FROM accepted_roots ar
