@@ -117,8 +117,44 @@ CREATE TABLE certificate_2025 PARTITION OF certificate
 CREATE TABLE certificate_2026 PARTITION OF certificate
 	FOR VALUES FROM ('2026-01-01T00:00:00'::timestamp) TO ('2027-01-01T00:00:00'::timestamp);
 
-CREATE TABLE certificate_2027andbeyond PARTITION OF certificate
-	FOR VALUES FROM ('2027-01-01T00:00:00'::timestamp) TO (MAXVALUE);
+CREATE TABLE certificate_2027q1 PARTITION OF certificate
+	FOR VALUES FROM ('2027-01-01T00:00:00'::timestamp) TO ('2027-04-01T00:00:00'::timestamp);
+
+CREATE TABLE certificate_2027q2 PARTITION OF certificate
+	FOR VALUES FROM ('2027-04-01T00:00:00'::timestamp) TO ('2027-07-01T00:00:00'::timestamp);
+
+CREATE TABLE certificate_2027q3 PARTITION OF certificate
+	FOR VALUES FROM ('2027-07-01T00:00:00'::timestamp) TO ('2027-10-01T00:00:00'::timestamp);
+
+CREATE TABLE certificate_2027q4 PARTITION OF certificate
+	FOR VALUES FROM ('2027-10-01T00:00:00'::timestamp) TO ('2028-01-01T00:00:00'::timestamp);
+
+CREATE TABLE certificate_2028q1 PARTITION OF certificate
+	FOR VALUES FROM ('2028-01-01T00:00:00'::timestamp) TO ('2028-04-01T00:00:00'::timestamp);
+
+CREATE TABLE certificate_2028q2 PARTITION OF certificate
+	FOR VALUES FROM ('2028-04-01T00:00:00'::timestamp) TO ('2028-07-01T00:00:00'::timestamp);
+
+CREATE TABLE certificate_2028q3 PARTITION OF certificate
+	FOR VALUES FROM ('2028-07-01T00:00:00'::timestamp) TO ('2028-10-01T00:00:00'::timestamp);
+
+CREATE TABLE certificate_2028q4 PARTITION OF certificate
+	FOR VALUES FROM ('2028-10-01T00:00:00'::timestamp) TO ('2029-01-01T00:00:00'::timestamp);
+
+CREATE TABLE certificate_2029q1 PARTITION OF certificate
+	FOR VALUES FROM ('2029-01-01T00:00:00'::timestamp) TO ('2029-04-01T00:00:00'::timestamp);
+
+CREATE TABLE certificate_2029q2 PARTITION OF certificate
+	FOR VALUES FROM ('2029-04-01T00:00:00'::timestamp) TO ('2029-07-01T00:00:00'::timestamp);
+
+CREATE TABLE certificate_2029q3 PARTITION OF certificate
+	FOR VALUES FROM ('2029-07-01T00:00:00'::timestamp) TO ('2029-10-01T00:00:00'::timestamp);
+
+CREATE TABLE certificate_2029q4 PARTITION OF certificate
+	FOR VALUES FROM ('2029-10-01T00:00:00'::timestamp) TO ('2030-01-01T00:00:00'::timestamp);
+
+CREATE TABLE certificate_2030andbeyond PARTITION OF certificate
+	FOR VALUES FROM ('2030-01-01T00:00:00'::timestamp) TO (MAXVALUE);
 
 CREATE INDEX c_id ON certificate (ID);
 
@@ -415,6 +451,9 @@ CREATE TABLE ct_log_entry_2024 PARTITION OF ct_log_entry
 
 CREATE TABLE ct_log_entry_2025 PARTITION OF ct_log_entry
 	FOR VALUES FROM ('2025-01-01T00:00:00'::timestamp) TO ('2026-01-01T00:00:00'::timestamp);
+
+CREATE TABLE ct_log_entry_2026 PARTITION OF ct_log_entry
+	FOR VALUES FROM ('2026-01-01T00:00:00'::timestamp) TO ('2027-01-01T00:00:00'::timestamp);
 
 
 CREATE INDEX ctle_c ON ct_log_entry (CERTIFICATE_ID);
