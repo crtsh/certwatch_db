@@ -1,6 +1,6 @@
 /* certwatch_db - Database schema
  * Written by Rob Stradling
- * Copyright (C) 2015-2025 Sectigo Limited
+ * Copyright (C) 2015-2026 Sectigo Limited
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -946,8 +946,8 @@ Access-Control-Allow-Origin: *
             <TR>
               <TD>Linting</TD>
               <TD>
-                <A href="/linttbscert">TBSCertificate Linter</A>
-                <BR><A href="/lintcert">Certificate Linter</A>
+                <A href="//pkimet.al/linttbscert">TBSCertificate Linter</A>
+                <BR><A href="//pkimet.al/lintcert">Certificate Linter</A>
               </TD>
             </TR>
           </TABLE>
@@ -5484,7 +5484,7 @@ Content-Type: text/html; charset=UTF-8
 			t_output := t_output || '<BR><BR><TEXTAREA cols="160" rows="30">' || t_query || ';</TEXTAREA>';
 		END IF;
 		t_output := t_output || '
-  <P class="copyright">&copy; <A href="//sectigo.com/">Sectigo</A> Limited 2015-2025. All rights reserved.</P>
+  <P class="copyright">&copy; <A href="//sectigo.com/">Sectigo</A> Limited 2015-2026. All rights reserved.</P>
   <DIV>
     <A href="https://sectigo.com/"><IMG src="/sectigo_s.png"></A>
     &nbsp;<A href="https://github.com/crtsh"><IMG src="/GitHub-Mark-32px.png"></A>
