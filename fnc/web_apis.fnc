@@ -1066,7 +1066,11 @@ Access-Control-Allow-Origin: *
 		FOR l_record IN (
 					SELECT ctl.NAME, ctl.PUBLIC_KEY, ctl.URL, ctl.MMD_IN_SECONDS
 						FROM ct_log ctl
-						WHERE ctl.IS_ACTIVE = CASE WHEN t_temp = 'all' THEN ctl.IS_ACTIVE ELSE 't' END
+						WHERE ctl.IS_ACTIVE = CASE
+							WHEN t_temp = 'all' THEN ctl.IS_ACTIVE
+							WHEN t_temp = 'inactive' THEN 'f'
+							ELSE 't'
+						END
 						ORDER BY ctl.NAME
 				) LOOP
 			t_output := t_output
@@ -1103,7 +1107,11 @@ Access-Control-Allow-Origin: *
 					FROM ct_log ctl
 					WHERE ctl.OPERATOR = l_record.OPERATOR
 						AND ctl.TYPE = 'rfc6962'
-						AND ctl.IS_ACTIVE = CASE WHEN t_temp = 'all' THEN ctl.IS_ACTIVE ELSE 't' END
+						AND ctl.IS_ACTIVE = CASE
+							WHEN t_temp = 'all' THEN ctl.IS_ACTIVE
+							WHEN t_temp = 'inactive' THEN 'f'
+							ELSE 't'
+						END
 					ORDER BY ctl.NAME
 			) LOOP
 				t_output := t_output
@@ -1127,7 +1135,11 @@ Access-Control-Allow-Origin: *
 					FROM ct_log ctl
 					WHERE ctl.OPERATOR = l_record.OPERATOR
 						AND ctl.TYPE = 'static'
-						AND ctl.IS_ACTIVE = CASE WHEN t_temp = 'all' THEN ctl.IS_ACTIVE ELSE 't' END
+						AND ctl.IS_ACTIVE = CASE
+							WHEN t_temp = 'all' THEN ctl.IS_ACTIVE
+							WHEN t_temp = 'inactive' THEN 'f'
+							ELSE 't'
+						END
 					ORDER BY ctl.NAME
 			) LOOP
 				t_output := t_output
