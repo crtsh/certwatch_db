@@ -1304,6 +1304,7 @@ Access-Control-Allow-Origin: *
 										) sub
 								) mozilla ON TRUE
 						WHERE ctl.IS_ACTIVE
+							AND NOT ctl.IS_TEST_LOG
 							AND ctl.OPERATOR = coalesce(t_operator, ctl.OPERATOR)
 						ORDER BY ctl.TREE_SIZE DESC NULLS LAST
 				) LOOP
@@ -1429,6 +1430,7 @@ Access-Control-Allow-Origin: *
 								WHERE ctle.CT_LOG_ID = ctl.ID
 						) latest ON TRUE
 				WHERE NOT ctl.IS_ACTIVE
+					AND NOT ctl.IS_TEST_LOG
 					AND ctl.LATEST_STH_TIMESTAMP IS NOT NULL
 					AND ctl.OPERATOR = coalesce(t_operator, ctl.OPERATOR)
 				ORDER BY ctl.TREE_SIZE DESC NULLS LAST
