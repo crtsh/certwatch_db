@@ -366,6 +366,7 @@ CREATE TABLE ct_log (
 	NAME						text,
 	PUBLIC_KEY					bytea,
 	IS_ACTIVE					boolean,
+	IS_TEST_LOG					boolean		DEFAULT FALSE,
 	LATEST_UPDATE				timestamp,
 	LATEST_STH_TIMESTAMP		timestamp,
 	MMD_IN_SECONDS				integer,
