@@ -1103,7 +1103,7 @@ Access-Control-Allow-Origin: *
 								|| '      "name": "' || l_record.OPERATOR || '",' || chr(10)
 								|| '      "logs": [' || chr(10);
 			FOR l_record2 IN (
-				SELECT ctl.NAME, ctl.PUBLIC_KEY, ctl.URL, ctl.MMD_IN_SECONDS, ctl.IS_TEST_LOG
+				SELECT ctl.NAME, ctl.PUBLIC_KEY, ctl.URL, ctl.MMD_IN_SECONDS, ctl.IS_TEST_LOG, ctl.START_INCLUSIVE, ctl.END_EXCLUSIVE
 					FROM ct_log ctl
 					WHERE ctl.OPERATOR = l_record.OPERATOR
 						AND ctl.TYPE = 'rfc6962'
@@ -1124,19 +1124,26 @@ Access-Control-Allow-Origin: *
 				END IF;
 				t_output := t_output
 								|| '          "url": "' || l_record2.URL || '",' || chr(10)
-								|| '          "mmd": ' || coalesce(l_record2.MMD_IN_SECONDS::text, '') || chr(10);
-				IF l_record.IS_TEST_LOG THEN
-					t_output := t_output
-								|| '          "log_type": "test"' || chr(10);
+								|| '          "mmd": ' || coalesce(l_record2.MMD_IN_SECONDS::text, '');
+				IF (l_record2.START_INCLUSIVE IS NOT NULL) AND (l_record2.END_EXCLUSIVE IS NOT NULL) THEN
+					t_output := t_output || ',' || chr(10)
+								|| '          "temporal_interval": {' || chr(10)
+								|| '            "start_inclusive": "' || to_char(l_record2.START_INCLUSIVE, 'YYYY-MM-DD"T"HH24:MI:SS"Z"') || '",' || chr(10)
+								|| '            "end_exclusive": "' || to_char(l_record2.END_EXCLUSIVE, 'YYYY-MM-DD"T"HH24:MI:SS"Z"') || '"' || chr(10)
+								|| '          }';
 				END IF;
-				t_output := t_output
+				IF l_record2.IS_TEST_LOG THEN
+					t_output := t_output || ',' || chr(10)
+								|| '          "log_type": "test"';
+				END IF;
+				t_output := t_output || chr(10)
 								|| '        },' || chr(10);
 			END LOOP;
 			t_output := rtrim(t_output, ',' || chr(10)) || chr(10)
 								|| '      ],' || chr(10)
 								|| '      "tiled_logs": [' || chr(10);
 			FOR l_record2 IN (
-				SELECT ctl.NAME, ctl.PUBLIC_KEY, coalesce(ctl.SUBMISSION_URL, ctl.URL) SUBMISSION_URL, ctl.URL, ctl.MMD_IN_SECONDS, ctl.IS_TEST_LOG
+				SELECT ctl.NAME, ctl.PUBLIC_KEY, coalesce(ctl.SUBMISSION_URL, ctl.URL) SUBMISSION_URL, ctl.URL, ctl.MMD_IN_SECONDS, ctl.IS_TEST_LOG, ctl.START_INCLUSIVE, ctl.END_EXCLUSIVE
 					FROM ct_log ctl
 					WHERE ctl.OPERATOR = l_record.OPERATOR
 						AND ctl.TYPE = 'static'
@@ -1158,12 +1165,19 @@ Access-Control-Allow-Origin: *
 				t_output := t_output
 								|| '          "submission_url": "' || l_record2.SUBMISSION_URL || '",' || chr(10)
 								|| '          "monitoring_url": "' || l_record2.URL || '",' || chr(10)
-								|| '          "mmd": ' || coalesce(l_record2.MMD_IN_SECONDS::text, '') || chr(10);
-				IF l_record.IS_TEST_LOG THEN
-					t_output := t_output
-								|| '          "log_type": "test"' || chr(10);
+								|| '          "mmd": ' || coalesce(l_record2.MMD_IN_SECONDS::text, '');
+				IF (l_record2.START_INCLUSIVE IS NOT NULL) AND (l_record2.END_EXCLUSIVE IS NOT NULL) THEN
+					t_output := t_output || ',' || chr(10)
+								|| '          "temporal_interval": {' || chr(10)
+								|| '            "start_inclusive": "' || to_char(l_record2.START_INCLUSIVE, 'YYYY-MM-DD"T"HH24:MI:SS"Z"') || '",' || chr(10)
+								|| '            "end_exclusive": "' || to_char(l_record2.END_EXCLUSIVE, 'YYYY-MM-DD"T"HH24:MI:SS"Z"') || '"' || chr(10)
+								|| '          }';
 				END IF;
-				t_output := t_output
+				IF l_record2.IS_TEST_LOG THEN
+					t_output := t_output || ',' || chr(10)
+								|| '          "log_type": "test"';
+				END IF;
+				t_output := t_output || chr(10)
 								|| '        },' || chr(10);
 			END LOOP;
 			t_output := rtrim(t_output, ',' || chr(10)) || chr(10)
