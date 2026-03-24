@@ -11,14 +11,27 @@ CREATE TEMPORARY TABLE google_uptime (
 	UPTIME_PERCENTAGE	text
 ) ON COMMIT DROP;
 
-\COPY google_uptime FROM 'google_uptime.csv' CSV HEADER;
+\COPY google_uptime FROM 'google_uptime_90d.csv' CSV HEADER;
+
+CREATE TEMPORARY TABLE google_uptime_24h (
+	LOG_URL				text,
+	UPTIME_PERCENTAGE	text
+) ON COMMIT DROP;
+
+\COPY google_uptime_24h FROM 'endpoint_uptime_24h.csv' CSV HEADER DELIMITER ' ';
 
 UPDATE ct_log
-	SET GOOGLE_UPTIME = NULL;
+	SET GOOGLE_UPTIME = NULL,
+		GOOGLE_UPTIME_24H = NULL;
 
 UPDATE ct_log cl
 	SET GOOGLE_UPTIME = gu.UPTIME_PERCENTAGE
 	FROM google_uptime gu
 	WHERE coalesce(cl.SUBMISSION_URL, cl.URL) = RTRIM(gu.LOG_URL, '/');
+
+UPDATE ct_log cl
+	SET GOOGLE_UPTIME_24H = gu24.UPTIME_PERCENTAGE
+	FROM google_uptime_24h gu24
+	WHERE coalesce(cl.SUBMISSION_URL, cl.URL) = RTRIM(gu24.LOG_URL, '/');
 
 COMMIT WORK;

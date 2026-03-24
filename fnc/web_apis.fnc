@@ -1213,7 +1213,7 @@ Access-Control-Allow-Origin: *
       <TH rowspan="2">Latest STH<BR><SPAN class="small">(UTC)</SPAN></TH>
       <TH colspan="3">Entries</TH>
       <TH rowspan="2">Last get-sth call<BR><SPAN class="small">(UTC)</SPAN></TH>
-      <TH style="border-left:2px solid black">Google</TH>
+      <TH colspan="2" style="border-left:2px solid black">Google Uptime %</TH>
       <TH style="border-left:2px solid black"><A href="monitored-logs?recognizedBy=Chrome">Chrome</A>:</TH>
       <TH rowspan="2"><A href="accepted-roots-missing"># Roots<BR>Missing</A></TH>
       <TH style="border-left:2px solid black"><A href="monitored-logs?recognizedBy=Apple">Apple</A>:</TH>
@@ -1226,8 +1226,9 @@ Access-Control-Allow-Origin: *
       <TH>Tree Size</TH>
       <TH>Backlog</TH>
       <TH>Latest Entry Age</TH>
-      <TH style="border-left:2px solid black"><A href="//www.gstatic.com/ct/compliance/endpoint_uptime.csv">Uptime %</A></TH>
-      <TH style="border-left:2px solid black">Status (added)</TH>
+      <TH style="border-left:2px solid black"><A href="//www.gstatic.com/ct/compliance/endpoint_uptime.csv">90d</A></TH>
+	  <TH style="border-left:2px solid black"><A href="//www.gstatic.com/ct/compliance/endpoint_uptime_24h.csv">24h</A></TH>
+	  <TH style="border-left:2px solid black">Status (added)</TH>
       <TH style="border-left:2px solid black">Status <SPAN style="font-weight:normal">[since]</SPAN></TH>
       <TH style="border-left:2px solid black">Status</TH>
       <TH style="border-left:2px solid black">Status <SPAN style="font-weight:normal">[since]</SPAN></TH>
@@ -1245,11 +1246,15 @@ Access-Control-Allow-Origin: *
 								ELSE ''
 							END FONT_STYLE,
 							ctl.CHROME_VERSION_ADDED, ctl.CHROME_ISSUE_NUMBER, ctl.CHROME_INCLUSION_STATUS,
-							ctl.CHROME_FINAL_TREE_SIZE, ctl.CHROME_DISQUALIFIED_AT, ctl.GOOGLE_UPTIME,
+							ctl.CHROME_FINAL_TREE_SIZE, ctl.CHROME_DISQUALIFIED_AT, ctl.GOOGLE_UPTIME, ctl.GOOGLE_UPTIME_24H,
 							CASE WHEN coalesce(ctl.GOOGLE_UPTIME::numeric, 100) < 99
 								THEN ';color:#FF0000'
 								ELSE ';color:#008800'
 							END UPTIME_FONT_STYLE,
+							CASE WHEN coalesce(ctl.GOOGLE_UPTIME_24H::numeric, 100) < 99
+								THEN ';color:#FF0000'
+								ELSE ';color:#008800'
+							END UPTIME_FONT_24H_STYLE,
 							chrome.CHROME_NUM_MISSING_ROOTS,
 							CASE WHEN coalesce(ctl.CHROME_INCLUSION_STATUS, 'Pending') NOT IN ('Qualified', 'Usable') THEN '#CCCCCC'
 								WHEN chrome.CHROME_NUM_MISSING_ROOTS > 0 THEN '#FF0000'
@@ -1367,6 +1372,7 @@ Access-Control-Allow-Origin: *
       <TD' || l_record.FONT_STYLE || '>' || date_trunc('second', l_record.BACKLOG_TIME)::text || '</TD>
       <TD' || l_record.FONT_STYLE || '>' || coalesce(to_char(l_record.LATEST_UPDATE, 'YYYY-MM-DD HH24:MI:SS'), '') || '</TD>
       <TD style="border-left:2px solid black;text-align:right' || l_record.UPTIME_FONT_STYLE || '">' || coalesce(l_record.GOOGLE_UPTIME, '') || '</TD>
+      <TD style="border-left:2px solid black;text-align:right' || l_record.UPTIME_FONT_24H_STYLE || '">' || coalesce(l_record.GOOGLE_UPTIME_24H, '') || '</TD>
       <TD style="border-left:2px solid black">';
 			IF l_record.CHROME_ISSUE_NUMBER IS NOT NULL THEN
 				t_output := t_output || '<A href="https://issues.chromium.org/issues/'
