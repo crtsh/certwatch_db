@@ -1354,7 +1354,7 @@ Access-Control-Allow-Origin: *
 			t_output := t_output || '
     <TR>
       <TD' || l_record.FONT_STYLE || '><A class="nostyle" href="?operator=' || l_record.OPERATOR || '">' || l_record.OPERATOR_DISPLAY || '</A></TD>
-      <TD' || l_record.FONT_STYLE || '><A title="' || l_record.URL || '">' || substr(l_record.URL, 1, 48) || '</A></TD>
+      <TD' || l_record.FONT_STYLE || '><A title="' || l_record.URL || '">' || (CASE WHEN length(l_record.URL) <= 48 THEN l_record.URL ELSE rtrim(substr(l_record.URL, 1, 48), '.') || '...' END) || '</A></TD>
       <TD' || l_record.FONT_STYLE || '>';
 			IF l_record.MMD_IN_SECONDS >= 3600 THEN
 				t_output := t_output || (l_record.MMD_IN_SECONDS / 3600)::text || 'h';
@@ -1479,7 +1479,7 @@ Access-Control-Allow-Origin: *
     <TR>
       <TD><A class="nostyle" href="?operator=' || l_record.OPERATOR || '">' || l_record.OPERATOR_DISPLAY || '</A></TD>
       <TD>' || l_record.URL || '</TD>
-      <TD><A title="' || l_record.URL || '">' || substr(l_record.URL, 1, 48) || '</A></TD>
+      <TD><A title="' || l_record.URL || '">' || (CASE WHEN length(l_record.URL) <= 48 THEN l_record.URL ELSE rtrim(substr(l_record.URL, 1, 48), '.') || '...' END) || '</A></TD>
       <TD>';
 			IF l_record.MMD_IN_SECONDS >= 3600 THEN
 				t_output := t_output || (l_record.MMD_IN_SECONDS / 3600)::text || 'h';
