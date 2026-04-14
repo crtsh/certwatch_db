@@ -93,7 +93,9 @@ CREATE TEMPORARY TABLE ccadb_certificate_import (
 	EV_OIDS_FOR_ROOT_CERT		text
 ) ON COMMIT DROP;
 
-\COPY ccadb_certificate_import FROM 'ccadb_all_certificate_records.csv' CSV HEADER;
+\COPY ccadb_certificate_import FROM 'AllCertificateRecordsCSVFormatV4a' CSV HEADER;
+
+\COPY ccadb_certificate_import FROM 'AllCertificateRecordsCSVFormatV4b' CSV HEADER;
 
 DELETE FROM ccadb_certificate_import
 	WHERE LENGTH(CERT_SHA256) != 64;
