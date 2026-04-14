@@ -7,19 +7,17 @@ RESULT=$?
 if [ "$RESULT" -eq "0" ]; then
   mv AllCertificateRecordsCSVFormatV4a.new AllCertificateRecordsCSVFormatV4a
   sed -i "s/,$//g" AllCertificateRecordsCSVFormatV4a
-  psql -f update_ccadb_certificates.sql -h $PGHOST -d certwatch -U certwatch
+  wget -O AllCertificateRecordsCSVFormatV4b.new https://ccadb.my.salesforce-sites.com/ccadb/AllCertificateRecordsCSVFormatV4b
+  RESULT=$?
+  if [ "$RESULT" -eq "0" ]; then
+    mv AllCertificateRecordsCSVFormatV4b.new AllCertificateRecordsCSVFormatV4b
+    sed -i "s/,$//g" AllCertificateRecordsCSVFormatV4b
+    psql -f update_ccadb_certificates.sql -h $PGHOST -d certwatch -U certwatch
+  else
+    echo "Failed to download https://ccadb.my.salesforce-sites.com/ccadb/AllCertificateRecordsCSVFormatv4b"
+  fi
 else
   echo "Failed to download https://ccadb.my.salesforce-sites.com/ccadb/AllCertificateRecordsCSVFormatv4a"
-fi
-
-wget -O AllCertificateRecordsCSVFormatV4b.new https://ccadb.my.salesforce-sites.com/ccadb/AllCertificateRecordsCSVFormatV4b
-RESULT=$?
-if [ "$RESULT" -eq "0" ]; then
-  mv AllCertificateRecordsCSVFormatV4b.new AllCertificateRecordsCSVFormatV4b
-  sed -i "s/,$//g" AllCertificateRecordsCSVFormatV4b
-  psql -f update_ccadb_certificates.sql -h $PGHOST -d certwatch -U certwatch
-else
-  echo "Failed to download https://ccadb.my.salesforce-sites.com/ccadb/AllCertificateRecordsCSVFormatv4b"
 fi
 
 # Process Root Trust Bit settings.
