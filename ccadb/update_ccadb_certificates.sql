@@ -27,10 +27,17 @@ CREATE TEMPORARY TABLE ccadb_certificate_import (
 	AUTHORITY_KEY_IDENTIFIER	text,
 	SUBJECT_KEY_IDENTIFIER		text,
 	IS_TECHNICALLY_CONSTRAINED	text,
+	TRUST_BITS_FOR_ROOT_CERT	text,
+	EV_OIDS_FOR_ROOT_CERT		text,
 	DERIVED_TRUST_BITS			text,
-	FULL_CRL_URL				text,
-	JSON_ARRAY_OF_CRL_URLS		text,
-	AUDITOR						text,
+	JSON_ARRAY_OF_ALL_FULL_CRL_URLS		text,
+	JSON_ARRAY_OF_PARTITIONED_CRL_URLS	text,
+	DV_ACME_URLS				text,
+	OV_ACME_URLS				text,
+	EV_ACME_URLS				text,
+	IV_ACME_URLS				text,
+	AUDIT_FIRM					text,
+	AUDIT_LOCATION				text,
 	AUDITS_SAME_AS_PARENT		text,
 	STANDARD_AUDIT_URL			text,
 	STANDARD_AUDIT_TYPE			text,
@@ -88,14 +95,10 @@ CREATE TEMPORARY TABLE ccadb_certificate_import (
 	TLSEV_CAPABLE				text,
 	CODESIGNING_CAPABLE			text,
 	SMIME_CAPABLE				text,
-	COUNTRY						text,
-	TRUST_BITS_FOR_ROOT_CERT	text,
-	EV_OIDS_FOR_ROOT_CERT		text
+	COUNTRY						text
 ) ON COMMIT DROP;
 
-\COPY ccadb_certificate_import FROM 'AllCertificateRecordsCSVFormatV4a' CSV HEADER;
-
-\COPY ccadb_certificate_import FROM 'AllCertificateRecordsCSVFormatV4b' CSV HEADER;
+\COPY ccadb_certificate_import FROM 'AllCertificateRecordsCSVFormatV5' CSV HEADER;
 
 DELETE FROM ccadb_certificate_import
 	WHERE LENGTH(CERT_SHA256) != 64;
@@ -120,7 +123,8 @@ INSERT INTO ccadb_certificate_temp (
 		REVOCATION_STATUS,
 		CERT_SHA256,
 		AUDITS_SAME_AS_PARENT,
-		AUDITOR,
+		AUDIT_FIRM,
+		AUDIT_LOCATION,
 		STANDARD_AUDIT_URL,
 		STANDARD_AUDIT_TYPE,
 		STANDARD_AUDIT_DATE,
@@ -167,6 +171,8 @@ INSERT INTO ccadb_certificate_temp (
 		TEST_WEBSITE_EXPIRED,
 		TEST_WEBSITE_REVOKED,
 		IS_TECHNICALLY_CONSTRAINED,
+		TRUST_BITS_FOR_ROOT_CERT,
+		EV_OIDS_FOR_ROOT_CERT,
 		APPLE_STATUS,
 		MOZILLA_STATUS,
 		MICROSOFT_STATUS,
@@ -185,10 +191,8 @@ INSERT INTO ccadb_certificate_temp (
 		LAST_MICROSOFT_DISCLOSURE_STATUS_CHANGE,
 		LAST_APPLE_DISCLOSURE_STATUS_CHANGE,
 		LAST_CHROME_DISCLOSURE_STATUS_CHANGE,
-		FULL_CRL_URL,
-		JSON_ARRAY_OF_CRL_URLS,
-		TRUST_BITS_FOR_ROOT_CERT,
-		EV_OIDS_FOR_ROOT_CERT
+		JSON_ARRAY_OF_ALL_FULL_CRL_URLS,
+		JSON_ARRAY_OF_PARTITIONED_CRL_URLS
 	)
 	SELECT	c.ID					CERTIFICATE_ID,
 			NULL					PARENT_CERTIFICATE_ID,
@@ -213,9 +217,12 @@ INSERT INTO ccadb_certificate_temp (
 			CASE WHEN (cci.AUDITS_SAME_AS_PARENT = '') THEN FALSE
 				ELSE (lower(cci.AUDITS_SAME_AS_PARENT) = 'true')
 			END AUDITS_SAME_AS_PARENT,
-			CASE WHEN (cci.AUDITOR = '') THEN NULL
-				ELSE cci.AUDITOR
-			END AUDITOR,
+			CASE WHEN (cci.AUDIT_FIRM = '') THEN NULL
+				ELSE cci.AUDIT_FIRM
+			END AUDIT_FIRM,
+			CASE WHEN (cci.AUDIT_LOCATION = '') THEN NULL
+				ELSE cci.AUDIT_LOCATION
+			END AUDIT_LOCATION,
 			CASE WHEN (cci.STANDARD_AUDIT_URL = '') THEN NULL
 				ELSE cci.STANDARD_AUDIT_URL
 			END STANDARD_AUDIT_URL,
@@ -346,6 +353,8 @@ INSERT INTO ccadb_certificate_temp (
 			cci.TEST_WEBSITE_EXPIRED,
 			cci.TEST_WEBSITE_REVOKED,
 			cci.IS_TECHNICALLY_CONSTRAINED,
+			cci.TRUST_BITS_FOR_ROOT_CERT,
+			cci.EV_OIDS_FOR_ROOT_CERT,
 			cci.APPLE_STATUS,
 			cci.MOZILLA_STATUS,
 			cci.MICROSOFT_STATUS,
@@ -380,10 +389,8 @@ INSERT INTO ccadb_certificate_temp (
 			now() AT TIME ZONE 'UTC'	LAST_MICROSOFT_DISCLOSURE_STATUS_CHANGE,
 			now() AT TIME ZONE 'UTC'	LAST_APPLE_DISCLOSURE_STATUS_CHANGE,
 			now() AT TIME ZONE 'UTC'	LAST_CHROME_DISCLOSURE_STATUS_CHANGE,
-			cci.FULL_CRL_URL,
-			cci.JSON_ARRAY_OF_CRL_URLS,
-			cci.TRUST_BITS_FOR_ROOT_CERT,
-			cci.EV_OIDS_FOR_ROOT_CERT
+			cci.JSON_ARRAY_OF_ALL_FULL_CRL_URLS,
+			cci.JSON_ARRAY_OF_PARTITIONED_CRL_URLS
 		FROM ccadb_certificate_import cci
 			LEFT OUTER JOIN certificate c ON (decode(replace(cci.CERT_SHA256, ':', ''), 'hex') = digest(c.CERTIFICATE, 'sha256'))
 		WHERE cci.CA_OWNER != 'Example CA';
@@ -600,7 +607,8 @@ BEGIN
 				SMIME_AUDIT_DATE = coalesce(cct.SMIME_AUDIT_DATE, cct_parent.SMIME_AUDIT_DATE),
 				SMIME_AUDIT_START = coalesce(cct.SMIME_AUDIT_START, cct_parent.SMIME_AUDIT_START),
 				SMIME_AUDIT_END = coalesce(cct.SMIME_AUDIT_END, cct_parent.SMIME_AUDIT_END),
-				AUDITOR = coalesce(cct.AUDITOR, cct_parent.AUDITOR)
+				AUDIT_FIRM = coalesce(cct.AUDIT_FIRM, cct_parent.AUDIT_FIRM),
+				AUDIT_LOCATION = coalesce(cct.AUDIT_LOCATION, cct_parent.AUDIT_LOCATION)
 			FROM ccadb_certificate_temp cct_parent
 			WHERE cct.CERTIFICATE_ID IS NOT NULL
 				AND cct.AUDITS_SAME_AS_PARENT
@@ -1177,8 +1185,8 @@ UPDATE ccadb_certificate_temp cct
 	FROM ca_certificate cac, ca
 	WHERE cct.MOZILLA_DISCLOSURE_STATUS = 'Disclosed'
 		AND cct.CERT_RECORD_TYPE IN ('Root Certificate', 'Intermediate Certificate')
-		AND nullif(cct.FULL_CRL_URL, '') IS NULL
-		AND nullif(nullif(cct.JSON_ARRAY_OF_CRL_URLS, ''), '[""]') IS NULL
+		AND nullif(nullif(cct.JSON_ARRAY_OF_ALL_FULL_CRL_URLS, ''), '[""]') IS NULL
+		AND nullif(nullif(cct.JSON_ARRAY_OF_PARTITIONED_CRL_URLS, ''), '[""]') IS NULL
 		AND cct.CERTIFICATE_ID = cac.CERTIFICATE_ID
 		AND cac.CA_ID = ca.ID
 		AND EXISTS (
@@ -1207,19 +1215,12 @@ UPDATE ccadb_certificate_temp cct
 					AND NOT ctp.ALL_CHAINS_REVOKED_IN_SALESFORCE
 		)
 		AND (
-			(
-				cct.FULL_CRL_URL = 'revoked'
-				AND cct.REVOCATION_STATUS NOT IN ('Revoked', 'Parent Cert Revoked')
-			)
-			OR (
-				cct.FULL_CRL_URL = 'expired'
-				AND x509_notAfter(c.CERTIFICATE) > now() AT TIME ZONE 'UTC'
-			)
-			OR EXISTS (
+			EXISTS (
 				SELECT 1
-					FROM crl
+					FROM crl, json_array_elements_text(cct.JSON_ARRAY_OF_ALL_FULL_CRL_URLS::json) json_crl_url
 					WHERE cac.CA_ID = crl.CA_ID
-						AND cct.FULL_CRL_URL = crl.DISTRIBUTION_POINT_URL
+						AND length(cct.JSON_ARRAY_OF_ALL_FULL_CRL_URLS) > 4	-- Longer then [""].
+						AND crl.DISTRIBUTION_POINT_URL = json_crl_url
 						AND (
 							(crl.ERROR_MESSAGE IS NOT NULL)
 							OR (crl.NEXT_UPDATE < now() AT TIME ZONE 'UTC')
@@ -1227,9 +1228,9 @@ UPDATE ccadb_certificate_temp cct
 			)
 			OR EXISTS (
 				SELECT 1
-					FROM crl, json_array_elements_text(cct.JSON_ARRAY_OF_CRL_URLS::json) json_crl_url
+					FROM crl, json_array_elements_text(cct.JSON_ARRAY_OF_PARTITIONED_CRL_URLS::json) json_crl_url
 					WHERE cac.CA_ID = crl.CA_ID
-						AND length(cct.JSON_ARRAY_OF_CRL_URLS) > 4	-- Longer than [""].
+						AND length(cct.JSON_ARRAY_OF_PARTITIONED_CRL_URLS) > 4	-- Longer than [""].
 						AND crl.DISTRIBUTION_POINT_URL = json_crl_url
 						AND (
 							(crl.ERROR_MESSAGE IS NOT NULL)
@@ -1445,8 +1446,8 @@ UPDATE ccadb_certificate_temp cct
 	FROM ca_certificate cac, ca
 	WHERE cct.APPLE_DISCLOSURE_STATUS = 'Disclosed'
 		AND cct.CERT_RECORD_TYPE IN ('Root Certificate', 'Intermediate Certificate')
-		AND nullif(cct.FULL_CRL_URL, '') IS NULL
-		AND nullif(nullif(cct.JSON_ARRAY_OF_CRL_URLS, ''), '[""]') IS NULL
+		AND nullif(nullif(cct.JSON_ARRAY_OF_ALL_FULL_CRL_URLS, ''), '[""]') IS NULL
+		AND nullif(nullif(cct.JSON_ARRAY_OF_PARTITIONED_CRL_URLS, ''), '[""]') IS NULL
 		AND cct.CERTIFICATE_ID = cac.CERTIFICATE_ID
 		AND cac.CA_ID = ca.ID
 		AND EXISTS (
@@ -1465,19 +1466,12 @@ UPDATE ccadb_certificate_temp cct
 		AND cct.CERTIFICATE_ID = c.ID
 		AND c.ID = cac.CERTIFICATE_ID
 		AND (
-			(
-				cct.FULL_CRL_URL = 'revoked'
-				AND cct.REVOCATION_STATUS NOT IN ('Revoked', 'Parent Cert Revoked')
-			)
-			OR (
-				cct.FULL_CRL_URL = 'expired'
-				AND x509_notAfter(c.CERTIFICATE) > now() AT TIME ZONE 'UTC'
-			)
-			OR EXISTS (
+			EXISTS (
 				SELECT 1
-					FROM crl
+					FROM crl, json_array_elements_text(cct.JSON_ARRAY_OF_ALL_FULL_CRL_URLS::json) json_crl_url
 					WHERE cac.CA_ID = crl.CA_ID
-						AND cct.FULL_CRL_URL = crl.DISTRIBUTION_POINT_URL
+						AND length(cct.JSON_ARRAY_OF_ALL_FULL_CRL_URLS) > 4	-- Longer than [""].
+						AND crl.DISTRIBUTION_POINT_URL = json_crl_url
 						AND (
 							(crl.ERROR_MESSAGE IS NOT NULL)
 							OR (crl.NEXT_UPDATE < now() AT TIME ZONE 'UTC')
@@ -1485,9 +1479,9 @@ UPDATE ccadb_certificate_temp cct
 			)
 			OR EXISTS (
 				SELECT 1
-					FROM crl, json_array_elements_text(cct.JSON_ARRAY_OF_CRL_URLS::json) json_crl_url
+					FROM crl, json_array_elements_text(cct.JSON_ARRAY_OF_PARTITIONED_CRL_URLS::json) json_crl_url
 					WHERE cac.CA_ID = crl.CA_ID
-						AND length(cct.JSON_ARRAY_OF_CRL_URLS) > 4	-- Longer than [""].
+						AND length(cct.JSON_ARRAY_OF_PARTITIONED_CRL_URLS) > 4	-- Longer than [""].
 						AND crl.DISTRIBUTION_POINT_URL = json_crl_url
 						AND (
 							(crl.ERROR_MESSAGE IS NOT NULL)
@@ -2871,25 +2865,25 @@ UPDATE ccadb_certificate_temp cct
 INSERT INTO crl (
 		CA_ID, DISTRIBUTION_POINT_URL, NEXT_CHECK_DUE, IS_ACTIVE
 	)
-	SELECT cac.CA_ID, cct.FULL_CRL_URL, now() AT TIME ZONE 'UTC', TRUE
-		FROM ccadb_certificate_temp cct, ca_certificate cac
-		WHERE nullif(nullif(nullif(cct.FULL_CRL_URL, ''), 'revoked'), 'expired') IS NOT NULL
-			AND cct.CERTIFICATE_ID = cac.CERTIFICATE_ID
+	SELECT cac.CA_ID, json_crl_url, now() AT TIME ZONE 'UTC', TRUE
+		FROM ccadb_certificate_temp cct, ca_certificate cac, json_array_elements_text(cct.JSON_ARRAY_OF_ALL_FULL_CRL_URLS::json) json_crl_url
+		WHERE cct.CERTIFICATE_ID = cac.CERTIFICATE_ID
+			AND length(cct.JSON_ARRAY_OF_ALL_FULL_CRL_URLS) > 4	-- Longer than [""].
 			AND NOT EXISTS (
 				SELECT 1
 					FROM crl
 					WHERE crl.CA_ID = cac.CA_ID
-						AND crl.DISTRIBUTION_POINT_URL = cct.FULL_CRL_URL
+						AND crl.DISTRIBUTION_POINT_URL = json_crl_url
 			)
-		GROUP BY cac.CA_ID, cct.FULL_CRL_URL;
+		GROUP BY cac.CA_ID, json_crl_url;
 
 INSERT INTO crl (
 		CA_ID, DISTRIBUTION_POINT_URL, NEXT_CHECK_DUE, IS_ACTIVE
 	)
 	SELECT cac.CA_ID, json_crl_url, now() AT TIME ZONE 'UTC', TRUE
-		FROM ccadb_certificate_temp cct, ca_certificate cac, json_array_elements_text(cct.JSON_ARRAY_OF_CRL_URLS::json) json_crl_url
+		FROM ccadb_certificate_temp cct, ca_certificate cac, json_array_elements_text(cct.JSON_ARRAY_OF_PARTITIONED_CRL_URLS::json) json_crl_url
 		WHERE cct.CERTIFICATE_ID = cac.CERTIFICATE_ID
-			AND length(cct.JSON_ARRAY_OF_CRL_URLS) > 4	-- Longer than [""].
+			AND length(cct.JSON_ARRAY_OF_PARTITIONED_CRL_URLS) > 4	-- Longer than [""].
 			AND NOT EXISTS (
 				SELECT 1
 					FROM crl
