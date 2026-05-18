@@ -277,18 +277,25 @@ CREATE INDEX crl_sz
 	ON crl (CRL_SIZE);
 
 
+CREATE SEQUENCE crl_revoked_seq
+	AS bigint;
+
 CREATE TABLE crl_revoked (
-	CA_ID					integer,
-	SERIAL_NUMBER			bytea,
-	REASON_CODE				smallint,
+	SEQUENCE_NUMBER			bigint,
 	REVOCATION_DATE			timestamp,
 	LAST_SEEN_CHECK_DATE	timestamp,
+	CA_ID					integer,
+	REASON_CODE				smallint,
+	SERIAL_NUMBER			bytea,
 	CONSTRAINT crlr_pk
 		PRIMARY KEY (CA_ID, SERIAL_NUMBER),
 	CONSTRAINT crlr_ca_fk
 		FOREIGN KEY (CA_ID)
 		REFERENCES ca(ID)
 );
+
+CREATE UNIQUE INDEX crlr_seq
+	ON crl_revoked (SEQUENCE_NUMBER);
 
 CREATE INDEX crlr_ca_revdate
 	ON crl_revoked (CA_ID, REVOCATION_DATE);

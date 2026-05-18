@@ -1,6 +1,6 @@
 /* certwatch_db - Database schema
  * Written by Rob Stradling
- * Copyright (C) 2015-2020 Sectigo Limited
+ * Copyright (C) 2015-2026 Sectigo Limited
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -29,19 +29,32 @@ CREATE OR REPLACE FUNCTION crl_update(
 AS $$
 DECLARE
 BEGIN
+	UPDATE crl_revoked_import_temp crit
+		SET SEQUENCE_NUMBER = cr.SEQUENCE_NUMBER
+		FROM crl_revoked cr
+		WHERE cr.CA_ID = _ca_id
+			AND cr.SERIAL_NUMBER = crit.SERIAL_NUMBER
+			AND coalesce(cr.REASON_CODE, -1) = coalesce(crit.REASON_CODE, -1)
+			AND cr.REVOCATION_DATE = crit.REVOCATION_DATE;
+
+	UPDATE crl_revoked_import_temp crit
+		SET SEQUENCE_NUMBER = nextval('crl_revoked_seq'::regclass)
+		WHERE crit.SEQUENCE_NUMBER IS NULL;
+
 	INSERT INTO crl_revoked (
-			CA_ID, SERIAL_NUMBER, REASON_CODE,
-			REVOCATION_DATE, LAST_SEEN_CHECK_DATE
+			SEQUENCE_NUMBER, REVOCATION_DATE, LAST_SEEN_CHECK_DATE,
+			CA_ID, REASON_CODE, SERIAL_NUMBER
 		)
-		SELECT _ca_id, crit.SERIAL_NUMBER, min(crit.REASON_CODE),
-				min(crit.REVOCATION_DATE), _last_checked
+		SELECT min(crit.SEQUENCE_NUMBER), min(crit.REVOCATION_DATE), _last_checked,
+				_ca_id, min(crit.REASON_CODE), crit.SERIAL_NUMBER
 			FROM crl_revoked_import_temp crit
 			GROUP BY crit.SERIAL_NUMBER
 		ON CONFLICT ON CONSTRAINT crlr_pk
 			DO UPDATE
-			SET REASON_CODE = excluded.REASON_CODE,
+			SET SEQUENCE_NUMBER = excluded.SEQUENCE_NUMBER,
 				REVOCATION_DATE = excluded.REVOCATION_DATE,
-				LAST_SEEN_CHECK_DATE = excluded.LAST_SEEN_CHECK_DATE;
+				LAST_SEEN_CHECK_DATE = excluded.LAST_SEEN_CHECK_DATE,
+				REASON_CODE = excluded.REASON_CODE;
 
 	UPDATE crl
 		SET THIS_UPDATE = _this_update,
