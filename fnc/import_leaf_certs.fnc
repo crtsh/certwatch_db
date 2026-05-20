@@ -1,6 +1,6 @@
 /* certwatch_db - Database schema
  * Written by Rob Stradling
- * Copyright (C) 2015-2023 Sectigo Limited
+ * Copyright (C) 2015-2026 Sectigo Limited
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -17,7 +17,7 @@
  */
 
 CREATE OR REPLACE FUNCTION import_leaf_certs(
-) RETURNS TABLE(CERTIFICATE_ID bigint, SHA256_CERT bytea)
+) RETURNS TABLE(CERTIFICATE_ID bigint, SHA256_CERT bytea, IS_NEW_CERT bool)
 AS $$
 BEGIN
 	-- Determine which (pre)certificates are already known.
@@ -42,7 +42,7 @@ BEGIN
 
 	-- Return all (new and existing) of the leaf (pre)certificate IDs and SHA-256 fingerprints.
 	RETURN QUERY
-	SELECT ilct.CERTIFICATE_ID, ilct.SHA256_X509
+	SELECT ilct.CERTIFICATE_ID, ilct.SHA256_X509, ilct.IS_NEW_CERT
 		FROM importleafcerts_temp ilct;
 END;
 $$ LANGUAGE plpgsql;
