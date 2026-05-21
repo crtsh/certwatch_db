@@ -4930,7 +4930,7 @@ $.ajax({
 			|| '; Valid from ' || to_char(l_record.NOT_BEFORE, 'YYYY-MM-DD') || ' to '
 			|| t_temp || '</title>
     <published>' || to_char(l_record.NOT_BEFORE, 'YYYY-MM-DD"T"HH24:MI:SS"Z"') || '</published>
-    <updated>' || to_char(l_record.ENTRY_TIMESTAMP, 'YYYY-MM-DD"T"HH24:MI:SS"Z"') || '</updated>
+    <updated>' || coalesce(to_char(l_record.ENTRY_TIMESTAMP, 'YYYY-MM-DD"T"HH24:MI:SS"Z"'), '') || '</updated>
   </entry>
 ';
 				ELSIF t_outputType = 'json' THEN
