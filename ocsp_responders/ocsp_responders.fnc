@@ -205,7 +205,8 @@ BEGIN
 	END IF;
 
 	t_output :=
-'  <SPAN class="whiteongrey">OCSP Responders</SPAN>
+'  <SPAN class="title">OCSP Responders</SPAN>
+  </DIV>
   <BR><SPAN class="small">Generated at ' || TO_CHAR(statement_timestamp() AT TIME ZONE 'UTC', 'YYYY-MM-DD HH24:MI:SS') || ' UTC</SPAN>
 <BR><BR>
 <SCRIPT type="text/javascript">

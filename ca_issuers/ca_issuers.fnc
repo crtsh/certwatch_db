@@ -152,7 +152,8 @@ BEGIN
 	END IF;
 
 	t_output :=
-'  <SPAN class="whiteongrey">CA Issuers (Authority Info Access)</SPAN>
+'  <SPAN class="title">CA Issuers (Authority Info Access)</SPAN>
+  </DIV>
   <BR><SPAN class="small">Generated at ' || TO_CHAR(now() AT TIME ZONE 'UTC', 'YYYY-MM-DD HH24:MI:SS') || ' UTC</SPAN>
 <BR><BR>
 <SCRIPT type="text/javascript">

@@ -179,7 +179,7 @@ BEGIN
 		END IF;
 	END LOOP;
 	t_group :=
-'<BR><BR><SPAN class="title" style="color:#041C2C;background-color:' || bgColour || '"><A name="' || anchor || '">' || description || '</A></SPAN>
+'<BR><BR><SPAN class="title" style="font-size:14pt;color:#041C2C;background-color:' || bgColour || '"><A name="' || anchor || '">' || description || '</A></SPAN>
 <SPAN class="whiteongrey">' || t_serverCount::text || ' Server + ' || t_nonServerCount::text || ' Non-Server CA certificates</SPAN>
 <BR>
 <TABLE style="background-color:' || bgColour || '">

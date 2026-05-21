@@ -61,8 +61,9 @@ BEGIN
 	t_unknown := ccadb_disclosure_group(12, NULL::disclosure_status_type, 'unknown', 'Disclosed; Unknown to crt.sh or Incorrectly Encoded', '#FFFFFF');
 
 	RETURN
-'  <SPAN class="whiteongrey">Apple: CA Certificate Disclosures in CCADB</SPAN>
-  <BR><SPAN class="small">Generated at ' || TO_CHAR(statement_timestamp() AT TIME ZONE 'UTC', 'YYYY-MM-DD HH24:MI:SS') || ' UTC</SPAN>
+'  <SPAN class="title">Apple: CA Certificate Disclosures in CCADB</SPAN>
+  </DIV>
+  <SPAN class="small">Generated at ' || TO_CHAR(statement_timestamp() AT TIME ZONE 'UTC', 'YYYY-MM-DD HH24:MI:SS') || ' UTC</SPAN>
 <BR><BR>
 <TABLE>
   <TR>

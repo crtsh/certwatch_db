@@ -99,7 +99,8 @@ BEGIN
 				END;
 
 	t_output :=
-'  <SPAN class="whiteongrey">Test Websites</SPAN>
+'  <SPAN class="title">Test Websites</SPAN>
+  </DIV>
   <BR><SPAN class="small">Generated at ' || TO_CHAR(statement_timestamp() AT TIME ZONE 'UTC', 'YYYY-MM-DD HH24:MI:SS') || ' UTC</SPAN>
 <BR><BR>
 <TABLE>

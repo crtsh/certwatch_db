@@ -545,7 +545,7 @@ Access-Control-Allow-Origin: *
   <TITLE>crt.sh | ' || html_escape(t_title) || '</TITLE>
   <META name="description" content="Free CT Log Certificate Search Tool from Sectigo (formerly Comodo CA)">
   <META name="keywords" content="crt.sh, CT, Certificate Transparency, Certificate Search, SSL Certificate, Sectigo, Comodo CA">
-  <LINK href="//fonts.googleapis.com/css?family=Roboto+Mono|Roboto:400,400i,700,700i" rel="stylesheet">
+  <LINK href="//fonts.googleapis.com/css2?family=DM+Sans:ital,wght@0,400;0,500;0,600;0,700;1,700&family=Urbanist:wght@700&family=Roboto+Mono&display=swap" rel="stylesheet">
 ';
 		IF (t_type = 'Certificate ASN.1')
 				OR ((t_type = 'ocsp-response') AND (coalesce(get_parameter('type', paramNames, paramValues), 'dump') = 'asn1')) THEN
@@ -605,20 +605,30 @@ Access-Control-Allow-Origin: *
 		IF t_type NOT IN ('mozilla-disclosures', 'microsoft-disclosures', 'apple-disclosures', 'chrome-disclosures', 'ca-issuers', 'ocsp-responders', 'test-websites') THEN
 			t_output := t_output ||
 '    a {
+      color: #015258;
+      text-decoration: underline;
       white-space: nowrap;
     }
 ';
 		ELSIF t_type = 'ca-issuers' THEN
 			t_output := t_output ||
 '    a {
+      color: #015258;
+      text-decoration: underline;
       word-wrap: break-word;
+    }
+';
+		ELSE
+			t_output := t_output ||
+'    a {
+      color: #015258;
+      text-decoration: underline;
     }
 ';
 		END IF;
 		t_output := t_output ||
 '    body {
-      color: #888888;
-      font: 12pt Roboto, sans-serif;
+      font: 12pt "DM Sans", sans-serif;
       padding-top: 10px;
       text-align: center
     }
@@ -629,29 +639,59 @@ Access-Control-Allow-Origin: *
       border-radius: 10px
     }
     span.heading {
-      color: #888888;
-      font: 12pt Roboto, sans-serif
+      color: #333132;
+      font: 12pt "DM Sans", sans-serif
     }
-    span.title {
-      background-color: #00B373;
+    span.crtsh {
+      background-color: #015258;
       color: #FFFFFF;
-      font: bold 18pt Roboto, sans-serif;
-      padding: 0px 5px
+      font: bold 30px "Urbanist", sans-serif;
+      padding: 2px 20px;
+      border-radius: 6px
     }
     span.text {
       color: #888888;
-      font: 10pt Roboto, sans-serif
+      font: 10pt "DM Sans", sans-serif
     }
-    span.whiteongrey {
-      background-color: #D9D9D6;
-      color: #FFFFFF;
-      font: bold 18pt Roboto, sans-serif;
-      padding: 0px 5px
+    span.title {
+      color: #333132;
+      font: bold 30px "Urbanist", sans-serif;
+      padding: 10px 12px
+    }
+    .header {
+      position: relative;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 32px;
+      flex-wrap: wrap
+    }
+    .header-extras {
+      position: absolute;
+      left: calc(50% + 250px);
+      top: 50%;
+      transform: translateY(-50%);
+      display: flex;
+      align-items: center;
+      gap: 24px
+    }
+    .header-icons {
+      display: flex;
+      align-items: center;
+      gap: 16px
+    }
+    .header-icons A {
+      display: inline-flex
+    }
+    .header-link {
+      font: 8pt "DM Sans", sans-serif;
+      color: #014149;
+      text-decoration: underline
     }
     table {
       border-collapse: collapse;
       color: #222222;
-      font: 10pt Roboto, sans-serif;
+      font: 10pt "DM Sans", sans-serif;
       margin-left: auto;
       margin-right: auto
     }
@@ -672,7 +712,7 @@ Access-Control-Allow-Origin: *
     }
     th.heading {
       color: #888888;
-      font: bold italic 12pt Roboto, sans-serif;
+      font: bold italic 12pt "DM Sans", sans-serif;
       padding: 20px 0px 0px;
       text-align: center
     }
@@ -681,13 +721,24 @@ Access-Control-Allow-Origin: *
       vertical-align: middle
     }
     td.text {
-      font: 10pt "Roboto Mono", sans-serif;
+      font: 10pt "Roboto Mono", monospace;
       padding: 2px 20px
+    }
+    table.identities td {
+      font: 9pt "DM Mono", monospace;
+      padding: 4px 8px
+    }
+    table.identities.compact td {
+      font-size: 8pt;
+      padding: 0 8px
+    }
+    table.identities.compact th {
+      font-size: 9pt
     }
     td.heading {
       border: none;
       color: #888888;
-      font: 12pt Roboto, sans-serif;
+      font: 12pt "DM Sans", sans-serif;
       padding-top: 20px;
       text-align: center
     }
@@ -695,22 +746,38 @@ Access-Control-Allow-Origin: *
       text-align: center
     }
     .button {
-      background-color: #00B373;
-      border-radius: 10px;
+      background-color: #015258;
+      border: none;
+      border-radius: 1280px;
       color: #FFFFFF;
-      font: bold 13pt Roboto, sans-serif
+      cursor: pointer;
+      font: 600 16px "DM Sans", sans-serif;
+      padding: 4px 8px
     }
     .copyright {
-      font: 8pt Roboto, sans-serif;
-      color: #00B373
-    }
-    .input {
-      border: 1px solid #888888;
-      font-weight: bold;
+      font: 8pt "DM Sans", sans-serif;
+      color: #000000;
       text-align: center
     }
+    .copyright a {
+      color: #015258
+    }
+    .input {
+      border: 1px solid #015258;
+      border-radius: 6px;
+      font: 500 14px "DM Sans", sans-serif;
+      height: 44px;
+      width: 528px;
+      box-sizing: border-box;
+      padding: 0 12px;
+      text-align: center
+    }
+    .input:focus {
+      border-color: #015258;
+      outline: none
+    }
     .small {
-      font: 8pt Roboto, sans-serif;
+      font: 8pt "DM Sans", sans-serif;
       color: #888888
     }
     .error {
@@ -737,7 +804,8 @@ Access-Control-Allow-Origin: *
   </STYLE>
 </HEAD>
 <BODY>
-  <A style="text-decoration:none" href="/"><SPAN class="title">crt.sh</SPAN></A>&nbsp;';
+  <DIV class="header">
+    <A style="text-decoration:none" href="/"><SPAN class="crtsh">crt.sh</SPAN></A>';
 	END IF;
 
 	IF t_type = 'Invalid value' THEN
@@ -745,18 +813,20 @@ Access-Control-Allow-Origin: *
 
 	ELSIF t_type = 'Simple' THEN
 		t_output := t_output ||
-' <SPAN class="whiteongrey">Certificate Search</SPAN>
-  <BR><BR><BR><BR>
-  Enter an <B>Identity</B> (Domain Name, Organization Name, etc),
-  <BR>a <B>Certificate Fingerprint</B> (SHA-1 or SHA-256) or a <B>crt.sh ID</B>:
-  <BR><BR>
+' <SPAN class="title">Certificate Search</SPAN>
+  </DIV>
+  <BR><BR><BR>
+  <DIV style="font:500 18px/28px ''DM Sans'',sans-serif;color:#333132;max-width:576px;margin:0 auto">
+    Enter an <B>Identity</B> (Domain Name, Organization Name, etc),
+    <BR>a <B>Certificate Fingerprint</B> (SHA-1 or SHA-256), or a <B>crt.sh ID</B>:
+  </DIV>
+  <BR>
   <FORM name="search_form" method="GET" onsubmit="return (this.q.value != '''')">
-    <INPUT type="text" class="input" name="q" size="64" maxlength="255">
+    <INPUT type="text" class="input" name="q" maxlength="255">
     <BR><BR><BR>
-    <INPUT type="submit" class="button" value="Search">
-    <SPAN style="position:absolute">
-      &nbsp; &nbsp; &nbsp;
-      <A style="font-size:8pt;vertical-align:sub" href="?a=1">Advanced...</A>
+    <SPAN style="position:relative;display:inline-block">
+      <INPUT type="submit" class="button" value="Search">
+      <A style="position:absolute;left:100%;top:50%;transform:translateY(-50%);margin-left:24px;font:600 14px/20px ''DM Sans'',sans-serif;color:#014149;text-decoration:none;white-space:nowrap" href="?a=1">Advanced...</A>
     </SPAN>
   </FORM>
   <SCRIPT type="text/javascript">
@@ -765,8 +835,9 @@ Access-Control-Allow-Origin: *
 
 	ELSIF t_type = 'Advanced' THEN
 		t_output := t_output ||
-' <SPAN class="whiteongrey">Certificate Search</SPAN>
-  <BR><BR><BR>
+' <SPAN class="title">Certificate Search</SPAN>
+  </DIV>
+  <BR>
   <SCRIPT type="text/javascript">
     function doSearch(
       type,
@@ -900,11 +971,10 @@ Access-Control-Allow-Origin: *
 		t_output := t_output || '> Search on <SPAN style="vertical-align:-30%"><IMG src="/censys.png"></SPAN>?
           </DIV>
           <BR>
-          <INPUT type="submit" class="button" value="Search"
-                 onClick="doSearch(document.search_form.searchtype.value,document.search_form.q.value)">
-          <SPAN style="position:absolute">
-            &nbsp; &nbsp; &nbsp;
-            <A style="font-size:8pt;vertical-align:sub" href="?">Simple...</A>
+          <SPAN style="position:relative;display:inline-block">
+            <INPUT type="submit" class="button" value="Search"
+                   onClick="doSearch(document.search_form.searchtype.value,document.search_form.q.value)">
+            <A style="position:absolute;left:100%;top:50%;transform:translateY(-50%);margin-left:24px;font:600 14px/20px ''DM Sans'',sans-serif;color:#014149;text-decoration:none;white-space:nowrap" href="?">Simple...</A>
           </SPAN>
           <BR><BR><BR><HR><BR>
           <SPAN class="heading">Select linting options:</SPAN>
@@ -996,13 +1066,15 @@ Access-Control-Allow-Origin: *
 		t_cacheControlMaxAge := -1;
 		t_groupBy := lower(coalesce(nullif(nullif(t_groupBy, ''), 'none'), 'CAOwner'));
 		t_output := t_output ||
-'  <SPAN class="whiteongrey">Certificate Populations</SPAN>&nbsp; &nbsp; &nbsp; <A style="font-size:8pt" href="?group=';
+'  <SPAN class="title">Certificate Populations</SPAN>
+  <DIV class="header-extras"><A style="font-size:8pt" href="?group=';
 		IF t_groupBy = 'rootowner' THEN
 			t_output := t_output || 'CAOwner">Group by CA Owner';
 		ELSE
 			t_output := t_output || 'RootOwner">Group by Root Owner';
 		END IF;
-		t_output := t_output || '</A>
+		t_output := t_output || '</A></DIV>
+  </DIV>
   <BR><BR>
   <TABLE>
     <TR>
@@ -1192,9 +1264,9 @@ Access-Control-Allow-Origin: *
 		t_temp := lower(coalesce(get_parameter('recognizedBy', paramNames, paramValues), ''));
 		t_operator := get_parameter('operator', paramNames, paramValues);
 		t_output := t_output ||
-'  <SPAN class="whiteongrey">Monitored Logs</SPAN>
-  <BR>
-  <TABLE>
+'  <SPAN class="title">Monitored Logs</SPAN>
+  </DIV>
+  <TABLE class="identities compact">
     <TR><TD colspan="16" class="heading">CT Logs currently monitored';
 		IF t_temp IN ('chrome', 'chromium') THEN
 			t_output := t_output || ' (that are Usable with Chrome)';
@@ -1420,7 +1492,7 @@ Access-Control-Allow-Origin: *
       <TD colspan="10" style="border:0px"></TD>
     </TR>
   </TABLE>
-  <TABLE>
+  <BR><TABLE class="identities compact">
     <TR><TD colspan="11" class="heading">CT Logs no longer monitored:</TD></TR>
     <TR>
       <TH rowspan="2">Operator</TH>
@@ -1478,7 +1550,6 @@ Access-Control-Allow-Origin: *
 			t_output := t_output || '
     <TR>
       <TD><A class="nostyle" href="?operator=' || l_record.OPERATOR || '">' || l_record.OPERATOR_DISPLAY || '</A></TD>
-      <TD>' || l_record.URL || '</TD>
       <TD><A title="' || l_record.URL || '">' || (CASE WHEN length(l_record.URL) <= 48 THEN l_record.URL ELSE rtrim(substr(l_record.URL, 1, 48), '.') || '...' END) || '</A></TD>
       <TD>';
 			IF l_record.MMD_IN_SECONDS >= 3600 THEN
@@ -1538,7 +1609,8 @@ Access-Control-Allow-Origin: *
 
 	ELSIF t_type = 'accepted-roots-missing' THEN
 		t_output := t_output ||
-'  <SPAN class="whiteongrey">Accepted Roots Missing</SPAN>
+'  <SPAN class="title">Accepted Roots Missing</SPAN>
+  </DIV>
   <BR><BR>
   The <A href="//googlechrome.github.io/CertificateTransparency/log_policy.html" target="_blank">Chrome CT Log Policy</A> expects logs
   <A href="//googlechrome.github.io/CertificateTransparency/log_policy.html#:~:text=to%20accept%20logging%20submissions%20from%20CAs%20that%20are%20trusted%20by%20default%20in%20Chrome%20across%20all%20its%20supported%20platforms%2C%20including%20ChromeOS%2C%20Android%2C%20Linux%2C%20Windows%2C%20macOS%2C%20iOS" target="_blank">
@@ -1650,7 +1722,8 @@ Access-Control-Allow-Origin: *
 		t_onlyOneChain := lower(coalesce(get_parameter('onlyonechain', paramNames, paramValues), 'n')) = 'y';
 		IF t_temp IS NULL THEN
 			t_output := t_output ||
-'  <SPAN class="whiteongrey">Certificate Submission Assistant</SPAN>
+'  <SPAN class="title">Certificate Submission Assistant</SPAN>
+</DIV>
 <BR><BR>1. Enter a base64 encoded certificate.
 <BR><BR>2. Press the button to generate JSON that you can then submit to a log''s /ct/v1/add-chain API.
 <BR>(crt.sh will discover the trust chain for you).
@@ -1692,7 +1765,8 @@ Content-Type: application/json
       reader.readAsText(document.getElementById("fil").files[0]);
     }
   </SCRIPT>
-  <SPAN class="whiteongrey">TBSCertificate Linter</SPAN>
+  <SPAN class="title">TBSCertificate Linter</SPAN>
+  </DIV>
   <BR><BR>Pick a file or Paste a base64 encoded TBSCertificate, then press "Lint":
   <BR><BR><INPUT type="file" id="fil" onchange="handleFiles(this.files)" />
   <BR><BR><FORM method="post" name="form1">
@@ -1725,7 +1799,8 @@ Content-Type: text/plain; charset=UTF-8
       reader.readAsText(document.getElementById("fil").files[0]);
     }
   </SCRIPT>
-  <SPAN class="whiteongrey">Certificate Linter</SPAN>
+  <SPAN class="title">Certificate Linter</SPAN>
+  </DIV>
   <BR><BR>Pick a file or Paste a base64 encoded Certificate, then press "Lint":
   <BR><BR><INPUT type="file" id="fil" onchange="handleFiles(this.files)" />
   <BR><BR><FORM method="post" name="form1">
@@ -1800,7 +1875,8 @@ Content-Type: text/plain; charset=UTF-8
 
 	ELSIF t_type = 'revocation-activity' THEN
 		t_output := t_output ||
-'  <SPAN class="whiteongrey">CRL Revocation Activity</SPAN>
+'  <SPAN class="title">CRL Revocation Activity</SPAN>
+</DIV>
 <BR><SPAN class="small">CRL revocation entries per day, per Included Certificate Owner</SPAN>
 <BR><BR>
 <DIV id="root" style="text-align:left;font:8pt Roboto;font-weight:normal">
@@ -2014,16 +2090,18 @@ Content-Type: text/plain; charset=UTF-8
 			t_groupBy := 'root';
 		END IF;
 		t_output := t_output ||
-'  <SPAN class="whiteongrey">Mozilla Certificate Validations</SPAN>';
+'  <SPAN class="title">Mozilla Certificate Validations</SPAN>
+  <DIV class="header-extras" style="left:calc(50% + 360px)">';
 		IF t_groupBy IN ('owner', 'version') THEN
-			t_output := t_output || '
-&nbsp; &nbsp; &nbsp; <A style="font-size:8pt" href="?group=root">Group by Root</A>';
+			t_output := t_output ||
+'<A style="font-size:8pt" href="?group=root">Group by Root</A>';
 		END IF;
 		IF t_groupBy IN ('root', 'version') THEN
-			t_output := t_output || '
-&nbsp; &nbsp; &nbsp; <A style="font-size:8pt" href="?group=owner">Group by Owner</A>';
+			t_output := t_output ||
+'<A style="font-size:8pt" href="?group=owner">Group by Owner</A>';
 		END IF;
-		t_output := t_output || '
+		t_output := t_output || '</DIV>
+  </DIV>
   <BR><SPAN class="small"><A href="//mzl.la/2nvPgJs" target="_blank">CERT_VALIDATION_SUCCESS_BY_CA telemetry</A> for ';
 		IF t_groupBy IN ('owner', 'root') THEN
 			t_output := t_output || 'all Firefox Beta versions';
@@ -2126,7 +2204,8 @@ Content-Type: text/plain; charset=UTF-8
 
 	ELSIF t_type = 'mozilla-onecrl' THEN
 		t_output := t_output ||
-'  <SPAN class="whiteongrey">Mozilla OneCRL</SPAN>
+'  <SPAN class="title">Mozilla OneCRL</SPAN>
+</DIV>
 <BR><SPAN class="small">Generated at ' || TO_CHAR(now() AT TIME ZONE 'UTC', 'YYYY-MM-DD HH24:MI:SS') || ' UTC</SPAN>
 <BR><BR>
 <TABLE>
@@ -2269,7 +2348,8 @@ Content-Type: text/plain; charset=UTF-8
 				AND (t_type = 'Serial Number')
 			) THEN
 		t_output := t_output ||
-' <SPAN class="whiteongrey">Certificate Search</SPAN>
+' <SPAN class="title">Certificate Search</SPAN>
+</DIV>
 <BR><BR>
 ';
 
@@ -2530,9 +2610,6 @@ Content-Type: text/plain; charset=UTF-8
     <TH class="outer">Certificate Transparency</TH>
     <TD class="outer">
       <DIV style="overflow-y:scroll;height:100px">
-        <TABLE style="margin-left:0px">
-          <TR>
-            <TD>
 ';
 
 			t_temp := '';
@@ -2559,10 +2636,7 @@ Content-Type: text/plain; charset=UTF-8
 				t_temp := '  <TR><TD colspan="4">No entries found</TD></TR>';
 			END IF;
 			t_output := t_output ||
-'<TABLE class="options" style="margin-left:0px">
-  <TR>
-    <TD colspan="4" style="border:none"><I>Log entries for this certificate:</I></TD>
-  </TR>
+'<TABLE class="identities" style="margin-left:0px">
   <TR>
     <TH>Timestamp</TH>
     <TH>Entry #</TH>
@@ -2571,14 +2645,9 @@ Content-Type: text/plain; charset=UTF-8
   </TR>
 ' || t_temp ||
 '</TABLE>
-            </TD>
 ';
 
 			IF t_caID = coalesce(t_issuerCAID, -1) THEN
-				t_output := t_output ||
-'            <TD style="border:none;width:15px"></TD>
-            <TD>
-';
 				t_temp := '';
 				FOR l_record IN (
 					SELECT ctl.CHROME_INCLUSION_STATUS, ctl.APPLE_INCLUSION_STATUS, ctl.OPERATOR, ctl.URL
@@ -2624,15 +2693,11 @@ Content-Type: text/plain; charset=UTF-8
   </TR>
   ' || t_temp || '
 </TABLE>
-            </TD>
 ';
 			END IF;
 
 			t_output := t_output ||
-'            <TD style="border:none;width:15px"></TD>
-          </TR>
-        </TABLE>
-      </DIV>
+'      </DIV>
     </TD>
   </TR>
 ';
@@ -3366,7 +3431,8 @@ $.ajax({
 ';
 
 	ELSIF t_type IN ('CA ID', 'CA Name') THEN
-		t_output := t_output || ' <SPAN class="whiteongrey">CA Search</SPAN>
+		t_output := t_output || ' <SPAN class="title">CA Search</SPAN>
+</DIV>
 <BR><BR>
 ';
 
@@ -3435,7 +3501,7 @@ $.ajax({
   <TR>
     <TH class="outer">Certificates</TH>
     <TD class="outer">
-<TABLE class="options" style="margin-left:0px">
+<TABLE class="options identities" style="margin-left:0px">
   <TR>
 ';
 			IF t_showMozillaDisclosure THEN
@@ -3730,7 +3796,7 @@ $.ajax({
         <TABLE class="options" style="margin-left:0px">
           <TR>
             <TD class="options" style="padding-right:20px;vertical-align:top">
-              <TABLE class="options" style="margin-left:0px">
+              <TABLE class="options identities" style="margin-left:0px">
                 <TR>
                   <TH>Population</TH>
                   <TD style="text-align:center">Unexpired</TD>
@@ -3773,8 +3839,8 @@ $.ajax({
             <TD class="options" style="padding-left:20px;vertical-align:top">
               <SPAN class="text">Enter search term:</SPAN><BR><SPAN class="small">(% = All certificates)</SPAN>
               <BR><BR>
-              <INPUT type="text" name="idvalue" class="input" size="25" style="margin-top:2px">
-              <BR><BR><BR>
+              <INPUT type="text" name="idvalue" class="input" size="25" style="margin-top:2px;width:240px">
+              <BR><BR>
               <INPUT type="submit" class="button" value="Search"
                      onClick="identitySearch(document.search_form.idtype.value,document.search_form.idvalue.value)">
             </TD>
@@ -4174,36 +4240,39 @@ $.ajax({
 
 		IF t_outputType = 'html' THEN
 			t_output := t_output ||
-'  <SPAN class="whiteongrey">Identity Search</SPAN>
+'  <SPAN class="title">Identity Search</SPAN>
 ';
 
 			IF t_caID IS NULL THEN
 				t_temp := urlEncode(t_cmd) || '=' || urlEncode(t_value) || coalesce(t_excludeExpired, '')
 							|| coalesce(t_excludeCAsString, '') || t_minNotBeforeString;
 				t_output := t_output ||
-'  <SPAN style="position:absolute">
-    &nbsp; &nbsp; &nbsp; <A href="atom?' || t_temp || '"><IMG src="/feed-icon-28x28.png"></A>
-    <A href="csv?' || t_temp || '"><IMG src="/csv-icon-28x28.png"></A>
+'  <DIV class="header-extras">
+    <DIV class="header-icons">
+      <A href="atom?' || t_temp || '"><IMG src="/atom.svg" width="48" height="48"></A>
+      <A href="csv?' || t_temp || '"><IMG src="/csv.svg" width="48" height="48"></A>
 ';
 				IF t_isJSONOutputSupported THEN
 					t_output := t_output ||
-'				<A href="json?' || t_temp || '"><IMG src="/json-icon-28x28.png"></A>
+'      <A href="json?' || t_temp || '"><IMG src="/json.svg" width="48" height="48"></A>
 ';
 				END IF;
 				t_output := t_output ||
-'    &nbsp; &nbsp; &nbsp; <A style="font-size:8pt" href="?' || t_temp || '&dir=' || t_direction || '&sort=' || t_sort::text;
+'    </DIV>
+    <A class="header-link" href="?' || t_temp || '&dir=' || t_direction || '&sort=' || t_sort::text;
 				IF t_groupBy = 'none' THEN
 					t_output := t_output || '&group=icaid">Group';
 				ELSE
 					t_output := t_output || '&group=none">Ungroup';
 				END IF;
 				t_output := t_output || ' by Issuer</A>
-  </SPAN>
+  </DIV>
 ';
 			END IF;
 
 			t_output := t_output ||
-'<BR><BR>
+'  </DIV>
+<BR>
 <TABLE>
   <TR>
     <TH class="outer">Criteria</TH>
@@ -4423,7 +4492,7 @@ $.ajax({
 ';
 				IF t_showIdentity THEN
 					t_text := t_text ||
-'    <TD>' || replace(html_escape(l_record.NAME_VALUE), chr(10), '<BR>') || '</TD>
+'    <TD style="white-space:nowrap">' || replace(html_escape(l_record.NAME_VALUE), chr(10), '<BR>') || '</TD>
 ';
 				END IF;
 				t_text := t_text ||
@@ -4480,7 +4549,7 @@ $.ajax({
     <TD class="outer">';
 			IF t_text != '' THEN
 				t_output := t_output || '
-<TABLE>
+<TABLE class="identities">
 ';
 				IF (t_pageNo IS NOT NULL) AND (t_count > t_resultsPerPage) THEN
 					t_output := t_output ||
@@ -4878,7 +4947,7 @@ $.ajax({
     <TD style="text-align:center;white-space:nowrap">' || to_char(l_record.NOT_AFTER, 'YYYY-MM-DD');
 						IF t_commonName_field IS NOT NULL THEN
 							t_temp2 := t_temp2 || '</TD>
-    <TD>' || coalesce(html_escape(l_record.COMMON_NAME), '&nbsp;');
+    <TD style="white-space:nowrap">' || coalesce(html_escape(l_record.COMMON_NAME), '&nbsp;');
 						END IF;
 					ELSIF (l_record.NUM_CERTS = 1)
 							AND (l_record.ID IS NOT NULL) THEN
@@ -4894,7 +4963,7 @@ $.ajax({
 						t_temp2 := t_temp2 || l_record.NUM_CERTS::text;
 					END IF;
 					t_temp2 := t_temp2 || '</TD>
-    <TD>';
+    <TD' || CASE WHEN t_showIdentity THEN ' style="white-space:nowrap"' ELSE '' END || '>';
 					IF t_showIdentity THEN
 						t_temp2 := t_temp2 || replace(html_escape(l_record.NAME_VALUE), chr(10), '<BR>') || '</TD>
     <TD>';
@@ -5037,7 +5106,7 @@ Content-Type: application/atom+xml
     <TD class="outer">';
 				IF t_text != '' THEN
 					t_output := t_output || '
-<TABLE>
+<TABLE class="identities">
   <TR>
 ';
 					IF coalesce(t_groupBy, '') = 'none' THEN
@@ -5158,7 +5227,8 @@ Content-Type: text/csv
 
 		IF t_outputType = 'html' THEN
 			t_output := t_output ||
-'  <SPAN class="whiteongrey">' || t_type || '</SPAN>
+'  <SPAN class="title">' || t_type || '</SPAN>
+  </DIV>
 ';
 		END IF;
 
@@ -5390,7 +5460,8 @@ Content-Type: text/csv
 
 		IF t_outputType = 'html' THEN
 			t_output := t_output ||
-'  <SPAN class="whiteongrey">' || t_type || '</SPAN>
+'  <SPAN class="title">' || t_type || '</SPAN>
+  </DIV>
   <BR><BR>
   For certificates with <B>notBefore >= ' || to_char(t_minNotBefore, 'YYYY-MM-DD') || '</B>:
   <BR><BR>
@@ -5505,7 +5576,8 @@ Content-Type: text/csv
 		END IF;
 
 	ELSE
-		t_output := t_output || ' <SPAN class="whiteongrey">Error</SPAN>
+		t_output := t_output || ' <SPAN class="title">Error</SPAN>
+</DIV>
 <BR><BR>''' || name || ''' is an unsupported action!
 ';
 
@@ -5530,9 +5602,9 @@ Content-Type: text/html; charset=UTF-8
 		END IF;
 		t_output := t_output || '
   <P class="copyright">&copy; <A href="//sectigo.com/">Sectigo</A> Limited 2015-2026. All rights reserved.</P>
-  <DIV>
-    <A href="https://sectigo.com/"><IMG src="/sectigo_s.png"></A>
-    &nbsp;<A href="https://github.com/crtsh"><IMG src="/GitHub-Mark-32px.png"></A>
+  <DIV style="display:flex;align-items:center;justify-content:center;gap:16px;flex-wrap:wrap">
+    <A href="https://sectigo.com/"><IMG src="/sectigo.svg" width="48" height="48"></A>
+    <A href="https://github.com/crtsh"><IMG src="/github.svg" width="40" height="40"></A>
   </DIV>
 </BODY>
 </HTML>';

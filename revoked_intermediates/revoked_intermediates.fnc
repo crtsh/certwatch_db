@@ -32,7 +32,8 @@ DECLARE
 	l_record				RECORD;
 BEGIN
 	t_output :=
-'  <SPAN class="whiteongrey">Revoked Intermediate CA Certificates with id-kp-serverAuth Trust</SPAN>
+'  <SPAN class="title">Revoked Intermediate CA Certificates with id-kp-serverAuth Trust</SPAN>
+  </DIV>
   <BR><SPAN class="small">Generated at ' || TO_CHAR(statement_timestamp() AT TIME ZONE 'UTC', 'YYYY-MM-DD HH24:MI:SS') || ' UTC</SPAN>
 <BR><BR>
 <TABLE>

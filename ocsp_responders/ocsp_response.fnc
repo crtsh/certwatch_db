@@ -41,7 +41,8 @@ BEGIN
 		WHERE ca.ID = caID;
 
 	t_output :=
-'  <SPAN class="whiteongrey">OCSP Response</SPAN>
+'  <SPAN class="title">OCSP Response</SPAN>
+  </DIV>
 <BR><BR>
 <TABLE>
   <TR>
