@@ -2350,7 +2350,7 @@ Content-Type: text/plain; charset=UTF-8
 		t_output := t_output ||
 ' <SPAN class="title">Certificate Search</SPAN>
 </DIV>
-<BR><BR>
+<BR>
 ';
 
 		t_certSummary := 'Leaf certificate';
