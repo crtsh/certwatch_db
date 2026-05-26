@@ -2735,7 +2735,7 @@ Content-Type: text/plain; charset=UTF-8
 					END IF;
 					t_temp := t_temp ||
 '  <TR>
-    <TD style="vertical-align:middle">' || coalesce(l_record.AUDITOR, '') || '</TD>
+    <TD style="vertical-align:middle">' || coalesce(l_record.AUDIT_FIRM, '') || '</TD>
     <TD style="vertical-align:middle">' || coalesce(l_record.STANDARD_AUDIT_TYPE, 'Not disclosed');
 					IF coalesce(l_record.STANDARD_AUDIT_URL, '') LIKE '%://%' THEN
 						t_temp := t_temp || ':
