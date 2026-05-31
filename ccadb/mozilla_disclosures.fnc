@@ -1,6 +1,6 @@
 /* certwatch_db - Database schema
  * Written by Rob Stradling
- * Copyright (C) 2015-2020 Sectigo Limited
+ * Copyright (C) 2015-2026 Sectigo Limited
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -26,12 +26,12 @@ DECLARE
 	t_constrainedSummary			text;
 	t_incomplete					text[];
 	t_incompleteSummary				text;
-	t_incomplete2					text[];
-	t_incomplete2Summary			text;
 	t_inconsistentAudit				text[];
 	t_inconsistentAuditSummary		text;
 	t_inconsistentCPS				text[];
 	t_inconsistentCPSSummary		text;
+	t_incomplete2					text[];
+	t_incomplete2Summary			text;
 	t_trustRevoked					text[];
 	t_notTrusted					text[];
 	t_expired						text[];
@@ -63,12 +63,12 @@ BEGIN
 	t_constrainedSummary := ccadb_disclosure_group_summary(5, 'TechnicallyConstrained', 'constrainedsummary', '#FE838A');
 	t_incomplete := ccadb_disclosure_group2(5, 'DisclosureIncomplete', 'disclosureincomplete', 'Certificate disclosed, but CP/CPS, Audit, or CRL details missing or incorrect: Further Disclosure is required!', '#FE838A');
 	t_incompleteSummary := ccadb_disclosure_group_summary(5, 'DisclosureIncomplete', 'disclosureincompletesummary', '#FE838A');
-	t_incomplete2 := ccadb_disclosure_group2(5, 'CRLDisclosureIncompleteForPossiblyDormantCA', 'disclosureincomplete2', 'Certificate disclosed, but CRL details missing: Further Disclosure may be required!', '#FEA3AA');
-	t_incomplete2Summary := ccadb_disclosure_group_summary(5, 'CRLDisclosureIncompleteForPossiblyDormantCA', 'disclosureincomplete2summary', '#FEA3AA');
 	t_inconsistentAudit := ccadb_disclosure_group2(5, 'DisclosedWithInconsistentAudit', 'disclosedwithinconsistentaudit', 'Certificate disclosed, but Audit details for the Subject CA are inconsistent: Further Disclosure is required!', '#F8B88B');
 	t_inconsistentAuditSummary := ccadb_disclosure_group_summary(5, 'DisclosedWithInconsistentAudit', 'disclosedwithinconsistentauditsummary', '#F8B88B');
 	t_inconsistentCPS := ccadb_disclosure_group2(5, 'DisclosedWithInconsistentCPS', 'disclosedwithinconsistentcps', 'Certificate disclosed, but CP/CPS details for the Subject CA are inconsistent: Further Disclosure is required!', '#F8B88B');
 	t_inconsistentCPSSummary := ccadb_disclosure_group_summary(5, 'DisclosedWithInconsistentCPS', 'disclosedwithinconsistentcpssummary', '#F8B88B');
+	t_incomplete2 := ccadb_disclosure_group2(5, 'CRLDisclosureIncompleteForPossiblyDormantCA', 'disclosureincomplete2', 'Certificate disclosed, but CRL details not disclosed: Further Disclosure might be required', '#FAF884');
+	t_incomplete2Summary := ccadb_disclosure_group_summary(5, 'CRLDisclosureIncompleteForPossiblyDormantCA', 'disclosureincomplete2summary', '#FAF884');
 	t_trustRevoked := ccadb_disclosure_group(5, 'AllSuitablePathsRevoked', 'trustrevoked', 'Unconstrained, although all suitable unexpired paths contain at least one revoked intermediate: Disclosure is not known to be required', '#FAF884');
 	t_notTrusted := ccadb_disclosure_group(5, 'NoKnownSuitableTrustPath', 'nottrusted', 'Unconstrained, but no suitable unexpired trust paths have been observed: Disclosure is not known to be required', '#FAF884');
 	t_expired := ccadb_disclosure_group(5, 'Expired', 'expired', 'Expired: Disclosure is not required', '#BAED91');
@@ -127,13 +127,6 @@ BEGIN
       &nbsp;<A href="#disclosureincompletesummary" style="font-size:8pt">Summary</A>
     </TD>
   </TR>
-  <TR style="background-color:#FEA3AA">
-    <TD>CRL Disclosure Incomplete, but no issued certificates observed</TD>
-    <TD>Unknown</TD>
-    <TD><A href="#disclosureincomplete2">' || t_incomplete2[2] || ' + ' || t_incomplete2[3] || '</A>
-      &nbsp;<A href="#disclosureincomplete2summary" style="font-size:8pt">Summary</A>
-    </TD>
-  </TR>
   <TR style="background-color:#F8B88B">
     <TD>Disclosed, but with Inconsistent Audit details</TD>
     <TD><B><U>Yes!</U></B></TD>
@@ -146,6 +139,13 @@ BEGIN
     <TD><B><U>Yes!</U></B></TD>
     <TD><A href="#disclosedwithinconsistentcps">' || t_inconsistentCPS[2] || ' + ' || t_inconsistentCPS[3] || '</A>
       &nbsp;<A href="#disclosedwithinconsistentcpssummary" style="font-size:8pt">Summary</A>
+    </TD>
+  </TR>
+  <TR style="background-color:#FAF884">
+    <TD>Disclosed, but without CRL details</TD>
+    <TD>Unknown</TD>
+    <TD><A href="#disclosureincomplete2">' || t_incomplete2[2] || ' + ' || t_incomplete2[3] || '</A>
+      &nbsp;<A href="#disclosureincomplete2summary" style="font-size:8pt">Summary</A>
     </TD>
   </TR>
   <TR style="background-color:#FAF884">
@@ -276,12 +276,12 @@ BEGIN
 		|| t_constrainedSummary
 		|| t_incomplete[1]
 		|| t_incompleteSummary
-		|| t_incomplete2[1]
-		|| t_incomplete2Summary
 		|| t_inconsistentAudit[1]
 		|| t_inconsistentAuditSummary
 		|| t_inconsistentCPS[1]
 		|| t_inconsistentCPSSummary
+		|| t_incomplete2[1]
+		|| t_incomplete2Summary
 		|| t_trustRevoked[1]
 		|| t_notTrusted[1]
 		|| t_expired[1]

@@ -1,6 +1,6 @@
 /* certwatch_db - Database schema
  * Written by Rob Stradling
- * Copyright (C) 2015-2023 Sectigo Limited
+ * Copyright (C) 2015-2026 Sectigo Limited
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -111,7 +111,7 @@ BEGIN
 
 	t_group :=
 '<BR><BR><SPAN class="title" style="font-size:14pt;color:#041C2C;background-color:' || bgColour || '"><A name="' || anchor || '">' || description || '</A></SPAN>
-<SPAN class="whiteongrey">' || t_count::text || ' CA certificates</SPAN>
+<SPAN class="title" style="font-size:14pt">' || t_count::text || ' CA certificates</SPAN>
 <BR>
 <TABLE style="background-color:' || bgColour || '">
   <TR>
@@ -131,9 +131,15 @@ BEGIN
 '  </TR>
 ' || t_table;
 	IF t_count = 0 THEN
-		t_group := t_group ||
+		IF disclosureStatus IS NULL THEN
+			t_group := t_group ||
+'  <TR><TD colspan="7">None found</TD></TR>
+';
+		ELSE
+			t_group := t_group ||
 '  <TR><TD colspan="6">None found</TD></TR>
 ';
+		END IF;
 	END IF;
 	t_group := t_group ||
 '</TABLE>
