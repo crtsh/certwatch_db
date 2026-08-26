@@ -109,7 +109,6 @@ DECLARE
 	t_entryTimestamp_field	text;
 	t_query				text;
 	t_sort				integer;
-	t_needMinEntryTimestamp	boolean;
 	t_groupBy			text			:= 'none';
 	t_groupByParameter	text			:= 'none';
 	t_direction			text;
@@ -4611,17 +4610,30 @@ $.ajax({
 <BR><BR>Value not permitted: ''%''';
 			END IF;
 
-			t_needMinEntryTimestamp := TRUE;
-
 			t_select :=		'SELECT __issuer_ca_id_table__.ISSUER_CA_ID,' || chr(10) ||
 							'        ca.NAME ISSUER_NAME,__common_name_field__' || chr(10) ||
 							'        __name_value__ NAME_VALUE,' || chr(10);
 			t_from := 		'    FROM ';
 			t_where := '';
 			IF coalesce(t_groupBy, '') = 'none' THEN
+				IF t_type = 'CT Entry ID' THEN
+					t_entryTimestamp_field := 'ctle.ENTRY_TIMESTAMP';
+				ELSE
+					-- "Logged At" is retained only for "CT Entry ID" searches.
+					-- For all other search modes, legacy sort=1 is remapped to sort=2
+					-- for backward compatibility after removing the "Logged At" column.
+					IF t_sort = 1 THEN
+						t_sort := 2;
+					END IF;
+				END IF;
+
 				t_select := t_select ||
-							'        __cert_id_field__ ID,' || chr(10) ||
-							'        __entry_timestamp_field__,' || chr(10) ||
+							'        __cert_id_field__ ID,' || chr(10);
+				IF t_entryTimestamp_field IS NOT NULL THEN
+					t_select := t_select ||
+							'        __entry_timestamp_field__,' || chr(10);
+				END IF;
+				t_select := t_select ||
 							'        __not_before_field__,' || chr(10) ||
 							'        __not_after_field__,' || chr(10) ||
 							'        __serial_number_field__,' || chr(10) ||
@@ -4633,7 +4645,7 @@ $.ajax({
 				t_query :=	'    ORDER BY ';
 				IF t_sort = 0 THEN
 					t_query := t_query || 'ID ' || t_orderBy;
-				ELSIF t_sort = 1 THEN
+				ELSIF t_sort = 1 and t_entryTimestamp_field IS NOT NULL THEN
 					t_query := t_query || '__entry_timestamp_field__ ' || t_orderBy || ' NULLS LAST';
 				ELSIF t_sort = 2 THEN
 					t_query := t_query || 'NOT_BEFORE ' || t_orderBy || ', NAME_VALUE, ISSUER_NAME';
@@ -4665,14 +4677,11 @@ $.ajax({
 			t_resultCount_field := '0::bigint AS RESULT_COUNT';
 			t_sumResultCount_field := '0';
 			IF t_type = 'CT Entry ID' THEN
-				t_needMinEntryTimestamp := FALSE;
-
 				t_from := t_from || 'ct_log_entry ctle,' || chr(10) ||
 							'         ct_log ctl';
 				t_issuerCAID_table := 'c';
 				t_nameValue := 'ctl.NAME';
 				t_certID_field := 'c.ID';
-				t_entryTimestamp_field := 'ctle.ENTRY_TIMESTAMP';
 				t_joinToCertificate_table := 'ctle';
 				t_where :=	'ctle.ENTRY_ID = $1::bigint' || chr(10) ||
 							'ctle.CT_LOG_ID = ctl.ID';
@@ -4681,42 +4690,36 @@ $.ajax({
 				t_issuerCAID_table := 'c';
 				t_nameValue := 'encode(x509_serialNumber(c.CERTIFICATE), ''hex'')';
 				t_certID_field := 'c.ID';
-				t_entryTimestamp_field := 'le.ENTRY_TIMESTAMP';
 				t_where :=	'x509_serialNumber(c.CERTIFICATE) = decode($1, ''hex'')';
 			ELSIF t_type = 'Subject Key Identifier' THEN
 				t_from := t_from || 'certificate c';
 				t_issuerCAID_table := 'c';
 				t_nameValue := 'encode(x509_subjectKeyIdentifier(c.CERTIFICATE), ''hex'')';
 				t_certID_field := 'c.ID';
-				t_entryTimestamp_field := 'le.ENTRY_TIMESTAMP';
 				t_where :=	'x509_subjectKeyIdentifier(c.CERTIFICATE) = decode($1, ''hex'')';
 			ELSIF t_type = 'SHA-1(SubjectPublicKeyInfo)' THEN
 				t_from := t_from || 'certificate c';
 				t_issuerCAID_table := 'c';
 				t_nameValue := 'encode(digest(x509_publickey(c.CERTIFICATE), ''sha1''), ''hex'')';
 				t_certID_field := 'c.ID';
-				t_entryTimestamp_field := 'le.ENTRY_TIMESTAMP';
 				t_where :=	'digest(x509_publickey(c.CERTIFICATE), ''sha1'') = decode($1, ''hex'')';
 			ELSIF t_type = 'SHA-256(SubjectPublicKeyInfo)' THEN
 				t_from := t_from || 'certificate c';
 				t_issuerCAID_table := 'c';
 				t_nameValue := 'encode(digest(x509_publickey(c.CERTIFICATE), ''sha256''), ''hex'')';
 				t_certID_field := 'c.ID';
-				t_entryTimestamp_field := 'le.ENTRY_TIMESTAMP';
 				t_where :=	'digest(x509_publickey(c.CERTIFICATE), ''sha256'') = decode($1, ''hex'')';
 			ELSIF t_type = 'ChromiumNetLogSHA256SPKI' THEN
 				t_from := t_from || 'certificate c';
 				t_issuerCAID_table := 'c';
 				t_nameValue := 'encode(digest(x509_publickey(c.CERTIFICATE), ''sha256''), ''hex'')';
 				t_certID_field := 'c.ID';
-				t_entryTimestamp_field := 'le.ENTRY_TIMESTAMP';
 				t_where :=	'digest(x509_publickey(c.CERTIFICATE), ''sha256'') = decode($1, ''base64'')';
 			ELSIF t_type = 'SHA-1(Subject)' THEN
 				t_from := t_from || 'certificate c';
 				t_issuerCAID_table := 'c';
 				t_nameValue := 'encode(digest(x509_name(c.CERTIFICATE), ''sha1''), ''hex'')';
 				t_certID_field := 'c.ID';
-				t_entryTimestamp_field := 'le.ENTRY_TIMESTAMP';
 				t_where :=	'digest(x509_name(c.CERTIFICATE), ''sha1'') = decode($1, ''hex'')';
 			ELSIF lower(t_type) LIKE '%lint' THEN
 				t_from := t_from || 'lint_issue li,' || chr(10) ||
@@ -4725,7 +4728,6 @@ $.ajax({
 				t_nameValue := 'lci.LINT_ISSUE_ID::text';
 				t_certID_field := 'lci.CERTIFICATE_ID';
 				t_joinToCertificate_table := 'lci';
-				t_entryTimestamp_field := 'le.ENTRY_TIMESTAMP';
 				t_where :=  'lci.LINT_ISSUE_ID = $1::integer' || chr(10) ||
 							'lci.NOT_BEFORE_DATE >= $2' || chr(10) ||
 							'lci.CERTIFICATE_ID = c.ID' || chr(10) ||
@@ -4799,7 +4801,6 @@ $.ajax({
 							'        GROUP BY sub.CERTIFICATE' || chr(10) ||
 							')' || chr(10) ||
 							t_select;
-				t_entryTimestamp_field := 'le.ENTRY_TIMESTAMP';
 				IF (coalesce(t_groupBy, '') = 'none') AND (t_type != 'Common Name') THEN
 					t_commonName_field := chr(10) || '        ci.COMMON_NAME,';
 				END IF;
@@ -4812,15 +4813,6 @@ $.ajax({
 				t_certID_field := 'ci.ID';
 				t_resultCount_field := 'ci.RESULT_COUNT';
 				t_sumResultCount_field := 'ci.RESULT_COUNT';
-			END IF;
-
-			IF t_needMinEntryTimestamp THEN
-				t_from := t_from || chr(10) ||
-							'            LEFT JOIN LATERAL (' || chr(10) ||
-							'                SELECT min(ctle.ENTRY_TIMESTAMP) ENTRY_TIMESTAMP' || chr(10) ||
-							'                    FROM ct_log_entry ctle' || chr(10) ||
-							'                    WHERE ctle.CERTIFICATE_ID = __cert_id_field__' || chr(10) ||
-							'            ) le ON TRUE';
 			END IF;
 
 			IF t_joinToCertificate_table IS NOT NULL THEN
@@ -4864,7 +4856,7 @@ $.ajax({
 			t_query := replace(t_query, '__issuer_ca_id_table__', t_issuerCAID_table);
 			t_query := replace(t_query, '__name_value__', t_nameValue);
 			t_query := replace(t_query, '__cert_id_field__', t_certID_field);
-			t_query := replace(t_query, '__entry_timestamp_field__', t_entryTimestamp_field);
+			t_query := replace(t_query, '__entry_timestamp_field__', coalesce(t_entryTimestamp_field, ''));
 			t_query := replace(t_query, '__common_name_field__', coalesce(t_commonName_field, ''));
 			t_query := replace(t_query, '__not_before_field__', t_notBefore_field);
 			t_query := replace(t_query, '__not_after_field__', t_notAfter_field);
@@ -4904,7 +4896,11 @@ $.ajax({
 						FROM certificate c
 						WHERE c.ID = l_record.ID;
 					t_b64Certificate := replace(encode(t_certificate, 'base64'), chr(10), '');
-					t_feedUpdated := greatest(t_feedUpdated, l_record.ENTRY_TIMESTAMP);
+					IF t_entryTimestamp_field IS NOT NULL THEN
+						t_feedUpdated := greatest(t_feedUpdated, l_record.ENTRY_TIMESTAMP);
+					ELSE
+						t_feedUpdated := greatest(t_feedUpdated, l_record.NOT_BEFORE);
+					END IF;
 					t_temp2 := t_temp2 ||
 '  <entry>
     <id>https://crt.sh/?id=' || l_record.ID || '#' || t_cmd || ';' || t_value || '</id>
@@ -4930,8 +4926,16 @@ $.ajax({
 			|| '; Valid from ' || to_char(l_record.NOT_BEFORE, 'YYYY-MM-DD') || ' to '
 			|| t_temp || '</title>
     <published>' || to_char(l_record.NOT_BEFORE, 'YYYY-MM-DD"T"HH24:MI:SS"Z"') || '</published>
-    <updated>' || coalesce(to_char(l_record.ENTRY_TIMESTAMP, 'YYYY-MM-DD"T"HH24:MI:SS"Z"'), '') || '</updated>
-  </entry>
+';
+					IF t_entryTimestamp_field IS NOT NULL THEN
+						t_temp2 := t_temp2 || '    <updated>' || to_char(l_record.ENTRY_TIMESTAMP, 'YYYY-MM-DD"T"HH24:MI:SS"Z"') || '</updated>
+';
+					ELSE
+						t_temp2 := t_temp2 || '    <updated>' || to_char(l_record.NOT_BEFORE, 'YYYY-MM-DD"T"HH24:MI:SS"Z"') || '</updated>
+';
+					END IF;
+					t_temp2 := t_temp2 ||
+'  </entry>
 ';
 				ELSIF t_outputType = 'json' THEN
 					t_output := t_output || t_temp3 || row_to_json(l_record, FALSE);
@@ -4942,8 +4946,12 @@ $.ajax({
     <TD style="text-align:center">';
 					IF coalesce(t_groupBy, '') = 'none' THEN
 						t_temp2 := t_temp2 || '<A href="?id=' || l_record.ID::text || t_opt || '">' || l_record.ID::text || '</A></TD>
-    <TD style="text-align:center;white-space:nowrap">' || coalesce(to_char(l_record.ENTRY_TIMESTAMP, 'YYYY-MM-DD'), '&nbsp;') || '</TD>
-    <TD style="text-align:center;white-space:nowrap">' || to_char(l_record.NOT_BEFORE, 'YYYY-MM-DD') || '</TD>
+';
+						IF t_entryTimestamp_field IS NOT NULL THEN
+							t_temp2 := t_temp2 || '    <TD style="text-align:center;white-space:nowrap">' || coalesce(to_char(l_record.ENTRY_TIMESTAMP, 'YYYY-MM-DD'), '&nbsp;') || '</TD>
+';
+						END IF;
+						t_temp2 := t_temp2 || '    <TD style="text-align:center;white-space:nowrap">' || to_char(l_record.NOT_BEFORE, 'YYYY-MM-DD') || '</TD>
     <TD style="text-align:center;white-space:nowrap">' || to_char(l_record.NOT_AFTER, 'YYYY-MM-DD');
 						IF t_commonName_field IS NOT NULL THEN
 							t_temp2 := t_temp2 || '</TD>
@@ -4992,11 +5000,18 @@ $.ajax({
 ';
 				ELSIF t_outputType = 'csv' THEN
 					IF coalesce(t_groupBy, '') = 'none' THEN
-						t_temp2 := t_temp2 || l_record.ID::text
-									|| ',' || coalesce(to_char(l_record.ENTRY_TIMESTAMP, 'YYYY-MM-DD'), '&nbsp;')
-									|| ',' || to_char(l_record.NOT_BEFORE, 'YYYY-MM-DD')
+						t_temp2 := t_temp2 || l_record.ID::text;
+						t_csvHeaders := 'crt.sh ID';
+
+						IF t_entryTimestamp_field IS NOT NULL THEN
+							t_temp2 := t_temp2 || ',' || coalesce(to_char(l_record.ENTRY_TIMESTAMP, 'YYYY-MM-DD'), '&nbsp;');
+							t_csvHeaders := t_csvHeaders || ',Logged At';
+						END IF;
+
+						t_temp2 := t_temp2 || ',' || to_char(l_record.NOT_BEFORE, 'YYYY-MM-DD')
 									|| ',' || to_char(l_record.NOT_AFTER, 'YYYY-MM-DD');
-						t_csvHeaders := 'crt.sh ID,Logged At,Not Before,Not After';
+						t_csvHeaders := t_csvHeaders || ',Not Before,Not After';
+
 						IF t_commonName_field IS NOT NULL THEN
 							t_temp2 := t_temp2 || ',"' || coalesce(replace(l_record.COMMON_NAME, '"', '\"'), '') || '"';
 							t_csvHeaders := t_csvHeaders || ',Common Name';
@@ -5119,15 +5134,21 @@ Content-Type: application/atom+xml
 						END IF;
 						t_output := t_output ||
 '    </TH>
-    <TH style="white-space:nowrap">
+';
+						IF t_entryTimestamp_field IS NOT NULL THEN
+							t_output := t_output ||
+'    <TH style="white-space:nowrap">
       &nbsp;<A href="?' || t_temp || '&dir=' || t_oppositeDirection || '&sort=1' || t_minNotBeforeString || coalesce(t_excludeExpired, '') || coalesce(t_excludeCAsString, '') || t_groupByParameter || '">Logged At</A>&nbsp;
 ';
-						IF t_sort = 1 THEN
-							t_output := t_output || ' ' || t_dirSymbol;
+							IF t_sort = 1 THEN
+								t_output := t_output || ' ' || t_dirSymbol;
+							END IF;
+							t_output := t_output ||
+'    </TH>
+';
 						END IF;
 						t_output := t_output ||
-'    </TH>
-    <TH style="white-space:nowrap"><A href="?' || t_temp || '&dir=' || t_oppositeDirection || '&sort=2' || t_minNotBeforeString || coalesce(t_excludeExpired, '') || coalesce(t_excludeCAsString, '') || t_groupByParameter || '">Not Before</A>
+'    <TH style="white-space:nowrap"><A href="?' || t_temp || '&dir=' || t_oppositeDirection || '&sort=2' || t_minNotBeforeString || coalesce(t_excludeExpired, '') || coalesce(t_excludeCAsString, '') || t_groupByParameter || '">Not Before</A>
 ';
 						IF t_sort = 2 THEN
 							t_output := t_output || ' ' || t_dirSymbol;
