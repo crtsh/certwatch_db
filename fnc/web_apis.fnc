@@ -120,6 +120,7 @@ DECLARE
 	t_opt				text;
 	t_operator			text;
 	t_maxAge			timestamp without time zone;
+	t_replicationDelay	interval;
 	t_cacheResponse		boolean			:= FALSE;
 	t_useCachedResponse	boolean			:= FALSE;
 	t_linter			linter_type;
@@ -321,7 +322,16 @@ BEGIN
 '[BEGIN_HEADERS]
 Content-Type: application/json
 Access-Control-Allow-Origin: *
-[END_HEADERS]
+';
+		IF t_type IN ('logs.json', 'v3/logs.json') THEN
+			-- On a replica, the data we're about to return is only as fresh as the last replayed transaction.
+			t_replicationDelay := CASE		WHEN NOT pg_is_in_recovery() THEN interval '0'
+											ELSE greatest(now() - pg_last_xact_replay_timestamp(), interval '0')
+									END;
+			t_output := t_output || 'Last-Modified: ' || to_char((now() AT TIME ZONE 'UTC') - coalesce(t_replicationDelay, interval '0'), 'Dy, DD Mon YYYY HH24:MI:SS "GMT"') || chr(10);
+		END IF;
+		t_output := t_output ||
+'[END_HEADERS]
 ';
 	ELSIF t_outputType NOT IN ('html', 'atom', 'csv') THEN
 		RAISE no_data_found USING MESSAGE = 'Unsupported output type: ' || html_escape(t_outputType);
